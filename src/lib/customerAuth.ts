@@ -2,7 +2,7 @@ import { createHmac } from "crypto";
 import { cookies } from "next/headers";
 import type { NextRequest } from "next/server";
 
-const SECRET = process.env.NEXTAUTH_SECRET || "customer-secret-key";
+const SECRET = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET ?? "customer-secret-key";
 const COOKIE = "customer_token";
 const EXPIRES_DAYS = 30;
 
