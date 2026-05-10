@@ -6,6 +6,7 @@ export const authConfig: NextAuthConfig = {
     signIn: "/admin/login",
   },
   session: { strategy: "jwt" },
+  trustHost: true,
   callbacks: {
     authorized({ auth, request }) {
       const isAdminRoute = request.nextUrl.pathname.startsWith("/admin");
