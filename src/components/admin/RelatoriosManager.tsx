@@ -1,0 +1,267 @@
+"use client";
+
+import { useEffect, useState, useCallback } from "react";
+import { TrendingUp, ShoppingCart, DollarSign, MapPin, Tag, ChevronDown, XCircle } from "lucide-react";
+import { formatCurrency } from "@/lib/utils";
+
+interface MonthData { month: number; label: string; revenue: number; orders: number }
+interface StateData { state: string; revenue: number; orders: number }
+interface CategoryData { category: string; revenue: number; items: number }
+interface CancelData { reason: string; count: number; total: number }
+interface Summary { revenue: number; orders: number; ticket: number; cancelled: number }
+
+interface AnalyticsData {
+  year: number;
+  month: number;
+  years: number[];
+  monthlyRevenue: MonthData[];
+  byState: StateData[];
+  byCategory: CategoryData[];
+  byCancelReason: CancelData[];
+  summary: Summary;
+}
+
+const MONTHS = [
+  { value: 0, label: "Todo o ano" },
+  { value: 1, label: "Janeiro" }, { value: 2, label: "Fevereiro" }, { value: 3, label: "Março" },
+  { value: 4, label: "Abril" }, { value: 5, label: "Maio" }, { value: 6, label: "Junho" },
+  { value: 7, label: "Julho" }, { value: 8, label: "Agosto" }, { value: 9, label: "Setembro" },
+  { value: 10, label: "Outubro" }, { value: 11, label: "Novembro" }, { value: 12, label: "Dezembro" },
+];
+
+function BarChart({ data, valueKey, labelKey, colorClass = "bg-pink-500" }: {
+  data: Record<string, unknown>[];
+  valueKey: string;
+  labelKey: string;
+  colorClass?: string;
+}) {
+  if (data.length === 0) return <p className="text-gray-400 text-sm text-center py-8">Sem dados no período.</p>;
+  const max = Math.max(...data.map((d) => d[valueKey] as number), 1);
+  return (
+    <div className="space-y-2.5">
+      {data.map((d, i) => {
+        const val = d[valueKey] as number;
+        const pct = (val / max) * 100;
+        return (
+          <div key={i} className="flex items-center gap-3">
+            <span className="text-xs text-gray-500 w-4 text-right shrink-0">{i + 1}</span>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-semibold text-gray-700 truncate">{d[labelKey] as string}</span>
+                <span className="text-xs font-bold text-gray-900 ml-2 shrink-0">{formatCurrency(val)}</span>
+              </div>
+              <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all duration-500 ${colorClass}`}
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function MonthlyChart({ data }: { data: MonthData[] }) {
+  const max = Math.max(...data.map((d) => d.revenue), 1);
+  return (
+    <div className="flex items-end gap-1.5 h-40 pt-4">
+      {data.map((d) => {
+        const pct = (d.revenue / max) * 100;
+        const hasData = d.revenue > 0;
+        return (
+          <div key={d.month} className="flex-1 flex flex-col items-center gap-1 group relative">
+            {hasData && (
+              <div className="absolute -top-7 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-[10px] px-1.5 py-0.5 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                {formatCurrency(d.revenue)}
+              </div>
+            )}
+            <div className="w-full flex-1 flex items-end">
+              <div
+                className={`w-full rounded-t-md transition-all duration-500 ${hasData ? "bg-pink-500 group-hover:bg-pink-400" : "bg-gray-100"}`}
+                style={{ height: hasData ? `${Math.max(pct, 4)}%` : "4%" }}
+              />
+            </div>
+            <span className="text-[10px] text-gray-400 font-medium">{d.label}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+export default function RelatoriosManager() {
+  const [data, setData] = useState<AnalyticsData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [year, setYear] = useState(new Date().getFullYear());
+  const [month, setMonth] = useState(0);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/admin/analytics?year=${year}&month=${month}`);
+      setData(await res.json());
+    } finally {
+      setLoading(false);
+    }
+  }, [year, month]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const selectClass = "border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition appearance-none pr-8 cursor-pointer";
+
+  return (
+    <div className="space-y-6">
+      {/* Filters */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="relative">
+          <select value={year} onChange={(e) => setYear(Number(e.target.value))} className={selectClass}>
+            {(data?.years ?? [year]).map((y) => (
+              <option key={y} value={y}>{y}</option>
+            ))}
+          </select>
+          <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+        </div>
+        <div className="relative">
+          <select value={month} onChange={(e) => setMonth(Number(e.target.value))} className={selectClass}>
+            {MONTHS.map((m) => (
+              <option key={m.value} value={m.value}>{m.label}</option>
+            ))}
+          </select>
+          <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+        </div>
+        {loading && (
+          <div className="w-4 h-4 border-2 border-pink-400 border-t-transparent rounded-full animate-spin" />
+        )}
+      </div>
+
+      {/* Summary cards */}
+      {data && (
+        <>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            {[
+              { label: "Faturamento", value: formatCurrency(data.summary.revenue), icon: DollarSign, color: "bg-green-100 text-green-600" },
+              { label: "Pedidos", value: data.summary.orders, icon: ShoppingCart, color: "bg-blue-100 text-blue-600" },
+              { label: "Ticket médio", value: formatCurrency(data.summary.ticket), icon: TrendingUp, color: "bg-purple-100 text-purple-600" },
+              { label: "Cancelamentos", value: data.summary.cancelled, icon: XCircle, color: "bg-red-100 text-red-600" },
+            ].map(({ label, value, icon: Icon, color }) => (
+              <div key={label} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+                <div className={`inline-flex p-2.5 rounded-xl ${color} mb-3`}>
+                  <Icon size={18} />
+                </div>
+                <p className="text-2xl font-bold text-gray-900">{value}</p>
+                <p className="text-sm text-gray-500 mt-0.5">{label}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Monthly chart */}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+            <h2 className="text-base font-bold text-gray-900 mb-1">Faturamento mensal — {year}</h2>
+            <p className="text-xs text-gray-400 mb-5">Passe o mouse sobre as barras para ver o valor exato</p>
+            <MonthlyChart data={data.monthlyRevenue} />
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* By state */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+              <div className="flex items-center gap-2 mb-1">
+                <MapPin size={16} className="text-pink-500" />
+                <h2 className="text-base font-bold text-gray-900">Vendas por estado</h2>
+              </div>
+              <p className="text-xs text-gray-400 mb-5">Ordenado por faturamento (maior → menor)</p>
+              <BarChart
+                data={data.byState as unknown as Record<string, unknown>[]}
+                valueKey="revenue"
+                labelKey="state"
+                colorClass="bg-pink-500"
+              />
+            </div>
+
+            {/* By category */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+              <div className="flex items-center gap-2 mb-1">
+                <Tag size={16} className="text-purple-500" />
+                <h2 className="text-base font-bold text-gray-900">Vendas por categoria</h2>
+              </div>
+              <p className="text-xs text-gray-400 mb-5">Ordenado por faturamento (maior → menor)</p>
+              <BarChart
+                data={data.byCategory as unknown as Record<string, unknown>[]}
+                valueKey="revenue"
+                labelKey="category"
+                colorClass="bg-purple-500"
+              />
+            </div>
+          </div>
+
+          {/* Cancellations by reason */}
+          {data.byCancelReason.length > 0 && (
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+              <div className="flex items-center gap-2 mb-1">
+                <XCircle size={16} className="text-red-500" />
+                <h2 className="text-base font-bold text-gray-900">Cancelamentos por motivo</h2>
+              </div>
+              <p className="text-xs text-gray-400 mb-5">Ordenado por quantidade (maior → menor)</p>
+              <div className="space-y-3">
+                {data.byCancelReason.map((row, i) => {
+                  const max = data.byCancelReason[0].count;
+                  return (
+                    <div key={i} className="flex items-center gap-3">
+                      <span className="text-xs text-gray-500 w-4 text-right shrink-0">{i + 1}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs font-semibold text-gray-700 truncate">{row.reason}</span>
+                          <span className="text-xs font-bold text-gray-900 ml-2 shrink-0">{row.count} pedido{row.count !== 1 ? "s" : ""}</span>
+                        </div>
+                        <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                          <div className="h-full rounded-full bg-red-400 transition-all duration-500" style={{ width: `${(row.count / max) * 100}%` }} />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* State detail table */}
+          {data.byState.length > 0 && (
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+              <h2 className="text-base font-bold text-gray-900 mb-4">Detalhes por estado</h2>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-100 text-left">
+                      <th className="pb-2 px-2 font-semibold text-gray-500">#</th>
+                      <th className="pb-2 px-2 font-semibold text-gray-500">Estado</th>
+                      <th className="pb-2 px-2 font-semibold text-gray-500 text-right">Pedidos</th>
+                      <th className="pb-2 px-2 font-semibold text-gray-500 text-right">Faturamento</th>
+                      <th className="pb-2 px-2 font-semibold text-gray-500 text-right">Ticket médio</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.byState.map((row, i) => (
+                      <tr key={row.state} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                        <td className="py-2.5 px-2 text-gray-400 font-medium">{i + 1}</td>
+                        <td className="py-2.5 px-2 font-semibold text-gray-800">{row.state}</td>
+                        <td className="py-2.5 px-2 text-gray-600 text-right">{row.orders}</td>
+                        <td className="py-2.5 px-2 font-bold text-gray-900 text-right">{formatCurrency(row.revenue)}</td>
+                        <td className="py-2.5 px-2 text-gray-600 text-right">{formatCurrency(row.revenue / row.orders)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {!data && !loading && (
+        <div className="text-center py-20 text-gray-400">Erro ao carregar dados.</div>
+      )}
+    </div>
+  );
+}

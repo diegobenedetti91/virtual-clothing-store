@@ -1,0 +1,184 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model AdminUser {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String
+  createdAt DateTime @default(now())
+}
+
+model CustomerUser {
+  id        String         @id @default(cuid())
+  email     String         @unique
+  password  String
+  name      String
+  phone     String?
+  street    String?
+  number    String?
+  neighborhood String?
+  city      String?
+  state     String?
+  zipCode   String?
+  orders    Order[]
+  wishlist  WishlistItem[]
+  reviews   ProductReview[]
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+}
+
+model Category {
+  id        String    @id @default(cuid())
+  name      String
+  slug      String    @unique
+  image     String?
+  active    Boolean   @default(true)
+  products  Product[]
+  createdAt DateTime  @default(now())
+}
+
+model Product {
+  id           String         @id @default(cuid())
+  name         String
+  description  String?
+  price        Float
+  comparePrice Float?
+  images       String         @default("[]")
+  categoryId   String
+  category     Category       @relation(fields: [categoryId], references: [id])
+  sizes        String         @default("[]")
+  colors       String         @default("[]")
+  stock        Int            @default(0)
+  active       Boolean        @default(true)
+  featured     Boolean        @default(false)
+  slug         String         @unique
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  orderItems   OrderItem[]
+  wishlist     WishlistItem[]
+  navItems     NavItem[]
+  reviews      ProductReview[]
+  waitlist     WaitlistEntry[]
+}
+
+model WishlistItem {
+  id         String       @id @default(cuid())
+  customerId String
+  customer   CustomerUser @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  productId  String
+  product    Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt  DateTime     @default(now())
+
+  @@unique([customerId, productId])
+}
+
+model Order {
+  id            String        @id @default(cuid())
+  orderNumber   String        @unique
+  customerName  String
+  customerEmail String?
+  customerPhone String
+  address       String?
+  city          String?
+  state         String?
+  zipCode       String?
+  items         OrderItem[]
+  subtotal      Float
+  total         Float
+  status        String        @default("PENDING")
+  cancelReason  String?
+  trackingCode  String?
+  shippingProof String?
+  notes         String?
+  customerId    String?
+  customer      CustomerUser? @relation(fields: [customerId], references: [id])
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  order     Order   @relation(fields: [orderId], references: [id])
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  quantity  Int
+  price     Float
+  size      String?
+  color     String?
+}
+
+model NavItem {
+  id        String    @id @default(cuid())
+  label     String
+  href      String
+  active    Boolean   @default(true)
+  position  Int       @default(0)
+  createdAt DateTime  @default(now())
+  products  Product[]
+}
+
+model CompanySettings {
+  id                     String   @id @default(cuid())
+  name                   String   @default("Minha Loja")
+  logo                   String?
+  phone                  String?
+  whatsapp               String?
+  instagram              String?
+  address                String?
+  description            String?
+  primaryColor           String   @default("#ec4899")
+  bannerImages           String   @default("[]")
+  checkoutType           String   @default("whatsapp")
+  checkoutCollectEmail   Boolean  @default(false)
+  checkoutCollectAddress Boolean  @default(false)
+  checkoutMessage        String?
+  mercadoPagoPublicKey   String?
+  mercadoPagoAccessToken String?
+  updatedAt              DateTime @updatedAt
+}
+
+model ProductReview {
+  id         String       @id @default(cuid())
+  productId  String
+  product    Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+  customerId String?
+  customer   CustomerUser? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  authorName String
+  rating     Int
+  comment    String?
+  approved   Boolean      @default(false)
+  createdAt  DateTime     @default(now())
+}
+
+model WaitlistEntry {
+  id        String   @id @default(cuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  email     String
+  name      String?
+  notified  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@unique([productId, email])
+}
+
+model AbandonedCart {
+  id         String   @id @default(cuid())
+  customerId String?
+  email      String
+  cartItems  String
+  reminderSent Boolean @default(false)
+  updatedAt  DateTime @updatedAt
+  createdAt  DateTime @default(now())
+
+  @@unique([email])
+}

@@ -1,0 +1,59 @@
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { sendOrderStatusEmail, sendShippingEmail } from "@/lib/email";
+
+export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const order = await prisma.order.findUnique({
+    where: { id },
+    include: { items: { include: { product: true } } },
+  });
+  if (!order) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  return NextResponse.json(order);
+}
+
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const { status, cancelReason, trackingCode, shippingProof } = await req.json();
+
+  const updateData: Record<string, unknown> = { status };
+  if (cancelReason !== undefined) updateData.cancelReason = cancelReason;
+  if (trackingCode !== undefined) updateData.trackingCode = trackingCode;
+  if (shippingProof !== undefined) updateData.shippingProof = shippingProof;
+
+  const order = await prisma.order.update({
+    where: { id },
+    data: updateData,
+    include: { items: { include: { product: true } }, customer: true },
+  });
+
+  const emailTarget = order.customer?.email || order.customerEmail;
+  const recipientName = order.customer?.name || order.customerName;
+
+  if (emailTarget) {
+    const settings = await prisma.companySettings.findFirst({ select: { name: true } });
+    const storeName = settings?.name || "Minha Loja";
+
+    if (status === "SHIPPED") {
+      sendShippingEmail({
+        to: emailTarget,
+        customerName: recipientName,
+        orderNumber: order.orderNumber,
+        storeName,
+        trackingCode: trackingCode || undefined,
+        shippingProofUrl: shippingProof || undefined,
+      }).catch(console.error);
+    } else {
+      sendOrderStatusEmail({
+        to: emailTarget,
+        customerName: recipientName,
+        orderNumber: order.orderNumber,
+        newStatus: status,
+        storeName,
+        cancelReason: status === "CANCELLED" ? cancelReason : undefined,
+      }).catch(console.error);
+    }
+  }
+
+  return NextResponse.json(order);
+}

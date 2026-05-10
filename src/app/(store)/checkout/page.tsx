@@ -1,0 +1,388 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { useCart } from "@/hooks/useCart";
+import { useCustomer } from "@/hooks/useCustomer";
+import { formatCurrency, generateOrderNumber } from "@/lib/utils";
+import { MessageCircle, ShoppingBag, MapPin, CreditCard, Loader2 } from "lucide-react";
+import Link from "next/link";
+import { CompanySettings } from "@/types";
+
+export default function CheckoutPage() {
+  const { items, total, clearCart } = useCart();
+  const customer = useCustomer((s) => s.customer);
+  const [settings, setSettings] = useState<CompanySettings | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
+  const [notes, setNotes] = useState("");
+
+  // Address fields
+  const [street, setStreet] = useState("");
+  const [number, setNumber] = useState("");
+  const [neighborhood, setNeighborhood] = useState("");
+  const [city, setCity] = useState("");
+  const [state, setState] = useState("");
+  const [zipCode, setZipCode] = useState("");
+
+  useEffect(() => {
+    fetch("/api/settings").then((r) => r.json()).then(setSettings);
+  }, []);
+
+  useEffect(() => {
+    if (!customer) return;
+    setName((prev) => prev || customer.name);
+    setEmail((prev) => prev || customer.email);
+    // Pre-fill address and phone from saved profile
+    fetch("/api/customer/profile").then((r) => r.json()).then((p) => {
+      if (!p) return;
+      if (p.phone) setPhone((prev) => prev || p.phone);
+      if (p.street) setStreet((prev) => prev || p.street);
+      if (p.number) setNumber((prev) => prev || p.number);
+      if (p.neighborhood) setNeighborhood((prev) => prev || p.neighborhood);
+      if (p.city) setCity((prev) => prev || p.city);
+      if (p.state) setState((prev) => prev || p.state);
+      if (p.zipCode) setZipCode((prev) => prev || p.zipCode);
+    });
+  }, [customer]);
+
+  const checkoutType = settings?.checkoutType || "whatsapp";
+  const isWhatsApp = checkoutType === "whatsapp";
+  const collectEmail = settings?.checkoutCollectEmail;
+  const collectAddress = settings?.checkoutCollectAddress;
+
+  const fullAddress = collectAddress && street
+    ? `${street}, ${number}${neighborhood ? ` - ${neighborhood}` : ""}, ${city}${state ? `/${state}` : ""}${zipCode ? ` - CEP: ${zipCode}` : ""}`
+    : "";
+
+  if (items.length === 0) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 py-20 text-center">
+        <ShoppingBag size={64} className="mx-auto text-gray-300 mb-4" />
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">Carrinho vazio</h2>
+        <Link href="/produtos" className="text-pink-600 underline">Ver produtos</Link>
+      </div>
+    );
+  }
+
+
+  const buildWhatsAppMessage = (orderNumber: string): string => {
+    const intro = settings?.checkoutMessage ? settings.checkoutMessage + "\n\n" : "";
+
+    const itemLines = items
+      .map((item) => {
+        const variation = [item.size && `Tam: ${item.size}`, item.color && `Cor: ${item.color}`]
+          .filter(Boolean).join(", ");
+        return `• ${item.name}${variation ? ` (${variation})` : ""} - ${item.quantity}× ${formatCurrency(item.price)} = ${formatCurrency(item.price * item.quantity)}`;
+      })
+      .join("\n");
+
+    const lines = [
+      `${intro}🛍️ *NOVO PEDIDO - ${settings?.name || "Minha Loja"}*`,
+      ``,
+      `📋 *Nº do pedido:* ${orderNumber}`,
+      `👤 *Cliente:* ${name}`,
+      `📱 *Telefone:* ${phone}`,
+      ...(email ? [`📧 *E-mail:* ${email}`] : []),
+      ...(fullAddress ? [
+        ``,
+        `📍 *Endereço de entrega:*`,
+        `   ${street}, ${number}`,
+        ...(neighborhood ? [`   ${neighborhood}`] : []),
+        `   ${city}${state ? `/${state}` : ""}`,
+        ...(zipCode ? [`   CEP: ${zipCode}`] : []),
+      ] : []),
+      ``,
+      `*Produtos:*`,
+      itemLines,
+      ``,
+      `💰 *Total:* ${formatCurrency(total())}`,
+      `🚚 *Frete:* A combinar`,
+      ...(notes ? [``, `📝 *Observações:* ${notes}`] : []),
+      ``,
+      `_Pedido gerado em ${new Date().toLocaleString("pt-BR")}_`,
+    ];
+
+    return lines.join("\n");
+  };
+
+  const handleWhatsAppSubmit = async () => {
+    const orderNumber = generateOrderNumber();
+    await fetch("/api/orders", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        customerName: name,
+        customerEmail: email || null,
+        customerPhone: phone,
+        address: fullAddress || null,
+        city: city || null,
+        state: state || null,
+        zipCode: zipCode || null,
+        notes: notes || null,
+        customerId: customer?.id || null,
+        items: items.map((item) => ({
+          productId: item.productId,
+          quantity: item.quantity,
+          price: item.price,
+          size: item.size,
+          color: item.color,
+        })),
+      }),
+    });
+    const message = buildWhatsAppMessage(orderNumber);
+    const whatsapp = settings?.whatsapp?.replace(/\D/g, "") || "";
+    const url = `https://api.whatsapp.com/send?${whatsapp ? `phone=${whatsapp}&` : ""}text=${encodeURIComponent(message)}`;
+    clearCart();
+    if (email || customer?.email) {
+      const e = email || customer!.email;
+      fetch(`/api/cart/save?email=${encodeURIComponent(e)}`, { method: "DELETE" }).catch(() => {});
+    }
+    window.open(url, "_blank");
+  };
+
+  const handleMercadoPagoSubmit = async () => {
+    const res = await fetch("/api/checkout/mercadopago", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        customerName: name,
+        customerEmail: email || null,
+        customerPhone: phone,
+        address: fullAddress || null,
+        city: city || null,
+        state: state || null,
+        zipCode: zipCode || null,
+        notes: notes || null,
+        customerId: customer?.id || null,
+        items: items.map((item) => ({
+          productId: item.productId,
+          quantity: item.quantity,
+          size: item.size,
+          color: item.color,
+        })),
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Erro ao iniciar pagamento");
+    clearCart();
+    window.location.href = data.initPoint;
+  };
+
+  const handleSubmit = async (e: { preventDefault: () => void }) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      if (isWhatsApp) {
+        await handleWhatsAppSubmit();
+      } else {
+        await handleMercadoPagoSubmit();
+      }
+    } catch {
+      alert("Erro ao processar pedido. Tente novamente.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const inputClass = "w-full border border-gray-300 rounded-xl px-4 py-3 text-sm text-gray-900 bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition";
+  const labelClass = "block text-sm font-medium text-gray-700 mb-1.5";
+
+  const UF_LIST = [
+    "AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG",
+    "PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO",
+  ];
+
+  return (
+    <div className="bg-gray-50 min-h-screen">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        <div className="mb-8">
+          <h1 className="text-3xl font-black text-gray-900 mb-1">Finalizar pedido</h1>
+          <p className="text-gray-500 flex items-center gap-2 text-sm">
+            {isWhatsApp ? (
+              <><MessageCircle size={16} className="text-green-500" />Seu pedido será enviado via WhatsApp para combinarmos o pagamento e entrega.</>
+            ) : (
+              <><CreditCard size={16} className="text-blue-500" />Pagamento seguro via Mercado Pago — cartão, Pix ou boleto.</>
+            )}
+          </p>
+        </div>
+
+        <form onSubmit={handleSubmit}>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 space-y-5">
+
+              {/* Personal data */}
+              <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm space-y-4">
+                <h2 className="text-base font-bold text-gray-900">Seus dados</h2>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="sm:col-span-2">
+                    <label className={labelClass}>Nome completo *</label>
+                    <input required value={name} onChange={(e) => setName(e.target.value)} className={inputClass} placeholder="Seu nome completo" />
+                  </div>
+                  <div>
+                    <label className={labelClass}>WhatsApp / Telefone *</label>
+                    <input required value={phone} onChange={(e) => setPhone(e.target.value)} className={inputClass} placeholder="(00) 00000-0000" />
+                  </div>
+                  {collectEmail && (
+                    <div>
+                      <label className={labelClass}>E-mail</label>
+                      <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className={inputClass} placeholder="email@exemplo.com" />
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Address */}
+              {collectAddress && (
+                <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm space-y-4">
+                  <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
+                    <MapPin size={16} className="text-pink-500" />
+                    Endereço de entrega
+                  </h2>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="sm:col-span-2">
+                      <label className={labelClass}>Rua / Avenida *</label>
+                      <input value={street} onChange={(e) => setStreet(e.target.value)} className={inputClass} placeholder="Ex: Rua das Flores" />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Número *</label>
+                      <input value={number} onChange={(e) => setNumber(e.target.value)} className={inputClass} placeholder="Ex: 123" />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Bairro</label>
+                      <input value={neighborhood} onChange={(e) => setNeighborhood(e.target.value)} className={inputClass} placeholder="Ex: Centro" />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Cidade *</label>
+                      <input value={city} onChange={(e) => setCity(e.target.value)} className={inputClass} placeholder="Ex: São Paulo" />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Estado</label>
+                      <select value={state} onChange={(e) => setState(e.target.value)} className={inputClass}>
+                        <option value="">Selecione</option>
+                        {UF_LIST.map((uf) => <option key={uf} value={uf}>{uf}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className={labelClass}>CEP</label>
+                      <input value={zipCode} onChange={(e) => setZipCode(e.target.value)} className={inputClass} placeholder="00000-000" />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Notes */}
+              <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
+                <label className={labelClass}>Observações (opcional)</label>
+                <textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  rows={3}
+                  className={inputClass}
+                  placeholder="Alguma preferência, dúvida ou observação..."
+                />
+              </div>
+
+              {/* How it works */}
+              {isWhatsApp ? (
+                <div className="bg-green-50 border border-green-100 rounded-2xl p-4 text-sm text-green-800">
+                  <p className="font-bold mb-2 flex items-center gap-2">
+                    <MessageCircle size={15} /> Como funciona?
+                  </p>
+                  <ol className="space-y-1 text-xs list-decimal list-inside">
+                    <li>Preencha seus dados e clique em "Enviar pelo WhatsApp"</li>
+                    <li>O WhatsApp abrirá com seu pedido formatado</li>
+                    <li>Envie a mensagem e aguarde nossa resposta</li>
+                    <li>Combinaremos pagamento, frete e prazo de entrega</li>
+                  </ol>
+                </div>
+              ) : (
+                <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 text-sm text-blue-800">
+                  <p className="font-bold mb-2 flex items-center gap-2">
+                    <CreditCard size={15} /> Pagamento seguro
+                  </p>
+                  <ol className="space-y-1 text-xs list-decimal list-inside">
+                    <li>Preencha seus dados e clique em "Pagar agora"</li>
+                    <li>Você será redirecionado ao Mercado Pago</li>
+                    <li>Escolha: cartão de crédito, Pix ou boleto</li>
+                    <li>Após confirmação, seu pedido será processado automaticamente</li>
+                  </ol>
+                </div>
+              )}
+            </div>
+
+            {/* Order summary */}
+            <div className="lg:col-span-1">
+              <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm sticky top-24">
+                <h2 className="text-base font-bold text-gray-900 mb-4">Seu pedido</h2>
+
+                <div className="space-y-3 mb-4">
+                  {items.map((item) => (
+                    <div key={`${item.productId}-${item.size}-${item.color}`} className="flex items-start gap-3">
+                      <img
+                        src={item.image}
+                        alt={item.name}
+                        className="w-14 h-14 object-cover rounded-xl bg-gray-100 shrink-0"
+                        onError={(e) => { (e.target as HTMLImageElement).src = "/placeholder-product.svg"; }}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-gray-900 truncate">{item.name}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">
+                          {[item.size && `Tam: ${item.size}`, item.color && `Cor: ${item.color}`].filter(Boolean).join(" · ")}
+                        </p>
+                        <p className="text-sm font-medium text-gray-700 mt-0.5">
+                          {formatCurrency(item.price)} × {item.quantity}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="border-t border-gray-100 pt-4 space-y-1 mb-4">
+                  <div className="flex justify-between text-sm text-gray-500">
+                    <span>Subtotal</span>
+                    <span>{formatCurrency(total())}</span>
+                  </div>
+                  <div className="flex justify-between text-sm text-gray-500">
+                    <span>Frete</span>
+                    <span className="text-gray-400">A combinar</span>
+                  </div>
+                  <div className="flex justify-between font-black text-gray-900 text-lg pt-2 border-t border-gray-100">
+                    <span>Total</span>
+                    <span>{formatCurrency(total())}</span>
+                  </div>
+                </div>
+
+                {isWhatsApp ? (
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full bg-green-600 text-white py-3.5 rounded-xl font-bold hover:bg-green-700 transition-colors disabled:opacity-60 flex items-center justify-center gap-2 shadow-lg shadow-green-100"
+                  >
+                    {loading ? <Loader2 size={18} className="animate-spin" /> : <MessageCircle size={18} />}
+                    {loading ? "Gerando pedido..." : "Enviar pelo WhatsApp"}
+                  </button>
+                ) : (
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full bg-blue-600 text-white py-3.5 rounded-xl font-bold hover:bg-blue-700 transition-colors disabled:opacity-60 flex items-center justify-center gap-2 shadow-lg shadow-blue-100"
+                  >
+                    {loading ? <Loader2 size={18} className="animate-spin" /> : <CreditCard size={18} />}
+                    {loading ? "Aguarde..." : "Pagar agora"}
+                  </button>
+                )}
+                <Link href="/carrinho" className="block text-center text-sm text-gray-400 hover:text-gray-600 mt-3 transition-colors">
+                  ← Voltar ao carrinho
+                </Link>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
