@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { put } from "@vercel/blob";
 import { writeFile, mkdir, access } from "fs/promises";
 import path from "path";
 
@@ -28,11 +27,6 @@ export async function POST(req: NextRequest) {
 
     const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
     const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-
-    if (process.env.BLOB_READ_WRITE_TOKEN) {
-      const { url } = await put(filename, file, { access: "public" });
-      return NextResponse.json({ url });
-    }
 
     // Save to local filesystem (Hostinger persistent storage)
     const bytes = await file.arrayBuffer();
