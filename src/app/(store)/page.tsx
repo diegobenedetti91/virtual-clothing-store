@@ -1,5 +1,6 @@
 export const dynamic = "force-dynamic";
 
+import { connection } from "next/server";
 import { prisma } from "@/lib/prisma";
 import HeroBanner from "@/components/store/HeroBanner";
 import ProductCard from "@/components/store/ProductCard";
@@ -10,6 +11,7 @@ import { ArrowRight, Sparkles, ShieldCheck, Truck, RefreshCcw, MessageCircle } f
 import type { Product } from "@/types";
 
 export default async function HomePage() {
+  await connection();
   const [settings, featuredRaw, newArrivalsRaw] = await Promise.all([
     prisma.companySettings.findFirst(),
     prisma.product.findMany({
