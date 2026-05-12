@@ -7,15 +7,4 @@ export const authConfig: NextAuthConfig = {
   },
   session: { strategy: "jwt" },
   trustHost: true,
-  callbacks: {
-    authorized({ auth, request }) {
-      const isAdminRoute = request.nextUrl.pathname.startsWith("/admin");
-      const isLoginPage = request.nextUrl.pathname === "/admin/login";
-
-      if (isAdminRoute && !isLoginPage && !auth?.user) {
-        return Response.redirect(new URL("/admin/login", request.nextUrl));
-      }
-      return true;
-    },
-  },
 };
