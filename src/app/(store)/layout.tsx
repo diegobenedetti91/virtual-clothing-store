@@ -11,7 +11,7 @@ import CartSyncer from "@/components/store/CartSyncer";
 export default async function StoreLayout({ children }: { children: React.ReactNode }) {
   await connection();
   const [settings, navItems] = await Promise.all([
-    prisma.companySettings.findFirst({ orderBy: { updatedAt: "desc" } }).catch(() => null),
+    prisma.companySettings.findFirst({ orderBy: { updatedAt: "asc" } }).catch(() => null),
     prisma.navItem.findMany({ where: { active: true }, orderBy: [{ position: "asc" }, { createdAt: "asc" }] }).catch(() => []),
   ]);
   return (

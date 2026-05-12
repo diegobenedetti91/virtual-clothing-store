@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
   const cart = await prisma.abandonedCart.findUnique({ where: { id } });
   if (!cart) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const settings = await prisma.companySettings.findFirst({ orderBy: { updatedAt: "desc" } });
+  const settings = await prisma.companySettings.findFirst({ orderBy: { updatedAt: "asc" } });
   const storeName = settings?.name || "Minha Loja";
 
   const items = JSON.parse(cart.cartItems) as Array<{ name: string; price: number; quantity: number }>;
