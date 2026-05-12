@@ -8,10 +8,13 @@ export async function proxy(req: NextRequest) {
 
   if (!isAdminRoute) return NextResponse.next();
 
-  const token = await getToken({
-    req,
-    secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
-  });
+  const secret = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET;
+  const secureCookies = req.nextUrl.protocol === "https:";
+  const cookieName = secureCookies
+    ? "__Secure-authjs.session-token"
+    : "authjs.session-token";
+
+  const token = await getToken({ req, secret, cookieName });
 
   if (!token && !isLoginPage) {
     return NextResponse.redirect(new URL("/admin/login", req.url));
