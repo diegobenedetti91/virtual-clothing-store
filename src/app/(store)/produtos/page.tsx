@@ -12,8 +12,8 @@ export default async function ProductsPage({ searchParams }: PageProps) {
   const { category, search, menu } = await searchParams;
 
   const [categories, productsRaw, activeNavItem] = await Promise.all([
-    await prisma.category.findMany({ where: { active: true }, orderBy: { name: "asc" } }),
-    await prisma.product.findMany({
+    prisma.category.findMany({ where: { active: true }, orderBy: { name: "asc" } }),
+    prisma.product.findMany({
       where: {
         active: true,
         ...(category ? { category: { slug: category } } : {}),
@@ -25,7 +25,7 @@ export default async function ProductsPage({ searchParams }: PageProps) {
       include: { category: true, navItems: { select: { id: true, label: true } } },
       orderBy: { createdAt: "desc" },
     }),
-    menu ? await prisma.navItem.findUnique({ where: { id: menu } }) : null,
+    menu ? prisma.navItem.findUnique({ where: { id: menu } }) : null,
   ]);
   const products = productsRaw as unknown as Product[];
   const activeCategory = categories.find((c) => c.slug === category);

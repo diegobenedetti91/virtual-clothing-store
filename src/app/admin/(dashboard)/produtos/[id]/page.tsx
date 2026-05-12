@@ -6,9 +6,9 @@ import { Category, Product } from "@/types";
 export default async function EditProductPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const [product, categories, navItems] = await Promise.all([
-    await prisma.product.findUnique({ where: { id }, include: { category: true, navItems: { select: { id: true, label: true } } } }),
-    await prisma.category.findMany({ where: { active: true }, orderBy: { name: "asc" } }),
-    await prisma.navItem.findMany({ orderBy: [{ position: "asc" }, { createdAt: "asc" }] }),
+    prisma.product.findUnique({ where: { id }, include: { category: true, navItems: { select: { id: true, label: true } } } }),
+    prisma.category.findMany({ where: { active: true }, orderBy: { name: "asc" } }),
+    prisma.navItem.findMany({ orderBy: [{ position: "asc" }, { createdAt: "asc" }] }),
   ]);
 
   if (!product) notFound();
