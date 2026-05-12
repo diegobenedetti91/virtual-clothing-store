@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true });
   }
 
-  const settings = await prisma.companySettings.findFirst();
+  const settings = await prisma.companySettings.findFirst({ orderBy: { updatedAt: "desc" } });
   const accessToken = settings?.mercadoPagoAccessToken;
   if (!accessToken) return NextResponse.json({ ok: true });
 

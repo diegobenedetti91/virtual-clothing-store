@@ -31,7 +31,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const recipientName = order.customer?.name || order.customerName;
 
   if (emailTarget) {
-    const settings = await prisma.companySettings.findFirst({ select: { name: true } });
+    const settings = await prisma.companySettings.findFirst({ orderBy: { updatedAt: "desc" }, select: { name: true } });
     const storeName = settings?.name || "Minha Loja";
 
     if (status === "SHIPPED") {

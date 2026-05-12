@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 
+const ORDER = { orderBy: { updatedAt: "desc" } } as const;
+
 export async function GET() {
-  let settings = await prisma.companySettings.findFirst();
+  let settings = await prisma.companySettings.findFirst(ORDER);
   if (!settings) {
     settings = await prisma.companySettings.create({
       data: { name: "Minha Loja de Roupas" },
@@ -20,7 +22,7 @@ export async function PUT(req: NextRequest) {
     checkoutMessage, mercadoPagoPublicKey, mercadoPagoAccessToken,
   } = body;
 
-  let settings = await prisma.companySettings.findFirst();
+  let settings = await prisma.companySettings.findFirst(ORDER);
   const data = {
     name,
     logo: logo || null,
@@ -41,6 +43,8 @@ export async function PUT(req: NextRequest) {
 
   if (settings) {
     settings = await prisma.companySettings.update({ where: { id: settings.id }, data });
+    // Remove duplicate rows, keeping only the one we just updated
+    await prisma.companySettings.deleteMany({ where: { id: { not: settings.id } } });
   } else {
     settings = await prisma.companySettings.create({ data });
   }

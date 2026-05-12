@@ -94,7 +94,7 @@ export async function POST(req: NextRequest) {
   // Send confirmation email (WhatsApp flow — no gateway)
   const emailTarget = customerEmail || null;
   if (emailTarget) {
-    const settings = await prisma.companySettings.findFirst({ select: { name: true } });
+    const settings = await prisma.companySettings.findFirst({ orderBy: { updatedAt: "desc" }, select: { name: true } });
     sendOrderConfirmationEmail({
       to: emailTarget,
       customerName,

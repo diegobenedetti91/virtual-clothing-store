@@ -3,7 +3,7 @@ import SettingsForm from "@/components/admin/SettingsForm";
 import { CompanySettings } from "@/types";
 
 export default async function AdminSettingsPage() {
-  let settings = await prisma.companySettings.findFirst() as unknown as CompanySettings | null;
+  let settings = await prisma.companySettings.findFirst({ orderBy: { updatedAt: "desc" } }) as unknown as CompanySettings | null;
 
   return (
     <div>
