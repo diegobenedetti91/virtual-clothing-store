@@ -26,7 +26,11 @@ export default function AdminLoginPage() {
       });
 
       if (result?.error) {
-        setError("E-mail ou senha inválidos.");
+        if (result.error === "CredentialsSignin") {
+          setError("E-mail ou senha inválidos.");
+        } else {
+          setError(`Erro: ${result.error}`);
+        }
       } else {
         router.push("/admin");
         router.refresh();
