@@ -5,10 +5,10 @@ import { formatCurrency, formatDate, ORDER_STATUS } from "@/lib/utils";
 
 export default async function AdminDashboard() {
   const [productCount, categoryCount, orders, recentOrders] = await Promise.all([
-    prisma.product.count({ where: { active: true } }),
-    prisma.category.count({ where: { active: true } }),
-    prisma.order.findMany({ orderBy: { createdAt: "desc" } }),
-    prisma.order.findMany({
+    await prisma.product.count({ where: { active: true } }),
+    await prisma.category.count({ where: { active: true } }),
+    await prisma.order.findMany({ orderBy: { createdAt: "desc" } }),
+    await prisma.order.findMany({
       orderBy: { createdAt: "desc" },
       take: 5,
       include: { items: true },

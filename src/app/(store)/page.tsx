@@ -13,14 +13,14 @@ import type { Product } from "@/types";
 export default async function HomePage() {
   await connection();
   const [settings, featuredRaw, newArrivalsRaw] = await Promise.all([
-    prisma.companySettings.findMany({ orderBy: { updatedAt: "desc" } }).catch(() => null),
-    prisma.product.findMany({
+    await prisma.companySettings.findFirst({ orderBy: { updatedAt: "desc" } }).catch(() => null), 
+    await prisma.product.findMany({
       where: { active: true, featured: true },
       include: { category: true },
       orderBy: { createdAt: "desc" },
       take: 4,
     }),
-    prisma.product.findMany({
+    await prisma.product.findMany({
       where: { active: true },
       include: { category: true },
       orderBy: { createdAt: "desc" },
