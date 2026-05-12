@@ -98,7 +98,7 @@ export default async function HomePage() {
                   Estilo que fala por você, sem precisar dizer nada.
                 </h2>
                 <p className="text-gray-400 mt-3 max-w-xs text-sm leading-relaxed">
-                  Cada peça da {settings?.name || "nossa coleção"} foi escolhida para compor looks modernos e atemporais.
+                  {settings?.name ? `Cada peça da ${settings.name} foi escolhida para compor looks modernos e atemporais.` : "Cada peça foi escolhida para compor looks modernos e atemporais."}
                 </p>
               </div>
               <Link

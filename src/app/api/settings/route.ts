@@ -5,13 +5,8 @@ import { prisma } from "@/lib/prisma";
 const ORDER = { orderBy: { updatedAt: "desc" } } as const;
 
 export async function GET() {
-  let settings = await prisma.companySettings.findFirst(ORDER);
-  if (!settings) {
-    settings = await prisma.companySettings.create({
-      data: { name: "Minha Loja de Roupas" },
-    });
-  }
-  return NextResponse.json(settings);
+  const settings = await prisma.companySettings.findFirst(ORDER);
+  return NextResponse.json(settings ?? null);
 }
 
 export async function PUT(req: NextRequest) {

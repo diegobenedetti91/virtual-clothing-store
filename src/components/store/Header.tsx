@@ -40,7 +40,7 @@ export default function Header({ settings, navItems = [] }: HeaderProps) {
 
   useEffect(() => { setMenuOpen(false); setSearchOpen(false); }, [pathname]);
 
-  const name = settings?.name || "Minha Loja";
+  const name = settings?.name || "";
 
   const navLinks = [
     { href: "/", label: "Início" },

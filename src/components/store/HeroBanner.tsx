@@ -20,69 +20,40 @@ export default function HeroBanner({ settings }: HeroBannerProps) {
   }, [banners.length]);
 
   if (!banners.length) {
+    if (!settings?.name && !settings?.description) return null;
     return (
-      <section className="relative overflow-hidden bg-gradient-to-br from-rose-50 via-pink-50 to-fuchsia-50 min-h-[600px] flex items-center">
+      <section className="relative overflow-hidden bg-gradient-to-br from-rose-50 via-pink-50 to-fuchsia-50 min-h-[480px] flex items-center">
         <div className="absolute -top-32 -right-32 w-[600px] h-[600px] bg-pink-300/20 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -bottom-24 left-1/4 w-[480px] h-[480px] bg-fuchsia-300/15 rounded-full blur-3xl pointer-events-none" />
 
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full py-20 grid lg:grid-cols-2 gap-12 items-center">
-          <div>
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full py-20">
+          {settings.name && (
             <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black text-gray-900 leading-[1.05] tracking-tight mb-5">
-              {settings?.name || "Moda com"}
-              <br />
-              <span className="bg-gradient-to-r from-pink-600 to-fuchsia-600 bg-clip-text text-transparent">
-                estilo e
-              </span>
-              <br />
-              qualidade.
+              {settings.name}
             </h1>
-
-            {settings?.description && (
-              <p className="text-lg text-gray-500 mb-8 leading-relaxed max-w-md">
-                {settings.description}
-              </p>
-            )}
-
-            <div className="flex flex-wrap gap-3 mb-10">
-              <Link
-                href="/produtos"
-                className="inline-flex items-center gap-2 bg-pink-600 text-white px-8 py-4 rounded-2xl font-bold hover:bg-pink-700 transition-all shadow-lg hover:shadow-pink-200/60 hover:shadow-xl active:scale-[0.97]"
+          )}
+          {settings.description && (
+            <p className="text-lg text-gray-500 mb-8 leading-relaxed max-w-md">
+              {settings.description}
+            </p>
+          )}
+          <div className="flex flex-wrap gap-3">
+            <Link
+              href="/produtos"
+              className="inline-flex items-center gap-2 bg-pink-600 text-white px-8 py-4 rounded-2xl font-bold hover:bg-pink-700 transition-all shadow-lg active:scale-[0.97]"
+            >
+              Ver coleção <ArrowRight size={18} />
+            </Link>
+            {settings.instagram && (
+              <a
+                href={`https://instagram.com/${settings.instagram.replace("@", "")}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 bg-white text-gray-800 px-8 py-4 rounded-2xl font-bold hover:bg-gray-50 transition-all border border-gray-200 shadow-sm active:scale-[0.97]"
               >
-                Ver coleção
-                <ArrowRight size={18} />
-              </Link>
-              {settings?.instagram && (
-                <a
-                  href={`https://instagram.com/${settings.instagram.replace("@", "")}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 bg-white text-gray-800 px-8 py-4 rounded-2xl font-bold hover:bg-gray-50 transition-all border border-gray-200 shadow-sm active:scale-[0.97]"
-                >
-                  📷 Nosso Instagram
-                </a>
-              )}
-            </div>
-
-            <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-gray-500">
-              <span className="flex items-center gap-1.5">
-                <span className="text-green-500 font-bold">✓</span> Qualidade garantida
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="text-green-500 font-bold">✓</span> Frete a combinar
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="text-green-500 font-bold">✓</span> Atendimento pelo WhatsApp
-              </span>
-            </div>
-          </div>
-
-          <div className="hidden lg:flex items-center justify-center relative">
-            <div className="absolute w-72 h-72 bg-pink-300/30 rounded-full blur-xl" />
-            <div className="absolute w-48 h-48 bg-fuchsia-300/30 rounded-full blur-lg translate-x-16 translate-y-12" />
-            <div className="absolute w-36 h-36 bg-rose-300/25 rounded-full blur-lg -translate-x-16 -translate-y-8" />
-            <span className="relative text-[180px] select-none drop-shadow-2xl" style={{ filter: "drop-shadow(0 20px 40px rgba(236,72,153,0.25))" }}>
-              👗
-            </span>
+                📷 Nosso Instagram
+              </a>
+            )}
           </div>
         </div>
       </section>
@@ -102,9 +73,11 @@ export default function HeroBanner({ settings }: HeroBannerProps) {
       ))}
 
       <div className="relative z-10 flex flex-col items-start justify-center h-full text-white px-8 sm:px-16 max-w-3xl">
-        <h1 className="text-5xl sm:text-6xl font-black tracking-tight mb-6 drop-shadow-lg leading-tight">
-          {settings?.name || "Nossa Coleção"}
-        </h1>
+        {settings?.name && (
+          <h1 className="text-5xl sm:text-6xl font-black tracking-tight mb-6 drop-shadow-lg leading-tight">
+            {settings.name}
+          </h1>
+        )}
         {settings?.description && (
           <p className="text-white/80 text-lg mb-8 max-w-sm">{settings.description}</p>
         )}
