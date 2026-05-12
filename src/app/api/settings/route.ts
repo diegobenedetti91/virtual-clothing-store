@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 
 export async function GET() {
@@ -44,5 +45,7 @@ export async function PUT(req: NextRequest) {
     settings = await prisma.companySettings.create({ data });
   }
 
+  revalidatePath("/");
+  revalidatePath("/produtos");
   return NextResponse.json(settings);
 }
