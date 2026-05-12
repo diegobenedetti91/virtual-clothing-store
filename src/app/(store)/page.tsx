@@ -13,7 +13,7 @@ import type { Product } from "@/types";
 export default async function HomePage() {
   await connection();
   const [settings, featuredRaw, newArrivalsRaw] = await Promise.all([
-    prisma.companySettings.findFirst({ where: { updatedAt: "desc" } }),
+    prisma.companySettings.findFirst({ orderBy: { updatedAt: "desc" } }),
     prisma.product.findMany({
       where: { active: true, featured: true },
       include: { category: true },
