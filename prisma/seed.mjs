@@ -14,7 +14,7 @@ const sql = `
 INSERT OR IGNORE INTO AdminUser (id, email, password, name, createdAt)
 VALUES ('seed_admin_001', 'admin@loja.com', '${hash}', 'Administradora', '${now}');
 INSERT OR IGNORE INTO CompanySettings (id, name, description, primaryColor, bannerImages, updatedAt)
-VALUES ('seed_settings_001', 'Minha Loja de Roupas', 'As melhores roupas com estilo e qualidade', '#ec4899', '[]', '');
+VALUES ('seed_settings_001', 'Minha Loja de Roupas', 'As melhores roupas com estilo e qualidade', '#ec4899', '[]', '2021-05-11 14:15:31.165');
 `;
 
 // Write SQL to file and execute via prisma db execute
