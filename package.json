@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && prisma migrate deploy && node scripts/setup-admin.mjs && next build",
+    "build": "prisma generate && prisma migrate deploy && node scripts/setup-admin.mjs && mkdir -p public/uploads && next build",
     "start": "next start",
     "lint": "eslint",
     "seed": "ts-node --project tsconfig.json prisma/seed.ts"

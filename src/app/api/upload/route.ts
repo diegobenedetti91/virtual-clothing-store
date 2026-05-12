@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { put } from "@vercel/blob";
-import { writeFile, mkdir } from "fs/promises";
+import { writeFile, mkdir, access } from "fs/promises";
 import path from "path";
 
 const ALLOWED_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif", "application/pdf"];
 const MAX_SIZE = 10 * 1024 * 1024; // 10MB
+
+// Resolve upload dir relative to project root, works on Hostinger
+const UPLOAD_DIR = path.resolve(process.cwd(), "public", "uploads");
 
 export async function POST(req: NextRequest) {
   try {
@@ -31,14 +34,32 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ url });
     }
 
-    // Local fallback for development
+    // Save to local filesystem (Hostinger persistent storage)
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    const uploadDir = path.join(process.cwd(), "public", "uploads");
-    await mkdir(uploadDir, { recursive: true });
-    await writeFile(path.join(uploadDir, filename), buffer);
-    return NextResponse.json({ url: `/uploads/${filename}` });
-  } catch {
+
+    await mkdir(UPLOAD_DIR, { recursive: true });
+    const filePath = path.join(UPLOAD_DIR, filename);
+    await writeFile(filePath, buffer);
+
+    // Verify file was written successfully
+    await access(filePath);
+
+    const url = `/uploads/${filename}`;
+    console.log(`[upload] saved: ${filePath} → ${url}`);
+    return NextResponse.json({ url });
+  } catch (err) {
+    console.error("[upload] error:", err);
     return NextResponse.json({ error: "Erro ao fazer upload." }, { status: 500 });
+  }
+}
+
+export async function GET() {
+  // Health check: confirms uploads directory is writable
+  try {
+    await mkdir(UPLOAD_DIR, { recursive: true });
+    return NextResponse.json({ ok: true, uploadDir: UPLOAD_DIR });
+  } catch (err) {
+    return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });
   }
 }
