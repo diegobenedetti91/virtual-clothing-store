@@ -13,7 +13,7 @@ await prisma.adminUser.upsert({
   create: { email: EMAIL, password: hash, name: "Administrador" },
 });
 
-const existing = await prisma.companySettings.findFirst({ orderBy: { updatedAt: "asc" } });
+const existing = await prisma.companySettings.findFirst({ orderBy: { updatedAt: "desc" } });
 
 console.log(`✓ Admin pronto: ${EMAIL} / ${PASS}`);
 await prisma.$disconnect();

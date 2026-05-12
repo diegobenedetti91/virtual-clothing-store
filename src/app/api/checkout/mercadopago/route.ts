@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Dados incompletos" }, { status: 400 });
   }
 
-  const settings = await prisma.companySettings.findFirst({ orderBy: { updatedAt: "asc" } });
+  const settings = await prisma.companySettings.findFirst({ orderBy: { updatedAt: "desc" } });
   const accessToken = settings?.mercadoPagoAccessToken;
 
   if (!accessToken) {
