@@ -18,18 +18,23 @@ export default function AdminLoginPage() {
     setError("");
     setLoading(true);
 
-    const result = await signIn("credentials", {
-      email,
-      password,
-      redirect: false,
-    });
+    try {
+      const result = await signIn("credentials", {
+        email,
+        password,
+        redirect: false,
+      });
 
-    if (result?.error) {
-      setError("E-mail ou senha inválidos.");
+      if (result?.error) {
+        setError("E-mail ou senha inválidos.");
+      } else {
+        router.push("/admin");
+        router.refresh();
+      }
+    } catch {
+      setError("Erro ao conectar com o servidor. Tente novamente.");
+    } finally {
       setLoading(false);
-    } else {
-      router.push("/admin");
-      router.refresh();
     }
   };
 
