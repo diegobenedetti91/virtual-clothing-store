@@ -14,16 +14,6 @@ await prisma.adminUser.upsert({
 });
 
 const existing = await prisma.companySettings.findFirst();
-if (!existing) {
-  await prisma.companySettings.create({
-    data: {
-      name: "Minha Loja de Roupas",
-      description: "As melhores roupas com estilo e qualidade",
-      primaryColor: "#ec4899",
-      bannerImages: "[]",
-    },
-  });
-}
 
 console.log(`✓ Admin pronto: ${EMAIL} / ${PASS}`);
 await prisma.$disconnect();
