@@ -46,5 +46,6 @@ next-env.d.ts
 prisma/*.db
 prisma/*.db-journal
 
-# local uploads
-/public/uploads/
+# local uploads — track directory but not contents
+/public/uploads/*
+!/public/uploads/.gitkeep
