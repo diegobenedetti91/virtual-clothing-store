@@ -6,7 +6,4 @@ export default defineConfig({
   migrations: {
     path: "prisma/migrations",
   },
-  seed: {
-    run: "npx ts-node --esm prisma/seed.ts",
-  },
 });
