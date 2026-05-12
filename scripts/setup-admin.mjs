@@ -14,7 +14,7 @@ await prisma.adminUser.upsert({
 });
 
 // Deduplicate CompanySettings: keep the row with most custom data
-const DEFAULT_NAMES = ["Minha Loja de Roupas", "Minha Loja", ""];
+const DEFAULT_NAMES = [""];
 const allSettings = await prisma.companySettings.findMany();
 if (allSettings.length > 1) {
   allSettings.sort((a, b) => {

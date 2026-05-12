@@ -20,17 +20,6 @@ async function main() {
   }
 
   const existingSettings = await prisma.companySettings.findFirst();
-  if (!existingSettings) {
-    await prisma.companySettings.create({
-      data: {
-        name: "Minha Loja de Roupas",
-        description: "As melhores roupas com estilo e qualidade",
-        primaryColor: "#ec4899",
-        bannerImages: "[]",
-      },
-    });
-    console.log("✅ Configurações iniciais criadas");
-  }
 }
 
 main()
