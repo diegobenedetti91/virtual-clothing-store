@@ -39,8 +39,17 @@ export default function ProductActions({ productId, name, price, comparePrice, i
   const currentVariantStock = (() => {
     if (!hasVariantStock) return null;
     if (sizes.length > 0 && colors.length > 0) {
-      if (!selectedSize || !selectedColor) return null;
-      return variantStock.find((v) => v.size === selectedSize && v.color === selectedColor)?.stock ?? 0;
+      if (!selectedSize && !selectedColor) return null;
+      // Both selected → exact combination
+      if (selectedSize && selectedColor) {
+        return variantStock.find((v) => v.size === selectedSize && v.color === selectedColor)?.stock ?? 0;
+      }
+      // Only size selected → sum across all colors for that size
+      if (selectedSize) {
+        return variantStock.filter((v) => v.size === selectedSize).reduce((s, v) => s + (v.stock || 0), 0);
+      }
+      // Only color selected → sum across all sizes for that color
+      return variantStock.filter((v) => v.color === selectedColor).reduce((s, v) => s + (v.stock || 0), 0);
     }
     if (sizes.length > 0) {
       if (!selectedSize) return null;
