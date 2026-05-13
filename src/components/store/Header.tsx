@@ -2,13 +2,13 @@
 
 import Link from "next/link";
 import { ShoppingBag, Search, Menu, X, Heart, User } from "lucide-react";
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect } from "react";
 import { useCart } from "@/hooks/useCart";
 import { useWishlist } from "@/hooks/useWishlist";
 import { useCustomer } from "@/hooks/useCustomer";
 import { CompanySettings } from "@/types";
 import { cn } from "@/lib/utils";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 
 interface NavItemType {
   id: string;
@@ -21,15 +21,45 @@ interface HeaderProps {
   navItems?: NavItemType[];
 }
 
-interface NavLinksProps {
-  navLinks: { href: string; label: string }[];
-  pathname: string;
-  mobile?: boolean;
-}
+export default function Header({ settings, navItems = [] }: HeaderProps) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const [currentSearch, setCurrentSearch] = useState("");
+  const itemCount = useCart((s) => s.itemCount);
+  const wishlistCount = useWishlist((s) => s.count);
+  const count = itemCount();
+  const wCount = wishlistCount();
+  const pathname = usePathname();
+  const customer = useCustomer((s) => s.customer);
 
-function NavLinks({ navLinks, pathname, mobile = false }: NavLinksProps) {
-  const searchParams = useSearchParams();
-  const currentSearch = searchParams.toString();
+  useEffect(() => {
+    const handler = () => setScrolled(window.scrollY > 8);
+    window.addEventListener("scroll", handler);
+    return () => window.removeEventListener("scroll", handler);
+  }, []);
+
+  useEffect(() => {
+    setMenuOpen(false);
+    setSearchOpen(false);
+    setCurrentSearch(window.location.search.slice(1));
+  }, [pathname]);
+
+  // Also sync search on initial mount and popstate (browser back/forward)
+  useEffect(() => {
+    setCurrentSearch(window.location.search.slice(1));
+    const onPop = () => setCurrentSearch(window.location.search.slice(1));
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+
+  const name = settings?.name || "";
+
+  const navLinks = [
+    { href: "/", label: "Início" },
+    { href: "/produtos", label: "Produtos" },
+    ...navItems.map((item) => ({ href: item.href, label: item.label })),
+  ];
 
   const hasExactQueryMatch = navLinks.some((link) => {
     const [linkPath, linkQuery] = link.href.split("?");
@@ -44,129 +74,6 @@ function NavLinks({ navLinks, pathname, mobile = false }: NavLinksProps) {
     if (hasExactQueryMatch) return false;
     return pathname === href || (href !== "/" && pathname.startsWith(href));
   }
-
-  if (mobile) {
-    return (
-      <>
-        {navLinks.map((link) => {
-          const active = isActive(link.href);
-          return (
-            <Link
-              key={link.href}
-              href={link.href}
-              className={cn(
-                "flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-colors",
-                active ? "bg-pink-50 text-pink-600" : "text-gray-700 hover:bg-gray-50"
-              )}
-            >
-              {link.label}
-            </Link>
-          );
-        })}
-      </>
-    );
-  }
-
-  return (
-    <>
-      {navLinks.map((link) => {
-        const active = isActive(link.href);
-        return (
-          <Link
-            key={link.href}
-            href={link.href}
-            className={cn(
-              "relative px-4 py-2 text-sm font-semibold rounded-xl transition-colors",
-              active
-                ? "text-pink-600 bg-pink-50"
-                : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
-            )}
-          >
-            {link.label}
-            {active && (
-              <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-pink-500 rounded-full" />
-            )}
-          </Link>
-        );
-      })}
-    </>
-  );
-}
-
-function NavLinksFallback({ navLinks, pathname, mobile = false }: NavLinksProps) {
-  function isActive(href: string) {
-    return pathname === href || (href !== "/" && pathname.startsWith(href));
-  }
-
-  if (mobile) {
-    return (
-      <>
-        {navLinks.map((link) => (
-          <Link
-            key={link.href}
-            href={link.href}
-            className={cn(
-              "flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-colors",
-              isActive(link.href) ? "bg-pink-50 text-pink-600" : "text-gray-700 hover:bg-gray-50"
-            )}
-          >
-            {link.label}
-          </Link>
-        ))}
-      </>
-    );
-  }
-
-  return (
-    <>
-      {navLinks.map((link) => {
-        const active = isActive(link.href);
-        return (
-          <Link
-            key={link.href}
-            href={link.href}
-            className={cn(
-              "relative px-4 py-2 text-sm font-semibold rounded-xl transition-colors",
-              active ? "text-pink-600 bg-pink-50" : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
-            )}
-          >
-            {link.label}
-            {active && (
-              <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-pink-500 rounded-full" />
-            )}
-          </Link>
-        );
-      })}
-    </>
-  );
-}
-
-export default function Header({ settings, navItems = [] }: HeaderProps) {
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
-  const itemCount = useCart((s) => s.itemCount);
-  const wishlistCount = useWishlist((s) => s.count);
-  const count = itemCount();
-  const wCount = wishlistCount();
-  const pathname = usePathname();
-  const customer = useCustomer((s) => s.customer);
-
-  useEffect(() => {
-    const handler = () => setScrolled(window.scrollY > 8);
-    window.addEventListener("scroll", handler);
-    return () => window.removeEventListener("scroll", handler);
-  }, []);
-
-  useEffect(() => { setMenuOpen(false); setSearchOpen(false); }, [pathname]);
-
-  const name = settings?.name || "";
-
-  const navLinks = [
-    { href: "/", label: "Início" },
-    { href: "/produtos", label: "Produtos" },
-    ...navItems.map((item) => ({ href: item.href, label: item.label })),
-  ];
 
   return (
     <>
@@ -190,9 +97,26 @@ export default function Header({ settings, navItems = [] }: HeaderProps) {
 
             {/* Nav — desktop */}
             <nav className="hidden md:flex items-center gap-1 ml-2">
-              <Suspense fallback={<NavLinksFallback navLinks={navLinks} pathname={pathname} />}>
-                <NavLinks navLinks={navLinks} pathname={pathname} />
-              </Suspense>
+              {navLinks.map((link) => {
+                const active = isActive(link.href);
+                return (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    className={cn(
+                      "relative px-4 py-2 text-sm font-semibold rounded-xl transition-colors",
+                      active
+                        ? "text-pink-600 bg-pink-50"
+                        : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                    )}
+                  >
+                    {link.label}
+                    {active && (
+                      <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-pink-500 rounded-full" />
+                    )}
+                  </Link>
+                );
+              })}
             </nav>
 
             {/* Right actions */}
@@ -288,9 +212,23 @@ export default function Header({ settings, navItems = [] }: HeaderProps) {
         {menuOpen && (
           <div className="md:hidden border-t border-gray-100 bg-white">
             <nav className="max-w-7xl mx-auto px-4 py-4 space-y-1">
-              <Suspense fallback={<NavLinksFallback navLinks={navLinks} pathname={pathname} mobile />}>
-                <NavLinks navLinks={navLinks} pathname={pathname} mobile />
-              </Suspense>
+              {navLinks.map((link) => {
+                const active = isActive(link.href);
+                return (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    className={cn(
+                      "flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-colors",
+                      active
+                        ? "bg-pink-50 text-pink-600"
+                        : "text-gray-700 hover:bg-gray-50"
+                    )}
+                  >
+                    {link.label}
+                  </Link>
+                );
+              })}
               <Link
                 href="/carrinho"
                 className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
