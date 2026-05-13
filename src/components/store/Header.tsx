@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { ShoppingBag, Search, Menu, X, Heart, User } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useCart } from "@/hooks/useCart";
 import { useWishlist } from "@/hooks/useWishlist";
 import { useCustomer } from "@/hooks/useCustomer";
@@ -21,9 +21,128 @@ interface HeaderProps {
   navItems?: NavItemType[];
 }
 
+interface NavLinksProps {
+  navLinks: { href: string; label: string }[];
+  pathname: string;
+  mobile?: boolean;
+}
+
+function NavLinks({ navLinks, pathname, mobile = false }: NavLinksProps) {
+  const searchParams = useSearchParams();
+  const currentSearch = searchParams.toString();
+
+  const hasExactQueryMatch = navLinks.some((link) => {
+    const [linkPath, linkQuery] = link.href.split("?");
+    return linkQuery && pathname === linkPath && currentSearch === new URLSearchParams(linkQuery).toString();
+  });
+
+  function isActive(href: string) {
+    const [linkPath, linkQuery] = href.split("?");
+    if (linkQuery) {
+      return pathname === linkPath && currentSearch === new URLSearchParams(linkQuery).toString();
+    }
+    if (hasExactQueryMatch) return false;
+    return pathname === href || (href !== "/" && pathname.startsWith(href));
+  }
+
+  if (mobile) {
+    return (
+      <>
+        {navLinks.map((link) => {
+          const active = isActive(link.href);
+          return (
+            <Link
+              key={link.href}
+              href={link.href}
+              className={cn(
+                "flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-colors",
+                active ? "bg-pink-50 text-pink-600" : "text-gray-700 hover:bg-gray-50"
+              )}
+            >
+              {link.label}
+            </Link>
+          );
+        })}
+      </>
+    );
+  }
+
+  return (
+    <>
+      {navLinks.map((link) => {
+        const active = isActive(link.href);
+        return (
+          <Link
+            key={link.href}
+            href={link.href}
+            className={cn(
+              "relative px-4 py-2 text-sm font-semibold rounded-xl transition-colors",
+              active
+                ? "text-pink-600 bg-pink-50"
+                : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+            )}
+          >
+            {link.label}
+            {active && (
+              <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-pink-500 rounded-full" />
+            )}
+          </Link>
+        );
+      })}
+    </>
+  );
+}
+
+function NavLinksFallback({ navLinks, pathname, mobile = false }: NavLinksProps) {
+  function isActive(href: string) {
+    return pathname === href || (href !== "/" && pathname.startsWith(href));
+  }
+
+  if (mobile) {
+    return (
+      <>
+        {navLinks.map((link) => (
+          <Link
+            key={link.href}
+            href={link.href}
+            className={cn(
+              "flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-colors",
+              isActive(link.href) ? "bg-pink-50 text-pink-600" : "text-gray-700 hover:bg-gray-50"
+            )}
+          >
+            {link.label}
+          </Link>
+        ))}
+      </>
+    );
+  }
+
+  return (
+    <>
+      {navLinks.map((link) => {
+        const active = isActive(link.href);
+        return (
+          <Link
+            key={link.href}
+            href={link.href}
+            className={cn(
+              "relative px-4 py-2 text-sm font-semibold rounded-xl transition-colors",
+              active ? "text-pink-600 bg-pink-50" : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+            )}
+          >
+            {link.label}
+            {active && (
+              <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-pink-500 rounded-full" />
+            )}
+          </Link>
+        );
+      })}
+    </>
+  );
+}
+
 export default function Header({ settings, navItems = [] }: HeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
-  const searchParams = useSearchParams();
   const [searchOpen, setSearchOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const itemCount = useCart((s) => s.itemCount);
@@ -49,21 +168,6 @@ export default function Header({ settings, navItems = [] }: HeaderProps) {
     ...navItems.map((item) => ({ href: item.href, label: item.label })),
   ];
 
-  const currentSearch = searchParams.toString();
-  const hasExactQueryMatch = navLinks.some((link) => {
-    const [linkPath, linkQuery] = link.href.split("?");
-    return linkQuery && pathname === linkPath && currentSearch === new URLSearchParams(linkQuery).toString();
-  });
-
-  function isActive(href: string) {
-    const [linkPath, linkQuery] = href.split("?");
-    if (linkQuery) {
-      return pathname === linkPath && currentSearch === new URLSearchParams(linkQuery).toString();
-    }
-    if (hasExactQueryMatch) return false;
-    return pathname === href || (href !== "/" && pathname.startsWith(href));
-  }
-
   return (
     <>
       <header className={cn(
@@ -86,26 +190,9 @@ export default function Header({ settings, navItems = [] }: HeaderProps) {
 
             {/* Nav — desktop */}
             <nav className="hidden md:flex items-center gap-1 ml-2">
-              {navLinks.map((link) => {
-                const active = isActive(link.href);
-                return (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    className={cn(
-                      "relative px-4 py-2 text-sm font-semibold rounded-xl transition-colors",
-                      active
-                        ? "text-pink-600 bg-pink-50"
-                        : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
-                    )}
-                  >
-                    {link.label}
-                    {active && (
-                      <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-pink-500 rounded-full" />
-                    )}
-                  </Link>
-                );
-              })}
+              <Suspense fallback={<NavLinksFallback navLinks={navLinks} pathname={pathname} />}>
+                <NavLinks navLinks={navLinks} pathname={pathname} />
+              </Suspense>
             </nav>
 
             {/* Right actions */}
@@ -201,23 +288,9 @@ export default function Header({ settings, navItems = [] }: HeaderProps) {
         {menuOpen && (
           <div className="md:hidden border-t border-gray-100 bg-white">
             <nav className="max-w-7xl mx-auto px-4 py-4 space-y-1">
-              {navLinks.map((link) => {
-                const active = isActive(link.href);
-                return (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    className={cn(
-                      "flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-colors",
-                      active
-                        ? "bg-pink-50 text-pink-600"
-                        : "text-gray-700 hover:bg-gray-50"
-                    )}
-                  >
-                    {link.label}
-                  </Link>
-                );
-              })}
+              <Suspense fallback={<NavLinksFallback navLinks={navLinks} pathname={pathname} mobile />}>
+                <NavLinks navLinks={navLinks} pathname={pathname} mobile />
+              </Suspense>
               <Link
                 href="/carrinho"
                 className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
