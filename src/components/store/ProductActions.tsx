@@ -122,12 +122,11 @@ export default function ProductActions({ productId, name, price, comparePrice, i
                 <button
                   key={size}
                   onClick={() => setSelectedSize(size === selectedSize ? "" : size)}
-                  disabled={sizeOutOfStock && selectedColor !== ""}
                   className={`relative min-w-[52px] h-11 px-4 rounded-xl border-2 text-sm font-bold transition-all ${
                     selectedSize === size
                       ? "border-gray-900 bg-gray-900 text-white shadow-md"
                       : sizeOutOfStock && selectedColor
-                        ? "border-gray-100 text-gray-300 cursor-not-allowed"
+                        ? "border-gray-100 text-gray-300"
                         : "border-gray-200 text-gray-700 hover:border-gray-400"
                   }`}
                 >
@@ -161,12 +160,11 @@ export default function ProductActions({ productId, name, price, comparePrice, i
                 <button
                   key={color}
                   onClick={() => setSelectedColor(color === selectedColor ? "" : color)}
-                  disabled={colorOutOfStock && selectedSize !== ""}
                   className={`h-11 px-5 rounded-xl border-2 text-sm font-bold transition-all ${
                     selectedColor === color
                       ? "border-gray-900 bg-gray-900 text-white shadow-md"
                       : colorOutOfStock && selectedSize
-                        ? "border-gray-100 text-gray-300 cursor-not-allowed line-through"
+                        ? "border-gray-100 text-gray-300 line-through"
                         : "border-gray-200 text-gray-700 hover:border-gray-400"
                   }`}
                 >
