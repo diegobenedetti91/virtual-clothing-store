@@ -1,6 +1,5 @@
 export const dynamic = "force-dynamic";
 
-import { connection } from "next/server";
 import { prisma } from "@/lib/prisma";
 import HeroBanner from "@/components/store/HeroBanner";
 import ProductCard from "@/components/store/ProductCard";
@@ -10,8 +9,8 @@ import { ArrowRight, Sparkles, ShieldCheck, Truck, RefreshCcw, MessageCircle } f
 
 import type { Product } from "@/types";
 
-export default async function HomePage() {
-  await connection();
+export default async function HomePage({ searchParams }: { searchParams: Promise<Record<string, string | string[]>> }) {
+  await searchParams;
   const [settings, featuredRaw, newArrivalsRaw] = await Promise.all([
     prisma.companySettings.findFirst({ orderBy: { updatedAt: "desc" } }).catch(() => null), 
     prisma.product.findMany({
