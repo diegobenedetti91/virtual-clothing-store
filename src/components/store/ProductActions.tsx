@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ShoppingBag, Check, Heart, Package } from "lucide-react";
+import { ShoppingBag, Check, Heart, Package, Minus, Plus } from "lucide-react";
 import { useCart } from "@/hooks/useCart";
 import { useWishlist } from "@/hooks/useWishlist";
 import { formatCurrency } from "@/lib/utils";
@@ -24,8 +24,11 @@ interface Props {
 export default function ProductActions({ productId, name, price, comparePrice, image, slug, sizes, colors, stock, variantStock }: Props) {
   const [selectedSize, setSelectedSize] = useState("");
   const [selectedColor, setSelectedColor] = useState("");
+  const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
+  const [validationError, setValidationError] = useState("");
   const addItem = useCart((s) => s.addItem);
+  const cartItems = useCart((s) => s.items);
   const { toggle, has } = useWishlist();
   const inWishlist = has(productId);
 
@@ -40,15 +43,12 @@ export default function ProductActions({ productId, name, price, comparePrice, i
     if (!hasVariantStock) return null;
     if (sizes.length > 0 && colors.length > 0) {
       if (!selectedSize && !selectedColor) return null;
-      // Both selected → exact combination
       if (selectedSize && selectedColor) {
         return variantStock.find((v) => v.size === selectedSize && v.color === selectedColor)?.stock ?? 0;
       }
-      // Only size selected → sum across all colors for that size
       if (selectedSize) {
         return variantStock.filter((v) => v.size === selectedSize).reduce((s, v) => s + (v.stock || 0), 0);
       }
-      // Only color selected → sum across all sizes for that color
       return variantStock.filter((v) => v.color === selectedColor).reduce((s, v) => s + (v.stock || 0), 0);
     }
     if (sizes.length > 0) {
@@ -70,8 +70,47 @@ export default function ProductActions({ productId, name, price, comparePrice, i
     (colors.length === 0 || selectedColor !== "");
   const showWaitlist = isOutOfStock && variantFullySelected;
 
+  const existingInCart = variantFullySelected
+    ? (cartItems.find(
+        (i) =>
+          i.productId === productId &&
+          i.size === (selectedSize || undefined) &&
+          i.color === (selectedColor || undefined)
+      )?.quantity ?? 0)
+    : 0;
+
+  const maxQuantity = Math.max(0, effectiveStock - existingInCart);
+
+  const selectSize = (size: string) => {
+    setSelectedSize(size === selectedSize ? "" : size);
+    setValidationError("");
+    setQuantity(1);
+  };
+
+  const selectColor = (color: string) => {
+    setSelectedColor(color === selectedColor ? "" : color);
+    setValidationError("");
+    setQuantity(1);
+  };
+
+  const changeQty = (delta: number) =>
+    setQuantity((q) => Math.min(maxQuantity, Math.max(1, q + delta)));
+
   const handleAddToCart = () => {
     if (isOutOfStock) return;
+    if (sizes.length > 0 && !selectedSize) {
+      setValidationError("Selecione um tamanho antes de continuar");
+      return;
+    }
+    if (colors.length > 0 && !selectedColor) {
+      setValidationError("Selecione uma cor antes de continuar");
+      return;
+    }
+    if (quantity > maxQuantity) {
+      setValidationError(`Estoque insuficiente — máximo ${maxQuantity} unidade${maxQuantity !== 1 ? "s" : ""}`);
+      return;
+    }
+    setValidationError("");
     addItem({
       productId,
       name,
@@ -79,7 +118,7 @@ export default function ProductActions({ productId, name, price, comparePrice, i
       image,
       size: selectedSize || undefined,
       color: selectedColor || undefined,
-      quantity: 1,
+      quantity,
       slug,
     });
     setAdded(true);
@@ -121,7 +160,7 @@ export default function ProductActions({ productId, name, price, comparePrice, i
               return (
                 <button
                   key={size}
-                  onClick={() => setSelectedSize(size === selectedSize ? "" : size)}
+                  onClick={() => selectSize(size)}
                   className={`relative min-w-[52px] h-11 px-4 rounded-xl border-2 text-sm font-bold transition-all ${
                     selectedSize === size
                       ? "border-gray-900 bg-gray-900 text-white shadow-md"
@@ -159,7 +198,7 @@ export default function ProductActions({ productId, name, price, comparePrice, i
               return (
                 <button
                   key={color}
-                  onClick={() => setSelectedColor(color === selectedColor ? "" : color)}
+                  onClick={() => selectColor(color)}
                   className={`h-11 px-5 rounded-xl border-2 text-sm font-bold transition-all ${
                     selectedColor === color
                       ? "border-gray-900 bg-gray-900 text-white shadow-md"
@@ -185,6 +224,42 @@ export default function ProductActions({ productId, name, price, comparePrice, i
               ? `Apenas ${currentVariantStock} unidade${currentVariantStock > 1 ? "s" : ""} disponíve${currentVariantStock > 1 ? "is" : "l"}`
               : `${currentVariantStock} unidades disponíveis`}
         </p>
+      )}
+
+      {/* Quantity selector */}
+      {!isOutOfStock && (
+        <div>
+          <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Quantidade</p>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => changeQty(-1)}
+              disabled={quantity <= 1}
+              className="w-9 h-9 rounded-xl border-2 border-gray-200 flex items-center justify-center text-gray-600 hover:border-gray-400 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+            >
+              <Minus size={14} />
+            </button>
+            <span className="w-8 text-center font-bold text-gray-900 text-lg">{quantity}</span>
+            <button
+              type="button"
+              onClick={() => changeQty(1)}
+              disabled={quantity >= maxQuantity}
+              className="w-9 h-9 rounded-xl border-2 border-gray-200 flex items-center justify-center text-gray-600 hover:border-gray-400 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+            >
+              <Plus size={14} />
+            </button>
+            {existingInCart > 0 && (
+              <span className="text-xs text-amber-600 font-medium">
+                {existingInCart} já no carrinho
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Validation error */}
+      {validationError && (
+        <p className="text-sm font-medium text-red-500">{validationError}</p>
       )}
 
       {/* CTA buttons */}
