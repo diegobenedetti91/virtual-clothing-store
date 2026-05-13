@@ -49,6 +49,19 @@ export default function Header({ settings, navItems = [] }: HeaderProps) {
     ...navItems.map((item) => ({ href: item.href, label: item.label })),
   ];
 
+  const currentSearch = searchParams.toString();
+  const hasExactQueryMatch = navLinks.some(({ href }) => {
+    const [p, q] = href.split("?");
+    return q && pathname === p && currentSearch === new URLSearchParams(q).toString();
+  });
+
+  function isActive(href: string) {
+    const [p, q] = href.split("?");
+    if (q) return pathname === p && currentSearch === new URLSearchParams(q).toString();
+    if (hasExactQueryMatch) return false;
+    return pathname === href || (href !== "/" && pathname.startsWith(href));
+  }
+
   return (
     <>
       <header className={cn(
@@ -72,10 +85,7 @@ export default function Header({ settings, navItems = [] }: HeaderProps) {
             {/* Nav — desktop */}
             <nav className="hidden md:flex items-center gap-1 ml-2">
               {navLinks.map((link) => {
-                const [linkPath, linkQuery] = link.href.split("?");
-                const active = linkQuery
-                  ? pathname === linkPath && searchParams.toString() === new URLSearchParams(linkQuery).toString()
-                  : pathname === link.href || (link.href !== "/" && pathname.startsWith(link.href));
+                const active = isActive(link.href);
                 return (
                   <Link
                     key={link.href}
@@ -190,10 +200,7 @@ export default function Header({ settings, navItems = [] }: HeaderProps) {
           <div className="md:hidden border-t border-gray-100 bg-white">
             <nav className="max-w-7xl mx-auto px-4 py-4 space-y-1">
               {navLinks.map((link) => {
-                const [linkPath, linkQuery] = link.href.split("?");
-                const active = linkQuery
-                  ? pathname === linkPath && searchParams.toString() === new URLSearchParams(linkQuery).toString()
-                  : pathname === link.href || (link.href !== "/" && pathname.startsWith(link.href));
+                const active = isActive(link.href);
                 return (
                   <Link
                     key={link.href}
