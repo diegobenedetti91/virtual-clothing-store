@@ -29,7 +29,7 @@ const MONTHS = [
   { value: 10, label: "Outubro" }, { value: 11, label: "Novembro" }, { value: 12, label: "Dezembro" },
 ];
 
-function BarChart({ data, valueKey, labelKey, colorClass = "bg-pink-500" }: {
+function BarChart({ data, valueKey, labelKey, colorClass = "bg-brand" }: {
   data: Record<string, unknown>[];
   valueKey: string;
   labelKey: string;
@@ -80,7 +80,7 @@ function MonthlyChart({ data }: { data: MonthData[] }) {
             )}
             <div className="w-full flex-1 flex items-end">
               <div
-                className={`w-full rounded-t-md transition-all duration-500 ${hasData ? "bg-pink-500 group-hover:bg-pink-400" : "bg-gray-100"}`}
+                className={`w-full rounded-t-md transition-all duration-500 ${hasData ? "bg-brand hover:opacity-90" : "bg-gray-100"}`}
                 style={{ height: hasData ? `${Math.max(pct, 4)}%` : "4%" }}
               />
             </div>
@@ -176,7 +176,7 @@ export default function RelatoriosManager() {
                 data={data.byState as unknown as Record<string, unknown>[]}
                 valueKey="revenue"
                 labelKey="state"
-                colorClass="bg-pink-500"
+                colorClass="bg-brand"
               />
             </div>
 

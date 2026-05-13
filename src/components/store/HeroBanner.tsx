@@ -40,7 +40,7 @@ export default function HeroBanner({ settings }: HeroBannerProps) {
           <div className="flex flex-wrap gap-3">
             <Link
               href="/produtos"
-              className="inline-flex items-center gap-2 bg-pink-600 text-white px-8 py-4 rounded-2xl font-bold hover:bg-pink-700 transition-all shadow-lg active:scale-[0.97]"
+              className="inline-flex items-center gap-2 bg-brand text-white px-8 py-4 rounded-2xl font-bold hover:opacity-90 transition-all shadow-lg active:scale-[0.97]"
             >
               Ver coleção <ArrowRight size={18} />
             </Link>
@@ -83,7 +83,7 @@ export default function HeroBanner({ settings }: HeroBannerProps) {
         )}
         <Link
           href="/produtos"
-          className="inline-flex items-center gap-2 bg-white text-gray-900 px-8 py-4 rounded-2xl font-bold hover:bg-pink-600 hover:text-white transition-all shadow-xl active:scale-[0.97]"
+          className="inline-flex items-center gap-2 bg-white text-gray-900 px-8 py-4 rounded-2xl font-bold hover:bg-brand hover:text-white transition-all shadow-xl active:scale-[0.97]"
         >
           Ver coleção <ArrowRight size={18} />
         </Link>

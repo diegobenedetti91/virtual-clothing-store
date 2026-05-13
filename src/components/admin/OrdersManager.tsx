@@ -218,7 +218,7 @@ export default function OrdersManager({ initialOrders }: Props) {
               <button onClick={() => setConfirm(null)} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors">
                 Cancelar
               </button>
-              <button onClick={confirmStatusChange} className="flex-1 py-2.5 rounded-xl bg-pink-600 text-white text-sm font-semibold hover:bg-pink-700 transition-colors">
+              <button onClick={confirmStatusChange} className="flex-1 py-2.5 rounded-xl bg-brand text-white text-sm font-semibold hover:opacity-90 transition-colors">
                 Confirmar
               </button>
             </div>

@@ -113,7 +113,7 @@ export default function WaitlistManager() {
             key={f}
             onClick={() => setFilter(f)}
             className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
-              filter === f ? "bg-pink-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              filter === f ? "bg-brand text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
             }`}
           >
             {f === "pending" ? `Aguardando${pendingCount > 0 ? ` (${pendingCount})` : ""}` : f === "notified" ? "Notificados" : "Todos"}
@@ -159,7 +159,7 @@ export default function WaitlistManager() {
                 <button
                   onClick={() => handleNotify(group)}
                   disabled={isNotifying}
-                  className="flex items-center gap-2 px-4 py-2 bg-pink-600 hover:bg-pink-700 text-white rounded-xl text-sm font-bold transition-colors disabled:opacity-60"
+                  className="flex items-center gap-2 px-4 py-2 bg-brand hover:opacity-90 text-white rounded-xl text-sm font-bold transition-colors disabled:opacity-60"
                 >
                   <Mail size={15} />
                   {isNotifying ? "Enviando..." : "Notificar todos"}

@@ -72,7 +72,7 @@ export default function CategoryManager({ initialCategories }: Props) {
           <h2 className="font-semibold text-gray-900">Categorias ({categories.length})</h2>
           <button
             onClick={() => { setAdding(true); setForm({ name: "", image: "" }); }}
-            className="flex items-center gap-1.5 bg-pink-600 text-white px-3 py-1.5 rounded-xl text-sm font-medium hover:bg-pink-700 transition-colors"
+            className="flex items-center gap-1.5 bg-brand text-white px-3 py-1.5 rounded-xl text-sm font-medium hover:opacity-90 transition-colors"
           >
             <Plus size={14} /> Nova
           </button>
@@ -91,7 +91,7 @@ export default function CategoryManager({ initialCategories }: Props) {
             />
             <ImageUpload value={form.image} onChange={(url) => setForm({ ...form, image: url })} label="Imagem (opcional)" aspect="square" />
             <div className="flex gap-2">
-              <button onClick={handleAdd} disabled={loading} className="flex items-center gap-1 bg-pink-600 text-white px-3 py-1.5 rounded-xl text-sm hover:bg-pink-700 transition-colors disabled:opacity-60">
+              <button onClick={handleAdd} disabled={loading} className="flex items-center gap-1 bg-brand text-white px-3 py-1.5 rounded-xl text-sm hover:opacity-90 transition-colors disabled:opacity-60">
                 <Check size={14} /> Salvar
               </button>
               <button onClick={() => setAdding(false)} className="flex items-center gap-1 text-gray-600 px-3 py-1.5 rounded-xl text-sm border border-gray-200 hover:border-gray-300 transition-colors">
@@ -118,7 +118,7 @@ export default function CategoryManager({ initialCategories }: Props) {
                     />
                     <ImageUpload value={editForm.image} onChange={(url) => setEditForm({ ...editForm, image: url })} label="Imagem" aspect="square" />
                     <div className="flex gap-2">
-                      <button onClick={() => handleEdit(cat.id)} disabled={loading} className="flex items-center gap-1 bg-pink-600 text-white px-3 py-1.5 rounded-lg text-sm hover:bg-pink-700 transition-colors disabled:opacity-60">
+                      <button onClick={() => handleEdit(cat.id)} disabled={loading} className="flex items-center gap-1 bg-brand text-white px-3 py-1.5 rounded-lg text-sm hover:opacity-90 transition-colors disabled:opacity-60">
                         <Check size={13} /> Salvar
                       </button>
                       <button onClick={() => setEditing(null)} className="flex items-center gap-1 text-gray-600 px-3 py-1.5 rounded-lg text-sm border border-gray-200 hover:border-gray-300 transition-colors">

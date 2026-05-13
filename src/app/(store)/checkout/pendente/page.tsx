@@ -17,7 +17,7 @@ export default async function CheckoutPendentePage({ searchParams }: Props) {
           Seu pedido foi registrado e o pagamento está sendo processado. Se pagou por Pix ou boleto, aguarde a confirmação — pode levar alguns minutos.
         </p>
         <div className="flex flex-col gap-3">
-          <Link href="/conta" className="w-full py-3 bg-pink-600 text-white rounded-xl font-bold hover:bg-pink-700 transition-colors text-sm">
+          <Link href="/conta" className="w-full py-3 bg-brand text-white rounded-xl font-bold hover:opacity-90 transition-colors text-sm">
             Ver meus pedidos
           </Link>
           <Link href="/produtos" className="w-full py-3 bg-gray-100 text-gray-700 rounded-xl font-bold hover:bg-gray-200 transition-colors text-sm">

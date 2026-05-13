@@ -103,7 +103,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
               </div>
               <Link
                 href="/produtos"
-                className="shrink-0 inline-flex items-center gap-2 bg-pink-600 hover:bg-pink-500 text-white font-bold px-8 py-4 rounded-2xl transition-all shadow-lg shadow-pink-900/30 active:scale-[0.97]"
+                className="shrink-0 inline-flex items-center gap-2 bg-brand hover:bg-pink-500 text-white font-bold px-8 py-4 rounded-2xl transition-all shadow-lg shadow-pink-900/30 active:scale-[0.97]"
               >
                 Explorar coleção <ArrowRight size={18} />
               </Link>

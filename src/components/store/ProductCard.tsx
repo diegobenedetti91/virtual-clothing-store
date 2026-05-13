@@ -70,7 +70,7 @@ export default function ProductCard({ product }: ProductCardProps) {
         {/* Badges */}
         <div className="absolute top-3 left-3 flex flex-col gap-1.5">
           {product.featured && (
-            <span className="bg-pink-600 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-sm tracking-wide uppercase">
+            <span className="bg-brand text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-sm tracking-wide uppercase">
               Destaque
             </span>
           )}
@@ -86,7 +86,7 @@ export default function ProductCard({ product }: ProductCardProps) {
           onClick={handleWishlist}
           className={`absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 shadow-sm ${
             inWishlist
-              ? "bg-pink-600 text-white opacity-100"
+              ? "bg-brand text-white opacity-100"
               : "bg-white/90 backdrop-blur text-gray-400 opacity-0 group-hover:opacity-100 hover:bg-pink-50 hover:text-pink-600"
           }`}
           aria-label={inWishlist ? "Remover dos favoritos" : "Adicionar aos favoritos"}
@@ -101,7 +101,7 @@ export default function ProductCard({ product }: ProductCardProps) {
             className={`w-full py-2.5 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 shadow-lg transition-colors ${
               added
                 ? "bg-green-500 text-white"
-                : "bg-white text-gray-900 hover:bg-pink-600 hover:text-white"
+                : "bg-white text-gray-900 hover:bg-brand hover:text-white"
             }`}
           >
             {added ? <Check size={14} /> : <ShoppingBag size={14} />}

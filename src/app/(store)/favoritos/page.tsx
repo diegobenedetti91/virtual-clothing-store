@@ -18,7 +18,7 @@ export default function FavoritosPage() {
         </div>
         <h2 className="text-2xl font-bold text-gray-900 mb-2">Sua lista de favoritos está vazia</h2>
         <p className="text-gray-400 mb-8">Clique no coração em qualquer produto para salvá-lo aqui.</p>
-        <Link href="/produtos" className="inline-flex items-center gap-2 bg-pink-600 text-white px-8 py-3.5 rounded-2xl font-bold hover:bg-pink-700 transition-colors">
+        <Link href="/produtos" className="inline-flex items-center gap-2 bg-brand text-white px-8 py-3.5 rounded-2xl font-bold hover:opacity-90 transition-colors">
           Ver produtos
         </Link>
       </div>
@@ -56,7 +56,7 @@ export default function FavoritosPage() {
             <div className="flex gap-2 mt-3">
               <button
                 onClick={() => addItem({ ...item, quantity: 1 })}
-                className="flex-1 flex items-center justify-center gap-1.5 bg-pink-600 text-white py-2 rounded-xl text-xs font-bold hover:bg-pink-700 transition-colors"
+                className="flex-1 flex items-center justify-center gap-1.5 bg-brand text-white py-2 rounded-xl text-xs font-bold hover:opacity-90 transition-colors"
               >
                 <ShoppingBag size={13} /> Adicionar
               </button>

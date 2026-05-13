@@ -218,7 +218,7 @@ export default function AdminMenuPage() {
           <button
             type="submit"
             disabled={adding}
-            className="w-full py-2.5 bg-pink-600 text-white text-sm font-bold rounded-xl hover:bg-pink-700 transition-colors disabled:opacity-60"
+            className="w-full py-2.5 bg-brand text-white text-sm font-bold rounded-xl hover:opacity-90 transition-colors disabled:opacity-60"
           >
             {adding ? "Adicionando..." : "Adicionar ao menu"}
           </button>

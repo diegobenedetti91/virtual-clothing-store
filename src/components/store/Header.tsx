@@ -147,7 +147,7 @@ export default function Header({ settings, navItems = [] }: HeaderProps) {
               >
                 <Heart size={19} />
                 {wCount > 0 && (
-                  <span className="absolute top-1 right-1 bg-pink-600 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center leading-none">
+                  <span className="absolute top-1 right-1 bg-brand text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center leading-none">
                     {wCount > 9 ? "9+" : wCount}
                   </span>
                 )}
@@ -161,7 +161,7 @@ export default function Header({ settings, navItems = [] }: HeaderProps) {
               >
                 <ShoppingBag size={19} />
                 {count > 0 && (
-                  <span className="absolute top-1 right-1 bg-pink-600 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center leading-none">
+                  <span className="absolute top-1 right-1 bg-brand text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center leading-none">
                     {count > 9 ? "9+" : count}
                   </span>
                 )}
@@ -223,7 +223,7 @@ export default function Header({ settings, navItems = [] }: HeaderProps) {
                 <ShoppingBag size={16} />
                 Carrinho
                 {count > 0 && (
-                  <span className="ml-auto bg-pink-600 text-white text-xs font-bold rounded-full px-2 py-0.5">
+                  <span className="ml-auto bg-brand text-white text-xs font-bold rounded-full px-2 py-0.5">
                     {count}
                   </span>
                 )}

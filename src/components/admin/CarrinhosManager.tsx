@@ -69,7 +69,7 @@ export default function CarrinhosManager() {
                   <button
                     onClick={() => handleSend(cart.id)}
                     disabled={sending === cart.id}
-                    className="shrink-0 flex items-center gap-2 px-4 py-2.5 bg-pink-600 text-white rounded-xl text-sm font-bold hover:bg-pink-700 transition-colors disabled:opacity-60"
+                    className="shrink-0 flex items-center gap-2 px-4 py-2.5 bg-brand text-white rounded-xl text-sm font-bold hover:opacity-90 transition-colors disabled:opacity-60"
                   >
                     <Send size={14} />
                     {sending === cart.id ? "Enviando..." : "Enviar lembrete"}

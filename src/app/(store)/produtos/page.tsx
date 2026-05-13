@@ -65,7 +65,7 @@ export default async function ProductsPage({ searchParams }: PageProps) {
               </div>
               <button
                 type="submit"
-                className="bg-pink-600 text-white px-6 py-3 rounded-2xl text-sm font-bold hover:bg-pink-700 transition-colors shadow-sm shrink-0"
+                className="bg-brand text-white px-6 py-3 rounded-2xl text-sm font-bold hover:opacity-90 transition-colors shadow-sm shrink-0"
               >
                 Buscar
               </button>
@@ -118,7 +118,7 @@ export default async function ProductsPage({ searchParams }: PageProps) {
             </p>
             <div className="flex gap-3 flex-wrap justify-center">
               {search && (
-                <Link href="/produtos" className="px-6 py-3 bg-pink-600 text-white rounded-2xl text-sm font-bold hover:bg-pink-700 transition-colors">
+                <Link href="/produtos" className="px-6 py-3 bg-brand text-white rounded-2xl text-sm font-bold hover:opacity-90 transition-colors">
                   Ver todos os produtos
                 </Link>
               )}

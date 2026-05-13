@@ -17,7 +17,7 @@ export default async function CheckoutFalhaPage({ searchParams }: Props) {
           Houve um problema com o pagamento. Verifique os dados do cartão ou tente outra forma de pagamento.
         </p>
         <div className="flex flex-col gap-3">
-          <Link href="/carrinho" className="w-full py-3 bg-pink-600 text-white rounded-xl font-bold hover:bg-pink-700 transition-colors text-sm">
+          <Link href="/carrinho" className="w-full py-3 bg-brand text-white rounded-xl font-bold hover:opacity-90 transition-colors text-sm">
             Tentar novamente
           </Link>
           <Link href="/produtos" className="w-full py-3 bg-gray-100 text-gray-700 rounded-xl font-bold hover:bg-gray-200 transition-colors text-sm">

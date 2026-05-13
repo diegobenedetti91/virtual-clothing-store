@@ -186,7 +186,7 @@ export default function AccountPage() {
                 <button
                   onClick={handleSave}
                   disabled={saving}
-                  className="flex items-center gap-1 text-sm font-bold text-white bg-pink-600 hover:bg-pink-700 px-4 py-2 rounded-xl transition-colors disabled:opacity-60"
+                  className="flex items-center gap-1 text-sm font-bold text-white bg-brand hover:opacity-90 px-4 py-2 rounded-xl transition-colors disabled:opacity-60"
                 >
                   {saving ? "Salvando..." : <><Check size={14} /> Salvar</>}
                 </button>

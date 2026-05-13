@@ -141,7 +141,7 @@ export default function ProductReviews({ productId }: { productId: string }) {
             <button
               type="submit"
               disabled={submitting}
-              className="px-6 py-2.5 bg-pink-600 text-white rounded-xl text-sm font-bold hover:bg-pink-700 transition-colors disabled:opacity-60"
+              className="px-6 py-2.5 bg-brand text-white rounded-xl text-sm font-bold hover:opacity-90 transition-colors disabled:opacity-60"
             >
               {submitting ? "Enviando..." : "Enviar avaliação"}
             </button>

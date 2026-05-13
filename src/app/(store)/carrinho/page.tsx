@@ -14,7 +14,7 @@ export default function CartPage() {
         <ShoppingBag size={64} className="mx-auto text-gray-300 mb-4" />
         <h2 className="text-2xl font-bold text-gray-900 mb-2">Carrinho vazio</h2>
         <p className="text-gray-500 mb-6">Adicione produtos para continuar.</p>
-        <Link href="/produtos" className="bg-pink-600 text-white px-8 py-3 rounded-full font-semibold hover:bg-pink-700 transition-colors">
+        <Link href="/produtos" className="bg-brand text-white px-8 py-3 rounded-full font-semibold hover:opacity-90 transition-colors">
           Ver produtos
         </Link>
       </div>
@@ -94,7 +94,7 @@ export default function CartPage() {
             </div>
             <Link
               href="/checkout"
-              className="block w-full bg-pink-600 text-white text-center py-3 rounded-xl font-semibold hover:bg-pink-700 transition-colors"
+              className="block w-full bg-brand text-white text-center py-3 rounded-xl font-semibold hover:opacity-90 transition-colors"
             >
               Finalizar pedido
             </Link>

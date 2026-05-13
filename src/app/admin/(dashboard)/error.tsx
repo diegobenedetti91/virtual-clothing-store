@@ -13,7 +13,7 @@ export default function AdminError({
       <p className="text-sm text-gray-500 max-w-md text-center">{error.message}</p>
       <button
         onClick={reset}
-        className="px-4 py-2 bg-pink-600 text-white rounded-xl text-sm hover:bg-pink-700"
+        className="px-4 py-2 bg-brand text-white rounded-xl text-sm hover:opacity-90"
       >
         Tentar novamente
       </button>

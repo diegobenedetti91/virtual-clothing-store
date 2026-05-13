@@ -57,7 +57,7 @@ export default function AvaliacoesManager() {
           <button
             key={key}
             onClick={() => setFilter(key)}
-            className={`px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${filter === key ? "bg-pink-600 text-white" : "bg-white border border-gray-200 text-gray-600 hover:border-gray-300"}`}
+            className={`px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${filter === key ? "bg-brand text-white" : "bg-white border border-gray-200 text-gray-600 hover:border-gray-300"}`}
           >
             {label} <span className="ml-1 opacity-70">({count})</span>
           </button>
