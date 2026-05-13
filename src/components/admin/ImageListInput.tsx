@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { Upload, Plus, X, Link as LinkIcon, ChevronLeft, ChevronRight } from "lucide-react";
+import { Upload, Plus, X, Link as LinkIcon } from "lucide-react";
 
 interface ImageListInputProps {
   images: string[];
@@ -9,15 +9,14 @@ interface ImageListInputProps {
   aspect?: "square" | "landscape" | "portrait";
 }
 
-export default function ImageListInput({ images, onChange }: ImageListInputProps) {
+export default function ImageListInput({ images, onChange, aspect = "portrait" }: ImageListInputProps) {
   const [uploading, setUploading] = useState(false);
   const [urlInput, setUrlInput] = useState("");
   const [error, setError] = useState("");
-  const [selected, setSelected] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
-  const stripRef = useRef<HTMLDivElement>(null);
 
-  const safeSelected = Math.min(selected, Math.max(0, images.length - 1));
+  const aspectClass =
+    aspect === "square" ? "aspect-square" : aspect === "portrait" ? "aspect-[3/4]" : "h-28";
 
   const handleFile = async (file: File) => {
     setError("");
@@ -28,9 +27,7 @@ export default function ImageListInput({ images, onChange }: ImageListInputProps
       const res = await fetch("/api/upload", { method: "POST", body: form });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erro no upload");
-      const next = [...images, data.url];
-      onChange(next);
-      setSelected(next.length - 1);
+      onChange([...images, data.url]);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Erro ao enviar imagem.");
     } finally {
@@ -41,105 +38,55 @@ export default function ImageListInput({ images, onChange }: ImageListInputProps
   const addUrl = () => {
     const trimmed = urlInput.trim();
     if (trimmed && !images.includes(trimmed)) {
-      const next = [...images, trimmed];
-      onChange(next);
+      onChange([...images, trimmed]);
       setUrlInput("");
-      setSelected(next.length - 1);
     }
   };
 
-  const remove = (idx: number) => {
-    const next = images.filter((_, i) => i !== idx);
-    onChange(next);
-    setSelected(Math.min(safeSelected, Math.max(0, next.length - 1)));
-  };
-
-  const scrollStrip = (dir: "left" | "right") =>
-    stripRef.current?.scrollBy({ left: dir === "left" ? -120 : 120, behavior: "smooth" });
+  const remove = (idx: number) => onChange(images.filter((_, i) => i !== idx));
 
   return (
     <div className="space-y-3">
-      {images.length > 0 ? (
-        <div className="space-y-2">
-          {/* Preview principal */}
-          <div className="relative rounded-xl overflow-hidden bg-gray-100 h-56 w-full">
-            <img
-              src={images[safeSelected]}
-              alt=""
-              className="w-full h-full object-cover"
-              onError={(e) => { (e.target as HTMLImageElement).src = "/placeholder-product.svg"; }}
-            />
-            <button
-              type="button"
-              onClick={() => remove(safeSelected)}
-              className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 shadow hover:bg-red-600 transition-colors"
-            >
-              <X size={14} />
-            </button>
-          </div>
-
-          {/* Tira de thumbnails */}
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => scrollStrip("left")}
-              className="flex-shrink-0 w-7 h-7 rounded-full bg-white border border-gray-200 flex items-center justify-center hover:bg-gray-50 shadow-sm"
-            >
-              <ChevronLeft size={14} />
-            </button>
-
-            <div
-              ref={stripRef}
-              className="flex gap-2 overflow-x-auto flex-1 py-1 [&::-webkit-scrollbar]:hidden"
-              style={{ scrollbarWidth: "none" }}
-            >
-              {images.map((img, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => setSelected(i)}
-                  className={`flex-shrink-0 w-14 h-14 rounded-lg overflow-hidden border-2 transition-all ${
-                    i === safeSelected
-                      ? "border-pink-500"
-                      : "border-transparent opacity-60 hover:opacity-100"
-                  }`}
-                >
-                  <img
-                    src={img}
-                    alt=""
-                    className="w-full h-full object-cover"
-                    onError={(e) => { (e.target as HTMLImageElement).src = "/placeholder-product.svg"; }}
-                  />
-                </button>
-              ))}
-
+      {images.length > 0 && (
+        <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+          {images.map((img, i) => (
+            <div key={i} className={`relative group rounded-xl overflow-hidden bg-gray-100 ${aspectClass}`}>
+              <img
+                src={img}
+                alt=""
+                className="w-full h-full object-cover"
+                onError={(e) => { (e.target as HTMLImageElement).src = "/placeholder-product.svg"; }}
+              />
               <button
                 type="button"
-                onClick={() => inputRef.current?.click()}
-                disabled={uploading}
-                className="flex-shrink-0 w-14 h-14 rounded-lg border-2 border-dashed border-gray-200 hover:border-pink-400 hover:bg-pink-50/40 transition-all flex flex-col items-center justify-center gap-0.5 text-gray-400 hover:text-pink-500 disabled:opacity-60"
+                onClick={() => remove(i)}
+                className="absolute top-1.5 right-1.5 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity shadow"
               >
-                {uploading ? (
-                  <div className="w-4 h-4 border-2 border-pink-400 border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <>
-                    <Upload size={14} />
-                    <span className="text-[10px] font-medium">Add</span>
-                  </>
-                )}
+                <X size={13} />
               </button>
             </div>
+          ))}
 
-            <button
-              type="button"
-              onClick={() => scrollStrip("right")}
-              className="flex-shrink-0 w-7 h-7 rounded-full bg-white border border-gray-200 flex items-center justify-center hover:bg-gray-50 shadow-sm"
-            >
-              <ChevronRight size={14} />
-            </button>
-          </div>
+          {/* Upload slot */}
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            disabled={uploading}
+            className={`${aspectClass} rounded-xl border-2 border-dashed border-gray-200 hover:border-pink-400 hover:bg-pink-50/40 transition-all flex flex-col items-center justify-center gap-1 text-gray-400 hover:text-pink-500 disabled:opacity-60`}
+          >
+            {uploading ? (
+              <div className="w-5 h-5 border-2 border-pink-400 border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <>
+                <Upload size={18} />
+                <span className="text-xs font-medium">Adicionar</span>
+              </>
+            )}
+          </button>
         </div>
-      ) : (
+      )}
+
+      {images.length === 0 && (
         <div
           onClick={() => !uploading && inputRef.current?.click()}
           onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleFile(f); }}

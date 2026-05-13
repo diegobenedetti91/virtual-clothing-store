@@ -22,11 +22,11 @@ export default function ProductGallery({ images, name }: Props) {
   return (
     <div className="space-y-3">
       {/* Imagem principal */}
-      <div className="relative rounded-3xl overflow-hidden bg-gray-50 shadow-sm aspect-[3/4]">
+      <div className="relative rounded-3xl overflow-hidden bg-gray-100 shadow-sm aspect-[3/4]">
         <img
           src={all[current]}
           alt={name}
-          className="w-full h-full object-contain"
+          className="w-full h-full object-cover object-top"
           onError={(e) => { (e.target as HTMLImageElement).src = "/placeholder-product.svg"; }}
         />
 
@@ -45,14 +45,13 @@ export default function ProductGallery({ images, name }: Props) {
               <ChevronRight size={18} />
             </button>
 
-            {/* Indicador de posição */}
             <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
               {all.map((_, i) => (
                 <button
                   key={i}
                   onClick={() => setCurrent(i)}
-                  className={`w-1.5 h-1.5 rounded-full transition-all ${
-                    i === current ? "bg-white w-4" : "bg-white/50"
+                  className={`h-1.5 rounded-full transition-all ${
+                    i === current ? "bg-white w-4" : "bg-white/50 w-1.5"
                   }`}
                 />
               ))}
@@ -85,7 +84,7 @@ export default function ProductGallery({ images, name }: Props) {
                 }`}
                 style={{ width: 64, height: 64 }}
               >
-                <img src={img} alt="" className="w-full h-full object-cover" />
+                <img src={img} alt="" className="w-full h-full object-cover object-top" />
               </button>
             ))}
           </div>
