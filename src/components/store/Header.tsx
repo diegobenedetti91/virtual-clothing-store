@@ -8,7 +8,7 @@ import { useWishlist } from "@/hooks/useWishlist";
 import { useCustomer } from "@/hooks/useCustomer";
 import { CompanySettings } from "@/types";
 import { cn } from "@/lib/utils";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 
 interface NavItemType {
   id: string;
@@ -23,9 +23,9 @@ interface HeaderProps {
 
 export default function Header({ settings, navItems = [] }: HeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const searchParams = useSearchParams();
   const [searchOpen, setSearchOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const [currentSearch, setCurrentSearch] = useState("");
   const itemCount = useCart((s) => s.itemCount);
   const wishlistCount = useWishlist((s) => s.count);
   const count = itemCount();
@@ -39,19 +39,7 @@ export default function Header({ settings, navItems = [] }: HeaderProps) {
     return () => window.removeEventListener("scroll", handler);
   }, []);
 
-  useEffect(() => {
-    setMenuOpen(false);
-    setSearchOpen(false);
-    setCurrentSearch(window.location.search.slice(1));
-  }, [pathname]);
-
-  // Also sync search on initial mount and popstate (browser back/forward)
-  useEffect(() => {
-    setCurrentSearch(window.location.search.slice(1));
-    const onPop = () => setCurrentSearch(window.location.search.slice(1));
-    window.addEventListener("popstate", onPop);
-    return () => window.removeEventListener("popstate", onPop);
-  }, []);
+  useEffect(() => { setMenuOpen(false); setSearchOpen(false); }, [pathname]);
 
   const name = settings?.name || "";
 
@@ -60,20 +48,6 @@ export default function Header({ settings, navItems = [] }: HeaderProps) {
     { href: "/produtos", label: "Produtos" },
     ...navItems.map((item) => ({ href: item.href, label: item.label })),
   ];
-
-  const hasExactQueryMatch = navLinks.some((link) => {
-    const [linkPath, linkQuery] = link.href.split("?");
-    return linkQuery && pathname === linkPath && currentSearch === new URLSearchParams(linkQuery).toString();
-  });
-
-  function isActive(href: string) {
-    const [linkPath, linkQuery] = href.split("?");
-    if (linkQuery) {
-      return pathname === linkPath && currentSearch === new URLSearchParams(linkQuery).toString();
-    }
-    if (hasExactQueryMatch) return false;
-    return pathname === href || (href !== "/" && pathname.startsWith(href));
-  }
 
   return (
     <>
@@ -98,7 +72,10 @@ export default function Header({ settings, navItems = [] }: HeaderProps) {
             {/* Nav — desktop */}
             <nav className="hidden md:flex items-center gap-1 ml-2">
               {navLinks.map((link) => {
-                const active = isActive(link.href);
+                const [linkPath, linkQuery] = link.href.split("?");
+                const active = linkQuery
+                  ? pathname === linkPath && searchParams.toString() === new URLSearchParams(linkQuery).toString()
+                  : pathname === link.href || (link.href !== "/" && pathname.startsWith(link.href));
                 return (
                   <Link
                     key={link.href}
@@ -213,7 +190,10 @@ export default function Header({ settings, navItems = [] }: HeaderProps) {
           <div className="md:hidden border-t border-gray-100 bg-white">
             <nav className="max-w-7xl mx-auto px-4 py-4 space-y-1">
               {navLinks.map((link) => {
-                const active = isActive(link.href);
+                const [linkPath, linkQuery] = link.href.split("?");
+                const active = linkQuery
+                  ? pathname === linkPath && searchParams.toString() === new URLSearchParams(linkQuery).toString()
+                  : pathname === link.href || (link.href !== "/" && pathname.startsWith(link.href));
                 return (
                   <Link
                     key={link.href}
