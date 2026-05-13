@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ShoppingBag, Check, Heart } from "lucide-react";
+import { ShoppingBag, Check, Heart, Package } from "lucide-react";
 import { useCart } from "@/hooks/useCart";
 import { useWishlist } from "@/hooks/useWishlist";
 import { formatCurrency } from "@/lib/utils";
@@ -175,7 +175,7 @@ export default function ProductActions({ productId, name, price, comparePrice, i
           {isOutOfStock
             ? "Sem estoque para esta combinação"
             : currentVariantStock <= 3
-              ? `Apenas ${currentVariantStock} unidade${currentVariantStock > 1 ? "s" : ""} disponível${currentVariantStock > 1 ? "is" : ""}`
+              ? `Apenas ${currentVariantStock} unidade${currentVariantStock > 1 ? "s" : ""} disponíve${currentVariantStock > 1 ? "is" : "l"}`
               : `${currentVariantStock} unidades disponíveis`}
         </p>
       )}
@@ -216,6 +216,21 @@ export default function ProductActions({ productId, name, price, comparePrice, i
           color={selectedColor || undefined}
         />
       )}
+
+      {/* Stock info card */}
+      <div className="flex items-center gap-2.5 bg-gray-50 rounded-2xl px-4 py-3">
+        <Package size={16} className={effectiveStock > 0 ? "text-green-500 shrink-0" : "text-red-400 shrink-0"} />
+        <div>
+          <p className="text-xs font-bold text-gray-700">Estoque</p>
+          <p className="text-xs text-gray-500">
+            {effectiveStock === 0
+              ? "Indisponível"
+              : effectiveStock > 5
+                ? "Disponível"
+                : `${effectiveStock} restante${effectiveStock > 1 ? "s" : ""}`}
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

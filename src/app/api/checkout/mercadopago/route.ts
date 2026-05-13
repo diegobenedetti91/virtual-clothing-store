@@ -73,33 +73,63 @@ export async function POST(req: NextRequest) {
 
   const mpData = await mpRes.json();
 
-  // Create order in our DB with PENDING status
+  // Create order in our DB with PENDING status + decrement variant stock
+  type CartItem = { productId: string; quantity: number; price?: number; size?: string; color?: string };
   const fullAddress = address && city ? `${address}, ${city}${state ? `/${state}` : ""}` : null;
-  await prisma.order.create({
-    data: {
-      orderNumber,
-      customerName,
-      customerEmail: customerEmail || null,
-      customerPhone,
-      address: fullAddress,
-      city: city || null,
-      state: state || null,
-      zipCode: zipCode || null,
-      notes: notes || null,
-      customerId: customerId || null,
-      subtotal,
-      total: subtotal,
-      status: "PENDING",
-      items: {
-        create: items.map((item: { productId: string; quantity: number; price?: number; size?: string; color?: string }) => ({
-          productId: item.productId,
-          quantity: item.quantity,
-          price: productMap.get(item.productId)!.price,
-          size: item.size || null,
-          color: item.color || null,
-        })),
+  await prisma.$transaction(async (tx) => {
+    for (const item of items as CartItem[]) {
+      const product = await tx.product.findUnique({
+        where: { id: item.productId },
+        select: { variantStock: true },
+      });
+      const variants = JSON.parse(product?.variantStock || "[]") as { size?: string; color?: string; stock: number }[];
+
+      if (variants.length > 0 && (item.size || item.color)) {
+        const updated = variants.map((v) => {
+          const sizeOk = item.size ? v.size === item.size : true;
+          const colorOk = item.color ? v.color === item.color : true;
+          if (sizeOk && colorOk) return { ...v, stock: Math.max(0, v.stock - item.quantity) };
+          return v;
+        });
+        const newTotal = updated.reduce((sum, v) => sum + (v.stock || 0), 0);
+        await tx.product.update({
+          where: { id: item.productId },
+          data: { variantStock: JSON.stringify(updated), stock: newTotal },
+        });
+      } else {
+        await tx.product.update({
+          where: { id: item.productId },
+          data: { stock: { decrement: item.quantity } },
+        });
+      }
+    }
+
+    await tx.order.create({
+      data: {
+        orderNumber,
+        customerName,
+        customerEmail: customerEmail || null,
+        customerPhone,
+        address: fullAddress,
+        city: city || null,
+        state: state || null,
+        zipCode: zipCode || null,
+        notes: notes || null,
+        customerId: customerId || null,
+        subtotal,
+        total: subtotal,
+        status: "PENDING",
+        items: {
+          create: (items as CartItem[]).map((item) => ({
+            productId: item.productId,
+            quantity: item.quantity,
+            price: productMap.get(item.productId)!.price,
+            size: item.size || null,
+            color: item.color || null,
+          })),
+        },
       },
-    },
+    });
   });
 
   return NextResponse.json({

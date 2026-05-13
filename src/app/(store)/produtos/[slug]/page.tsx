@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Package, RotateCcw, MessageCircle } from "lucide-react";
+import { ChevronLeft, ChevronRight, RotateCcw, MessageCircle } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import type { Product } from "@/types";
 import ProductGallery from "@/components/store/ProductGallery";
@@ -116,21 +116,8 @@ export default async function ProductDetailPage({ params }: PageProps) {
               variantStock={JSON.parse(product.variantStock || "[]")}
             />
 
-            {/* Info cards */}
+            {/* Info cards (Estoque is inside ProductActions, variant-aware) */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
-              <div className="flex items-center gap-2.5 bg-gray-50 rounded-2xl px-4 py-3">
-                <Package size={16} className={product.stock > 0 ? "text-green-500 shrink-0" : "text-red-400 shrink-0"} />
-                <div>
-                  <p className="text-xs font-bold text-gray-700">Estoque</p>
-                  <p className="text-xs text-gray-500">
-                    {product.stock === 0
-                      ? "Indisponível"
-                      : product.stock > 5
-                        ? "Disponível"
-                        : `${product.stock} restantes`}
-                  </p>
-                </div>
-              </div>
               {reviewCount > 0 && (
                 <a href="#avaliacoes" className="flex items-center gap-2.5 bg-gray-50 rounded-2xl px-4 py-3 hover:bg-yellow-50 transition-colors">
                   <span className="text-yellow-400 text-base">★</span>

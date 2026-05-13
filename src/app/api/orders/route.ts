@@ -55,12 +55,32 @@ export async function POST(req: NextRequest) {
   const orderNumber = generateOrderNumber();
 
   const order = await prisma.$transaction(async (tx) => {
-    // Decrement stock for each item
+    // Decrement stock for each item (variant-aware)
     for (const item of items as OrderItem[]) {
-      await tx.product.update({
+      const product = await tx.product.findUnique({
         where: { id: item.productId },
-        data: { stock: { decrement: item.quantity } },
+        select: { variantStock: true },
       });
+      const variants = JSON.parse(product?.variantStock || "[]") as { size?: string; color?: string; stock: number }[];
+
+      if (variants.length > 0 && (item.size || item.color)) {
+        const updated = variants.map((v) => {
+          const sizeOk = item.size ? v.size === item.size : true;
+          const colorOk = item.color ? v.color === item.color : true;
+          if (sizeOk && colorOk) return { ...v, stock: Math.max(0, v.stock - item.quantity) };
+          return v;
+        });
+        const newTotal = updated.reduce((sum, v) => sum + (v.stock || 0), 0);
+        await tx.product.update({
+          where: { id: item.productId },
+          data: { variantStock: JSON.stringify(updated), stock: newTotal },
+        });
+      } else {
+        await tx.product.update({
+          where: { id: item.productId },
+          data: { stock: { decrement: item.quantity } },
+        });
+      }
     }
 
     return tx.order.create({
