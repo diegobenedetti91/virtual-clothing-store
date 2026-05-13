@@ -167,10 +167,12 @@ model WaitlistEntry {
   product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
   email     String
   name      String?
+  size      String   @default("") @db.VarChar(100)
+  color     String   @default("") @db.VarChar(100)
   notified  Boolean  @default(false)
   createdAt DateTime @default(now())
 
-  @@unique([productId, email])
+  @@unique([productId, email, size, color])
 }
 
 model AbandonedCart {

@@ -135,6 +135,46 @@ export async function sendShippingEmail({
   });
 }
 
+export async function sendWaitlistNotificationEmail({
+  to, customerName, productName, productSlug, size, color, storeName,
+}: {
+  to: string; customerName?: string | null; productName: string; productSlug: string;
+  size?: string; color?: string; storeName: string;
+}) {
+  if (!process.env.SMTP_USER) return;
+
+  const variantLabel = [size, color].filter(Boolean).join(" / ");
+  const productUrl = `${process.env.NEXT_PUBLIC_SITE_URL || ""}/produtos/${productSlug}`;
+
+  const html = baseWrapper(`
+    <h2 style="color:#ec4899;margin:0 0 8px;">Produto disponível!</h2>
+    <p style="color:#555;margin:0 0 20px;">
+      ${customerName ? `Olá, <strong>${customerName}</strong>! ` : ""}
+      O produto que você estava aguardando voltou ao estoque.
+    </p>
+
+    <div style="background:#fdf2f8;border-radius:10px;padding:16px 20px;margin-bottom:20px;">
+      <p style="margin:0 0 4px;font-size:12px;color:#888;">Produto</p>
+      <p style="margin:0;font-weight:700;font-size:18px;color:#be185d;">${productName}</p>
+      ${variantLabel ? `<p style="margin:6px 0 0;font-size:13px;color:#555;">Variação: <strong>${variantLabel}</strong></p>` : ""}
+    </div>
+
+    <div style="text-align:center;margin-top:20px;">
+      <a href="${productUrl}"
+         style="display:inline-block;background:#ec4899;color:#fff;text-decoration:none;padding:12px 28px;border-radius:10px;font-weight:700;font-size:15px;">
+        Ver produto →
+      </a>
+    </div>
+  `, storeName);
+
+  await transporter.sendMail({
+    from: `"${storeName}" <${process.env.SMTP_USER}>`,
+    to,
+    subject: `${productName}${variantLabel ? ` (${variantLabel})` : ""} está disponível — ${storeName}`,
+    html,
+  });
+}
+
 export async function sendOrderStatusEmail({
   to, customerName, orderNumber, newStatus, storeName, cancelReason,
 }: {

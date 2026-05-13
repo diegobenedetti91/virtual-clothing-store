@@ -18,6 +18,7 @@ import {
   Users,
   Star,
   ShoppingBag,
+  Bell,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
@@ -32,6 +33,7 @@ const links = [
   { href: "/admin/clientes", label: "Clientes", icon: Users },
   { href: "/admin/avaliacoes", label: "Avaliações", icon: Star },
   { href: "/admin/carrinhos", label: "Carrinhos abandonados", icon: ShoppingBag },
+  { href: "/admin/lista-de-espera", label: "Lista de espera", icon: Bell },
   { href: "/admin/relatorios", label: "Relatórios", icon: BarChart2 },
   { href: "/admin/configuracoes", label: "Configurações", icon: Settings },
 ];

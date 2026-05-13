@@ -6,6 +6,7 @@ import { useCart } from "@/hooks/useCart";
 import { useWishlist } from "@/hooks/useWishlist";
 import { formatCurrency } from "@/lib/utils";
 import { VariantStock } from "@/types";
+import WaitlistForm from "@/components/store/WaitlistForm";
 
 interface Props {
   productId: string;
@@ -54,6 +55,11 @@ export default function ProductActions({ productId, name, price, comparePrice, i
 
   const effectiveStock = currentVariantStock !== null ? currentVariantStock : stock;
   const isOutOfStock = effectiveStock === 0;
+
+  const variantFullySelected =
+    (sizes.length === 0 || selectedSize !== "") &&
+    (colors.length === 0 || selectedColor !== "");
+  const showWaitlist = isOutOfStock && variantFullySelected;
 
   const handleAddToCart = () => {
     if (isOutOfStock) return;
@@ -201,6 +207,15 @@ export default function ProductActions({ productId, name, price, comparePrice, i
           <Heart size={20} fill={inWishlist ? "currentColor" : "none"} />
         </button>
       </div>
+
+      {/* Waitlist */}
+      {showWaitlist && (
+        <WaitlistForm
+          productId={productId}
+          size={selectedSize || undefined}
+          color={selectedColor || undefined}
+        />
+      )}
     </div>
   );
 }

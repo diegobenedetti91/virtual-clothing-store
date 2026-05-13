@@ -43,6 +43,14 @@ export default function ProductForm({ product, categories, navItems = [] }: Prod
     (product as unknown as { navItems?: { id: string }[] })?.navItems?.map((n) => n.id) || []
   );
 
+  // Auto-sum stock from variants when they exist
+  useEffect(() => {
+    if (variantStock.length > 0) {
+      const total = variantStock.reduce((sum, v) => sum + (v.stock || 0), 0);
+      setStock(total.toString());
+    }
+  }, [variantStock]);
+
   // Sync variant stock entries when sizes or colors change
   useEffect(() => {
     if (sizes.length === 0 && colors.length === 0) return;
@@ -184,8 +192,16 @@ export default function ProductForm({ product, categories, navItems = [] }: Prod
                 </select>
               </div>
               <div>
-                <label className={labelClass}>Estoque</label>
-                <input type="number" min="0" value={stock} onChange={(e) => setStock(e.target.value)} className={inputClass} />
+                <label className={labelClass}>
+                  Estoque
+                  {variantStock.length > 0 && <span className="ml-1 text-xs text-green-600 font-normal">(calculado pelas variações)</span>}
+                </label>
+                <input
+                  type="number" min="0" value={stock}
+                  onChange={(e) => setStock(e.target.value)}
+                  readOnly={variantStock.length > 0}
+                  className={`${inputClass} ${variantStock.length > 0 ? "bg-gray-50 text-gray-500 cursor-default" : ""}`}
+                />
               </div>
             </div>
           </div>

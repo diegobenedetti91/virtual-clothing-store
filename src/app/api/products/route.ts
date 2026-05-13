@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
       categoryId,
       sizes: JSON.stringify(sizes || []),
       colors: JSON.stringify(colors || []),
-      stock: parseInt(stock) || 0,
+      stock: variantStock?.length ? variantStock.reduce((s: number, v: { stock: number }) => s + (v.stock || 0), 0) : parseInt(stock) || 0,
       variantStock: JSON.stringify(variantStock || []),
       active: active !== false,
       featured: featured === true,

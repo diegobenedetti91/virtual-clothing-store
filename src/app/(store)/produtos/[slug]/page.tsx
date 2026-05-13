@@ -6,7 +6,6 @@ import type { Product } from "@/types";
 import ProductGallery from "@/components/store/ProductGallery";
 import ProductActions from "@/components/store/ProductActions";
 import ProductReviews from "@/components/store/ProductReviews";
-import WaitlistForm from "@/components/store/WaitlistForm";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -28,7 +27,6 @@ export default async function ProductDetailPage({ params }: PageProps) {
   const colors = JSON.parse(product.colors || "[]") as string[];
   const firstImage = images[0] || "/placeholder-product.svg";
   const reviewCount = (raw as unknown as { _count: { reviews: number } })._count.reviews;
-  const isOutOfStock = product.stock === 0;
 
   const discount =
     product.comparePrice && product.comparePrice > product.price
@@ -118,22 +116,21 @@ export default async function ProductDetailPage({ params }: PageProps) {
               variantStock={JSON.parse(product.variantStock || "[]")}
             />
 
-            {/* Waitlist for out-of-stock */}
-            {isOutOfStock && <WaitlistForm productId={product.id} />}
-
             {/* Info cards */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
-              {product.stock > 0 && (
-                <div className="flex items-center gap-2.5 bg-gray-50 rounded-2xl px-4 py-3">
-                  <Package size={16} className="text-green-500 shrink-0" />
-                  <div>
-                    <p className="text-xs font-bold text-gray-700">Estoque</p>
-                    <p className="text-xs text-gray-500">
-                      {product.stock > 5 ? "Disponível" : `${product.stock} restantes`}
-                    </p>
-                  </div>
+              <div className="flex items-center gap-2.5 bg-gray-50 rounded-2xl px-4 py-3">
+                <Package size={16} className={product.stock > 0 ? "text-green-500 shrink-0" : "text-red-400 shrink-0"} />
+                <div>
+                  <p className="text-xs font-bold text-gray-700">Estoque</p>
+                  <p className="text-xs text-gray-500">
+                    {product.stock === 0
+                      ? "Indisponível"
+                      : product.stock > 5
+                        ? "Disponível"
+                        : `${product.stock} restantes`}
+                  </p>
                 </div>
-              )}
+              </div>
               {reviewCount > 0 && (
                 <a href="#avaliacoes" className="flex items-center gap-2.5 bg-gray-50 rounded-2xl px-4 py-3 hover:bg-yellow-50 transition-colors">
                   <span className="text-yellow-400 text-base">★</span>

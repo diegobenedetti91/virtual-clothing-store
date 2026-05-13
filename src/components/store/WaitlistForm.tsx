@@ -4,7 +4,13 @@ import { useState } from "react";
 import { Bell } from "lucide-react";
 import { useCustomer } from "@/hooks/useCustomer";
 
-export default function WaitlistForm({ productId }: { productId: string }) {
+interface WaitlistFormProps {
+  productId: string;
+  size?: string;
+  color?: string;
+}
+
+export default function WaitlistForm({ productId, size, color }: WaitlistFormProps) {
   const customer = useCustomer((s) => s.customer);
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
@@ -20,7 +26,13 @@ export default function WaitlistForm({ productId }: { productId: string }) {
       const res = await fetch("/api/waitlist", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ productId, email: customer?.email || email, name: customer?.name || name }),
+        body: JSON.stringify({
+          productId,
+          email: customer?.email || email,
+          name: customer?.name || name,
+          size: size || "",
+          color: color || "",
+        }),
       });
       if (!res.ok) { const d = await res.json(); setError(d.error || "Erro"); return; }
       setDone(true);
@@ -29,22 +41,31 @@ export default function WaitlistForm({ productId }: { productId: string }) {
     }
   };
 
+  const variantLabel = [size, color].filter(Boolean).join(" / ");
+
   if (done) {
     return (
       <div className="bg-green-50 border border-green-100 rounded-2xl p-4 text-center">
         <Bell size={20} className="mx-auto text-green-600 mb-2" />
         <p className="text-sm font-bold text-green-800">Avisaremos quando voltar!</p>
-        <p className="text-xs text-green-600 mt-1">Você receberá um e-mail quando o produto estiver disponível.</p>
+        <p className="text-xs text-green-600 mt-1">
+          Você receberá um e-mail quando {variantLabel ? <><strong>{variantLabel}</strong> estiver disponível</> : "o produto estiver disponível"}.
+        </p>
       </div>
     );
   }
 
   return (
     <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4">
-      <div className="flex items-center gap-2 mb-3">
+      <div className="flex items-center gap-2 mb-1">
         <Bell size={16} className="text-amber-600" />
-        <p className="text-sm font-bold text-amber-800">Produto esgotado — Avise-me quando voltar</p>
+        <p className="text-sm font-bold text-amber-800">Avise-me quando voltar</p>
       </div>
+      {variantLabel && (
+        <p className="text-xs text-amber-700 mb-3 ml-6">
+          Variação: <strong>{variantLabel}</strong>
+        </p>
+      )}
       <form onSubmit={handleSubmit} className="space-y-2.5">
         {!customer && (
           <>
@@ -67,7 +88,7 @@ export default function WaitlistForm({ productId }: { productId: string }) {
           </>
         )}
         {customer && (
-          <p className="text-xs text-amber-700">Você será notificado em <strong>{customer.email}</strong></p>
+          <p className="text-xs text-amber-700">Notificar em <strong>{customer.email}</strong></p>
         )}
         {error && <p className="text-xs text-red-600">{error}</p>}
         <button
