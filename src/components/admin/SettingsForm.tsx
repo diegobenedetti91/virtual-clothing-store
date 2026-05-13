@@ -24,6 +24,7 @@ export default function SettingsForm({ initialSettings }: Props) {
   const [address, setAddress] = useState(initialSettings?.address || "");
   const [description, setDescription] = useState(initialSettings?.description || "");
   const [primaryColor, setPrimaryColor] = useState(initialSettings?.primaryColor || "#ec4899");
+  const [buttonColor, setButtonColor] = useState(initialSettings?.buttonColor || initialSettings?.primaryColor || "#ec4899");
   const [bannerImages, setBannerImages] = useState<string[]>(
     JSON.parse(initialSettings?.bannerImages || "[]")
   );
@@ -49,7 +50,7 @@ export default function SettingsForm({ initialSettings }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name, logo, phone, whatsapp, instagram, address, description,
-          primaryColor, bannerImages, checkoutType, checkoutCollectEmail, checkoutCollectAddress,
+          primaryColor, buttonColor, bannerImages, checkoutType, checkoutCollectEmail, checkoutCollectAddress,
           checkoutMessage, mercadoPagoPublicKey: mpPublicKey || null, mercadoPagoAccessToken: mpAccessToken || null,
         }),
       });
@@ -281,13 +282,31 @@ export default function SettingsForm({ initialSettings }: Props) {
                 <span className="text-sm text-gray-600 font-mono">{primaryColor}</span>
               </div>
             </div>
+            <div>
+              <label className={labelClass}>Cor dos botões</label>
+              <p className="text-xs text-gray-400 mb-2">Aplicada nos botões do site e do admin. Botões de checkout (WhatsApp e Mercado Pago) mantêm suas cores originais.</p>
+              <div className="flex items-center gap-3">
+                <input type="color" value={buttonColor} onChange={(e) => setButtonColor(e.target.value)} className="w-12 h-10 rounded-lg border border-gray-200 cursor-pointer p-0.5" />
+                <span className="text-sm text-gray-600 font-mono">{buttonColor}</span>
+                <button type="button" onClick={() => setButtonColor(primaryColor)} className="text-xs text-gray-400 hover:text-gray-600 underline">
+                  Usar cor principal
+                </button>
+              </div>
+              <div className="mt-3 flex items-center gap-2">
+                <span className="text-xs text-gray-500">Preview:</span>
+                <button type="button" className="px-4 py-1.5 rounded-lg text-white text-sm font-medium" style={{ backgroundColor: buttonColor }}>
+                  Adicionar ao carrinho
+                </button>
+              </div>
+            </div>
           </div>
 
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
             <button
               type="submit"
               disabled={loading}
-              className={`w-full flex items-center justify-center gap-2 py-4 rounded-xl font-bold text-base shadow-md hover:shadow-lg active:scale-[0.98] transition-all ${saved ? "bg-green-500 text-white" : "bg-pink-600 text-white hover:bg-pink-700"} disabled:opacity-60`}
+              className={`w-full flex items-center justify-center gap-2 py-4 rounded-xl font-bold text-base text-white shadow-md hover:shadow-lg active:scale-[0.98] transition-all disabled:opacity-60`}
+              style={{ backgroundColor: saved ? "#22c55e" : "var(--brand)" }}
             >
               {loading ? (
                 <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24" fill="none">

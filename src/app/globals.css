@@ -5,6 +5,13 @@
   --font-mono: var(--font-geist-mono);
 }
 
+:root {
+  --brand: #ec4899;
+  --brand-hover: color-mix(in srgb, var(--brand) 83%, black);
+  --brand-light: color-mix(in srgb, var(--brand) 12%, white);
+  --brand-shadow: color-mix(in srgb, var(--brand) 25%, transparent);
+}
+
 body {
   background: #ffffff;
   color: #171717;

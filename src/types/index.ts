@@ -1,3 +1,9 @@
+export interface VariantStock {
+  size?: string;
+  color?: string;
+  stock: number;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -10,6 +16,7 @@ export interface Product {
   sizes: string;
   colors: string;
   stock: number;
+  variantStock: string;
   active: boolean;
   featured: boolean;
   slug: string;
@@ -66,6 +73,7 @@ export interface CompanySettings {
   address?: string | null;
   description?: string | null;
   primaryColor: string;
+  buttonColor: string;
   bannerImages: string;
   checkoutType: string;
   checkoutCollectEmail: boolean;

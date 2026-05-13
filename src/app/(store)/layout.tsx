@@ -15,8 +15,10 @@ export default async function StoreLayout({ children }: { children: React.ReactN
     getCompanySettings(),
     prisma.navItem.findMany({ where: { active: true }, orderBy: [{ position: "asc" }, { createdAt: "asc" }] }).catch(() => []),
   ]);
+  const brandColor = settings?.buttonColor || settings?.primaryColor || "#ec4899";
+
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col" style={{ "--brand": brandColor } as React.CSSProperties}>
       <CustomerInit />
       <CartSyncer />
       <Header settings={settings} navItems={navItems} />

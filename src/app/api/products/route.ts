@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { name, description, price, comparePrice, images, categoryId, sizes, colors, stock, active, featured, navItemIds } = body;
+  const { name, description, price, comparePrice, images, categoryId, sizes, colors, stock, variantStock, active, featured, navItemIds } = body;
 
   let slug = slugify(name);
   const existing = await prisma.product.findUnique({ where: { slug } });
@@ -50,6 +50,7 @@ export async function POST(req: NextRequest) {
       sizes: JSON.stringify(sizes || []),
       colors: JSON.stringify(colors || []),
       stock: parseInt(stock) || 0,
+      variantStock: JSON.stringify(variantStock || []),
       active: active !== false,
       featured: featured === true,
       slug,

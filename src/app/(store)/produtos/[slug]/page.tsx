@@ -114,6 +114,8 @@ export default async function ProductDetailPage({ params }: PageProps) {
               slug={product.slug}
               sizes={sizes}
               colors={colors}
+              stock={product.stock}
+              variantStock={JSON.parse(product.variantStock || "[]")}
             />
 
             {/* Waitlist for out-of-stock */}

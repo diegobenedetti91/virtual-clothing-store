@@ -57,6 +57,7 @@ model Product {
   sizes        String          @default("[]") @db.Text
   colors       String          @default("[]") @db.Text
   stock        Int             @default(0)
+  variantStock String          @default("[]") @db.Text
   active       Boolean         @default(true)
   featured     Boolean         @default(false)
   slug         String          @unique
@@ -136,6 +137,7 @@ model CompanySettings {
   address                String?
   description            String?  @db.Text
   primaryColor           String   @default("#ec4899")
+  buttonColor            String   @default("#ec4899")
   bannerImages           String   @default("[]") @db.Text
   checkoutType           String   @default("whatsapp")
   checkoutCollectEmail   Boolean  @default(false)

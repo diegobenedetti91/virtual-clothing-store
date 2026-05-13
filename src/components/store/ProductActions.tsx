@@ -5,6 +5,7 @@ import { ShoppingBag, Check, Heart } from "lucide-react";
 import { useCart } from "@/hooks/useCart";
 import { useWishlist } from "@/hooks/useWishlist";
 import { formatCurrency } from "@/lib/utils";
+import { VariantStock } from "@/types";
 
 interface Props {
   productId: string;
@@ -15,9 +16,11 @@ interface Props {
   slug: string;
   sizes: string[];
   colors: string[];
+  stock: number;
+  variantStock: VariantStock[];
 }
 
-export default function ProductActions({ productId, name, price, comparePrice, image, slug, sizes, colors }: Props) {
+export default function ProductActions({ productId, name, price, comparePrice, image, slug, sizes, colors, stock, variantStock }: Props) {
   const [selectedSize, setSelectedSize] = useState("");
   const [selectedColor, setSelectedColor] = useState("");
   const [added, setAdded] = useState(false);
@@ -30,7 +33,30 @@ export default function ProductActions({ productId, name, price, comparePrice, i
       ? Math.round(((comparePrice - price) / comparePrice) * 100)
       : 0;
 
+  const hasVariantStock = variantStock.length > 0;
+
+  const currentVariantStock = (() => {
+    if (!hasVariantStock) return null;
+    if (sizes.length > 0 && colors.length > 0) {
+      if (!selectedSize || !selectedColor) return null;
+      return variantStock.find((v) => v.size === selectedSize && v.color === selectedColor)?.stock ?? 0;
+    }
+    if (sizes.length > 0) {
+      if (!selectedSize) return null;
+      return variantStock.find((v) => v.size === selectedSize)?.stock ?? 0;
+    }
+    if (colors.length > 0) {
+      if (!selectedColor) return null;
+      return variantStock.find((v) => v.color === selectedColor)?.stock ?? 0;
+    }
+    return null;
+  })();
+
+  const effectiveStock = currentVariantStock !== null ? currentVariantStock : stock;
+  const isOutOfStock = effectiveStock === 0;
+
   const handleAddToCart = () => {
+    if (isOutOfStock) return;
     addItem({
       productId,
       name,
@@ -69,22 +95,36 @@ export default function ProductActions({ productId, name, price, comparePrice, i
         <div>
           <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">
             Tamanho
-            {selectedSize && <span className="text-pink-600 normal-case tracking-normal ml-1">— {selectedSize}</span>}
+            {selectedSize && <span className="normal-case tracking-normal ml-1" style={{ color: "var(--brand)" }}>— {selectedSize}</span>}
           </p>
           <div className="flex gap-2 flex-wrap">
-            {sizes.map((size) => (
-              <button
-                key={size}
-                onClick={() => setSelectedSize(size === selectedSize ? "" : size)}
-                className={`min-w-[52px] h-11 px-4 rounded-xl border-2 text-sm font-bold transition-all ${
-                  selectedSize === size
-                    ? "border-gray-900 bg-gray-900 text-white shadow-md"
-                    : "border-gray-200 text-gray-700 hover:border-gray-400"
-                }`}
-              >
-                {size}
-              </button>
-            ))}
+            {sizes.map((size) => {
+              const varStock = hasVariantStock
+                ? variantStock.find((v) => v.size === size && (colors.length === 0 || v.color === selectedColor))?.stock
+                : undefined;
+              const sizeOutOfStock = varStock === 0;
+              return (
+                <button
+                  key={size}
+                  onClick={() => setSelectedSize(size === selectedSize ? "" : size)}
+                  disabled={sizeOutOfStock && selectedColor !== ""}
+                  className={`relative min-w-[52px] h-11 px-4 rounded-xl border-2 text-sm font-bold transition-all ${
+                    selectedSize === size
+                      ? "border-gray-900 bg-gray-900 text-white shadow-md"
+                      : sizeOutOfStock && selectedColor
+                        ? "border-gray-100 text-gray-300 cursor-not-allowed"
+                        : "border-gray-200 text-gray-700 hover:border-gray-400"
+                  }`}
+                >
+                  {size}
+                  {sizeOutOfStock && selectedColor && (
+                    <span className="absolute inset-0 flex items-center justify-center">
+                      <span className="absolute w-full h-px bg-gray-300 rotate-[-25deg]" />
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
@@ -94,47 +134,68 @@ export default function ProductActions({ productId, name, price, comparePrice, i
         <div>
           <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">
             Cor
-            {selectedColor && <span className="text-pink-600 normal-case tracking-normal ml-1">— {selectedColor}</span>}
+            {selectedColor && <span className="normal-case tracking-normal ml-1" style={{ color: "var(--brand)" }}>— {selectedColor}</span>}
           </p>
           <div className="flex gap-2 flex-wrap">
-            {colors.map((color) => (
-              <button
-                key={color}
-                onClick={() => setSelectedColor(color === selectedColor ? "" : color)}
-                className={`h-11 px-5 rounded-xl border-2 text-sm font-bold transition-all ${
-                  selectedColor === color
-                    ? "border-gray-900 bg-gray-900 text-white shadow-md"
-                    : "border-gray-200 text-gray-700 hover:border-gray-400"
-                }`}
-              >
-                {color}
-              </button>
-            ))}
+            {colors.map((color) => {
+              const varStock = hasVariantStock
+                ? variantStock.find((v) => v.color === color && (sizes.length === 0 || v.size === selectedSize))?.stock
+                : undefined;
+              const colorOutOfStock = varStock === 0;
+              return (
+                <button
+                  key={color}
+                  onClick={() => setSelectedColor(color === selectedColor ? "" : color)}
+                  disabled={colorOutOfStock && selectedSize !== ""}
+                  className={`h-11 px-5 rounded-xl border-2 text-sm font-bold transition-all ${
+                    selectedColor === color
+                      ? "border-gray-900 bg-gray-900 text-white shadow-md"
+                      : colorOutOfStock && selectedSize
+                        ? "border-gray-100 text-gray-300 cursor-not-allowed line-through"
+                        : "border-gray-200 text-gray-700 hover:border-gray-400"
+                  }`}
+                >
+                  {color}
+                </button>
+              );
+            })}
           </div>
         </div>
+      )}
+
+      {/* Variant stock indicator */}
+      {currentVariantStock !== null && (
+        <p className={`text-sm font-medium ${isOutOfStock ? "text-red-500" : currentVariantStock <= 3 ? "text-amber-600" : "text-green-600"}`}>
+          {isOutOfStock
+            ? "Sem estoque para esta combinação"
+            : currentVariantStock <= 3
+              ? `Apenas ${currentVariantStock} unidade${currentVariantStock > 1 ? "s" : ""} disponível${currentVariantStock > 1 ? "is" : ""}`
+              : `${currentVariantStock} unidades disponíveis`}
+        </p>
       )}
 
       {/* CTA buttons */}
       <div className="flex gap-3 pt-1">
         <button
           onClick={handleAddToCart}
-          className={`flex-1 h-14 rounded-2xl font-bold text-base flex items-center justify-center gap-2.5 transition-all shadow-lg active:scale-[0.98] ${
-            added
-              ? "bg-green-500 text-white shadow-green-100"
-              : "bg-pink-600 text-white hover:bg-pink-700 shadow-pink-100"
+          disabled={isOutOfStock}
+          className={`flex-1 h-14 rounded-2xl font-bold text-base flex items-center justify-center gap-2.5 transition-all shadow-lg active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed ${
+            added ? "bg-green-500 text-white shadow-green-100" : "text-white shadow-[0_4px_14px_var(--brand-shadow)]"
           }`}
+          style={!added ? { backgroundColor: "var(--brand)" } : undefined}
         >
           {added ? <Check size={20} /> : <ShoppingBag size={20} />}
-          {added ? "Adicionado!" : "Adicionar ao carrinho"}
+          {added ? "Adicionado!" : isOutOfStock ? "Sem estoque" : "Adicionar ao carrinho"}
         </button>
 
         <button
           onClick={handleWishlist}
           className={`w-14 h-14 rounded-2xl border-2 flex items-center justify-center transition-all active:scale-[0.98] ${
             inWishlist
-              ? "bg-pink-600 border-pink-600 text-white shadow-lg shadow-pink-100"
-              : "border-gray-200 text-gray-400 hover:border-pink-400 hover:text-pink-500"
+              ? "text-white shadow-lg"
+              : "border-gray-200 text-gray-400 hover:text-[var(--brand)]"
           }`}
+          style={inWishlist ? { backgroundColor: "var(--brand)", borderColor: "var(--brand)" } : {}}
           aria-label={inWishlist ? "Remover dos favoritos" : "Adicionar aos favoritos"}
         >
           <Heart size={20} fill={inWishlist ? "currentColor" : "none"} />

@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, X, ArrowLeft } from "lucide-react";
 import Link from "next/link";
-import { Category, Product } from "@/types";
+import { Category, Product, VariantStock } from "@/types";
 import ImageListInput from "./ImageListInput";
 
 interface NavItemOption {
@@ -35,12 +35,38 @@ export default function ProductForm({ product, categories, navItems = [] }: Prod
   const [images, setImages] = useState<string[]>(JSON.parse(product?.images || "[]"));
   const [sizes, setSizes] = useState<string[]>(JSON.parse(product?.sizes || "[]"));
   const [colors, setColors] = useState<string[]>(JSON.parse(product?.colors || "[]"));
+  const [variantStock, setVariantStock] = useState<VariantStock[]>(JSON.parse(product?.variantStock || "[]"));
   const [newImage, setNewImage] = useState("");
   const [newSize, setNewSize] = useState("");
   const [newColor, setNewColor] = useState("");
   const [selectedNavIds, setSelectedNavIds] = useState<string[]>(
     (product as unknown as { navItems?: { id: string }[] })?.navItems?.map((n) => n.id) || []
   );
+
+  // Sync variant stock entries when sizes or colors change
+  useEffect(() => {
+    if (sizes.length === 0 && colors.length === 0) return;
+    const keys = sizes.length > 0 && colors.length > 0
+      ? sizes.flatMap((s) => colors.map((c) => ({ size: s, color: c })))
+      : sizes.length > 0
+        ? sizes.map((s) => ({ size: s, color: undefined }))
+        : colors.map((c) => ({ size: undefined, color: c }));
+
+    setVariantStock((prev) =>
+      keys.map(({ size, color }) => {
+        const existing = prev.find((v) => v.size === size && v.color === color);
+        return { size, color, stock: existing?.stock ?? 0 };
+      })
+    );
+  }, [sizes, colors]);
+
+  const getVariantStock = (size?: string, color?: string) =>
+    variantStock.find((v) => v.size === size && v.color === color)?.stock ?? 0;
+
+  const setVariantStockValue = (size: string | undefined, color: string | undefined, value: number) =>
+    setVariantStock((prev) =>
+      prev.map((v) => v.size === size && v.color === color ? { ...v, stock: value } : v)
+    );
 
   const toggleNav = (id: string) =>
     setSelectedNavIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
@@ -74,7 +100,7 @@ export default function ProductForm({ product, categories, navItems = [] }: Prod
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, description, price, comparePrice, categoryId, stock, active, featured, images, sizes, colors, navItemIds: selectedNavIds }),
+        body: JSON.stringify({ name, description, price, comparePrice, categoryId, stock, variantStock, active, featured, images, sizes, colors, navItemIds: selectedNavIds }),
       });
 
       if (!res.ok) throw new Error("Erro ao salvar produto");
@@ -107,7 +133,8 @@ export default function ProductForm({ product, categories, navItems = [] }: Prod
           <button
             type="submit"
             disabled={loading}
-            className="px-6 py-2 bg-pink-600 text-white text-sm font-medium rounded-xl hover:bg-pink-700 transition-colors disabled:opacity-60"
+            className="px-6 py-2 text-white text-sm font-medium rounded-xl transition-colors disabled:opacity-60"
+            style={{ backgroundColor: "var(--brand)" }}
           >
             {loading ? "Salvando..." : "Salvar"}
           </button>
@@ -204,6 +231,81 @@ export default function ProductForm({ product, categories, navItems = [] }: Prod
                 ))}
               </div>
             </div>
+
+            {/* Variant stock matrix */}
+            {(sizes.length > 0 || colors.length > 0) && (
+              <div>
+                <label className={labelClass}>Estoque por variação</label>
+                <p className="text-xs text-gray-400 mb-3">Defina o estoque disponível para cada combinação. O campo "Estoque" acima fica como total geral.</p>
+                <div className="overflow-x-auto">
+                  {sizes.length > 0 && colors.length > 0 ? (
+                    // Matrix: sizes × colors
+                    <table className="w-full text-sm border-collapse">
+                      <thead>
+                        <tr>
+                          <th className="text-left text-xs font-medium text-gray-500 pb-2 pr-3 min-w-[60px]">Tam \ Cor</th>
+                          {colors.map((c) => (
+                            <th key={c} className="text-center text-xs font-medium text-gray-500 pb-2 px-2 min-w-[80px]">{c}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {sizes.map((s) => (
+                          <tr key={s}>
+                            <td className="py-2 pr-3 font-medium text-gray-700">{s}</td>
+                            {colors.map((c) => (
+                              <td key={c} className="py-2 px-2 text-center">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  value={getVariantStock(s, c)}
+                                  onChange={(e) => setVariantStockValue(s, c, parseInt(e.target.value) || 0)}
+                                  className="w-20 border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-center focus:outline-none focus:ring-2 focus:ring-[var(--brand)] focus:border-[var(--brand)] transition"
+                                />
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : sizes.length > 0 ? (
+                    // Only sizes
+                    <div className="space-y-2">
+                      {sizes.map((s) => (
+                        <div key={s} className="flex items-center gap-3">
+                          <span className="w-16 text-sm font-medium text-gray-700">{s}</span>
+                          <input
+                            type="number"
+                            min="0"
+                            value={getVariantStock(s, undefined)}
+                            onChange={(e) => setVariantStockValue(s, undefined, parseInt(e.target.value) || 0)}
+                            className="w-24 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--brand)] focus:border-[var(--brand)] transition"
+                          />
+                          <span className="text-xs text-gray-400">unidades</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    // Only colors
+                    <div className="space-y-2">
+                      {colors.map((c) => (
+                        <div key={c} className="flex items-center gap-3">
+                          <span className="w-24 text-sm font-medium text-gray-700">{c}</span>
+                          <input
+                            type="number"
+                            min="0"
+                            value={getVariantStock(undefined, c)}
+                            onChange={(e) => setVariantStockValue(undefined, c, parseInt(e.target.value) || 0)}
+                            className="w-24 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--brand)] focus:border-[var(--brand)] transition"
+                          />
+                          <span className="text-xs text-gray-400">unidades</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -215,7 +317,7 @@ export default function ProductForm({ product, categories, navItems = [] }: Prod
                 <p className="text-sm font-medium text-gray-900">Ativo</p>
                 <p className="text-xs text-gray-500">Visível na loja</p>
               </div>
-              <div className={`relative w-11 h-6 rounded-full transition-colors ${active ? "bg-pink-600" : "bg-gray-200"}`} onClick={() => setActive(!active)}>
+              <div className={`relative w-11 h-6 rounded-full transition-colors ${active ? "" : "bg-gray-200"}`} style={active ? { backgroundColor: "var(--brand)" } : {}} onClick={() => setActive(!active)}>
                 <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${active ? "translate-x-5" : ""}`} />
               </div>
             </label>
@@ -224,7 +326,7 @@ export default function ProductForm({ product, categories, navItems = [] }: Prod
                 <p className="text-sm font-medium text-gray-900">Destaque</p>
                 <p className="text-xs text-gray-500">Aparece na seção de destaque</p>
               </div>
-              <div className={`relative w-11 h-6 rounded-full transition-colors ${featured ? "bg-pink-600" : "bg-gray-200"}`} onClick={() => setFeatured(!featured)}>
+              <div className={`relative w-11 h-6 rounded-full transition-colors ${featured ? "" : "bg-gray-200"}`} style={featured ? { backgroundColor: "var(--brand)" } : {}} onClick={() => setFeatured(!featured)}>
                 <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${featured ? "translate-x-5" : ""}`} />
               </div>
             </label>
@@ -240,8 +342,8 @@ export default function ProductForm({ product, categories, navItems = [] }: Prod
                 {navItems.map((item) => {
                   const checked = selectedNavIds.includes(item.id);
                   return (
-                    <label key={item.id} className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${checked ? "border-pink-500 bg-pink-50" : "border-gray-100 hover:border-gray-200"}`}>
-                      <div className={`w-4 h-4 rounded flex items-center justify-center shrink-0 transition-colors ${checked ? "bg-pink-600 border-pink-600" : "border-2 border-gray-300"}`}>
+                    <label key={item.id} className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${checked ? "border-[var(--brand)] bg-[color-mix(in_srgb,var(--brand)_8%,white)]" : "border-gray-100 hover:border-gray-200"}`}>
+                      <div className={`w-4 h-4 rounded flex items-center justify-center shrink-0 transition-colors ${checked ? "" : "border-2 border-gray-300"}`} style={checked ? { backgroundColor: "var(--brand)", borderColor: "var(--brand)" } : {}}>
                         {checked && (
                           <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 10 10">
                             <path d="M1.5 5L4 7.5L8.5 2.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
@@ -249,7 +351,7 @@ export default function ProductForm({ product, categories, navItems = [] }: Prod
                         )}
                       </div>
                       <input type="checkbox" className="sr-only" checked={checked} onChange={() => toggleNav(item.id)} />
-                      <span className={`text-sm font-medium ${checked ? "text-pink-700" : "text-gray-700"}`}>{item.label}</span>
+                      <span className={`text-sm font-medium ${checked ? "text-[var(--brand)]" : "text-gray-700"}`}>{item.label}</span>
                     </label>
                   );
                 })}
