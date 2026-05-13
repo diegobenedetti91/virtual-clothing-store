@@ -5,8 +5,9 @@ import path from "path";
 const ALLOWED_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif", "application/pdf"];
 const MAX_SIZE = 10 * 1024 * 1024; // 10MB
 
-// Resolve upload dir relative to project root, works on Hostinger
-const UPLOAD_DIR = path.resolve(process.cwd(), "public", "uploads");
+const UPLOAD_DIR = process.env.PERSISTENT_UPLOAD_DIR
+  ? path.resolve(process.env.PERSISTENT_UPLOAD_DIR)
+  : path.resolve(process.cwd(), "public", "uploads");
 
 export async function POST(req: NextRequest) {
   try {
@@ -39,7 +40,9 @@ export async function POST(req: NextRequest) {
     // Verify file was written successfully
     await access(filePath);
 
-    const url = `/uploads/${filename}`;
+    const url = process.env.PERSISTENT_UPLOAD_DIR
+      ? `/api/files/${filename}`
+      : `/uploads/${filename}`;
     console.log(`[upload] saved: ${filePath} → ${url}`);
     return NextResponse.json({ url });
   } catch (err) {
