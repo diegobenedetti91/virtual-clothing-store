@@ -7,6 +7,7 @@
   },
   "scripts": {
     "dev": "next dev",
+    "prebuild": "rm -rf .next",
     "build": "prisma generate && prisma migrate deploy && node scripts/setup-admin.mjs && mkdir -p public/uploads && next build",
     "start": "next start",
     "lint": "eslint",
