@@ -8,7 +8,7 @@ import { useWishlist } from "@/hooks/useWishlist";
 import { useCustomer } from "@/hooks/useCustomer";
 import { CompanySettings } from "@/types";
 import { cn } from "@/lib/utils";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 
 interface NavItemType {
   id: string;
@@ -23,6 +23,7 @@ interface HeaderProps {
 
 export default function Header({ settings, navItems = [] }: HeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const searchParams = useSearchParams();
   const [searchOpen, setSearchOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const itemCount = useCart((s) => s.itemCount);
@@ -71,7 +72,10 @@ export default function Header({ settings, navItems = [] }: HeaderProps) {
             {/* Nav — desktop */}
             <nav className="hidden md:flex items-center gap-1 ml-2">
               {navLinks.map((link) => {
-                const active = pathname === link.href || (link.href !== "/" && pathname.startsWith(link.href));
+                const [linkPath, linkQuery] = link.href.split("?");
+                const active = linkQuery
+                  ? pathname === linkPath && searchParams.toString() === new URLSearchParams(linkQuery).toString()
+                  : pathname === link.href || (link.href !== "/" && pathname.startsWith(link.href));
                 return (
                   <Link
                     key={link.href}
@@ -186,7 +190,10 @@ export default function Header({ settings, navItems = [] }: HeaderProps) {
           <div className="md:hidden border-t border-gray-100 bg-white">
             <nav className="max-w-7xl mx-auto px-4 py-4 space-y-1">
               {navLinks.map((link) => {
-                const active = pathname === link.href || (link.href !== "/" && pathname.startsWith(link.href));
+                const [linkPath, linkQuery] = link.href.split("?");
+                const active = linkQuery
+                  ? pathname === linkPath && searchParams.toString() === new URLSearchParams(linkQuery).toString()
+                  : pathname === link.href || (link.href !== "/" && pathname.startsWith(link.href));
                 return (
                   <Link
                     key={link.href}
