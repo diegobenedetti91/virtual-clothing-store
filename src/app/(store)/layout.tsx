@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
+import { getCompanySettings } from "@/lib/company";
 import Header from "@/components/store/Header";
 import Footer from "@/components/store/Footer";
 import WhatsAppFloat from "@/components/store/WhatsAppFloat";
@@ -11,7 +12,7 @@ import CartSyncer from "@/components/store/CartSyncer";
 export default async function StoreLayout({ children }: { children: React.ReactNode }) {
   await cookies();
   const [settings, navItems] = await Promise.all([
-    prisma.companySettings.findFirst({ orderBy: { updatedAt: "desc" } }).catch(() => null),
+    getCompanySettings(),
     prisma.navItem.findMany({ where: { active: true }, orderBy: [{ position: "asc" }, { createdAt: "asc" }] }).catch(() => []),
   ]);
   return (

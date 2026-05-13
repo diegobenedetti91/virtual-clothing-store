@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { prisma } from "@/lib/prisma";
+import { getCompanySettings } from "@/lib/company";
 import HeroBanner from "@/components/store/HeroBanner";
 import ProductCard from "@/components/store/ProductCard";
 import Link from "next/link";
@@ -12,7 +13,7 @@ import type { Product } from "@/types";
 export default async function HomePage({ searchParams }: { searchParams: Promise<Record<string, string | string[]>> }) {
   await searchParams;
   const [settings, featuredRaw, newArrivalsRaw] = await Promise.all([
-    prisma.companySettings.findFirst({ orderBy: { updatedAt: "desc" } }).catch(() => null), 
+    getCompanySettings(),
     prisma.product.findMany({
       where: { active: true, featured: true },
       include: { category: true },
