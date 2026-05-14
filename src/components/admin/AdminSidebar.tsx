@@ -19,6 +19,7 @@ import {
   Star,
   ShoppingBag,
   Bell,
+  Layers,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
@@ -34,6 +35,7 @@ const links = [
   { href: "/admin/avaliacoes", label: "Avaliações", icon: Star },
   { href: "/admin/carrinhos", label: "Carrinhos abandonados", icon: ShoppingBag },
   { href: "/admin/lista-de-espera", label: "Lista de espera", icon: Bell },
+  { href: "/admin/variacoes", label: "Variações", icon: Layers },
   { href: "/admin/relatorios", label: "Relatórios", icon: BarChart2 },
   { href: "/admin/configuracoes", label: "Configurações", icon: Settings },
 ];

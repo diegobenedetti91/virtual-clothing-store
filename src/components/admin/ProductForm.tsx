@@ -13,13 +13,21 @@ interface NavItemOption {
   label: string;
 }
 
+interface VariationTemplate {
+  id: string;
+  name: string;
+  values: string;
+  active: boolean;
+}
+
 interface ProductFormProps {
   product?: Product;
   categories: Category[];
   navItems?: NavItemOption[];
+  variationTemplates?: VariationTemplate[];
 }
 
-export default function ProductForm({ product, categories, navItems = [] }: ProductFormProps) {
+export default function ProductForm({ product, categories, navItems = [], variationTemplates = [] }: ProductFormProps) {
   const router = useRouter();
   const isEditing = !!product;
   const [loading, setLoading] = useState(false);
@@ -104,6 +112,23 @@ export default function ProductForm({ product, categories, navItems = [] }: Prod
     if (!trimmed || attributes.some((a) => a.name === trimmed)) return;
     setAttributes((prev) => [...prev, { name: trimmed, values: [] }]);
     setNewAttrName("");
+  };
+
+  // Apply a variation template as a new attribute (or merge values if name already exists)
+  const applyTemplate = (tpl: VariationTemplate) => {
+    const values = JSON.parse(tpl.values || "[]") as string[];
+    setAttributes((prev) => {
+      const existing = prev.find((a) => a.name === tpl.name);
+      if (existing) {
+        // Merge new values
+        return prev.map((a) =>
+          a.name === tpl.name
+            ? { ...a, values: Array.from(new Set([...a.values, ...values])) }
+            : a
+        );
+      }
+      return [...prev, { name: tpl.name, values }];
+    });
   };
 
   const removeAttribute = (idx: number) =>
@@ -272,6 +297,37 @@ export default function ProductForm({ product, categories, navItems = [] }: Prod
                 Crie atributos livres — ex: Sabor, Tamanho, Cor, Recheio. Cada um com seus próprios valores.
               </p>
             </div>
+
+            {/* Template quick-pick */}
+            {variationTemplates.filter((t) => t.active).length > 0 && (
+              <div>
+                <p className="text-xs font-medium text-gray-500 mb-2">Aplicar variação cadastrada</p>
+                <div className="flex gap-2 flex-wrap">
+                  {variationTemplates.filter((t) => t.active).map((tpl) => {
+                    const alreadyApplied = attributes.some((a) => a.name === tpl.name);
+                    return (
+                      <button
+                        key={tpl.id}
+                        type="button"
+                        onClick={() => applyTemplate(tpl)}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium border-2 transition-all ${
+                          alreadyApplied
+                            ? "border-green-200 bg-green-50 text-green-700"
+                            : "border-gray-200 bg-white text-gray-700 hover:border-[var(--brand)] hover:text-[var(--brand)]"
+                        }`}
+                      >
+                        {alreadyApplied ? (
+                          <svg className="w-3 h-3" fill="none" viewBox="0 0 10 10"><path d="M1.5 5L4 7.5L8.5 2.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                        ) : (
+                          <Plus size={12} />
+                        )}
+                        {tpl.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Existing attributes */}
             {attributes.map((attr, attrIdx) => (

@@ -185,6 +185,15 @@ model WaitlistEntry {
   @@unique([productId, email, size, color])
 }
 
+model VariationTemplate {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  values    String   @default("[]") @db.Text
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model AbandonedCart {
   id           String   @id @default(cuid())
   customerId   String?
