@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { generateOrderNumber } from "@/lib/utils";
+import { normalizeVariantStock, matchesSelection } from "@/lib/variantUtils";
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
@@ -74,7 +75,14 @@ export async function POST(req: NextRequest) {
   const mpData = await mpRes.json();
 
   // Create order in our DB with PENDING status + decrement variant stock
-  type CartItem = { productId: string; quantity: number; price?: number; size?: string; color?: string };
+  type CartItem = {
+    productId: string;
+    quantity: number;
+    price?: number;
+    size?: string;
+    color?: string;
+    selectedAttributes?: Record<string, string>;
+  };
   const fullAddress = address && city ? `${address}, ${city}${state ? `/${state}` : ""}` : null;
   await prisma.$transaction(async (tx) => {
     for (const item of items as CartItem[]) {
@@ -82,15 +90,24 @@ export async function POST(req: NextRequest) {
         where: { id: item.productId },
         select: { variantStock: true },
       });
-      const variants = JSON.parse(product?.variantStock || "[]") as { size?: string; color?: string; stock: number }[];
+      const raw = JSON.parse(product?.variantStock || "[]");
+      const variants = normalizeVariantStock(raw);
 
-      if (variants.length > 0 && (item.size || item.color)) {
-        const updated = variants.map((v) => {
-          const sizeOk = item.size ? v.size === item.size : true;
-          const colorOk = item.color ? v.color === item.color : true;
-          if (sizeOk && colorOk) return { ...v, stock: Math.max(0, v.stock - item.quantity) };
-          return v;
-        });
+      const selected: Record<string, string> = item.selectedAttributes
+        ? item.selectedAttributes
+        : {
+            ...(item.size ? { Tamanho: item.size } : {}),
+            ...(item.color ? { Cor: item.color } : {}),
+          };
+
+      const hasSelection = Object.keys(selected).length > 0;
+
+      if (variants.length > 0 && hasSelection) {
+        const updated = variants.map((v) =>
+          matchesSelection(v.attributes, selected)
+            ? { ...v, stock: Math.max(0, v.stock - item.quantity) }
+            : v
+        );
         const newTotal = updated.reduce((sum, v) => sum + (v.stock || 0), 0);
         await tx.product.update({
           where: { id: item.productId },
@@ -126,6 +143,9 @@ export async function POST(req: NextRequest) {
             price: productMap.get(item.productId)!.price,
             size: item.size || null,
             color: item.color || null,
+            selectedAttributes: item.selectedAttributes
+              ? JSON.stringify(item.selectedAttributes)
+              : null,
           })),
         },
       },

@@ -4,7 +4,7 @@ import { getCompanySettings } from "@/lib/company";
 import { sendWaitlistNotificationEmail } from "@/lib/email";
 
 export async function POST(req: NextRequest) {
-  const { productId, size, color } = await req.json();
+  const { productId, variantKey } = await req.json();
 
   if (!productId) {
     return NextResponse.json({ error: "productId obrigatório" }, { status: 400 });
@@ -16,31 +16,44 @@ export async function POST(req: NextRequest) {
   const settings = await getCompanySettings();
   const storeName = settings?.name || "Loja";
 
-  const entries = await prisma.waitlistEntry.findMany({
-    where: {
-      productId,
-      notified: false,
-      ...(size !== undefined ? { size: size || "" } : {}),
-      ...(color !== undefined ? { color: color || "" } : {}),
-    },
-  });
+  const where: Record<string, unknown> = { productId, notified: false };
+  if (variantKey !== undefined) where.variantKey = variantKey;
+
+  const entries = await prisma.waitlistEntry.findMany({ where });
 
   let sent = 0;
   for (const entry of entries) {
     try {
+      // Build display label: try to parse variantKey as JSON attributes
+      let size: string | undefined;
+      let color: string | undefined;
+      try {
+        const parsed = JSON.parse(entry.variantKey);
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+          // New format: {Sabor: "Chocolate"} or legacy {size: "P", color: "Preto"}
+          if ("size" in parsed || "color" in parsed) {
+            size = parsed.size || undefined;
+            color = parsed.color || undefined;
+          } else {
+            // Dynamic attributes: build a label from entries
+            size = Object.entries(parsed).map(([k, v]) => `${k}: ${v}`).join(", ") || undefined;
+          }
+        }
+      } catch {
+        size = entry.size || undefined;
+        color = entry.color || undefined;
+      }
+
       await sendWaitlistNotificationEmail({
         to: entry.email,
         customerName: entry.name,
         productName: product.name,
         productSlug: product.slug,
-        size: entry.size || undefined,
-        color: entry.color || undefined,
+        size,
+        color,
         storeName,
       });
-      await prisma.waitlistEntry.update({
-        where: { id: entry.id },
-        data: { notified: true },
-      });
+      await prisma.waitlistEntry.update({ where: { id: entry.id }, data: { notified: true } });
       sent++;
     } catch {
       // continue sending to others even if one fails

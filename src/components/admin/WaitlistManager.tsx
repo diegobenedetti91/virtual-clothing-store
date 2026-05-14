@@ -10,6 +10,7 @@ interface WaitlistEntry {
   name: string | null;
   size: string;
   color: string;
+  variantKey: string;
   notified: boolean;
   createdAt: string;
   product: { id: string; name: string; slug: string };
@@ -19,22 +20,38 @@ interface VariantGroup {
   productId: string;
   productName: string;
   productSlug: string;
-  size: string;
-  color: string;
+  variantKey: string;
+  variantLabel: string;
   entries: WaitlistEntry[];
+}
+
+function buildVariantLabel(entry: WaitlistEntry): string {
+  if (entry.variantKey) {
+    try {
+      const parsed = JSON.parse(entry.variantKey);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        if ("size" in parsed || "color" in parsed) {
+          return [parsed.size, parsed.color].filter(Boolean).join(" / ");
+        }
+        // Dynamic attributes
+        return Object.entries(parsed).map(([k, v]) => `${k}: ${v}`).join(" / ");
+      }
+    } catch { /* ignore */ }
+  }
+  return [entry.size, entry.color].filter(Boolean).join(" / ");
 }
 
 function groupByVariant(entries: WaitlistEntry[]): VariantGroup[] {
   const map = new Map<string, VariantGroup>();
   for (const e of entries) {
-    const key = `${e.product.id}|${e.size}|${e.color}`;
+    const key = `${e.product.id}|${e.variantKey || `${e.size}|${e.color}`}`;
     if (!map.has(key)) {
       map.set(key, {
         productId: e.product.id,
         productName: e.product.name,
         productSlug: e.product.slug,
-        size: e.size,
-        color: e.color,
+        variantKey: e.variantKey,
+        variantLabel: buildVariantLabel(e),
         entries: [],
       });
     }
@@ -64,7 +81,7 @@ export default function WaitlistManager() {
   };
 
   const handleNotify = async (group: VariantGroup) => {
-    const key = `${group.productId}|${group.size}|${group.color}`;
+    const key = `${group.productId}|${group.variantKey}`;
     setNotifying(key);
     try {
       const res = await fetch("/api/waitlist/notify", {
@@ -72,8 +89,7 @@ export default function WaitlistManager() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           productId: group.productId,
-          size: group.size,
-          color: group.color,
+          variantKey: group.variantKey,
         }),
       });
       const data = await res.json();
@@ -129,8 +145,8 @@ export default function WaitlistManager() {
       )}
 
       {groups.map((group) => {
-        const key = `${group.productId}|${group.size}|${group.color}`;
-        const variantLabel = [group.size, group.color].filter(Boolean).join(" / ") || "Sem variação";
+        const key = `${group.productId}|${group.variantKey}`;
+        const variantLabel = group.variantLabel || "Sem variação";
         const pendingInGroup = group.entries.filter((e) => !e.notified).length;
         const isNotifying = notifying === key;
 

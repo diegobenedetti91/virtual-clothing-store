@@ -8,6 +8,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import type { CartItem } from "@/types";
+import { attributesLabel } from "@/lib/variantUtils";
 
 export default function CartPage() {
   const { items, removeItem, updateQuantity, total } = useCart();
@@ -21,10 +22,14 @@ export default function CartPage() {
     if (items.length === 0) return;
     Promise.all(
       items.map(async (item) => {
-        const key = `${item.productId}-${item.size ?? ""}-${item.color ?? ""}`;
+        const key = `${item.productId}-${item.selectedAttributes ? JSON.stringify(item.selectedAttributes) : `${item.size ?? ""}-${item.color ?? ""}`}`;
         const params = new URLSearchParams({ productId: item.productId });
-        if (item.size) params.set("size", item.size);
-        if (item.color) params.set("color", item.color);
+        if (item.selectedAttributes && Object.keys(item.selectedAttributes).length > 0) {
+          params.set("attributes", JSON.stringify(item.selectedAttributes));
+        } else {
+          if (item.size) params.set("size", item.size);
+          if (item.color) params.set("color", item.color);
+        }
         const res = await fetch(`/api/stock?${params}`);
         const data = await res.json();
         return [key, data.available ?? 0] as [string, number];
@@ -33,10 +38,14 @@ export default function CartPage() {
   }, [items.length]);
 
   async function handleIncrement(item: CartItem) {
-    const key = `${item.productId}-${item.size ?? ""}-${item.color ?? ""}`;
+    const key = `${item.productId}-${item.selectedAttributes ? JSON.stringify(item.selectedAttributes) : `${item.size ?? ""}-${item.color ?? ""}`}`;
     const params = new URLSearchParams({ productId: item.productId });
-    if (item.size) params.set("size", item.size);
-    if (item.color) params.set("color", item.color);
+    if (item.selectedAttributes && Object.keys(item.selectedAttributes).length > 0) {
+      params.set("attributes", JSON.stringify(item.selectedAttributes));
+    } else {
+      if (item.size) params.set("size", item.size);
+      if (item.color) params.set("color", item.color);
+    }
     const res = await fetch(`/api/stock?${params}`);
     const { available } = await res.json();
     setStockMap((prev) => ({ ...prev, [key]: available }));
@@ -50,7 +59,7 @@ export default function CartPage() {
       return;
     }
     setStockErrors((prev) => { const n = { ...prev }; delete n[key]; return n; });
-    updateQuantity(item.productId, item.quantity + 1, item.size, item.color);
+    updateQuantity(item.productId, item.quantity + 1, item.selectedAttributes, item.size, item.color);
   }
 
   function handleCheckout() {
@@ -83,7 +92,7 @@ export default function CartPage() {
         <div className="lg:col-span-2 space-y-4">
           {items.map((item) => (
             <div
-              key={`${item.productId}-${item.size}-${item.color}`}
+              key={`${item.productId}-${item.selectedAttributes ? JSON.stringify(item.selectedAttributes) : `${item.size ?? ""}-${item.color ?? ""}`}`}
               className="flex gap-4 bg-white border border-gray-100 rounded-2xl p-4 shadow-sm"
             >
               <Link href={`/produtos/${item.slug}`}>
@@ -98,13 +107,17 @@ export default function CartPage() {
                 <Link href={`/produtos/${item.slug}`} className="font-semibold text-gray-900 hover:text-brand transition-colors block truncate">
                   {item.name}
                 </Link>
-                <div className="flex gap-2 text-xs text-gray-500 mt-0.5">
-                  {item.size && <span>Tam: {item.size}</span>}
-                  {item.color && <span>Cor: {item.color}</span>}
-                </div>
+                {(item.selectedAttributes && Object.keys(item.selectedAttributes).length > 0) ? (
+                  <p className="text-xs text-gray-500 mt-0.5">{attributesLabel(item.selectedAttributes)}</p>
+                ) : (
+                  <div className="flex gap-2 text-xs text-gray-500 mt-0.5">
+                    {item.size && <span>Tam: {item.size}</span>}
+                    {item.color && <span>Cor: {item.color}</span>}
+                  </div>
+                )}
                 <p className="font-bold text-gray-900 mt-1">{formatCurrency(item.price)}</p>
                 {(() => {
-                  const key = `${item.productId}-${item.size ?? ""}-${item.color ?? ""}`;
+                  const key = `${item.productId}-${item.selectedAttributes ? JSON.stringify(item.selectedAttributes) : `${item.size ?? ""}-${item.color ?? ""}`}`;
                   const available = stockMap[key];
                   const error = stockErrors[key];
                   return (
@@ -113,7 +126,7 @@ export default function CartPage() {
                         <button
                           onClick={() => {
                             setStockErrors((prev) => { const n = { ...prev }; delete n[key]; return n; });
-                            updateQuantity(item.productId, item.quantity - 1, item.size, item.color);
+                            updateQuantity(item.productId, item.quantity - 1, item.selectedAttributes, item.size, item.color);
                           }}
                           className="w-7 h-7 rounded-full border border-gray-200 flex items-center justify-center hover:border-brand transition-colors"
                         >
@@ -133,7 +146,7 @@ export default function CartPage() {
                           </span>
                         )}
                         <button
-                          onClick={() => removeItem(item.productId, item.size, item.color)}
+                          onClick={() => removeItem(item.productId, item.selectedAttributes, item.size, item.color)}
                           className="ml-auto text-gray-400 hover:text-red-500 transition-colors p-1"
                         >
                           <Trash2 size={16} />
@@ -158,7 +171,7 @@ export default function CartPage() {
             <h2 className="text-lg font-bold text-gray-900 mb-4">Resumo do pedido</h2>
             <div className="space-y-2 mb-4">
               {items.map((item) => (
-                <div key={`${item.productId}-${item.size}-${item.color}`} className="flex justify-between text-sm text-gray-600">
+                <div key={`${item.productId}-${item.selectedAttributes ? JSON.stringify(item.selectedAttributes) : `${item.size ?? ""}-${item.color ?? ""}`}`} className="flex justify-between text-sm text-gray-600">
                   <span className="truncate mr-2">{item.name} × {item.quantity}</span>
                   <span className="shrink-0">{formatCurrency(item.price * item.quantity)}</span>
                 </div>

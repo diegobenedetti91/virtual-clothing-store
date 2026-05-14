@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ChevronLeft, ChevronRight, RotateCcw, MessageCircle } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import type { Product } from "@/types";
+import { getProductAttributes, normalizeVariantStock } from "@/lib/variantUtils";
 import ProductGallery from "@/components/store/ProductGallery";
 import ProductActions from "@/components/store/ProductActions";
 import ProductReviews from "@/components/store/ProductReviews";
@@ -23,8 +24,12 @@ export default async function ProductDetailPage({ params }: PageProps) {
 
   const product = raw as unknown as Product;
   const images = JSON.parse(product.images || "[]") as string[];
-  const sizes = JSON.parse(product.sizes || "[]") as string[];
-  const colors = JSON.parse(product.colors || "[]") as string[];
+  const attributes = getProductAttributes({
+    attributes: product.attributes || "[]",
+    sizes: product.sizes || "[]",
+    colors: product.colors || "[]",
+  });
+  const normalizedVariants = normalizeVariantStock(JSON.parse(product.variantStock || "[]"));
   const firstImage = images[0] || "/placeholder-product.svg";
   const reviewCount = (raw as unknown as { _count: { reviews: number } })._count.reviews;
 
@@ -110,10 +115,9 @@ export default async function ProductDetailPage({ params }: PageProps) {
               comparePrice={product.comparePrice}
               image={firstImage}
               slug={product.slug}
-              sizes={sizes}
-              colors={colors}
+              attributes={attributes}
               stock={product.stock}
-              variantStock={JSON.parse(product.variantStock || "[]")}
+              variantStock={normalizedVariants}
             />
 
             {/* Info cards (Estoque is inside ProductActions, variant-aware) */}

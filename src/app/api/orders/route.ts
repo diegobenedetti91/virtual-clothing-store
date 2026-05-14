@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { generateOrderNumber } from "@/lib/utils";
 import { sendOrderConfirmationEmail } from "@/lib/email";
+import { normalizeVariantStock, matchesSelection } from "@/lib/variantUtils";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -32,9 +33,7 @@ export async function GET(req: NextRequest) {
 
   const orders = await prisma.order.findMany({
     where,
-    include: {
-      items: { include: { product: true } },
-    },
+    include: { items: { include: { product: true } } },
     orderBy: { createdAt: "desc" },
   });
 
@@ -45,31 +44,49 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const { customerName, customerEmail, customerPhone, address, city, state, zipCode, items, notes, customerId } = body;
 
-  type OrderItem = { productId: string; quantity: number; price: number; size?: string; color?: string };
+  type OrderItemInput = {
+    productId: string;
+    quantity: number;
+    price: number;
+    // Legacy
+    size?: string;
+    color?: string;
+    // New
+    selectedAttributes?: Record<string, string>;
+  };
 
   let subtotal = 0;
-  for (const item of items as OrderItem[]) {
+  for (const item of items as OrderItemInput[]) {
     subtotal += item.price * item.quantity;
   }
 
   const orderNumber = generateOrderNumber();
 
   const order = await prisma.$transaction(async (tx) => {
-    // Decrement stock for each item (variant-aware)
-    for (const item of items as OrderItem[]) {
+    for (const item of items as OrderItemInput[]) {
       const product = await tx.product.findUnique({
         where: { id: item.productId },
         select: { variantStock: true },
       });
-      const variants = JSON.parse(product?.variantStock || "[]") as { size?: string; color?: string; stock: number }[];
+      const raw = JSON.parse(product?.variantStock || "[]");
+      const variants = normalizeVariantStock(raw);
 
-      if (variants.length > 0 && (item.size || item.color)) {
-        const updated = variants.map((v) => {
-          const sizeOk = item.size ? v.size === item.size : true;
-          const colorOk = item.color ? v.color === item.color : true;
-          if (sizeOk && colorOk) return { ...v, stock: Math.max(0, v.stock - item.quantity) };
-          return v;
-        });
+      // Build the selection from either new or legacy format
+      const selected: Record<string, string> = item.selectedAttributes
+        ? item.selectedAttributes
+        : {
+            ...(item.size ? { Tamanho: item.size } : {}),
+            ...(item.color ? { Cor: item.color } : {}),
+          };
+
+      const hasSelection = Object.keys(selected).length > 0;
+
+      if (variants.length > 0 && hasSelection) {
+        const updated = variants.map((v) =>
+          matchesSelection(v.attributes, selected)
+            ? { ...v, stock: Math.max(0, v.stock - item.quantity) }
+            : v
+        );
         const newTotal = updated.reduce((sum, v) => sum + (v.stock || 0), 0);
         await tx.product.update({
           where: { id: item.productId },
@@ -98,12 +115,15 @@ export async function POST(req: NextRequest) {
         notes: notes || null,
         customerId: customerId || null,
         items: {
-          create: (items as OrderItem[]).map((item) => ({
+          create: (items as OrderItemInput[]).map((item) => ({
             productId: item.productId,
             quantity: item.quantity,
             price: item.price,
             size: item.size || null,
             color: item.color || null,
+            selectedAttributes: item.selectedAttributes
+              ? JSON.stringify(item.selectedAttributes)
+              : null,
           })),
         },
       },
@@ -111,7 +131,6 @@ export async function POST(req: NextRequest) {
     });
   });
 
-  // Send confirmation email (WhatsApp flow — no gateway)
   const emailTarget = customerEmail || null;
   if (emailTarget) {
     const settings = await prisma.companySettings.findFirst({ orderBy: { updatedAt: "desc" }, select: { name: true } });

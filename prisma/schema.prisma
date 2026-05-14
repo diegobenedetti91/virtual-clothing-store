@@ -57,6 +57,7 @@ model Product {
   category     Category        @relation(fields: [categoryId], references: [id])
   sizes        String          @default("[]") @db.Text
   colors       String          @default("[]") @db.Text
+  attributes   String          @default("[]") @db.Text
   stock        Int             @default(0)
   variantStock String          @default("[]") @db.Text
   active       Boolean         @default(true)
@@ -114,8 +115,9 @@ model OrderItem {
   product   Product @relation(fields: [productId], references: [id])
   quantity  Int
   price     Float
-  size      String?
-  color     String?
+  size               String?
+  color              String?
+  selectedAttributes String? @db.Text
 }
 
 model NavItem {
@@ -173,12 +175,13 @@ model WaitlistEntry {
   product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
   email     String
   name      String?
-  size      String   @default("") @db.VarChar(100)
-  color     String   @default("") @db.VarChar(100)
-  notified  Boolean  @default(false)
-  createdAt DateTime @default(now())
+  size       String   @default("") @db.VarChar(100)
+  color      String   @default("") @db.VarChar(100)
+  variantKey String   @default("") @db.VarChar(512)
+  notified   Boolean  @default(false)
+  createdAt  DateTime @default(now())
 
-  @@unique([productId, email, size, color])
+  @@unique([productId, email, variantKey])
 }
 
 model AbandonedCart {

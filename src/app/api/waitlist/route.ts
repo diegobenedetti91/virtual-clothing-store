@@ -18,12 +18,11 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const customer = getCustomerFromRequest(req);
-  const { productId, email, name, size, color } = await req.json();
+  const body = await req.json();
+  const { productId, email, name, variantKey: vKey, size, color } = body;
 
   const resolvedEmail = customer?.email || email?.trim();
   const resolvedName = customer?.name || name?.trim();
-  const resolvedSize = size?.trim() || "";
-  const resolvedColor = color?.trim() || "";
 
   if (!productId || !resolvedEmail) {
     return NextResponse.json({ error: "Dados inválidos" }, { status: 400 });
@@ -32,14 +31,18 @@ export async function POST(req: NextRequest) {
   const product = await prisma.product.findUnique({ where: { id: productId } });
   if (!product) return NextResponse.json({ error: "Produto não encontrado" }, { status: 404 });
 
+  // Use variantKey (new format) or build from legacy size/color
+  const resolvedVariantKey = vKey?.trim() || JSON.stringify({ size: size?.trim() || "", color: color?.trim() || "" });
+  const resolvedSize = size?.trim() || "";
+  const resolvedColor = color?.trim() || "";
+
   try {
     await prisma.waitlistEntry.upsert({
       where: {
-        productId_email_size_color: {
+        productId_email_variantKey: {
           productId,
           email: resolvedEmail,
-          size: resolvedSize,
-          color: resolvedColor,
+          variantKey: resolvedVariantKey,
         },
       },
       update: { notified: false },
@@ -49,6 +52,7 @@ export async function POST(req: NextRequest) {
         name: resolvedName || null,
         size: resolvedSize,
         color: resolvedColor,
+        variantKey: resolvedVariantKey,
       },
     });
     return NextResponse.json({ ok: true });

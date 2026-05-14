@@ -5,7 +5,8 @@ import { ShoppingBag, Check, Heart, Package, Minus, Plus, Loader2 } from "lucide
 import { useCart } from "@/hooks/useCart";
 import { useWishlist } from "@/hooks/useWishlist";
 import { formatCurrency } from "@/lib/utils";
-import { VariantStock } from "@/types";
+import { ProductAttribute } from "@/types";
+import { NormalizedVariant, getStockForSelection, variantKey } from "@/lib/variantUtils";
 import WaitlistForm from "@/components/store/WaitlistForm";
 
 interface Props {
@@ -15,15 +16,13 @@ interface Props {
   comparePrice?: number | null;
   image: string;
   slug: string;
-  sizes: string[];
-  colors: string[];
+  attributes: ProductAttribute[];
   stock: number;
-  variantStock: VariantStock[];
+  variantStock: NormalizedVariant[];
 }
 
-export default function ProductActions({ productId, name, price, comparePrice, image, slug, sizes, colors, stock, variantStock }: Props) {
-  const [selectedSize, setSelectedSize] = useState("");
-  const [selectedColor, setSelectedColor] = useState("");
+export default function ProductActions({ productId, name, price, comparePrice, image, slug, attributes, stock, variantStock }: Props) {
+  const [selected, setSelected] = useState<Record<string, string>>({});
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
   const [adding, setAdding] = useState(false);
@@ -40,56 +39,36 @@ export default function ProductActions({ productId, name, price, comparePrice, i
 
   const hasVariantStock = variantStock.length > 0;
 
-  const currentVariantStock = (() => {
+  // Compute current stock for the selected combination
+  const currentVariantStock: number | null = (() => {
     if (!hasVariantStock) return null;
-    if (sizes.length > 0 && colors.length > 0) {
-      if (!selectedSize && !selectedColor) return null;
-      if (selectedSize && selectedColor) {
-        return variantStock.find((v) => v.size === selectedSize && v.color === selectedColor)?.stock ?? 0;
-      }
-      if (selectedSize) {
-        return variantStock.filter((v) => v.size === selectedSize).reduce((s, v) => s + (v.stock || 0), 0);
-      }
-      return variantStock.filter((v) => v.color === selectedColor).reduce((s, v) => s + (v.stock || 0), 0);
-    }
-    if (sizes.length > 0) {
-      if (!selectedSize) return null;
-      return variantStock.find((v) => v.size === selectedSize)?.stock ?? 0;
-    }
-    if (colors.length > 0) {
-      if (!selectedColor) return null;
-      return variantStock.find((v) => v.color === selectedColor)?.stock ?? 0;
-    }
-    return null;
+    const selectedKeys = Object.keys(selected).filter((k) => selected[k]);
+    if (selectedKeys.length === 0) return null;
+    return getStockForSelection(variantStock, selected);
   })();
 
   const effectiveStock = currentVariantStock !== null ? currentVariantStock : stock;
   const isOutOfStock = effectiveStock === 0;
 
-  const variantFullySelected =
-    (sizes.length === 0 || selectedSize !== "") &&
-    (colors.length === 0 || selectedColor !== "");
-  const showWaitlist = isOutOfStock && variantFullySelected;
+  const fullySelected = attributes.every((a) => selected[a.name]);
+  const showWaitlist = isOutOfStock && fullySelected;
 
-  const existingInCart = variantFullySelected
+  // Count same variant already in cart
+  const existingInCart = fullySelected
     ? (cartItems.find(
         (i) =>
           i.productId === productId &&
-          i.size === (selectedSize || undefined) &&
-          i.color === (selectedColor || undefined)
+          variantKey(i.selectedAttributes || {}) === variantKey(selected)
       )?.quantity ?? 0)
     : 0;
 
   const maxQuantity = Math.max(0, effectiveStock - existingInCart);
 
-  const selectSize = (size: string) => {
-    setSelectedSize(size === selectedSize ? "" : size);
-    setValidationError("");
-    setQuantity(1);
-  };
-
-  const selectColor = (color: string) => {
-    setSelectedColor(color === selectedColor ? "" : color);
+  const selectValue = (attrName: string, val: string) => {
+    setSelected((prev) => ({
+      ...prev,
+      [attrName]: prev[attrName] === val ? "" : val,
+    }));
     setValidationError("");
     setQuantity(1);
   };
@@ -97,22 +76,28 @@ export default function ProductActions({ productId, name, price, comparePrice, i
   const changeQty = (delta: number) =>
     setQuantity((q) => Math.min(maxQuantity, Math.max(1, q + delta)));
 
+  // Is a specific value out of stock given current partial selection?
+  const isValueOutOfStock = (attrName: string, val: string): boolean => {
+    if (!hasVariantStock) return false;
+    const testSelection = { ...selected, [attrName]: val };
+    return getStockForSelection(variantStock, testSelection) === 0;
+  };
+
   const handleAddToCart = async () => {
     if (isOutOfStock || adding) return;
-    if (sizes.length > 0 && !selectedSize) {
-      setValidationError("Selecione um tamanho antes de continuar");
-      return;
-    }
-    if (colors.length > 0 && !selectedColor) {
-      setValidationError("Selecione uma cor antes de continuar");
-      return;
+    for (const attr of attributes) {
+      if (!selected[attr.name]) {
+        setValidationError(`Selecione ${attr.name} antes de continuar`);
+        return;
+      }
     }
     setAdding(true);
     setValidationError("");
     try {
       const params = new URLSearchParams({ productId });
-      if (selectedSize) params.set("size", selectedSize);
-      if (selectedColor) params.set("color", selectedColor);
+      if (Object.keys(selected).length > 0) {
+        params.set("attributes", JSON.stringify(selected));
+      }
       const res = await fetch(`/api/stock?${params}`);
       const { available } = await res.json();
       const availableForCart = Math.max(0, available - existingInCart);
@@ -121,7 +106,9 @@ export default function ProductActions({ productId, name, price, comparePrice, i
         return;
       }
       if (quantity > availableForCart) {
-        setValidationError(`Estoque insuficiente — máximo ${availableForCart} unidade${availableForCart !== 1 ? "s" : ""} disponível${availableForCart !== 1 ? "is" : ""}`);
+        setValidationError(
+          `Estoque insuficiente — máximo ${availableForCart} unidade${availableForCart !== 1 ? "s" : ""} disponível${availableForCart !== 1 ? "is" : ""}`
+        );
         return;
       }
       addItem({
@@ -129,8 +116,7 @@ export default function ProductActions({ productId, name, price, comparePrice, i
         name,
         price,
         image,
-        size: selectedSize || undefined,
-        color: selectedColor || undefined,
+        selectedAttributes: Object.keys(selected).length > 0 ? selected : undefined,
         quantity,
         slug,
       });
@@ -139,10 +125,6 @@ export default function ProductActions({ productId, name, price, comparePrice, i
     } finally {
       setAdding(false);
     }
-  };
-
-  const handleWishlist = () => {
-    toggle({ productId, name, price, image, slug });
   };
 
   return (
@@ -160,35 +142,37 @@ export default function ProductActions({ productId, name, price, comparePrice, i
         )}
       </div>
 
-      {/* Sizes */}
-      {sizes.length > 0 && (
-        <div>
+      {/* Attribute selectors */}
+      {attributes.map((attr) => (
+        <div key={attr.name}>
           <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">
-            Tamanho
-            {selectedSize && <span className="normal-case tracking-normal ml-1" style={{ color: "var(--brand)" }}>— {selectedSize}</span>}
+            {attr.name}
+            {selected[attr.name] && (
+              <span className="normal-case tracking-normal ml-1" style={{ color: "var(--brand)" }}>
+                — {selected[attr.name]}
+              </span>
+            )}
           </p>
           <div className="flex gap-2 flex-wrap">
-            {sizes.map((size) => {
-              const varStock = hasVariantStock
-                ? variantStock.find((v) => v.size === size && (colors.length === 0 || v.color === selectedColor))?.stock
-                : undefined;
-              const sizeOutOfStock = varStock === 0;
+            {attr.values.map((val) => {
+              const outOfStock = isValueOutOfStock(attr.name, val);
+              const isSelected = selected[attr.name] === val;
               return (
                 <button
-                  key={size}
-                  onClick={() => selectSize(size)}
-                  className={`relative min-w-[52px] h-11 px-4 rounded-xl border-2 text-sm font-bold transition-all ${
-                    selectedSize === size
+                  key={val}
+                  onClick={() => selectValue(attr.name, val)}
+                  className={`relative h-11 px-4 rounded-xl border-2 text-sm font-bold transition-all ${
+                    isSelected
                       ? "border-gray-900 bg-gray-900 text-white shadow-md"
-                      : sizeOutOfStock && selectedColor
+                      : outOfStock && fullySelected
                         ? "border-gray-100 text-gray-300"
                         : "border-gray-200 text-gray-700 hover:border-gray-400"
                   }`}
                 >
-                  {size}
-                  {sizeOutOfStock && selectedColor && (
-                    <span className="absolute inset-0 flex items-center justify-center">
-                      <span className="absolute w-full h-px bg-gray-300 rotate-[-25deg]" />
+                  {val}
+                  {outOfStock && fullySelected && !isSelected && (
+                    <span className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <span className="absolute w-full h-px bg-gray-300 rotate-[-20deg]" />
                     </span>
                   )}
                 </button>
@@ -196,40 +180,7 @@ export default function ProductActions({ productId, name, price, comparePrice, i
             })}
           </div>
         </div>
-      )}
-
-      {/* Colors */}
-      {colors.length > 0 && (
-        <div>
-          <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">
-            Cor
-            {selectedColor && <span className="normal-case tracking-normal ml-1" style={{ color: "var(--brand)" }}>— {selectedColor}</span>}
-          </p>
-          <div className="flex gap-2 flex-wrap">
-            {colors.map((color) => {
-              const varStock = hasVariantStock
-                ? variantStock.find((v) => v.color === color && (sizes.length === 0 || v.size === selectedSize))?.stock
-                : undefined;
-              const colorOutOfStock = varStock === 0;
-              return (
-                <button
-                  key={color}
-                  onClick={() => selectColor(color)}
-                  className={`h-11 px-5 rounded-xl border-2 text-sm font-bold transition-all ${
-                    selectedColor === color
-                      ? "border-gray-900 bg-gray-900 text-white shadow-md"
-                      : colorOutOfStock && selectedSize
-                        ? "border-gray-100 text-gray-300 line-through"
-                        : "border-gray-200 text-gray-700 hover:border-gray-400"
-                  }`}
-                >
-                  {color}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      ))}
 
       {/* Variant stock indicator */}
       {currentVariantStock !== null && (
@@ -242,43 +193,30 @@ export default function ProductActions({ productId, name, price, comparePrice, i
         </p>
       )}
 
-      {/* Quantity selector */}
+      {/* Quantity */}
       {!isOutOfStock && (
         <div>
           <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Quantidade</p>
           <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => changeQty(-1)}
-              disabled={quantity <= 1}
-              className="w-9 h-9 rounded-xl border-2 border-gray-200 flex items-center justify-center text-gray-600 hover:border-gray-400 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-            >
+            <button type="button" onClick={() => changeQty(-1)} disabled={quantity <= 1} className="w-9 h-9 rounded-xl border-2 border-gray-200 flex items-center justify-center text-gray-600 hover:border-gray-400 disabled:opacity-30 disabled:cursor-not-allowed transition-all">
               <Minus size={14} />
             </button>
             <span className="w-8 text-center font-bold text-gray-900 text-lg">{quantity}</span>
-            <button
-              type="button"
-              onClick={() => changeQty(1)}
-              disabled={quantity >= maxQuantity}
-              className="w-9 h-9 rounded-xl border-2 border-gray-200 flex items-center justify-center text-gray-600 hover:border-gray-400 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-            >
+            <button type="button" onClick={() => changeQty(1)} disabled={quantity >= maxQuantity} className="w-9 h-9 rounded-xl border-2 border-gray-200 flex items-center justify-center text-gray-600 hover:border-gray-400 disabled:opacity-30 disabled:cursor-not-allowed transition-all">
               <Plus size={14} />
             </button>
             {existingInCart > 0 && (
-              <span className="text-xs text-amber-600 font-medium">
-                {existingInCart} já no carrinho
-              </span>
+              <span className="text-xs text-amber-600 font-medium">{existingInCart} já no carrinho</span>
             )}
           </div>
         </div>
       )}
 
-      {/* Validation error */}
       {validationError && (
         <p className="text-sm font-medium text-red-500">{validationError}</p>
       )}
 
-      {/* CTA buttons */}
+      {/* CTA */}
       <div className="flex gap-3 pt-1">
         <button
           onClick={handleAddToCart}
@@ -293,11 +231,9 @@ export default function ProductActions({ productId, name, price, comparePrice, i
         </button>
 
         <button
-          onClick={handleWishlist}
+          onClick={() => toggle({ productId, name, price, image, slug })}
           className={`w-14 h-14 rounded-2xl border-2 flex items-center justify-center transition-all active:scale-[0.98] ${
-            inWishlist
-              ? "text-white shadow-lg"
-              : "border-gray-200 text-gray-400 hover:text-[var(--brand)]"
+            inWishlist ? "text-white shadow-lg" : "border-gray-200 text-gray-400 hover:text-[var(--brand)]"
           }`}
           style={inWishlist ? { backgroundColor: "var(--brand)", borderColor: "var(--brand)" } : {}}
           aria-label={inWishlist ? "Remover dos favoritos" : "Adicionar aos favoritos"}
@@ -310,12 +246,11 @@ export default function ProductActions({ productId, name, price, comparePrice, i
       {showWaitlist && (
         <WaitlistForm
           productId={productId}
-          size={selectedSize || undefined}
-          color={selectedColor || undefined}
+          selectedAttributes={selected}
         />
       )}
 
-      {/* Stock info card */}
+      {/* Stock card */}
       <div className="flex items-center gap-2.5 bg-gray-50 rounded-2xl px-4 py-3">
         <Package size={16} className={effectiveStock > 0 ? "text-green-500 shrink-0" : "text-red-400 shrink-0"} />
         <div>

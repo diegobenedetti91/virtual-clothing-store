@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, X, ArrowLeft } from "lucide-react";
+import { Plus, X, ArrowLeft, ChevronDown, ChevronUp } from "lucide-react";
 import Link from "next/link";
-import { Category, Product, VariantStock } from "@/types";
+import { Category, Product, ProductAttribute } from "@/types";
+import { NormalizedVariant, generateCombinations, getProductAttributes, normalizeVariantStock } from "@/lib/variantUtils";
 import ImageListInput from "./ImageListInput";
 
 interface NavItemOption {
@@ -34,17 +35,32 @@ export default function ProductForm({ product, categories, navItems = [] }: Prod
   const [active, setActive] = useState(product?.active !== false);
   const [featured, setFeatured] = useState(product?.featured === true);
   const [images, setImages] = useState<string[]>(JSON.parse(product?.images || "[]"));
-  const [sizes, setSizes] = useState<string[]>(JSON.parse(product?.sizes || "[]"));
-  const [colors, setColors] = useState<string[]>(JSON.parse(product?.colors || "[]"));
-  const [variantStock, setVariantStock] = useState<VariantStock[]>(JSON.parse(product?.variantStock || "[]"));
-  const [newImage, setNewImage] = useState("");
-  const [newSize, setNewSize] = useState("");
-  const [newColor, setNewColor] = useState("");
   const [selectedNavIds, setSelectedNavIds] = useState<string[]>(
     (product as unknown as { navItems?: { id: string }[] })?.navItems?.map((n) => n.id) || []
   );
 
-  // Auto-sum stock from variants when they exist
+  // Attributes: array of {name, values}
+  const [attributes, setAttributes] = useState<ProductAttribute[]>(() =>
+    product ? getProductAttributes({
+      attributes: product.attributes || "[]",
+      sizes: product.sizes || "[]",
+      colors: product.colors || "[]",
+    }) : []
+  );
+
+  // Variant stock: normalized flat list of combinations
+  const [variantStock, setVariantStock] = useState<NormalizedVariant[]>(() => {
+    if (!product) return [];
+    const raw = JSON.parse(product.variantStock || "[]");
+    return normalizeVariantStock(raw);
+  });
+
+  // New attribute input state
+  const [newAttrName, setNewAttrName] = useState("");
+  const [newAttrValues, setNewAttrValues] = useState<Record<number, string>>({});
+  const [collapsedAttrs, setCollapsedAttrs] = useState<Record<number, boolean>>({});
+
+  // Auto-sum stock from variants
   useEffect(() => {
     if (variantStock.length > 0) {
       const total = variantStock.reduce((sum, v) => sum + (v.stock || 0), 0);
@@ -52,66 +68,88 @@ export default function ProductForm({ product, categories, navItems = [] }: Prod
     }
   }, [variantStock]);
 
-  // Sync variant stock entries when sizes or colors change
+  // Re-generate variant stock when attributes change
   useEffect(() => {
-    if (sizes.length === 0 && colors.length === 0) return;
-    const keys = sizes.length > 0 && colors.length > 0
-      ? sizes.flatMap((s) => colors.map((c) => ({ size: s, color: c })))
-      : sizes.length > 0
-        ? sizes.map((s) => ({ size: s, color: undefined }))
-        : colors.map((c) => ({ size: undefined, color: c }));
-
+    const combos = generateCombinations(attributes);
+    if (combos.length === 0) {
+      setVariantStock([]);
+      return;
+    }
     setVariantStock((prev) =>
-      keys.map(({ size, color }) => {
-        const existing = prev.find((v) => v.size === size && v.color === color);
-        return { size, color, stock: existing?.stock ?? 0 };
+      combos.map((combo) => {
+        const existing = prev.find((v) =>
+          Object.entries(combo).every(([k, val]) => v.attributes[k] === val)
+        );
+        return { attributes: combo, stock: existing?.stock ?? 0 };
       })
     );
-  }, [sizes, colors]);
+  }, [attributes]);
 
-  const getVariantStock = (size?: string, color?: string) =>
-    variantStock.find((v) => v.size === size && v.color === color)?.stock ?? 0;
+  const getVariantStockValue = (combo: Record<string, string>) =>
+    variantStock.find((v) =>
+      Object.entries(combo).every(([k, val]) => v.attributes[k] === val)
+    )?.stock ?? 0;
 
-  const setVariantStockValue = (size: string | undefined, color: string | undefined, value: number) =>
+  const setVariantStockValue = (combo: Record<string, string>, value: number) =>
     setVariantStock((prev) =>
-      prev.map((v) => v.size === size && v.color === color ? { ...v, stock: value } : v)
+      prev.map((v) =>
+        Object.entries(combo).every(([k, val]) => v.attributes[k] === val)
+          ? { ...v, stock: value }
+          : v
+      )
+    );
+
+  const addAttribute = () => {
+    const trimmed = newAttrName.trim();
+    if (!trimmed || attributes.some((a) => a.name === trimmed)) return;
+    setAttributes((prev) => [...prev, { name: trimmed, values: [] }]);
+    setNewAttrName("");
+  };
+
+  const removeAttribute = (idx: number) =>
+    setAttributes((prev) => prev.filter((_, i) => i !== idx));
+
+  const addAttrValue = (attrIdx: number) => {
+    const val = (newAttrValues[attrIdx] || "").trim();
+    if (!val) return;
+    setAttributes((prev) =>
+      prev.map((a, i) =>
+        i === attrIdx && !a.values.includes(val)
+          ? { ...a, values: [...a.values, val] }
+          : a
+      )
+    );
+    setNewAttrValues((prev) => ({ ...prev, [attrIdx]: "" }));
+  };
+
+  const removeAttrValue = (attrIdx: number, val: string) =>
+    setAttributes((prev) =>
+      prev.map((a, i) =>
+        i === attrIdx ? { ...a, values: a.values.filter((v) => v !== val) } : a
+      )
     );
 
   const toggleNav = (id: string) =>
-    setSelectedNavIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
-
-  const addToList = (
-    val: string,
-    list: string[],
-    setList: (v: string[]) => void,
-    setVal: (v: string) => void
-  ) => {
-    const trimmed = val.trim();
-    if (trimmed && !list.includes(trimmed)) {
-      setList([...list, trimmed]);
-      setVal("");
-    }
-  };
-
-  const removeFromList = (val: string, list: string[], setList: (v: string[]) => void) => {
-    setList(list.filter((v) => v !== val));
-  };
+    setSelectedNavIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
-
     try {
       const url = isEditing ? `/api/products/${product!.id}` : "/api/products";
       const method = isEditing ? "PUT" : "POST";
-
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, description, price, comparePrice, costPrice, categoryId, stock, variantStock, active, featured, images, sizes, colors, navItemIds: selectedNavIds }),
+        body: JSON.stringify({
+          name, description, price, comparePrice, costPrice, categoryId,
+          stock, variantStock, active, featured, images, attributes,
+          navItemIds: selectedNavIds,
+        }),
       });
-
       if (!res.ok) throw new Error("Erro ao salvar produto");
       router.push("/admin/produtos");
       router.refresh();
@@ -124,6 +162,8 @@ export default function ProductForm({ product, categories, navItems = [] }: Prod
 
   const inputClass = "w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm text-gray-900 bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand transition";
   const labelClass = "block text-sm font-medium text-gray-700 mb-1";
+
+  const combos = generateCombinations(attributes);
 
   return (
     <form onSubmit={handleSubmit}>
@@ -156,6 +196,7 @@ export default function ProductForm({ product, categories, navItems = [] }: Prod
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
+          {/* Basic info */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
             <h2 className="font-semibold text-gray-900">Informações básicas</h2>
             <div>
@@ -217,119 +258,124 @@ export default function ProductForm({ product, categories, navItems = [] }: Prod
             </div>
           </div>
 
+          {/* Images */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
             <h2 className="font-semibold text-gray-900">Imagens</h2>
             <ImageListInput images={images} onChange={setImages} aspect="portrait" />
           </div>
 
+          {/* Attributes */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
-            <h2 className="font-semibold text-gray-900">Variações</h2>
             <div>
-              <label className={labelClass}>Tamanhos</label>
-              <div className="flex gap-2 mb-2">
-                <input value={newSize} onChange={(e) => setNewSize(e.target.value)} className={inputClass} placeholder="Ex: P, M, G, GG" onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addToList(newSize, sizes, setSizes, setNewSize); } }} />
-                <button type="button" onClick={() => addToList(newSize, sizes, setSizes, setNewSize)} className="px-3 py-2 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors">
-                  <Plus size={16} />
-                </button>
-              </div>
-              <div className="flex gap-2 flex-wrap">
-                {sizes.map((s) => (
-                  <span key={s} className="flex items-center gap-1 bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm">
-                    {s}
-                    <button type="button" onClick={() => removeFromList(s, sizes, setSizes)} className="text-gray-400 hover:text-red-500"><X size={12} /></button>
-                  </span>
-                ))}
-              </div>
-            </div>
-            <div>
-              <label className={labelClass}>Cores</label>
-              <div className="flex gap-2 mb-2">
-                <input value={newColor} onChange={(e) => setNewColor(e.target.value)} className={inputClass} placeholder="Ex: Preto, Branco, Rosa" onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addToList(newColor, colors, setColors, setNewColor); } }} />
-                <button type="button" onClick={() => addToList(newColor, colors, setColors, setNewColor)} className="px-3 py-2 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors">
-                  <Plus size={16} />
-                </button>
-              </div>
-              <div className="flex gap-2 flex-wrap">
-                {colors.map((c) => (
-                  <span key={c} className="flex items-center gap-1 bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm">
-                    {c}
-                    <button type="button" onClick={() => removeFromList(c, colors, setColors)} className="text-gray-400 hover:text-red-500"><X size={12} /></button>
-                  </span>
-                ))}
-              </div>
+              <h2 className="font-semibold text-gray-900">Variações</h2>
+              <p className="text-xs text-gray-400 mt-0.5">
+                Crie atributos livres — ex: Sabor, Tamanho, Cor, Recheio. Cada um com seus próprios valores.
+              </p>
             </div>
 
-            {/* Variant stock matrix */}
-            {(sizes.length > 0 || colors.length > 0) && (
+            {/* Existing attributes */}
+            {attributes.map((attr, attrIdx) => (
+              <div key={attrIdx} className="border border-gray-100 rounded-xl overflow-hidden">
+                <div
+                  className="flex items-center justify-between px-4 py-3 bg-gray-50 cursor-pointer select-none"
+                  onClick={() => setCollapsedAttrs((prev) => ({ ...prev, [attrIdx]: !prev[attrIdx] }))}
+                >
+                  <div className="flex items-center gap-2">
+                    {collapsedAttrs[attrIdx] ? <ChevronDown size={14} className="text-gray-400" /> : <ChevronUp size={14} className="text-gray-400" />}
+                    <span className="text-sm font-semibold text-gray-900">{attr.name}</span>
+                    <span className="text-xs text-gray-400">{attr.values.length} valor{attr.values.length !== 1 ? "es" : ""}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); removeAttribute(attrIdx); }}
+                    className="text-gray-300 hover:text-red-500 transition-colors"
+                    aria-label="Remover atributo"
+                  >
+                    <X size={15} />
+                  </button>
+                </div>
+
+                {!collapsedAttrs[attrIdx] && (
+                  <div className="p-4 space-y-3">
+                    {/* Add value */}
+                    <div className="flex gap-2">
+                      <input
+                        value={newAttrValues[attrIdx] || ""}
+                        onChange={(e) => setNewAttrValues((prev) => ({ ...prev, [attrIdx]: e.target.value }))}
+                        className={inputClass}
+                        placeholder={`Ex: ${attrIdx === 0 ? "P, M, G" : "Chocolate, Baunilha"}`}
+                        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addAttrValue(attrIdx); } }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => addAttrValue(attrIdx)}
+                        className="px-3 py-2 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors"
+                      >
+                        <Plus size={16} />
+                      </button>
+                    </div>
+                    {/* Value chips */}
+                    <div className="flex gap-2 flex-wrap">
+                      {attr.values.map((val) => (
+                        <span key={val} className="flex items-center gap-1 bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm">
+                          {val}
+                          <button type="button" onClick={() => removeAttrValue(attrIdx, val)} className="text-gray-400 hover:text-red-500">
+                            <X size={12} />
+                          </button>
+                        </span>
+                      ))}
+                      {attr.values.length === 0 && (
+                        <span className="text-xs text-gray-400 italic">Nenhum valor ainda — adicione acima</span>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+
+            {/* Add attribute */}
+            <div className="flex gap-2">
+              <input
+                value={newAttrName}
+                onChange={(e) => setNewAttrName(e.target.value)}
+                className={inputClass}
+                placeholder="Nome do atributo — ex: Sabor, Tamanho, Cor"
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addAttribute(); } }}
+              />
+              <button
+                type="button"
+                onClick={addAttribute}
+                className="px-4 py-2 text-sm font-medium text-white rounded-xl transition-colors shrink-0"
+                style={{ backgroundColor: "var(--brand)" }}
+              >
+                <Plus size={16} />
+              </button>
+            </div>
+
+            {/* Variant stock */}
+            {combos.length > 0 && (
               <div>
                 <label className={labelClass}>Estoque por variação</label>
-                <p className="text-xs text-gray-400 mb-3">Defina o estoque disponível para cada combinação. O campo "Estoque" acima fica como total geral.</p>
-                <div className="overflow-x-auto">
-                  {sizes.length > 0 && colors.length > 0 ? (
-                    // Matrix: sizes × colors
-                    <table className="w-full text-sm border-collapse">
-                      <thead>
-                        <tr>
-                          <th className="text-left text-xs font-medium text-gray-500 pb-2 pr-3 min-w-[60px]">Tam \ Cor</th>
-                          {colors.map((c) => (
-                            <th key={c} className="text-center text-xs font-medium text-gray-500 pb-2 px-2 min-w-[80px]">{c}</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-100">
-                        {sizes.map((s) => (
-                          <tr key={s}>
-                            <td className="py-2 pr-3 font-medium text-gray-700">{s}</td>
-                            {colors.map((c) => (
-                              <td key={c} className="py-2 px-2 text-center">
-                                <input
-                                  type="number"
-                                  min="0"
-                                  value={getVariantStock(s, c)}
-                                  onChange={(e) => setVariantStockValue(s, c, parseInt(e.target.value) || 0)}
-                                  className="w-20 border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-center focus:outline-none focus:ring-2 focus:ring-[var(--brand)] focus:border-[var(--brand)] transition"
-                                />
-                              </td>
-                            ))}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  ) : sizes.length > 0 ? (
-                    // Only sizes
-                    <div className="space-y-2">
-                      {sizes.map((s) => (
-                        <div key={s} className="flex items-center gap-3">
-                          <span className="w-16 text-sm font-medium text-gray-700">{s}</span>
-                          <input
-                            type="number"
-                            min="0"
-                            value={getVariantStock(s, undefined)}
-                            onChange={(e) => setVariantStockValue(s, undefined, parseInt(e.target.value) || 0)}
-                            className="w-24 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--brand)] focus:border-[var(--brand)] transition"
-                          />
-                          <span className="text-xs text-gray-400">unidades</span>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    // Only colors
-                    <div className="space-y-2">
-                      {colors.map((c) => (
-                        <div key={c} className="flex items-center gap-3">
-                          <span className="w-24 text-sm font-medium text-gray-700">{c}</span>
-                          <input
-                            type="number"
-                            min="0"
-                            value={getVariantStock(undefined, c)}
-                            onChange={(e) => setVariantStockValue(undefined, c, parseInt(e.target.value) || 0)}
-                            className="w-24 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--brand)] focus:border-[var(--brand)] transition"
-                          />
-                          <span className="text-xs text-gray-400">unidades</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                <p className="text-xs text-gray-400 mb-3">
+                  Defina a quantidade disponível para cada combinação.
+                </p>
+                <div className="space-y-2">
+                  {combos.map((combo, i) => {
+                    const label = Object.entries(combo).map(([k, v]) => `${k}: ${v}`).join(" · ");
+                    return (
+                      <div key={i} className="flex items-center gap-3">
+                        <span className="flex-1 text-sm text-gray-700 truncate">{label}</span>
+                        <input
+                          type="number"
+                          min="0"
+                          value={getVariantStockValue(combo)}
+                          onChange={(e) => setVariantStockValue(combo, parseInt(e.target.value) || 0)}
+                          className="w-24 border border-gray-200 rounded-lg px-3 py-1.5 text-sm text-center focus:outline-none focus:ring-2 focus:ring-[var(--brand)] focus:border-[var(--brand)] transition"
+                        />
+                        <span className="text-xs text-gray-400 shrink-0">un.</span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -337,6 +383,7 @@ export default function ProductForm({ product, categories, navItems = [] }: Prod
         </div>
 
         <div className="space-y-6">
+          {/* Publish */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
             <h2 className="font-semibold text-gray-900">Publicação</h2>
             <label className="flex items-center justify-between cursor-pointer">

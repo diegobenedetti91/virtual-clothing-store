@@ -5,6 +5,7 @@ import { useCart } from "@/hooks/useCart";
 import { useCustomer } from "@/hooks/useCustomer";
 import { formatCurrency, generateOrderNumber } from "@/lib/utils";
 import { MessageCircle, ShoppingBag, MapPin, CreditCard, Loader2 } from "lucide-react";
+import { attributesLabel } from "@/lib/variantUtils";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CompanySettings } from "@/types";
@@ -89,8 +90,9 @@ export default function CheckoutPage() {
 
     const itemLines = items
       .map((item) => {
-        const variation = [item.size && `Tam: ${item.size}`, item.color && `Cor: ${item.color}`]
-          .filter(Boolean).join(", ");
+        const variation = item.selectedAttributes && Object.keys(item.selectedAttributes).length > 0
+          ? attributesLabel(item.selectedAttributes)
+          : [item.size && `Tam: ${item.size}`, item.color && `Cor: ${item.color}`].filter(Boolean).join(", ");
         return `• ${item.name}${variation ? ` (${variation})` : ""} - ${item.quantity}× ${formatCurrency(item.price)} = ${formatCurrency(item.price * item.quantity)}`;
       })
       .join("\n");
@@ -145,6 +147,7 @@ export default function CheckoutPage() {
           price: item.price,
           size: item.size,
           color: item.color,
+          selectedAttributes: item.selectedAttributes,
         })),
       }),
     });
@@ -178,6 +181,7 @@ export default function CheckoutPage() {
           quantity: item.quantity,
           size: item.size,
           color: item.color,
+          selectedAttributes: item.selectedAttributes,
         })),
       }),
     });
@@ -191,12 +195,18 @@ export default function CheckoutPage() {
     const results = await Promise.all(
       items.map(async (item) => {
         const params = new URLSearchParams({ productId: item.productId });
-        if (item.size) params.set("size", item.size);
-        if (item.color) params.set("color", item.color);
+        if (item.selectedAttributes && Object.keys(item.selectedAttributes).length > 0) {
+          params.set("attributes", JSON.stringify(item.selectedAttributes));
+        } else {
+          if (item.size) params.set("size", item.size);
+          if (item.color) params.set("color", item.color);
+        }
         const res = await fetch(`/api/stock?${params}`);
         const { available } = await res.json();
         if (available < item.quantity) {
-          const variant = [item.size && `Tam: ${item.size}`, item.color && `Cor: ${item.color}`].filter(Boolean).join(", ");
+          const variant = item.selectedAttributes && Object.keys(item.selectedAttributes).length > 0
+            ? attributesLabel(item.selectedAttributes)
+            : [item.size && `Tam: ${item.size}`, item.color && `Cor: ${item.color}`].filter(Boolean).join(", ");
           return `"${item.name}"${variant ? ` (${variant})` : ""}: apenas ${available} disponível${available !== 1 ? "is" : ""}`;
         }
         return null;
@@ -362,7 +372,7 @@ export default function CheckoutPage() {
 
                 <div className="space-y-3 mb-4">
                   {items.map((item) => (
-                    <div key={`${item.productId}-${item.size}-${item.color}`} className="flex items-start gap-3">
+                    <div key={`${item.productId}-${item.selectedAttributes ? JSON.stringify(item.selectedAttributes) : `${item.size ?? ""}-${item.color ?? ""}`}`} className="flex items-start gap-3">
                       <img
                         src={item.image}
                         alt={item.name}
@@ -372,7 +382,9 @@ export default function CheckoutPage() {
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-gray-900 truncate">{item.name}</p>
                         <p className="text-xs text-gray-400 mt-0.5">
-                          {[item.size && `Tam: ${item.size}`, item.color && `Cor: ${item.color}`].filter(Boolean).join(" · ")}
+                          {item.selectedAttributes && Object.keys(item.selectedAttributes).length > 0
+                            ? attributesLabel(item.selectedAttributes)
+                            : [item.size && `Tam: ${item.size}`, item.color && `Cor: ${item.color}`].filter(Boolean).join(" · ")}
                         </p>
                         <p className="text-sm font-medium text-gray-700 mt-0.5">
                           {formatCurrency(item.price)} × {item.quantity}

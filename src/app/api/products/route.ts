@@ -33,11 +33,15 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { name, description, price, comparePrice, costPrice, images, categoryId, sizes, colors, stock, variantStock, active, featured, navItemIds } = body;
+  const { name, description, price, comparePrice, costPrice, images, categoryId, attributes, stock, variantStock, active, featured, navItemIds } = body;
 
   let slug = slugify(name);
   const existing = await prisma.product.findUnique({ where: { slug } });
   if (existing) slug = `${slug}-${Date.now()}`;
+
+  const totalStock = variantStock?.length
+    ? variantStock.reduce((s: number, v: { stock: number }) => s + (v.stock || 0), 0)
+    : parseInt(stock) || 0;
 
   const product = await prisma.product.create({
     data: {
@@ -48,9 +52,10 @@ export async function POST(req: NextRequest) {
       costPrice: costPrice ? parseFloat(costPrice) : null,
       images: JSON.stringify(images || []),
       categoryId,
-      sizes: JSON.stringify(sizes || []),
-      colors: JSON.stringify(colors || []),
-      stock: variantStock?.length ? variantStock.reduce((s: number, v: { stock: number }) => s + (v.stock || 0), 0) : parseInt(stock) || 0,
+      sizes: "[]",
+      colors: "[]",
+      attributes: JSON.stringify(attributes || []),
+      stock: totalStock,
       variantStock: JSON.stringify(variantStock || []),
       active: active !== false,
       featured: featured === true,

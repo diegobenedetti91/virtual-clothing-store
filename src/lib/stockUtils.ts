@@ -1,10 +1,28 @@
 import { prisma } from "@/lib/prisma";
+import { normalizeVariantStock, matchesSelection } from "@/lib/variantUtils";
 
 interface OrderItemLike {
   productId: string;
   quantity: number;
+  // Legacy
   size?: string | null;
   color?: string | null;
+  // New
+  selectedAttributes?: string | null;
+}
+
+function parseSelected(item: OrderItemLike): Record<string, string> | null {
+  if (item.selectedAttributes) {
+    try { return JSON.parse(item.selectedAttributes); } catch { /* fall through */ }
+  }
+  // Legacy
+  if (item.size || item.color) {
+    const attrs: Record<string, string> = {};
+    if (item.size) attrs["Tamanho"] = item.size;
+    if (item.color) attrs["Cor"] = item.color;
+    return attrs;
+  }
+  return null;
 }
 
 export async function restoreOrderStock(items: OrderItemLike[]): Promise<void> {
@@ -16,19 +34,16 @@ export async function restoreOrderStock(items: OrderItemLike[]): Promise<void> {
       });
       if (!product) continue;
 
-      const variants = JSON.parse(product.variantStock || "[]") as {
-        size?: string;
-        color?: string;
-        stock: number;
-      }[];
+      const raw = JSON.parse(product.variantStock || "[]");
+      const variants = normalizeVariantStock(raw);
+      const selected = parseSelected(item);
 
-      if (variants.length > 0 && (item.size || item.color)) {
-        const updated = variants.map((v) => {
-          const sizeOk = item.size ? v.size === item.size : !v.size;
-          const colorOk = item.color ? v.color === item.color : !v.color;
-          if (sizeOk && colorOk) return { ...v, stock: v.stock + item.quantity };
-          return v;
-        });
+      if (variants.length > 0 && selected) {
+        const updated = variants.map((v) =>
+          matchesSelection(v.attributes, selected)
+            ? { ...v, stock: v.stock + item.quantity }
+            : v
+        );
         const newTotal = updated.reduce((sum, v) => sum + (v.stock || 0), 0);
         await tx.product.update({
           where: { id: item.productId },

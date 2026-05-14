@@ -15,11 +15,15 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const body = await req.json();
-  const { name, description, price, comparePrice, costPrice, images, categoryId, sizes, colors, stock, variantStock, active, featured, navItemIds } = body;
+  const { name, description, price, comparePrice, costPrice, images, categoryId, attributes, stock, variantStock, active, featured, navItemIds } = body;
 
   let slug = slugify(name);
   const existing = await prisma.product.findFirst({ where: { slug, NOT: { id } } });
   if (existing) slug = `${slug}-${Date.now()}`;
+
+  const totalStock = variantStock?.length
+    ? variantStock.reduce((s: number, v: { stock: number }) => s + (v.stock || 0), 0)
+    : parseInt(stock) || 0;
 
   const product = await prisma.product.update({
     where: { id },
@@ -31,9 +35,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       costPrice: costPrice ? parseFloat(costPrice) : null,
       images: JSON.stringify(images || []),
       categoryId,
-      sizes: JSON.stringify(sizes || []),
-      colors: JSON.stringify(colors || []),
-      stock: variantStock?.length ? variantStock.reduce((s: number, v: { stock: number }) => s + (v.stock || 0), 0) : parseInt(stock) || 0,
+      sizes: "[]",
+      colors: "[]",
+      attributes: JSON.stringify(attributes || []),
+      stock: totalStock,
       variantStock: JSON.stringify(variantStock || []),
       active: active !== false,
       featured: featured === true,

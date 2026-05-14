@@ -414,7 +414,17 @@ export default function OrdersManager({ initialOrders }: Props) {
                             </div>
                             <div className="flex-1">
                               <p className="font-medium text-gray-900">{item.product?.name}</p>
-                              <p className="text-xs text-gray-500">{item.size && `Tam: ${item.size}`} {item.color && `Cor: ${item.color}`}</p>
+                              <p className="text-xs text-gray-500">
+                                {(() => {
+                                  if (item.selectedAttributes) {
+                                    try {
+                                      const attrs = JSON.parse(item.selectedAttributes) as Record<string, string>;
+                                      return Object.entries(attrs).map(([k, v]) => `${k}: ${v}`).join(" · ");
+                                    } catch { /* fall through */ }
+                                  }
+                                  return [item.size && `Tam: ${item.size}`, item.color && `Cor: ${item.color}`].filter(Boolean).join(" · ");
+                                })()}
+                              </p>
                             </div>
                             <p className="text-gray-700 shrink-0">{item.quantity}× {formatCurrency(item.price)}</p>
                           </div>

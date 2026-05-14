@@ -1,4 +1,12 @@
+export interface ProductAttribute {
+  name: string;
+  values: string[];
+}
+
 export interface VariantStock {
+  // New format
+  attributes?: Record<string, string>;
+  // Legacy format (backward compat)
   size?: string;
   color?: string;
   stock: number;
@@ -14,8 +22,11 @@ export interface Product {
   images: string;
   categoryId: string;
   category?: Category;
+  // Legacy fields (kept for backward compat with existing data)
   sizes: string;
   colors: string;
+  // New dynamic attributes
+  attributes: string;
   stock: number;
   variantStock: string;
   active: boolean;
@@ -41,8 +52,11 @@ export interface OrderItem {
   product: Product;
   quantity: number;
   price: number;
+  // Legacy
   size?: string | null;
   color?: string | null;
+  // New: JSON of Record<string,string>
+  selectedAttributes?: string | null;
 }
 
 export interface Order {
@@ -94,8 +108,11 @@ export interface CartItem {
   name: string;
   price: number;
   image: string;
+  // Legacy (for carts already in localStorage)
   size?: string;
   color?: string;
+  // New: dynamic attributes
+  selectedAttributes?: Record<string, string>;
   quantity: number;
   slug: string;
 }

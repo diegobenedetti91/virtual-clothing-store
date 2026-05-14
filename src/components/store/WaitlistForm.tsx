@@ -3,14 +3,17 @@
 import { useState } from "react";
 import { Bell } from "lucide-react";
 import { useCustomer } from "@/hooks/useCustomer";
+import { attributesLabel, variantKey } from "@/lib/variantUtils";
 
 interface WaitlistFormProps {
   productId: string;
+  selectedAttributes?: Record<string, string>;
+  // Legacy
   size?: string;
   color?: string;
 }
 
-export default function WaitlistForm({ productId, size, color }: WaitlistFormProps) {
+export default function WaitlistForm({ productId, selectedAttributes, size, color }: WaitlistFormProps) {
   const customer = useCustomer((s) => s.customer);
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
@@ -18,11 +21,20 @@ export default function WaitlistForm({ productId, size, color }: WaitlistFormPro
   const [done, setDone] = useState(false);
   const [error, setError] = useState("");
 
+  const variantLabel = selectedAttributes && Object.keys(selectedAttributes).length > 0
+    ? attributesLabel(selectedAttributes)
+    : [size, color].filter(Boolean).join(" / ");
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError("");
     setLoading(true);
     try {
+      // Build variantKey for the new format or fall back to size/color
+      const vKey = selectedAttributes && Object.keys(selectedAttributes).length > 0
+        ? variantKey(selectedAttributes)
+        : JSON.stringify({ size: size || "", color: color || "" });
+
       const res = await fetch("/api/waitlist", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -30,6 +42,8 @@ export default function WaitlistForm({ productId, size, color }: WaitlistFormPro
           productId,
           email: customer?.email || email,
           name: customer?.name || name,
+          variantKey: vKey,
+          // Legacy fields for backward compat
           size: size || "",
           color: color || "",
         }),
@@ -40,8 +54,6 @@ export default function WaitlistForm({ productId, size, color }: WaitlistFormPro
       setLoading(false);
     }
   };
-
-  const variantLabel = [size, color].filter(Boolean).join(" / ");
 
   if (done) {
     return (
