@@ -19,20 +19,27 @@ export default function HeroBanner({ settings }: HeroBannerProps) {
     return () => clearInterval(t);
   }, [banners.length]);
 
+  const title = settings?.heroTitle || settings?.name;
+  const primaryBtn = settings?.heroButtonText || "Ver coleção";
+  const secondaryBtn = settings?.heroButtonSecondaryText;
+
   if (!banners.length) {
-    if (!settings?.name && !settings?.description) return null;
+    if (!title && !settings?.description) return null;
     return (
       <section className="relative overflow-hidden bg-gradient-to-br from-rose-50 via-pink-50 to-fuchsia-50 min-h-[480px] flex items-center">
         <div className="absolute -top-32 -right-32 w-[600px] h-[600px] bg-pink-300/20 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -bottom-24 left-1/4 w-[480px] h-[480px] bg-fuchsia-300/15 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full py-20">
-          {settings.name && (
+          {settings?.heroBadge && (
+            <p className="text-xs font-bold tracking-widest text-brand uppercase mb-4">{settings.heroBadge}</p>
+          )}
+          {title && (
             <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black text-gray-900 leading-[1.05] tracking-tight mb-5">
-              {settings.name}
+              {title}
             </h1>
           )}
-          {settings.description && (
+          {settings?.description && (
             <p className="text-lg text-gray-500 mb-8 leading-relaxed max-w-md">
               {settings.description}
             </p>
@@ -42,9 +49,16 @@ export default function HeroBanner({ settings }: HeroBannerProps) {
               href="/produtos"
               className="inline-flex items-center gap-2 bg-brand text-white px-8 py-4 rounded-2xl font-bold hover:opacity-90 transition-all shadow-lg active:scale-[0.97]"
             >
-              Ver coleção <ArrowRight size={18} />
+              {primaryBtn} <ArrowRight size={18} />
             </Link>
-            {settings.instagram && (
+            {secondaryBtn ? (
+              <Link
+                href="/produtos"
+                className="inline-flex items-center gap-2 bg-white text-gray-800 px-8 py-4 rounded-2xl font-bold hover:bg-gray-50 transition-all border border-gray-200 shadow-sm active:scale-[0.97]"
+              >
+                {secondaryBtn} <ArrowRight size={18} />
+              </Link>
+            ) : settings?.instagram ? (
               <a
                 href={`https://instagram.com/${settings.instagram.replace("@", "")}`}
                 target="_blank"
@@ -53,7 +67,7 @@ export default function HeroBanner({ settings }: HeroBannerProps) {
               >
                 📷 Nosso Instagram
               </a>
-            )}
+            ) : null}
           </div>
         </div>
       </section>
@@ -73,20 +87,33 @@ export default function HeroBanner({ settings }: HeroBannerProps) {
       ))}
 
       <div className="relative z-10 flex flex-col items-start justify-center h-full text-white px-8 sm:px-16 max-w-3xl">
-        {settings?.name && (
+        {settings?.heroBadge && (
+          <p className="text-xs font-bold tracking-widest text-white/60 uppercase mb-3">{settings.heroBadge}</p>
+        )}
+        {title && (
           <h1 className="text-5xl sm:text-6xl font-black tracking-tight mb-6 drop-shadow-lg leading-tight">
-            {settings.name}
+            {title}
           </h1>
         )}
         {settings?.description && (
           <p className="text-white/80 text-lg mb-8 max-w-sm">{settings.description}</p>
         )}
-        <Link
-          href="/produtos"
-          className="inline-flex items-center gap-2 bg-white text-gray-900 px-8 py-4 rounded-2xl font-bold hover:bg-brand hover:text-white transition-all shadow-xl active:scale-[0.97]"
-        >
-          Ver coleção <ArrowRight size={18} />
-        </Link>
+        <div className="flex flex-wrap gap-3">
+          <Link
+            href="/produtos"
+            className="inline-flex items-center gap-2 bg-white text-gray-900 px-8 py-4 rounded-2xl font-bold hover:bg-brand hover:text-white transition-all shadow-xl active:scale-[0.97]"
+          >
+            {primaryBtn} <ArrowRight size={18} />
+          </Link>
+          {secondaryBtn && (
+            <Link
+              href="/produtos"
+              className="inline-flex items-center gap-2 bg-white/10 text-white px-8 py-4 rounded-2xl font-bold hover:bg-white/20 transition-all border border-white/20 active:scale-[0.97]"
+            >
+              {secondaryBtn} <ArrowRight size={18} />
+            </Link>
+          )}
+        </div>
       </div>
 
       {banners.length > 1 && (

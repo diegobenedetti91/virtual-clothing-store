@@ -147,12 +147,6 @@ export default function LandingPage() {
             <a href="#relatorios" className="hover:text-gray-900 transition-colors">Relatórios</a>
             <a href="#integracoes" className="hover:text-gray-900 transition-colors">Integrações</a>
           </nav>
-          <a
-            href="/admin"
-            className="bg-pink-500 hover:bg-pink-600 text-white text-sm font-medium px-5 py-2 rounded-xl transition-colors"
-          >
-            Acessar painel
-          </a>
         </div>
       </header>
 

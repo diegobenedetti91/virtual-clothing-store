@@ -15,6 +15,7 @@ export async function PUT(req: NextRequest) {
     name, logo, phone, whatsapp, instagram, address, description,
     primaryColor, buttonColor, bannerImages, checkoutType, checkoutCollectEmail, checkoutCollectAddress,
     checkoutMessage, mercadoPagoPublicKey, mercadoPagoAccessToken,
+    heroBadge, heroTitle, heroButtonText, heroButtonSecondaryText,
   } = body;
 
   let settings = await prisma.companySettings.findFirst(ORDER);
@@ -35,6 +36,10 @@ export async function PUT(req: NextRequest) {
     checkoutMessage: checkoutMessage || null,
     mercadoPagoPublicKey: mercadoPagoPublicKey || null,
     mercadoPagoAccessToken: mercadoPagoAccessToken || null,
+    heroBadge: heroBadge || null,
+    heroTitle: heroTitle || null,
+    heroButtonText: heroButtonText || null,
+    heroButtonSecondaryText: heroButtonSecondaryText || null,
   };
 
   if (settings) {

@@ -82,6 +82,10 @@ export interface CompanySettings {
   checkoutMessage?: string | null;
   mercadoPagoPublicKey?: string | null;
   mercadoPagoAccessToken?: string | null;
+  heroBadge?: string | null;
+  heroTitle?: string | null;
+  heroButtonText?: string | null;
+  heroButtonSecondaryText?: string | null;
 }
 
 export interface CartItem {

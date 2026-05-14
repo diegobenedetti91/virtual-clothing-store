@@ -146,6 +146,10 @@ model CompanySettings {
   checkoutMessage        String?  @db.Text
   mercadoPagoPublicKey   String?
   mercadoPagoAccessToken String?
+  heroBadge              String?
+  heroTitle              String?
+  heroButtonText         String?
+  heroButtonSecondaryText String?
   updatedAt              DateTime @updatedAt
 }
 

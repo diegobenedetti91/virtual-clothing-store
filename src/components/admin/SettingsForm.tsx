@@ -29,6 +29,11 @@ export default function SettingsForm({ initialSettings }: Props) {
     JSON.parse(initialSettings?.bannerImages || "[]")
   );
 
+  const [heroBadge, setHeroBadge] = useState(initialSettings?.heroBadge || "");
+  const [heroTitle, setHeroTitle] = useState(initialSettings?.heroTitle || "");
+  const [heroButtonText, setHeroButtonText] = useState(initialSettings?.heroButtonText || "");
+  const [heroButtonSecondaryText, setHeroButtonSecondaryText] = useState(initialSettings?.heroButtonSecondaryText || "");
+
   const [checkoutType, setCheckoutType] = useState(initialSettings?.checkoutType || "whatsapp");
   const [checkoutCollectEmail, setCheckoutCollectEmail] = useState(initialSettings?.checkoutCollectEmail || false);
   const [checkoutCollectAddress, setCheckoutCollectAddress] = useState(initialSettings?.checkoutCollectAddress || false);
@@ -52,6 +57,7 @@ export default function SettingsForm({ initialSettings }: Props) {
           name, logo, phone, whatsapp, instagram, address, description,
           primaryColor, buttonColor, bannerImages, checkoutType, checkoutCollectEmail, checkoutCollectAddress,
           checkoutMessage, mercadoPagoPublicKey: mpPublicKey || null, mercadoPagoAccessToken: mpAccessToken || null,
+          heroBadge, heroTitle, heroButtonText, heroButtonSecondaryText,
         }),
       });
       if (!res.ok) throw new Error();
@@ -263,6 +269,33 @@ export default function SettingsForm({ initialSettings }: Props) {
                 </div>
               </div>
             )}
+          </div>
+
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
+            <h2 className="font-semibold text-gray-900">Textos do banner principal</h2>
+            <p className="text-xs text-gray-500">Personalize os textos exibidos sobre as imagens do banner da página inicial.</p>
+            <div>
+              <label className={labelClass}>Etiqueta acima do título</label>
+              <input value={heroBadge} onChange={(e) => setHeroBadge(e.target.value)} className={inputClass} placeholder="Ex: NOVA COLEÇÃO" />
+              <p className="text-xs text-gray-400 mt-1">Texto pequeno em destaque exibido antes do título.</p>
+            </div>
+            <div>
+              <label className={labelClass}>Título principal do banner</label>
+              <input value={heroTitle} onChange={(e) => setHeroTitle(e.target.value)} className={inputClass} placeholder="Ex: Estilo que fala por você" />
+              <p className="text-xs text-gray-400 mt-1">Se vazio, usa o nome da loja como título.</p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className={labelClass}>Texto do botão principal</label>
+                <input value={heroButtonText} onChange={(e) => setHeroButtonText(e.target.value)} className={inputClass} placeholder="Ex: Ver coleção" />
+                <p className="text-xs text-gray-400 mt-1">Padrão: "Ver coleção"</p>
+              </div>
+              <div>
+                <label className={labelClass}>Texto do botão secundário</label>
+                <input value={heroButtonSecondaryText} onChange={(e) => setHeroButtonSecondaryText(e.target.value)} className={inputClass} placeholder="Ex: Explorar coleção" />
+                <p className="text-xs text-gray-400 mt-1">Se vazio, exibe o link do Instagram.</p>
+              </div>
+            </div>
           </div>
 
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
