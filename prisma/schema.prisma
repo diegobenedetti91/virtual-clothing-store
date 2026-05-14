@@ -182,6 +182,7 @@ model WaitlistEntry {
   createdAt  DateTime @default(now())
 
   @@unique([productId, email, variantKey])
+  @@unique([productId, email, size, color])
 }
 
 model AbandonedCart {
