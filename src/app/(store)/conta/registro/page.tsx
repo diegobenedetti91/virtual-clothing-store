@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useCustomer } from "@/hooks/useCustomer";
 
 export default function RegisterPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { login } = useCustomer();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -39,7 +40,8 @@ export default function RegisterPage() {
         return;
       }
       login(data);
-      router.push("/conta");
+      const redirect = searchParams.get("redirect");
+      router.push(redirect || "/conta");
     } catch {
       setError("Erro ao conectar. Tente novamente.");
     } finally {
@@ -47,7 +49,7 @@ export default function RegisterPage() {
     }
   };
 
-  const inputClass = "w-full border border-gray-300 rounded-xl px-4 py-3 text-sm text-gray-900 bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition";
+  const inputClass = "w-full border border-gray-300 rounded-xl px-4 py-3 text-sm text-gray-900 bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand transition";
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-16">
@@ -121,7 +123,10 @@ export default function RegisterPage() {
 
           <p className="text-center text-sm text-gray-500 mt-6">
             Já tem conta?{" "}
-            <Link href="/conta/login" className="text-pink-600 font-semibold hover:underline">
+            <Link
+              href={searchParams.get("redirect") ? `/conta/login?redirect=${searchParams.get("redirect")}` : "/conta/login"}
+              className="text-brand font-semibold hover:underline"
+            >
               Entrar
             </Link>
           </p>

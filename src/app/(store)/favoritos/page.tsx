@@ -13,8 +13,8 @@ export default function FavoritosPage() {
   if (items.length === 0) {
     return (
       <div className="max-w-7xl mx-auto px-4 py-24 text-center">
-        <div className="w-20 h-20 rounded-3xl bg-pink-50 flex items-center justify-center mx-auto mb-6">
-          <Heart size={32} className="text-pink-300" />
+        <div className="w-20 h-20 rounded-3xl bg-brand-light flex items-center justify-center mx-auto mb-6">
+          <Heart size={32} className="text-brand" />
         </div>
         <h2 className="text-2xl font-bold text-gray-900 mb-2">Sua lista de favoritos está vazia</h2>
         <p className="text-gray-400 mb-8">Clique no coração em qualquer produto para salvá-lo aqui.</p>
@@ -28,9 +28,9 @@ export default function FavoritosPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
       <div className="flex items-center gap-3 mb-8">
-        <Heart size={24} className="text-pink-600" fill="currentColor" />
+        <Heart size={24} className="text-brand" fill="currentColor" />
         <h1 className="text-3xl font-black text-gray-900">Favoritos</h1>
-        <span className="bg-pink-100 text-pink-600 text-sm font-bold px-3 py-1 rounded-full">
+        <span className="bg-brand-light text-brand text-sm font-bold px-3 py-1 rounded-full">
           {items.length}
         </span>
       </div>
@@ -47,7 +47,7 @@ export default function FavoritosPage() {
                   onError={(e) => { (e.target as HTMLImageElement).src = "/placeholder-product.svg"; }}
                 />
               </div>
-              <h3 className="font-semibold text-gray-900 text-sm leading-snug line-clamp-2 group-hover:text-pink-600 transition-colors">
+              <h3 className="font-semibold text-gray-900 text-sm leading-snug line-clamp-2 group-hover:text-brand transition-colors">
                 {item.name}
               </h3>
               <p className="font-black text-gray-900 text-base mt-1">{formatCurrency(item.price)}</p>

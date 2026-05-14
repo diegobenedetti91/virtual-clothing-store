@@ -80,7 +80,7 @@ export default function ProductGallery({ images, name }: Props) {
                 key={i}
                 onClick={() => setCurrent(i)}
                 className={`flex-shrink-0 rounded-xl overflow-hidden border-2 transition-all ${
-                  i === current ? "border-pink-600 shadow-md" : "border-transparent opacity-60 hover:opacity-100"
+                  i === current ? "border-brand shadow-md" : "border-transparent opacity-60 hover:opacity-100"
                 }`}
                 style={{ width: 64, height: 64 }}
               >

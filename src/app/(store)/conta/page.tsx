@@ -130,13 +130,13 @@ export default function AccountPage() {
   const f = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm((prev) => ({ ...prev, [k]: e.target.value }));
 
-  const inputClass = "w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-400 focus:border-pink-400 transition";
+  const inputClass = "w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand transition";
   const labelClass = "block text-xs font-semibold text-gray-500 mb-1";
 
   if (loading || !customer) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-pink-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-8 h-8 border-2 border-brand border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -163,8 +163,8 @@ export default function AccountPage() {
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-5">
           <div className="flex items-center justify-between mb-5">
             <div className="flex items-center gap-3">
-              <div className="w-11 h-11 bg-pink-100 rounded-full flex items-center justify-center shrink-0">
-                <User size={20} className="text-pink-600" />
+              <div className="w-11 h-11 bg-brand-light rounded-full flex items-center justify-center shrink-0">
+                <User size={20} className="text-brand" />
               </div>
               <div>
                 <p className="font-bold text-gray-900">{profile?.name || customer.name}</p>
@@ -174,7 +174,7 @@ export default function AccountPage() {
             {!editing ? (
               <button
                 onClick={() => setEditing(true)}
-                className="flex items-center gap-1.5 text-sm font-semibold text-pink-600 hover:text-pink-700 px-3 py-2 rounded-xl hover:bg-pink-50 transition-colors"
+                className="flex items-center gap-1.5 text-sm font-semibold text-brand hover:opacity-80 px-3 py-2 rounded-xl hover:bg-brand-light transition-colors"
               >
                 <Edit3 size={14} /> Editar
               </button>
@@ -287,19 +287,19 @@ export default function AccountPage() {
         {/* Orders */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
           <div className="flex items-center gap-2 px-6 py-4 border-b border-gray-100">
-            <Package size={18} className="text-pink-500" />
+            <Package size={18} className="text-brand" />
             <h2 className="font-bold text-gray-900">Meus pedidos</h2>
           </div>
 
           {ordersLoading ? (
             <div className="py-12 flex justify-center">
-              <div className="w-6 h-6 border-2 border-pink-500 border-t-transparent rounded-full animate-spin" />
+              <div className="w-6 h-6 border-2 border-brand border-t-transparent rounded-full animate-spin" />
             </div>
           ) : orders.length === 0 ? (
             <div className="py-12 text-center text-gray-400">
               <Package size={40} className="mx-auto mb-3 opacity-30" />
               <p className="text-sm">Nenhum pedido ainda</p>
-              <Link href="/produtos" className="text-pink-600 text-sm font-semibold hover:underline mt-2 inline-block">
+              <Link href="/produtos" className="text-brand text-sm font-semibold hover:underline mt-2 inline-block">
                 Ver produtos
               </Link>
             </div>
@@ -336,10 +336,10 @@ export default function AccountPage() {
         </div>
 
         <div className="mt-5 flex gap-3">
-          <Link href="/favoritos" className="flex items-center gap-2 text-sm text-gray-600 hover:text-pink-600 transition-colors px-4 py-2.5 bg-white rounded-xl border border-gray-100 shadow-sm hover:border-pink-200">
+          <Link href="/favoritos" className="flex items-center gap-2 text-sm text-gray-600 hover:text-brand transition-colors px-4 py-2.5 bg-white rounded-xl border border-gray-100 shadow-sm hover:border-brand">
             Ver favoritos <ChevronRight size={14} />
           </Link>
-          <Link href="/produtos" className="flex items-center gap-2 text-sm text-gray-600 hover:text-pink-600 transition-colors px-4 py-2.5 bg-white rounded-xl border border-gray-100 shadow-sm hover:border-pink-200">
+          <Link href="/produtos" className="flex items-center gap-2 text-sm text-gray-600 hover:text-brand transition-colors px-4 py-2.5 bg-white rounded-xl border border-gray-100 shadow-sm hover:border-brand">
             Explorar produtos <ChevronRight size={14} />
           </Link>
         </div>

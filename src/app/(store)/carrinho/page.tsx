@@ -1,12 +1,26 @@
 "use client";
 
 import { useCart } from "@/hooks/useCart";
+import { useCustomer } from "@/hooks/useCustomer";
 import { formatCurrency } from "@/lib/utils";
 import { Trash2, Plus, Minus, ShoppingBag } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 export default function CartPage() {
   const { items, removeItem, updateQuantity, total } = useCart();
+  const customer = useCustomer((s) => s.customer);
+  const customerLoading = useCustomer((s) => s.loading);
+  const router = useRouter();
+
+  function handleCheckout() {
+    if (customerLoading) return;
+    if (!customer) {
+      router.push("/conta/login?redirect=/checkout");
+    } else {
+      router.push("/checkout");
+    }
+  }
 
   if (items.length === 0) {
     return (
@@ -41,7 +55,7 @@ export default function CartPage() {
                 />
               </Link>
               <div className="flex-1 min-w-0">
-                <Link href={`/produtos/${item.slug}`} className="font-semibold text-gray-900 hover:text-pink-600 transition-colors block truncate">
+                <Link href={`/produtos/${item.slug}`} className="font-semibold text-gray-900 hover:text-brand transition-colors block truncate">
                   {item.name}
                 </Link>
                 <div className="flex gap-2 text-xs text-gray-500 mt-0.5">
@@ -52,14 +66,14 @@ export default function CartPage() {
                 <div className="flex items-center gap-2 mt-3">
                   <button
                     onClick={() => updateQuantity(item.productId, item.quantity - 1, item.size, item.color)}
-                    className="w-7 h-7 rounded-full border border-gray-200 flex items-center justify-center hover:border-pink-400 transition-colors"
+                    className="w-7 h-7 rounded-full border border-gray-200 flex items-center justify-center hover:border-brand transition-colors"
                   >
                     <Minus size={12} />
                   </button>
                   <span className="w-6 text-center text-sm font-medium">{item.quantity}</span>
                   <button
                     onClick={() => updateQuantity(item.productId, item.quantity + 1, item.size, item.color)}
-                    className="w-7 h-7 rounded-full border border-gray-200 flex items-center justify-center hover:border-pink-400 transition-colors"
+                    className="w-7 h-7 rounded-full border border-gray-200 flex items-center justify-center hover:border-brand transition-colors"
                   >
                     <Plus size={12} />
                   </button>
@@ -92,12 +106,13 @@ export default function CartPage() {
                 <span>{formatCurrency(total())}</span>
               </div>
             </div>
-            <Link
-              href="/checkout"
-              className="block w-full bg-brand text-white text-center py-3 rounded-xl font-semibold hover:opacity-90 transition-colors"
+            <button
+              onClick={handleCheckout}
+              disabled={customerLoading}
+              className="block w-full bg-brand text-white text-center py-3 rounded-xl font-semibold hover:opacity-90 transition-colors disabled:opacity-60"
             >
               Finalizar pedido
-            </Link>
+            </button>
             <Link href="/produtos" className="block text-center text-sm text-gray-500 hover:text-gray-700 mt-3 transition-colors">
               Continuar comprando
             </Link>

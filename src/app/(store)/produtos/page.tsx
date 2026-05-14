@@ -38,8 +38,8 @@ export default async function ProductsPage({ searchParams }: PageProps) {
           <div className="flex flex-col sm:flex-row sm:items-end gap-6">
             <div>
               <div className="flex items-center gap-2 mb-2">
-                <LayoutGrid size={14} className="text-pink-400" />
-                <span className="text-xs font-bold text-pink-500 uppercase tracking-widest">Catálogo</span>
+                <LayoutGrid size={14} className="text-brand" />
+                <span className="text-xs font-bold text-brand uppercase tracking-widest">Catálogo</span>
               </div>
               <h1 className="text-4xl font-black text-gray-900 tracking-tight">
                 {activeNavItem ? activeNavItem.label : activeCategory ? activeCategory.name : search ? `"${search}"` : "Todos os Produtos"}
@@ -60,7 +60,7 @@ export default async function ProductsPage({ searchParams }: PageProps) {
                   name="search"
                   defaultValue={search}
                   placeholder="Buscar produtos..."
-                  className="w-full sm:w-64 border border-gray-200 rounded-2xl pl-10 pr-4 py-3 text-sm text-gray-900 bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition shadow-sm"
+                  className="w-full sm:w-64 border border-gray-200 rounded-2xl pl-10 pr-4 py-3 text-sm text-gray-900 bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand transition shadow-sm"
                 />
               </div>
               <button

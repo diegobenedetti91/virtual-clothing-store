@@ -70,13 +70,13 @@ export default async function ProductDetailPage({ params }: PageProps) {
               {product.category && (
                 <Link
                   href={`/produtos?category=${product.category.slug}`}
-                  className="text-xs font-bold text-pink-500 uppercase tracking-widest hover:text-pink-700 transition-colors"
+                  className="text-xs font-bold text-brand uppercase tracking-widest hover:opacity-80 transition-opacity"
                 >
                   {product.category.name}
                 </Link>
               )}
               {product.featured && (
-                <span className="bg-pink-50 text-pink-600 text-xs font-bold px-2.5 py-1 rounded-full border border-pink-100">
+                <span className="bg-brand-light text-brand text-xs font-bold px-2.5 py-1 rounded-full border border-brand">
                   ★ Destaque
                 </span>
               )}
@@ -154,7 +154,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
         <div className="mt-10 pt-8 border-t border-gray-100">
           <Link
             href="/produtos"
-            className="inline-flex items-center gap-2 text-sm font-semibold text-gray-400 hover:text-pink-600 transition-colors"
+            className="inline-flex items-center gap-2 text-sm font-semibold text-gray-400 hover:text-brand transition-colors"
           >
             <ChevronLeft size={16} />
             Voltar para produtos

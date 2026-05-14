@@ -48,8 +48,8 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
             {FEATURES.map(({ icon: Icon, label, desc }) => (
               <div key={label} className="flex items-center gap-3 group">
-                <div className="shrink-0 w-10 h-10 rounded-xl bg-pink-50 flex items-center justify-center group-hover:bg-pink-100 transition-colors">
-                  <Icon size={18} className="text-pink-600" />
+                <div className="shrink-0 w-10 h-10 rounded-xl bg-brand-light flex items-center justify-center group-hover:bg-brand-light transition-colors">
+                  <Icon size={18} className="text-brand" />
                 </div>
                 <div>
                   <p className="text-sm font-bold text-gray-900 leading-tight">{label}</p>
@@ -67,12 +67,12 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-end justify-between mb-10">
               <div>
-                <span className="inline-flex items-center gap-1.5 text-xs font-bold text-pink-600 uppercase tracking-widest mb-2">
+                <span className="inline-flex items-center gap-1.5 text-xs font-bold text-brand uppercase tracking-widest mb-2">
                   <Sparkles size={12} /> Destaques
                 </span>
                 <h2 className="text-3xl font-black text-gray-900 tracking-tight">Peças em destaque</h2>
               </div>
-              <Link href="/produtos" className="hidden sm:inline-flex items-center gap-1 text-sm font-semibold text-gray-500 hover:text-pink-600 transition-colors">
+              <Link href="/produtos" className="hidden sm:inline-flex items-center gap-1 text-sm font-semibold text-gray-500 hover:text-brand transition-colors">
                 Ver todas <ArrowRight size={14} />
               </Link>
             </div>
@@ -95,7 +95,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
                 </span>
                 <h2 className="text-3xl font-black text-gray-900 tracking-tight">Novidades</h2>
               </div>
-              <Link href="/produtos" className="hidden sm:inline-flex items-center gap-1 text-sm font-semibold text-gray-500 hover:text-pink-600 transition-colors">
+              <Link href="/produtos" className="hidden sm:inline-flex items-center gap-1 text-sm font-semibold text-gray-500 hover:text-brand transition-colors">
                 Ver todas <ArrowRight size={14} />
               </Link>
             </div>

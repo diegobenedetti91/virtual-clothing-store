@@ -20,7 +20,7 @@ export default function OrderConfirmationPage() {
       .finally(() => setLoading(false));
   }, [id]);
 
-  if (loading) return <div className="flex items-center justify-center min-h-96"><div className="animate-spin w-8 h-8 border-4 border-pink-600 border-t-transparent rounded-full" /></div>;
+  if (loading) return <div className="flex items-center justify-center min-h-96"><div className="animate-spin w-8 h-8 border-4 border-brand border-t-transparent rounded-full" /></div>;
   if (!order) return <div className="text-center py-20"><p>Pedido não encontrado.</p></div>;
 
   const statusInfo = ORDER_STATUS[order.status] || ORDER_STATUS.PENDING;

@@ -26,8 +26,8 @@ export default function HeroBanner({ settings }: HeroBannerProps) {
   if (!banners.length) {
     if (!title && !settings?.description) return null;
     return (
-      <section className="relative overflow-hidden bg-gradient-to-br from-rose-50 via-pink-50 to-fuchsia-50 min-h-[480px] flex items-center">
-        <div className="absolute -top-32 -right-32 w-[600px] h-[600px] bg-pink-300/20 rounded-full blur-3xl pointer-events-none" />
+      <section className="relative overflow-hidden min-h-[480px] flex items-center bg-brand-light">
+        <div className="absolute -top-32 -right-32 w-[600px] h-[600px] rounded-full blur-3xl pointer-events-none" style={{ background: "color-mix(in srgb, var(--brand) 15%, transparent)" }} />
         <div className="absolute -bottom-24 left-1/4 w-[480px] h-[480px] bg-fuchsia-300/15 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full py-20">

@@ -6,11 +6,14 @@ import { useCustomer } from "@/hooks/useCustomer";
 import { formatCurrency, generateOrderNumber } from "@/lib/utils";
 import { MessageCircle, ShoppingBag, MapPin, CreditCard, Loader2 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { CompanySettings } from "@/types";
 
 export default function CheckoutPage() {
   const { items, total, clearCart } = useCart();
   const customer = useCustomer((s) => s.customer);
+  const customerLoading = useCustomer((s) => s.loading);
+  const router = useRouter();
   const [settings, setSettings] = useState<CompanySettings | null>(null);
   const [loading, setLoading] = useState(false);
   const [name, setName] = useState("");
@@ -25,6 +28,12 @@ export default function CheckoutPage() {
   const [city, setCity] = useState("");
   const [state, setState] = useState("");
   const [zipCode, setZipCode] = useState("");
+
+  useEffect(() => {
+    if (!customerLoading && !customer) {
+      router.replace("/conta/login?redirect=/checkout");
+    }
+  }, [customerLoading, customer, router]);
 
   useEffect(() => {
     fetch("/api/settings").then((r) => r.json()).then(setSettings);
@@ -56,12 +65,20 @@ export default function CheckoutPage() {
     ? `${street}, ${number}${neighborhood ? ` - ${neighborhood}` : ""}, ${city}${state ? `/${state}` : ""}${zipCode ? ` - CEP: ${zipCode}` : ""}`
     : "";
 
+  if (customerLoading || (!customerLoading && !customer)) {
+    return (
+      <div className="flex items-center justify-center min-h-96">
+        <div className="w-8 h-8 border-2 border-brand border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
   if (items.length === 0) {
     return (
       <div className="max-w-7xl mx-auto px-4 py-20 text-center">
         <ShoppingBag size={64} className="mx-auto text-gray-300 mb-4" />
         <h2 className="text-2xl font-bold text-gray-900 mb-2">Carrinho vazio</h2>
-        <Link href="/produtos" className="text-pink-600 underline">Ver produtos</Link>
+        <Link href="/produtos" className="text-brand underline">Ver produtos</Link>
       </div>
     );
   }
@@ -186,7 +203,7 @@ export default function CheckoutPage() {
     }
   };
 
-  const inputClass = "w-full border border-gray-300 rounded-xl px-4 py-3 text-sm text-gray-900 bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition";
+  const inputClass = "w-full border border-gray-300 rounded-xl px-4 py-3 text-sm text-gray-900 bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand transition";
   const labelClass = "block text-sm font-medium text-gray-700 mb-1.5";
 
   const UF_LIST = [
@@ -238,7 +255,7 @@ export default function CheckoutPage() {
               {collectAddress && (
                 <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm space-y-4">
                   <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
-                    <MapPin size={16} className="text-pink-500" />
+                    <MapPin size={16} className="text-brand" />
                     Endereço de entrega
                   </h2>
 
