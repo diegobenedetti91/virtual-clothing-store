@@ -32,20 +32,20 @@ export default function ProductCarousel({ title, products, categorySlug }: Produ
             {categorySlug && (
               <Link
                 href={`/produtos?category=${categorySlug}`}
-                className="text-sm text-pink-600 font-medium hover:underline mr-3"
+                className="text-sm text-brand font-medium hover:underline mr-3"
               >
                 Ver todos
               </Link>
             )}
             <button
               onClick={() => scroll("left")}
-              className="p-2 rounded-full border border-gray-200 hover:border-pink-400 hover:text-pink-600 transition-colors"
+              className="p-2 rounded-full border border-gray-200 hover:border-brand hover:text-brand transition-colors"
             >
               <ChevronLeft size={18} />
             </button>
             <button
               onClick={() => scroll("right")}
-              className="p-2 rounded-full border border-gray-200 hover:border-pink-400 hover:text-pink-600 transition-colors"
+              className="p-2 rounded-full border border-gray-200 hover:border-brand hover:text-brand transition-colors"
             >
               <ChevronRight size={18} />
             </button>

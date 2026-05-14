@@ -17,8 +17,19 @@ body {
   color: #171717;
 }
 
-/* Brand color utility — used wherever bg-pink-600 was hardcoded */
-.bg-brand { background-color: var(--brand); }
-.hover-bg-brand:hover { background-color: var(--brand); }
-.text-brand { color: var(--brand); }
-.border-brand { border-color: var(--brand); }
+/* Brand color utilities — support all Tailwind variants (hover:, focus:, group-hover:, etc.) */
+@utility bg-brand { background-color: var(--brand); }
+@utility bg-brand-light { background-color: var(--brand-light); }
+@utility text-brand { color: var(--brand); }
+@utility border-brand { border-color: var(--brand); }
+@utility ring-brand { --tw-ring-color: var(--brand); }
+@utility outline-brand { outline-color: var(--brand); }
+
+/* Global focus ring for all text inputs / textareas / selects */
+input:not([type="color"]):not([type="checkbox"]):not([type="radio"]):focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: var(--brand) !important;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand) 30%, transparent) !important;
+}

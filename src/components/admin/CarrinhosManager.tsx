@@ -31,7 +31,7 @@ export default function CarrinhosManager() {
     }
   };
 
-  if (loading) return <div className="py-20 flex justify-center"><div className="w-6 h-6 border-2 border-pink-400 border-t-transparent rounded-full animate-spin" /></div>;
+  if (loading) return <div className="py-20 flex justify-center"><div className="w-6 h-6 border-2 border-brand border-t-transparent rounded-full animate-spin" /></div>;
 
   return (
     <div>

@@ -83,34 +83,6 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
         </section>
       )}
 
-      {/* Editorial banner — "Nova coleção" */}
-      <section className="py-6 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 py-16 px-8 sm:px-14 text-white">
-            {/* decorative blobs */}
-            <div className="absolute -top-24 -right-24 w-96 h-96 bg-pink-500/20 rounded-full blur-3xl pointer-events-none" />
-            <div className="absolute -bottom-20 left-20 w-64 h-64 bg-fuchsia-500/15 rounded-full blur-3xl pointer-events-none" />
-
-            <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-8">
-              <div>
-                <span className="inline-block text-xs font-bold text-pink-400 uppercase tracking-widest mb-4">Nova coleção</span>
-                <h2 className="text-3xl sm:text-4xl font-black leading-tight max-w-sm">
-                  Estilo que fala por você, sem precisar dizer nada.
-                </h2>
-                <p className="text-gray-400 mt-3 max-w-xs text-sm leading-relaxed">
-                  {settings?.name ? `Cada peça da ${settings.name} foi escolhida para compor looks modernos e atemporais.` : "Cada peça foi escolhida para compor looks modernos e atemporais."}
-                </p>
-              </div>
-              <Link
-                href="/produtos"
-                className="shrink-0 inline-flex items-center gap-2 bg-brand hover:bg-pink-500 text-white font-bold px-8 py-4 rounded-2xl transition-all shadow-lg shadow-pink-900/30 active:scale-[0.97]"
-              >
-                Explorar coleção <ArrowRight size={18} />
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
 
       {/* New arrivals */}
       {newArrivals.length > 0 && (

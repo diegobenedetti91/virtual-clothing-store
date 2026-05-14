@@ -28,7 +28,7 @@ export default function ClientesManager() {
   const totalSpent = customers.reduce((s, c) => s + c.totalSpent, 0);
   const withOrders = customers.filter((c) => c.orderCount > 0).length;
 
-  if (loading) return <div className="py-20 flex justify-center"><div className="w-6 h-6 border-2 border-pink-400 border-t-transparent rounded-full animate-spin" /></div>;
+  if (loading) return <div className="py-20 flex justify-center"><div className="w-6 h-6 border-2 border-brand border-t-transparent rounded-full animate-spin" /></div>;
 
   return (
     <div className="space-y-6">
@@ -37,7 +37,7 @@ export default function ClientesManager() {
         {[
           { label: "Clientes cadastrados", value: customers.length, icon: Users, color: "bg-blue-100 text-blue-600" },
           { label: "Já compraram", value: withOrders, icon: ShoppingCart, color: "bg-green-100 text-green-600" },
-          { label: "Receita total clientes", value: formatCurrency(totalSpent), icon: TrendingUp, color: "bg-pink-100 text-pink-600" },
+          { label: "Receita total clientes", value: formatCurrency(totalSpent), icon: TrendingUp, color: "bg-brand-light text-brand" },
         ].map(({ label, value, icon: Icon, color }) => (
           <div key={label} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
             <div className={`inline-flex p-2.5 rounded-xl ${color} mb-3`}><Icon size={18} /></div>
@@ -56,7 +56,7 @@ export default function ClientesManager() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Buscar cliente..."
-              className="w-full border border-gray-200 rounded-xl pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-pink-400"
+              className="w-full border border-gray-200 rounded-xl pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
             />
           </div>
         </div>

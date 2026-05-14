@@ -19,7 +19,7 @@ export default function CategoryManager({ initialCategories }: Props) {
   const [editForm, setEditForm] = useState({ name: "", image: "" });
   const [loading, setLoading] = useState(false);
 
-  const inputClass = "border border-gray-300 rounded-xl px-3 py-2 text-sm text-gray-900 bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition";
+  const inputClass = "border border-gray-300 rounded-xl px-3 py-2 text-sm text-gray-900 bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand transition";
 
   const handleAdd = async () => {
     if (!form.name.trim()) return;
@@ -79,7 +79,7 @@ export default function CategoryManager({ initialCategories }: Props) {
         </div>
 
         {adding && (
-          <div className="bg-pink-50 border border-pink-100 rounded-xl p-4 mb-4 space-y-3">
+          <div className="bg-brand-light border border-pink-100 rounded-xl p-4 mb-4 space-y-3">
             <p className="text-sm font-medium text-pink-800">Nova categoria</p>
             <input
               autoFocus
@@ -159,19 +159,19 @@ export default function CategoryManager({ initialCategories }: Props) {
         <h2 className="font-semibold text-gray-900 mb-4">Dicas</h2>
         <ul className="space-y-3 text-sm text-gray-600">
           <li className="flex items-start gap-2">
-            <span className="text-pink-500 font-bold mt-0.5">•</span>
+            <span className="text-brand font-bold mt-0.5">•</span>
             <span>Crie categorias como "Vestidos", "Blusas", "Calças", "Acessórios"</span>
           </li>
           <li className="flex items-start gap-2">
-            <span className="text-pink-500 font-bold mt-0.5">•</span>
+            <span className="text-brand font-bold mt-0.5">•</span>
             <span>Adicione uma URL de imagem para deixar a categoria mais visual na loja</span>
           </li>
           <li className="flex items-start gap-2">
-            <span className="text-pink-500 font-bold mt-0.5">•</span>
+            <span className="text-brand font-bold mt-0.5">•</span>
             <span>Cada categoria aparece como um carrossel separado na página inicial</span>
           </li>
           <li className="flex items-start gap-2">
-            <span className="text-pink-500 font-bold mt-0.5">•</span>
+            <span className="text-brand font-bold mt-0.5">•</span>
             <span>Ao excluir uma categoria, os produtos associados ficam sem categoria</span>
           </li>
         </ul>

@@ -83,11 +83,11 @@ export default function ImageUpload({
           onClick={() => !uploading && inputRef.current?.click()}
           onDrop={handleDrop}
           onDragOver={(e) => e.preventDefault()}
-          className="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center cursor-pointer hover:border-pink-400 hover:bg-pink-50/40 transition-all"
+          className="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center cursor-pointer hover:border-brand hover:bg-brand-light/40 transition-all"
         >
           {uploading ? (
             <div className="flex flex-col items-center gap-3">
-              <div className="w-8 h-8 border-2 border-pink-500 border-t-transparent rounded-full animate-spin" />
+              <div className="w-8 h-8 border-2 border-brand border-t-transparent rounded-full animate-spin" />
               <p className="text-sm text-gray-500 font-medium">Enviando imagem...</p>
             </div>
           ) : (
@@ -128,7 +128,7 @@ export default function ImageUpload({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
-          className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm text-gray-900 bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition"
+          className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm text-gray-900 bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand transition"
         />
       )}
     </div>

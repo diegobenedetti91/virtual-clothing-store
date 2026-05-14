@@ -97,7 +97,7 @@ export default function WaitlistManager() {
   if (loading) {
     return (
       <div className="py-20 flex justify-center">
-        <div className="w-6 h-6 border-2 border-pink-400 border-t-transparent rounded-full animate-spin" />
+        <div className="w-6 h-6 border-2 border-brand border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -141,7 +141,7 @@ export default function WaitlistManager() {
               <div>
                 <Link
                   href={`/admin/produtos?edit=${group.productId}`}
-                  className="font-bold text-gray-900 hover:text-pink-600 transition-colors"
+                  className="font-bold text-gray-900 hover:text-brand transition-colors"
                 >
                   {group.productName}
                 </Link>

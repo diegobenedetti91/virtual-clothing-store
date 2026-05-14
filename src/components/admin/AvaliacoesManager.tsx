@@ -47,7 +47,7 @@ export default function AvaliacoesManager() {
   const approved = reviews.filter((r) => r.approved);
   const shown = filter === "pending" ? pending : filter === "approved" ? approved : reviews;
 
-  if (loading) return <div className="py-20 flex justify-center"><div className="w-6 h-6 border-2 border-pink-400 border-t-transparent rounded-full animate-spin" /></div>;
+  if (loading) return <div className="py-20 flex justify-center"><div className="w-6 h-6 border-2 border-brand border-t-transparent rounded-full animate-spin" /></div>;
 
   return (
     <div className="space-y-5">
@@ -81,7 +81,7 @@ export default function AvaliacoesManager() {
                     {!r.approved && <span className="text-[10px] bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full font-bold">Pendente</span>}
                     {r.approved && <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-bold">Aprovada</span>}
                   </div>
-                  <Link href={`/produtos/${r.product.slug}`} target="_blank" className="text-xs text-pink-600 hover:underline font-medium">
+                  <Link href={`/produtos/${r.product.slug}`} target="_blank" className="text-xs text-brand hover:underline font-medium">
                     {r.product.name}
                   </Link>
                   {r.comment && <p className="text-sm text-gray-700 mt-2 leading-relaxed">{r.comment}</p>}

@@ -120,7 +120,7 @@ export default function RelatoriosManager() {
 
   useEffect(() => { load(); }, [load]);
 
-  const selectClass = "border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition appearance-none pr-8 cursor-pointer";
+  const selectClass = "border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-brand transition appearance-none pr-8 cursor-pointer";
 
   return (
     <div className="space-y-6">
@@ -143,7 +143,7 @@ export default function RelatoriosManager() {
           <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
         </div>
         {loading && (
-          <div className="w-4 h-4 border-2 border-pink-400 border-t-transparent rounded-full animate-spin" />
+          <div className="w-4 h-4 border-2 border-brand border-t-transparent rounded-full animate-spin" />
         )}
       </div>
 
@@ -178,7 +178,7 @@ export default function RelatoriosManager() {
             {/* By state */}
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
               <div className="flex items-center gap-2 mb-1">
-                <MapPin size={16} className="text-pink-500" />
+                <MapPin size={16} className="text-brand" />
                 <h2 className="text-base font-bold text-gray-900">Vendas por estado</h2>
               </div>
               <p className="text-xs text-gray-400 mb-5">Ordenado por faturamento (maior → menor)</p>

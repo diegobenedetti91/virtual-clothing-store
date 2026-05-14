@@ -165,7 +165,7 @@ export default function OrdersManager({ initialOrders }: Props) {
 
   const clearFilters = () => { setSearch(""); setStatusFilter(""); setDateFrom(""); setDateTo(""); };
   const hasFilters = search || statusFilter || dateFrom || dateTo;
-  const inputClass = "border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-pink-300 transition bg-white";
+  const inputClass = "border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand transition bg-white";
 
   return (
     <div className="space-y-5">
@@ -193,7 +193,7 @@ export default function OrdersManager({ initialOrders }: Props) {
                 <select
                   value={cancelReason}
                   onChange={(e) => setCancelReason(e.target.value)}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-pink-300"
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
                 >
                   {CANCEL_REASONS.map((r) => <option key={r}>{r}</option>)}
                 </select>
@@ -202,7 +202,7 @@ export default function OrdersManager({ initialOrders }: Props) {
                     value={cancelReasonCustom}
                     onChange={(e) => setCancelReasonCustom(e.target.value)}
                     placeholder="Descreva o motivo..."
-                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-pink-300"
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
                   />
                 )}
               </div>
@@ -341,7 +341,7 @@ export default function OrdersManager({ initialOrders }: Props) {
                 >
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-bold text-pink-600">{order.orderNumber}</span>
+                      <span className="font-bold text-brand">{order.orderNumber}</span>
                       <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${status.color}`}>{status.label}</span>
                       {linkedCustomer && (
                         <span className="flex items-center gap-1 text-[10px] text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full font-semibold">
@@ -441,7 +441,7 @@ export default function OrdersManager({ initialOrders }: Props) {
                             disabled={order.status === key || updatingStatus === order.id}
                             onClick={() => requestStatusChange(order, key)}
                             className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all disabled:opacity-50 ${
-                              order.status === key ? color + " ring-2 ring-offset-1 ring-pink-400" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                              order.status === key ? color + " ring-2 ring-offset-1 ring-brand" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                             }`}
                           >
                             {label}

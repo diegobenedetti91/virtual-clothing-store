@@ -24,8 +24,8 @@ export default function Footer({ settings }: FooterProps) {
           <div>
             <h4 className="text-white font-semibold mb-3">Links Rápidos</h4>
             <ul className="space-y-2 text-sm">
-              <li><Link href="/" className="hover:text-pink-400 transition-colors">Início</Link></li>
-              <li><Link href="/produtos" className="hover:text-pink-400 transition-colors">Produtos</Link></li>
+              <li><Link href="/" className="hover:text-brand transition-colors">Início</Link></li>
+              <li><Link href="/produtos" className="hover:text-brand transition-colors">Produtos</Link></li>
             </ul>
           </div>
 
@@ -57,7 +57,7 @@ export default function Footer({ settings }: FooterProps) {
                     href={`https://instagram.com/${settings.instagram.replace("@", "")}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-2 hover:text-pink-400 transition-colors"
+                    className="flex items-center gap-2 hover:text-brand transition-colors"
                   >
                     <span className="text-sm">📷</span>
                     <span>{settings.instagram}</span>

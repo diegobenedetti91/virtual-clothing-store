@@ -53,7 +53,7 @@ export default function AdminSidebar({ user }: AdminSidebarProps) {
     <nav className="flex flex-col h-full">
       <div className="p-6 border-b border-gray-100">
         <Link href="/" className="flex items-center gap-2 text-gray-900 font-bold text-lg" target="_blank">
-          <Store size={20} className="text-pink-600" />
+          <Store size={20} className="text-brand" />
           Admin
         </Link>
       </div>

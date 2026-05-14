@@ -83,7 +83,7 @@ export default function ProductReviews({ productId }: { productId: string }) {
 
       {/* Reviews list */}
       {loading ? (
-        <div className="py-8 flex justify-center"><div className="w-5 h-5 border-2 border-pink-400 border-t-transparent rounded-full animate-spin" /></div>
+        <div className="py-8 flex justify-center"><div className="w-5 h-5 border-2 border-brand border-t-transparent rounded-full animate-spin" /></div>
       ) : reviews.length === 0 ? (
         <p className="text-gray-400 text-sm mb-8">Ainda sem avaliações. Seja o primeiro!</p>
       ) : (
@@ -123,7 +123,7 @@ export default function ProductReviews({ productId }: { productId: string }) {
                   onChange={(e) => setAuthorName(e.target.value)}
                   required
                   placeholder="Como você quer aparecer?"
-                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-pink-400"
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
                 />
               </div>
             )}
@@ -134,7 +134,7 @@ export default function ProductReviews({ productId }: { productId: string }) {
                 onChange={(e) => setComment(e.target.value)}
                 rows={3}
                 placeholder="Conte o que achou do produto..."
-                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-pink-400 resize-none"
+                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-none"
               />
             </div>
             {error && <p className="text-sm text-red-600">{error}</p>}

@@ -72,10 +72,10 @@ export default function ImageListInput({ images, onChange, aspect = "portrait" }
             type="button"
             onClick={() => inputRef.current?.click()}
             disabled={uploading}
-            className={`${aspectClass} rounded-xl border-2 border-dashed border-gray-200 hover:border-pink-400 hover:bg-pink-50/40 transition-all flex flex-col items-center justify-center gap-1 text-gray-400 hover:text-pink-500 disabled:opacity-60`}
+            className={`${aspectClass} rounded-xl border-2 border-dashed border-gray-200 hover:border-brand hover:bg-brand-light/40 transition-all flex flex-col items-center justify-center gap-1 text-gray-400 hover:text-brand disabled:opacity-60`}
           >
             {uploading ? (
-              <div className="w-5 h-5 border-2 border-pink-400 border-t-transparent rounded-full animate-spin" />
+              <div className="w-5 h-5 border-2 border-brand border-t-transparent rounded-full animate-spin" />
             ) : (
               <>
                 <Upload size={18} />
@@ -91,11 +91,11 @@ export default function ImageListInput({ images, onChange, aspect = "portrait" }
           onClick={() => !uploading && inputRef.current?.click()}
           onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleFile(f); }}
           onDragOver={(e) => e.preventDefault()}
-          className="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center cursor-pointer hover:border-pink-400 hover:bg-pink-50/40 transition-all"
+          className="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center cursor-pointer hover:border-brand hover:bg-brand-light/40 transition-all"
         >
           {uploading ? (
             <div className="flex flex-col items-center gap-3">
-              <div className="w-8 h-8 border-2 border-pink-500 border-t-transparent rounded-full animate-spin" />
+              <div className="w-8 h-8 border-2 border-brand border-t-transparent rounded-full animate-spin" />
               <p className="text-sm text-gray-500">Enviando imagem...</p>
             </div>
           ) : (
@@ -127,7 +127,7 @@ export default function ImageListInput({ images, onChange, aspect = "portrait" }
             value={urlInput}
             onChange={(e) => setUrlInput(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addUrl(); } }}
-            className="w-full border border-gray-300 rounded-xl pl-8 pr-4 py-2 text-sm text-gray-900 bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition"
+            className="w-full border border-gray-300 rounded-xl pl-8 pr-4 py-2 text-sm text-gray-900 bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand transition"
             placeholder="Ou cole uma URL de imagem"
           />
         </div>

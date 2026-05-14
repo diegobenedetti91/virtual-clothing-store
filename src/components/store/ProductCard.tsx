@@ -87,7 +87,7 @@ export default function ProductCard({ product }: ProductCardProps) {
           className={`absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 shadow-sm ${
             inWishlist
               ? "bg-brand text-white opacity-100"
-              : "bg-white/90 backdrop-blur text-gray-400 opacity-0 group-hover:opacity-100 hover:bg-pink-50 hover:text-pink-600"
+              : "bg-white/90 backdrop-blur text-gray-400 opacity-0 group-hover:opacity-100 hover:bg-brand-light hover:text-brand"
           }`}
           aria-label={inWishlist ? "Remover dos favoritos" : "Adicionar aos favoritos"}
         >
@@ -113,11 +113,11 @@ export default function ProductCard({ product }: ProductCardProps) {
       {/* Info */}
       <div className="mt-3 px-0.5">
         {product.category?.name && (
-          <p className="text-[11px] font-semibold text-pink-500 uppercase tracking-wider mb-1">
+          <p className="text-[11px] font-semibold text-brand uppercase tracking-wider mb-1">
             {product.category.name}
           </p>
         )}
-        <h3 className="font-semibold text-gray-900 text-sm leading-snug line-clamp-2 group-hover:text-pink-600 transition-colors">
+        <h3 className="font-semibold text-gray-900 text-sm leading-snug line-clamp-2 group-hover:text-brand transition-colors">
           {product.name}
         </h3>
         {navItems.length > 0 && (

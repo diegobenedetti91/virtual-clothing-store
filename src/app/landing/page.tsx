@@ -467,51 +467,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* CTA final */}
-      <section className="py-24 bg-gradient-to-br from-pink-500 to-fuchsia-600 text-white">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-3xl md:text-4xl font-black mb-4">
-            Pronto para começar a vender?
-          </h2>
-          <p className="text-pink-100 text-lg mb-10 leading-relaxed">
-            Acesse o painel administrativo, cadastre seus produtos e comece a receber pedidos hoje mesmo.
-          </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <a
-              href="/admin"
-              className="bg-white text-pink-600 hover:bg-pink-50 font-bold px-8 py-3.5 rounded-xl transition-colors flex items-center gap-2 text-sm"
-            >
-              Acessar painel admin
-              <ArrowRight size={16} />
-            </a>
-            <a
-              href="/"
-              className="border border-white/30 hover:border-white/60 text-white font-medium px-8 py-3.5 rounded-xl transition-colors text-sm"
-            >
-              Ver loja virtual
-            </a>
-          </div>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="bg-gray-950 text-gray-400 py-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-4 text-sm">
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-lg bg-pink-500 flex items-center justify-center">
-              <ShoppingBag size={12} className="text-white" />
-            </div>
-            <span className="font-semibold text-white">VirtualStore</span>
-          </div>
-          <p className="text-gray-500 text-xs">
-            Plataforma completa de loja virtual para moda
-          </p>
-          <div className="flex items-center gap-6 text-xs">
-            <a href="/admin" className="hover:text-white transition-colors">Painel admin</a>
-            <a href="/" className="hover:text-white transition-colors">Loja virtual</a>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }
