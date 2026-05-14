@@ -1,0 +1,1 @@
+ALTER TABLE `CompanySettings` ADD COLUMN `menuColor` VARCHAR(191) NOT NULL DEFAULT '#ec4899';

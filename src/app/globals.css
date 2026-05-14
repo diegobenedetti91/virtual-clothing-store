@@ -10,6 +10,7 @@
   --brand-hover: color-mix(in srgb, var(--brand) 83%, black);
   --brand-light: color-mix(in srgb, var(--brand) 12%, white);
   --brand-shadow: color-mix(in srgb, var(--brand) 25%, transparent);
+  --menu: #ec4899;
 }
 
 body {
@@ -22,6 +23,9 @@ body {
 @utility bg-brand-light { background-color: var(--brand-light); }
 @utility bg-brand-muted { background-color: color-mix(in srgb, var(--brand) 22%, white); }
 @utility text-brand { color: var(--brand); }
+@utility bg-menu-light { background-color: color-mix(in srgb, var(--menu) 12%, white); }
+@utility bg-menu-muted { background-color: color-mix(in srgb, var(--menu) 22%, white); }
+@utility text-menu { color: var(--menu); }
 @utility border-brand { border-color: var(--brand); }
 @utility ring-brand { --tw-ring-color: var(--brand); }
 @utility outline-brand { outline-color: var(--brand); }

@@ -13,7 +13,7 @@ export async function PUT(req: NextRequest) {
   const body = await req.json();
   const {
     name, logo, phone, whatsapp, instagram, address, description,
-    primaryColor, buttonColor, bannerImages, checkoutType, checkoutCollectEmail, checkoutCollectAddress,
+    primaryColor, buttonColor, menuColor, bannerImages, checkoutType, checkoutCollectEmail, checkoutCollectAddress,
     checkoutMessage, mercadoPagoPublicKey, mercadoPagoAccessToken,
     heroBadge, heroTitle, heroButtonText, heroButtonSecondaryText,
   } = body;
@@ -29,6 +29,7 @@ export async function PUT(req: NextRequest) {
     description: description || null,
     primaryColor: primaryColor || "#ec4899",
     buttonColor: buttonColor || primaryColor || "#ec4899",
+    menuColor: menuColor || primaryColor || "#ec4899",
     bannerImages: JSON.stringify(bannerImages || []),
     checkoutType: checkoutType || "whatsapp",
     checkoutCollectEmail: !!checkoutCollectEmail,

@@ -75,6 +75,7 @@ export interface CompanySettings {
   description?: string | null;
   primaryColor: string;
   buttonColor: string;
+  menuColor?: string | null;
   bannerImages: string;
   checkoutType: string;
   checkoutCollectEmail: boolean;

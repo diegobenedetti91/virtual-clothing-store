@@ -139,6 +139,7 @@ model CompanySettings {
   description            String?  @db.Text
   primaryColor           String   @default("#ec4899")
   buttonColor            String   @default("#ec4899")
+  menuColor              String   @default("#ec4899")
   bannerImages           String   @default("[]") @db.Text
   checkoutType           String   @default("whatsapp")
   checkoutCollectEmail   Boolean  @default(false)

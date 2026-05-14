@@ -25,6 +25,7 @@ export default function SettingsForm({ initialSettings }: Props) {
   const [description, setDescription] = useState(initialSettings?.description || "");
   const [primaryColor, setPrimaryColor] = useState(initialSettings?.primaryColor || "#ec4899");
   const [buttonColor, setButtonColor] = useState(initialSettings?.buttonColor || initialSettings?.primaryColor || "#ec4899");
+  const [menuColor, setMenuColor] = useState(initialSettings?.menuColor || initialSettings?.primaryColor || "#ec4899");
   const [bannerImages, setBannerImages] = useState<string[]>(
     JSON.parse(initialSettings?.bannerImages || "[]")
   );
@@ -55,7 +56,7 @@ export default function SettingsForm({ initialSettings }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name, logo, phone, whatsapp, instagram, address, description,
-          primaryColor, buttonColor, bannerImages, checkoutType, checkoutCollectEmail, checkoutCollectAddress,
+          primaryColor, buttonColor, menuColor, bannerImages, checkoutType, checkoutCollectEmail, checkoutCollectAddress,
           checkoutMessage, mercadoPagoPublicKey: mpPublicKey || null, mercadoPagoAccessToken: mpAccessToken || null,
           heroBadge, heroTitle, heroButtonText, heroButtonSecondaryText,
         }),
@@ -330,6 +331,32 @@ export default function SettingsForm({ initialSettings }: Props) {
                 <button type="button" className="px-4 py-1.5 rounded-lg text-white text-sm font-medium" style={{ backgroundColor: buttonColor }}>
                   Adicionar ao carrinho
                 </button>
+              </div>
+            </div>
+            <div>
+              <label className={labelClass}>Cor dos menus</label>
+              <p className="text-xs text-gray-400 mb-2">Usada nos botões de navegação e ícones do cabeçalho ao passar o mouse ou na página ativa.</p>
+              <div className="flex items-center gap-3">
+                <input type="color" value={menuColor} onChange={(e) => setMenuColor(e.target.value)} className="w-12 h-10 rounded-lg border border-gray-200 cursor-pointer p-0.5" />
+                <span className="text-sm text-gray-600 font-mono">{menuColor}</span>
+                <button type="button" onClick={() => setMenuColor(primaryColor)} className="text-xs text-gray-400 hover:text-gray-600 underline">
+                  Usar cor principal
+                </button>
+              </div>
+              <div className="mt-3 flex items-center gap-3">
+                <span className="text-xs text-gray-500">Preview:</span>
+                <span
+                  className="px-4 py-1.5 rounded-xl text-sm font-semibold"
+                  style={{ backgroundColor: `color-mix(in srgb, ${menuColor} 22%, white)`, color: menuColor }}
+                >
+                  Início
+                </span>
+                <span
+                  className="px-4 py-1.5 rounded-xl text-sm font-semibold"
+                  style={{ backgroundColor: `color-mix(in srgb, ${menuColor} 12%, white)`, color: menuColor }}
+                >
+                  Produtos
+                </span>
               </div>
             </div>
           </div>
