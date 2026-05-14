@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { TrendingUp, ShoppingCart, DollarSign, MapPin, Tag, ChevronDown, XCircle } from "lucide-react";
+import { TrendingUp, ShoppingCart, DollarSign, MapPin, Tag, ChevronDown, XCircle, Percent } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 
 interface MonthData { month: number; label: string; revenue: number; orders: number }
@@ -9,6 +9,14 @@ interface StateData { state: string; revenue: number; orders: number }
 interface CategoryData { category: string; revenue: number; items: number }
 interface CancelData { reason: string; count: number; total: number }
 interface Summary { revenue: number; orders: number; ticket: number; cancelled: number }
+interface ProductMarginData {
+  productId: string; name: string; revenue: number; cost: number | null;
+  profit: number | null; margin: number | null; quantity: number;
+}
+interface OrderMarginData {
+  orderNumber: string; customerName: string; createdAt: string;
+  revenue: number; cost: number | null; profit: number | null; margin: number | null;
+}
 
 interface AnalyticsData {
   year: number;
@@ -18,6 +26,8 @@ interface AnalyticsData {
   byState: StateData[];
   byCategory: CategoryData[];
   byCancelReason: CancelData[];
+  byProduct: ProductMarginData[];
+  byOrder: OrderMarginData[];
   summary: Summary;
 }
 
@@ -249,6 +259,100 @@ export default function RelatoriosManager() {
                         <td className="py-2.5 px-2 text-gray-600 text-right">{row.orders}</td>
                         <td className="py-2.5 px-2 font-bold text-gray-900 text-right">{formatCurrency(row.revenue)}</td>
                         <td className="py-2.5 px-2 text-gray-600 text-right">{formatCurrency(row.revenue / row.orders)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Profit margin by product */}
+          {data.byProduct.length > 0 && (
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+              <div className="flex items-center gap-2 mb-1">
+                <Percent size={16} className="text-emerald-500" />
+                <h2 className="text-base font-bold text-gray-900">Margem de lucro por produto</h2>
+              </div>
+              <p className="text-xs text-gray-400 mb-5">Produtos sem valor de compra cadastrado são exibidos sem margem calculada</p>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-100 text-left">
+                      <th className="pb-2 px-2 font-semibold text-gray-500">#</th>
+                      <th className="pb-2 px-2 font-semibold text-gray-500">Produto</th>
+                      <th className="pb-2 px-2 font-semibold text-gray-500 text-right">Qtd vendida</th>
+                      <th className="pb-2 px-2 font-semibold text-gray-500 text-right">Receita</th>
+                      <th className="pb-2 px-2 font-semibold text-gray-500 text-right">Custo total</th>
+                      <th className="pb-2 px-2 font-semibold text-gray-500 text-right">Lucro</th>
+                      <th className="pb-2 px-2 font-semibold text-gray-500 text-right">Margem</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.byProduct.map((row, i) => (
+                      <tr key={row.productId} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                        <td className="py-2.5 px-2 text-gray-400 font-medium">{i + 1}</td>
+                        <td className="py-2.5 px-2 font-semibold text-gray-800 max-w-[200px] truncate">{row.name}</td>
+                        <td className="py-2.5 px-2 text-gray-600 text-right">{row.quantity}</td>
+                        <td className="py-2.5 px-2 text-gray-900 text-right font-medium">{formatCurrency(row.revenue)}</td>
+                        <td className="py-2.5 px-2 text-gray-600 text-right">{row.cost != null ? formatCurrency(row.cost) : <span className="text-gray-300">—</span>}</td>
+                        <td className={`py-2.5 px-2 text-right font-bold ${row.profit != null ? (row.profit >= 0 ? "text-emerald-600" : "text-red-500") : "text-gray-300"}`}>
+                          {row.profit != null ? formatCurrency(row.profit) : "—"}
+                        </td>
+                        <td className="py-2.5 px-2 text-right">
+                          {row.margin != null ? (
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold ${row.margin >= 20 ? "bg-emerald-100 text-emerald-700" : row.margin >= 0 ? "bg-yellow-100 text-yellow-700" : "bg-red-100 text-red-600"}`}>
+                              {row.margin.toFixed(1)}%
+                            </span>
+                          ) : <span className="text-gray-300 text-xs">sem custo</span>}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Profit margin by order */}
+          {data.byOrder.length > 0 && (
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+              <div className="flex items-center gap-2 mb-1">
+                <Percent size={16} className="text-blue-500" />
+                <h2 className="text-base font-bold text-gray-900">Margem de lucro por pedido</h2>
+              </div>
+              <p className="text-xs text-gray-400 mb-5">Apenas pedidos em que todos os itens têm valor de compra exibem margem calculada</p>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-100 text-left">
+                      <th className="pb-2 px-2 font-semibold text-gray-500">Pedido</th>
+                      <th className="pb-2 px-2 font-semibold text-gray-500">Cliente</th>
+                      <th className="pb-2 px-2 font-semibold text-gray-500">Data</th>
+                      <th className="pb-2 px-2 font-semibold text-gray-500 text-right">Receita</th>
+                      <th className="pb-2 px-2 font-semibold text-gray-500 text-right">Custo</th>
+                      <th className="pb-2 px-2 font-semibold text-gray-500 text-right">Lucro</th>
+                      <th className="pb-2 px-2 font-semibold text-gray-500 text-right">Margem</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.byOrder.map((row) => (
+                      <tr key={row.orderNumber} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                        <td className="py-2.5 px-2 font-mono text-xs text-gray-700 font-semibold">{row.orderNumber}</td>
+                        <td className="py-2.5 px-2 text-gray-700 max-w-[150px] truncate">{row.customerName}</td>
+                        <td className="py-2.5 px-2 text-gray-500 text-xs">{new Date(row.createdAt).toLocaleDateString("pt-BR")}</td>
+                        <td className="py-2.5 px-2 text-gray-900 text-right font-medium">{formatCurrency(row.revenue)}</td>
+                        <td className="py-2.5 px-2 text-gray-600 text-right">{row.cost != null ? formatCurrency(row.cost) : <span className="text-gray-300">—</span>}</td>
+                        <td className={`py-2.5 px-2 text-right font-bold ${row.profit != null ? (row.profit >= 0 ? "text-emerald-600" : "text-red-500") : "text-gray-300"}`}>
+                          {row.profit != null ? formatCurrency(row.profit) : "—"}
+                        </td>
+                        <td className="py-2.5 px-2 text-right">
+                          {row.margin != null ? (
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold ${row.margin >= 20 ? "bg-emerald-100 text-emerald-700" : row.margin >= 0 ? "bg-yellow-100 text-yellow-700" : "bg-red-100 text-red-600"}`}>
+                              {row.margin.toFixed(1)}%
+                            </span>
+                          ) : <span className="text-gray-300 text-xs">sem custo</span>}
+                        </td>
                       </tr>
                     ))}
                   </tbody>

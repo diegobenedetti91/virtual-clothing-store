@@ -4,7 +4,7 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -51,6 +51,7 @@ model Product {
   description  String?         @db.Text
   price        Float
   comparePrice Float?
+  costPrice    Float?
   images       String          @default("[]") @db.Text
   categoryId   String
   category     Category        @relation(fields: [categoryId], references: [id])

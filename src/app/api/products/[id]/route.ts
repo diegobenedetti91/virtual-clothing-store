@@ -15,7 +15,7 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const body = await req.json();
-  const { name, description, price, comparePrice, images, categoryId, sizes, colors, stock, variantStock, active, featured, navItemIds } = body;
+  const { name, description, price, comparePrice, costPrice, images, categoryId, sizes, colors, stock, variantStock, active, featured, navItemIds } = body;
 
   let slug = slugify(name);
   const existing = await prisma.product.findFirst({ where: { slug, NOT: { id } } });
@@ -28,6 +28,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       description,
       price: parseFloat(price),
       comparePrice: comparePrice ? parseFloat(comparePrice) : null,
+      costPrice: costPrice ? parseFloat(costPrice) : null,
       images: JSON.stringify(images || []),
       categoryId,
       sizes: JSON.stringify(sizes || []),

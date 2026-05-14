@@ -28,6 +28,7 @@ export default function ProductForm({ product, categories, navItems = [] }: Prod
   const [description, setDescription] = useState(product?.description || "");
   const [price, setPrice] = useState(product?.price?.toString() || "");
   const [comparePrice, setComparePrice] = useState(product?.comparePrice?.toString() || "");
+  const [costPrice, setCostPrice] = useState(product?.costPrice?.toString() || "");
   const [categoryId, setCategoryId] = useState(product?.categoryId || "");
   const [stock, setStock] = useState(product?.stock?.toString() || "0");
   const [active, setActive] = useState(product?.active !== false);
@@ -108,7 +109,7 @@ export default function ProductForm({ product, categories, navItems = [] }: Prod
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, description, price, comparePrice, categoryId, stock, variantStock, active, featured, images, sizes, colors, navItemIds: selectedNavIds }),
+        body: JSON.stringify({ name, description, price, comparePrice, costPrice, categoryId, stock, variantStock, active, featured, images, sizes, colors, navItemIds: selectedNavIds }),
       });
 
       if (!res.ok) throw new Error("Erro ao salvar produto");
@@ -179,6 +180,16 @@ export default function ProductForm({ product, categories, navItems = [] }: Prod
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">R$</span>
                   <input type="number" step="0.01" min="0" value={comparePrice} onChange={(e) => setComparePrice(e.target.value)} className={`${inputClass} pl-8`} placeholder="0,00" />
                 </div>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className={labelClass}>Valor de compra (custo)</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">R$</span>
+                  <input type="number" step="0.01" min="0" value={costPrice} onChange={(e) => setCostPrice(e.target.value)} className={`${inputClass} pl-8`} placeholder="0,00" />
+                </div>
+                <p className="text-xs text-gray-400 mt-1">Usado no relatório de margem de lucro</p>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">

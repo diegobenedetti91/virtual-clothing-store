@@ -83,11 +83,61 @@ export async function GET(req: NextRequest) {
   const periodOrders = filteredOrders.length;
   const periodTicket = periodOrders > 0 ? periodRevenue / periodOrders : 0;
 
+  // Profit margin by product
+  const productMap = new Map<string, { name: string; revenue: number; cost: number; quantity: number; hasCost: boolean }>();
+  for (const o of filteredOrders) {
+    for (const item of o.items) {
+      const key = item.productId;
+      const cur = productMap.get(key) || { name: item.product.name, revenue: 0, cost: 0, quantity: 0, hasCost: item.product.costPrice != null };
+      const itemRevenue = item.price * item.quantity;
+      const itemCost = item.product.costPrice != null ? item.product.costPrice * item.quantity : 0;
+      productMap.set(key, {
+        name: item.product.name,
+        revenue: cur.revenue + itemRevenue,
+        cost: cur.cost + itemCost,
+        quantity: cur.quantity + item.quantity,
+        hasCost: cur.hasCost || item.product.costPrice != null,
+      });
+    }
+  }
+  const byProduct = Array.from(productMap.entries())
+    .map(([productId, d]) => {
+      const profit = d.hasCost ? d.revenue - d.cost : null;
+      const margin = d.hasCost && d.revenue > 0 ? ((d.revenue - d.cost) / d.revenue) * 100 : null;
+      return { productId, name: d.name, revenue: d.revenue, cost: d.hasCost ? d.cost : null, profit, margin, quantity: d.quantity };
+    })
+    .sort((a, b) => (b.profit ?? -Infinity) - (a.profit ?? -Infinity));
+
+  // Profit margin by order
+  const byOrder = filteredOrders.map((o) => {
+    let orderCost = 0;
+    let allHaveCost = true;
+    for (const item of o.items) {
+      if (item.product.costPrice != null) {
+        orderCost += item.product.costPrice * item.quantity;
+      } else {
+        allHaveCost = false;
+      }
+    }
+    const profit = allHaveCost ? o.total - orderCost : null;
+    const margin = allHaveCost && o.total > 0 ? ((o.total - orderCost) / o.total) * 100 : null;
+    return {
+      orderNumber: o.orderNumber,
+      customerName: o.customerName,
+      createdAt: o.createdAt,
+      revenue: o.total,
+      cost: allHaveCost ? orderCost : null,
+      profit,
+      margin,
+    };
+  }).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
   const years = [...new Set([...orders, ...cancelledOrders].map((o) => new Date(o.createdAt).getFullYear()))].sort((a, b) => b - a);
   if (!years.includes(year)) years.unshift(year);
 
   return NextResponse.json({
     year, month, years, monthlyRevenue, byState, byCategory, byCancelReason,
+    byProduct, byOrder,
     summary: { revenue: periodRevenue, orders: periodOrders, ticket: periodTicket, cancelled: filteredCancelled.length },
   });
 }

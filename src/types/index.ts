@@ -10,6 +10,7 @@ export interface Product {
   description?: string | null;
   price: number;
   comparePrice?: number | null;
+  costPrice?: number | null;
   images: string;
   categoryId: string;
   category?: Category;
