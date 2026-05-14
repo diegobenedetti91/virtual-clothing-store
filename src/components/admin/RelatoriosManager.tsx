@@ -268,13 +268,15 @@ export default function RelatoriosManager() {
           )}
 
           {/* Profit margin by product */}
-          {data.byProduct.length > 0 && (
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-              <div className="flex items-center gap-2 mb-1">
-                <Percent size={16} className="text-emerald-500" />
-                <h2 className="text-base font-bold text-gray-900">Margem de lucro por produto</h2>
-              </div>
-              <p className="text-xs text-gray-400 mb-5">Produtos sem valor de compra cadastrado são exibidos sem margem calculada</p>
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+            <div className="flex items-center gap-2 mb-1">
+              <Percent size={16} className="text-emerald-500" />
+              <h2 className="text-base font-bold text-gray-900">Margem de lucro por produto</h2>
+            </div>
+            <p className="text-xs text-gray-400 mb-5">Produtos sem valor de compra cadastrado são exibidos sem margem calculada</p>
+            {data.byProduct.length === 0 ? (
+              <p className="text-gray-400 text-sm text-center py-8">Sem dados no período.</p>
+            ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
@@ -311,17 +313,19 @@ export default function RelatoriosManager() {
                   </tbody>
                 </table>
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
           {/* Profit margin by order */}
-          {data.byOrder.length > 0 && (
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-              <div className="flex items-center gap-2 mb-1">
-                <Percent size={16} className="text-blue-500" />
-                <h2 className="text-base font-bold text-gray-900">Margem de lucro por pedido</h2>
-              </div>
-              <p className="text-xs text-gray-400 mb-5">Apenas pedidos em que todos os itens têm valor de compra exibem margem calculada</p>
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+            <div className="flex items-center gap-2 mb-1">
+              <Percent size={16} className="text-blue-500" />
+              <h2 className="text-base font-bold text-gray-900">Margem de lucro por pedido</h2>
+            </div>
+            <p className="text-xs text-gray-400 mb-5">Apenas pedidos em que todos os itens têm valor de compra exibem margem calculada</p>
+            {data.byOrder.length === 0 ? (
+              <p className="text-gray-400 text-sm text-center py-8">Sem dados no período.</p>
+            ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
@@ -358,8 +362,8 @@ export default function RelatoriosManager() {
                   </tbody>
                 </table>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </>
       )}
 
