@@ -32,14 +32,14 @@ const features = [
     title: "Gestão de Produtos",
     description: "Cadastre produtos com variações de tamanho e cor, estoque individual por variação, múltiplas imagens, categoria, preço de destaque e controle de visibilidade.",
     color: "bg-pink-50 text-pink-600",
-    items: ["Variações tamanho × cor", "Estoque por variação", "Preço original riscado", "Produtos em destaque"],
+    items: ["Variações tamanho × cor", "Estoque por variação", "Validação de estoque no carrinho", "Produtos em destaque"],
   },
   {
     icon: ClipboardList,
     title: "Gestão de Pedidos",
     description: "Acompanhe cada pedido do recebimento à entrega com fluxo de status completo, código de rastreio e comprovante de envio.",
     color: "bg-blue-50 text-blue-600",
-    items: ["Fluxo de status completo", "Código de rastreio", "Comprovante de envio", "Cancelamento com motivo"],
+    items: ["Fluxo de status completo", "Código de rastreio", "Comprovante de envio", "Cancelamento com restauração de estoque"],
   },
   {
     icon: BarChart3,
@@ -88,7 +88,7 @@ const features = [
     title: "Configurações da Loja",
     description: "Personalize sua loja com logo, cor da marca, informações de contato, mensagem de checkout e integrações de pagamento.",
     color: "bg-gray-100 text-gray-600",
-    items: ["Logo e identidade", "Cor da marca", "WhatsApp e Instagram", "Mensagem personalizada"],
+    items: ["Logo e identidade", "Cor dos botões e menus", "WhatsApp e Instagram", "Mensagem personalizada"],
   },
   {
     icon: Layers,
