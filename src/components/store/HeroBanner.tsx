@@ -51,14 +51,7 @@ export default function HeroBanner({ settings }: HeroBannerProps) {
             >
               {primaryBtn} <ArrowRight size={18} />
             </Link>
-            {secondaryBtn ? (
-              <Link
-                href="/produtos"
-                className="inline-flex items-center gap-2 bg-white text-gray-800 px-8 py-4 rounded-2xl font-bold hover:bg-gray-50 transition-all border border-gray-200 shadow-sm active:scale-[0.97]"
-              >
-                {secondaryBtn} <ArrowRight size={18} />
-              </Link>
-            ) : settings?.instagram ? (
+            {!secondaryBtn && settings?.instagram ? (
               <a
                 href={`https://instagram.com/${settings.instagram.replace("@", "")}`}
                 target="_blank"
@@ -105,14 +98,6 @@ export default function HeroBanner({ settings }: HeroBannerProps) {
           >
             {primaryBtn} <ArrowRight size={18} />
           </Link>
-          {secondaryBtn && (
-            <Link
-              href="/produtos"
-              className="inline-flex items-center gap-2 bg-white/10 text-white px-8 py-4 rounded-2xl font-bold hover:bg-white/20 transition-all border border-white/20 active:scale-[0.97]"
-            >
-              {secondaryBtn} <ArrowRight size={18} />
-            </Link>
-          )}
         </div>
       </div>
 
