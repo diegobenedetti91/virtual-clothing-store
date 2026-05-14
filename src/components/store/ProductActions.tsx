@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ShoppingBag, Check, Heart, Package, Minus, Plus } from "lucide-react";
+import { ShoppingBag, Check, Heart, Package, Minus, Plus, Loader2 } from "lucide-react";
 import { useCart } from "@/hooks/useCart";
 import { useWishlist } from "@/hooks/useWishlist";
 import { formatCurrency } from "@/lib/utils";
@@ -26,6 +26,7 @@ export default function ProductActions({ productId, name, price, comparePrice, i
   const [selectedColor, setSelectedColor] = useState("");
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
+  const [adding, setAdding] = useState(false);
   const [validationError, setValidationError] = useState("");
   const addItem = useCart((s) => s.addItem);
   const cartItems = useCart((s) => s.items);
@@ -96,8 +97,8 @@ export default function ProductActions({ productId, name, price, comparePrice, i
   const changeQty = (delta: number) =>
     setQuantity((q) => Math.min(maxQuantity, Math.max(1, q + delta)));
 
-  const handleAddToCart = () => {
-    if (isOutOfStock) return;
+  const handleAddToCart = async () => {
+    if (isOutOfStock || adding) return;
     if (sizes.length > 0 && !selectedSize) {
       setValidationError("Selecione um tamanho antes de continuar");
       return;
@@ -106,23 +107,38 @@ export default function ProductActions({ productId, name, price, comparePrice, i
       setValidationError("Selecione uma cor antes de continuar");
       return;
     }
-    if (quantity > maxQuantity) {
-      setValidationError(`Estoque insuficiente — máximo ${maxQuantity} unidade${maxQuantity !== 1 ? "s" : ""}`);
-      return;
-    }
+    setAdding(true);
     setValidationError("");
-    addItem({
-      productId,
-      name,
-      price,
-      image,
-      size: selectedSize || undefined,
-      color: selectedColor || undefined,
-      quantity,
-      slug,
-    });
-    setAdded(true);
-    setTimeout(() => setAdded(false), 2000);
+    try {
+      const params = new URLSearchParams({ productId });
+      if (selectedSize) params.set("size", selectedSize);
+      if (selectedColor) params.set("color", selectedColor);
+      const res = await fetch(`/api/stock?${params}`);
+      const { available } = await res.json();
+      const availableForCart = Math.max(0, available - existingInCart);
+      if (available === 0) {
+        setValidationError("Produto esgotado no momento");
+        return;
+      }
+      if (quantity > availableForCart) {
+        setValidationError(`Estoque insuficiente — máximo ${availableForCart} unidade${availableForCart !== 1 ? "s" : ""} disponível${availableForCart !== 1 ? "is" : ""}`);
+        return;
+      }
+      addItem({
+        productId,
+        name,
+        price,
+        image,
+        size: selectedSize || undefined,
+        color: selectedColor || undefined,
+        quantity,
+        slug,
+      });
+      setAdded(true);
+      setTimeout(() => setAdded(false), 2000);
+    } finally {
+      setAdding(false);
+    }
   };
 
   const handleWishlist = () => {
@@ -266,14 +282,14 @@ export default function ProductActions({ productId, name, price, comparePrice, i
       <div className="flex gap-3 pt-1">
         <button
           onClick={handleAddToCart}
-          disabled={isOutOfStock}
+          disabled={isOutOfStock || adding}
           className={`flex-1 h-14 rounded-2xl font-bold text-base flex items-center justify-center gap-2.5 transition-all shadow-lg active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed ${
             added ? "bg-green-500 text-white shadow-green-100" : "text-white shadow-[0_4px_14px_var(--brand-shadow)]"
           }`}
           style={!added ? { backgroundColor: "var(--brand)" } : undefined}
         >
-          {added ? <Check size={20} /> : <ShoppingBag size={20} />}
-          {added ? "Adicionado!" : isOutOfStock ? "Sem estoque" : "Adicionar ao carrinho"}
+          {added ? <Check size={20} /> : adding ? <Loader2 size={20} className="animate-spin" /> : <ShoppingBag size={20} />}
+          {added ? "Adicionado!" : adding ? "Verificando..." : isOutOfStock ? "Sem estoque" : "Adicionar ao carrinho"}
         </button>
 
         <button

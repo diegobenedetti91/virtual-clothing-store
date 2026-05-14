@@ -21,6 +21,9 @@ export default function ProductCard({ product }: ProductCardProps) {
   const firstImage = images[0] || "/placeholder-product.svg";
   const inWishlist = has(product.id);
   const navItems = (product as unknown as { navItems?: { id: string; label: string }[] }).navItems || [];
+  const variants = JSON.parse(product.variantStock || "[]") as unknown[];
+  const hasVariants = variants.length > 0;
+  const outOfStock = product.stock === 0;
 
   const discount =
     product.comparePrice && product.comparePrice > product.price
@@ -30,6 +33,11 @@ export default function ProductCard({ product }: ProductCardProps) {
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    if (outOfStock) return;
+    if (hasVariants) {
+      window.location.href = `/produtos/${product.slug}`;
+      return;
+    }
     addItem({
       productId: product.id,
       name: product.name,
@@ -98,14 +106,17 @@ export default function ProductCard({ product }: ProductCardProps) {
         <div className="absolute inset-x-3 bottom-3 translate-y-2 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-250 ease-out">
           <button
             onClick={handleAddToCart}
-            className={`w-full py-2.5 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 shadow-lg transition-colors ${
-              added
-                ? "bg-green-500 text-white"
-                : "bg-white text-gray-900 hover:bg-brand hover:text-white"
+            disabled={outOfStock}
+            className={`w-full py-2.5 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 shadow-lg transition-colors disabled:cursor-not-allowed ${
+              outOfStock
+                ? "bg-gray-200 text-gray-400"
+                : added
+                  ? "bg-green-500 text-white"
+                  : "bg-white text-gray-900 hover:bg-brand hover:text-white"
             }`}
           >
             {added ? <Check size={14} /> : <ShoppingBag size={14} />}
-            {added ? "Adicionado!" : "Adicionar ao carrinho"}
+            {outOfStock ? "Sem estoque" : added ? "Adicionado!" : hasVariants ? "Escolher opções" : "Adicionar ao carrinho"}
           </button>
         </div>
       </div>

@@ -20,6 +20,7 @@ body {
 /* Brand color utilities — support all Tailwind variants (hover:, focus:, group-hover:, etc.) */
 @utility bg-brand { background-color: var(--brand); }
 @utility bg-brand-light { background-color: var(--brand-light); }
+@utility bg-brand-muted { background-color: color-mix(in srgb, var(--brand) 22%, white); }
 @utility text-brand { color: var(--brand); }
 @utility border-brand { border-color: var(--brand); }
 @utility ring-brand { --tw-ring-color: var(--brand); }

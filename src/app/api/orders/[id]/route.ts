@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendOrderStatusEmail, sendShippingEmail } from "@/lib/email";
+import { restoreOrderStock } from "@/lib/stockUtils";
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -16,6 +17,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const { id } = await params;
   const { status, cancelReason, trackingCode, shippingProof } = await req.json();
 
+  const current = await prisma.order.findUnique({
+    where: { id },
+    select: { status: true, items: { select: { productId: true, quantity: true, size: true, color: true } } },
+  });
+
   const updateData: Record<string, unknown> = { status };
   if (cancelReason !== undefined) updateData.cancelReason = cancelReason;
   if (trackingCode !== undefined) updateData.trackingCode = trackingCode;
@@ -26,6 +32,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     data: updateData,
     include: { items: { include: { product: true } }, customer: true },
   });
+
+  if (status === "CANCELLED" && current && current.status !== "CANCELLED") {
+    await restoreOrderStock(current.items).catch(console.error);
+  }
 
   const emailTarget = order.customer?.email || order.customerEmail;
   const recipientName = order.customer?.name || order.customerName;

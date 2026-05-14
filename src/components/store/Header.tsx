@@ -93,8 +93,8 @@ export default function Header({ settings, navItems = [] }: HeaderProps) {
                     className={cn(
                       "relative px-4 py-2 text-sm font-semibold rounded-xl transition-colors",
                       active
-                        ? "text-brand bg-brand-light"
-                        : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                        ? "text-brand bg-brand-muted"
+                        : "text-brand bg-brand-light hover:bg-brand-muted"
                     )}
                   >
                     {link.label}
@@ -113,7 +113,7 @@ export default function Header({ settings, navItems = [] }: HeaderProps) {
                 onClick={() => setSearchOpen((v) => !v)}
                 className={cn(
                   "p-2.5 rounded-xl transition-colors",
-                  searchOpen ? "bg-brand-light text-brand" : "text-gray-500 hover:text-gray-900 hover:bg-gray-50"
+                  searchOpen ? "bg-brand-muted text-brand" : "text-brand bg-brand-light hover:bg-brand-muted"
                 )}
                 aria-label="Buscar"
               >
@@ -126,8 +126,8 @@ export default function Header({ settings, navItems = [] }: HeaderProps) {
                 className={cn(
                   "relative p-2.5 rounded-xl transition-colors flex items-center gap-1.5",
                   customer
-                    ? "text-brand hover:bg-brand-light"
-                    : "text-gray-500 hover:text-gray-900 hover:bg-gray-50"
+                    ? "text-brand bg-brand-light hover:bg-brand-muted"
+                    : "text-brand bg-brand-light hover:bg-brand-muted"
                 )}
                 aria-label="Minha conta"
               >
@@ -142,7 +142,7 @@ export default function Header({ settings, navItems = [] }: HeaderProps) {
               {/* Wishlist */}
               <Link
                 href="/favoritos"
-                className="relative p-2.5 rounded-xl text-gray-500 hover:text-brand hover:bg-brand-light transition-colors"
+                className="relative p-2.5 rounded-xl text-brand bg-brand-light hover:bg-brand-muted transition-colors"
                 aria-label="Favoritos"
               >
                 <Heart size={19} />
@@ -156,7 +156,7 @@ export default function Header({ settings, navItems = [] }: HeaderProps) {
               {/* Cart */}
               <Link
                 href="/carrinho"
-                className="relative p-2.5 rounded-xl text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition-colors"
+                className="relative p-2.5 rounded-xl text-brand bg-brand-light hover:bg-brand-muted transition-colors"
                 aria-label="Carrinho"
               >
                 <ShoppingBag size={19} />
@@ -208,8 +208,8 @@ export default function Header({ settings, navItems = [] }: HeaderProps) {
                     className={cn(
                       "flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-colors",
                       active
-                        ? "bg-brand-light text-brand"
-                        : "text-gray-700 hover:bg-gray-50"
+                        ? "bg-brand-muted text-brand"
+                        : "text-brand bg-brand-light hover:bg-brand-muted"
                     )}
                   >
                     {link.label}

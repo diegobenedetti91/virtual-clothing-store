@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendOrderStatusEmail, sendOrderConfirmationEmail } from "@/lib/email";
+import { restoreOrderStock } from "@/lib/stockUtils";
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
@@ -42,6 +43,10 @@ export async function POST(req: NextRequest) {
 
   if (order.status !== newStatus) {
     await prisma.order.update({ where: { orderNumber }, data: { status: newStatus } });
+
+    if (newStatus === "CANCELLED") {
+      await restoreOrderStock(order.items).catch(console.error);
+    }
 
     const emailTarget = order.customerEmail;
     if (emailTarget) {

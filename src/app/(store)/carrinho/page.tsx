@@ -6,12 +6,52 @@ import { formatCurrency } from "@/lib/utils";
 import { Trash2, Plus, Minus, ShoppingBag } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import type { CartItem } from "@/types";
 
 export default function CartPage() {
   const { items, removeItem, updateQuantity, total } = useCart();
   const customer = useCustomer((s) => s.customer);
   const customerLoading = useCustomer((s) => s.loading);
   const router = useRouter();
+  const [stockMap, setStockMap] = useState<Record<string, number>>({});
+  const [stockErrors, setStockErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (items.length === 0) return;
+    Promise.all(
+      items.map(async (item) => {
+        const key = `${item.productId}-${item.size ?? ""}-${item.color ?? ""}`;
+        const params = new URLSearchParams({ productId: item.productId });
+        if (item.size) params.set("size", item.size);
+        if (item.color) params.set("color", item.color);
+        const res = await fetch(`/api/stock?${params}`);
+        const data = await res.json();
+        return [key, data.available ?? 0] as [string, number];
+      })
+    ).then((entries) => setStockMap(Object.fromEntries(entries)));
+  }, [items.length]);
+
+  async function handleIncrement(item: CartItem) {
+    const key = `${item.productId}-${item.size ?? ""}-${item.color ?? ""}`;
+    const params = new URLSearchParams({ productId: item.productId });
+    if (item.size) params.set("size", item.size);
+    if (item.color) params.set("color", item.color);
+    const res = await fetch(`/api/stock?${params}`);
+    const { available } = await res.json();
+    setStockMap((prev) => ({ ...prev, [key]: available }));
+    if (item.quantity + 1 > available) {
+      setStockErrors((prev) => ({
+        ...prev,
+        [key]: available === 0
+          ? "Produto esgotado"
+          : `Máximo disponível: ${available} unidade${available !== 1 ? "s" : ""}`,
+      }));
+      return;
+    }
+    setStockErrors((prev) => { const n = { ...prev }; delete n[key]; return n; });
+    updateQuantity(item.productId, item.quantity + 1, item.size, item.color);
+  }
 
   function handleCheckout() {
     if (customerLoading) return;
@@ -63,27 +103,51 @@ export default function CartPage() {
                   {item.color && <span>Cor: {item.color}</span>}
                 </div>
                 <p className="font-bold text-gray-900 mt-1">{formatCurrency(item.price)}</p>
-                <div className="flex items-center gap-2 mt-3">
-                  <button
-                    onClick={() => updateQuantity(item.productId, item.quantity - 1, item.size, item.color)}
-                    className="w-7 h-7 rounded-full border border-gray-200 flex items-center justify-center hover:border-brand transition-colors"
-                  >
-                    <Minus size={12} />
-                  </button>
-                  <span className="w-6 text-center text-sm font-medium">{item.quantity}</span>
-                  <button
-                    onClick={() => updateQuantity(item.productId, item.quantity + 1, item.size, item.color)}
-                    className="w-7 h-7 rounded-full border border-gray-200 flex items-center justify-center hover:border-brand transition-colors"
-                  >
-                    <Plus size={12} />
-                  </button>
-                  <button
-                    onClick={() => removeItem(item.productId, item.size, item.color)}
-                    className="ml-auto text-gray-400 hover:text-red-500 transition-colors p-1"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
+                {(() => {
+                  const key = `${item.productId}-${item.size ?? ""}-${item.color ?? ""}`;
+                  const available = stockMap[key];
+                  const error = stockErrors[key];
+                  return (
+                    <>
+                      <div className="flex items-center gap-2 mt-3">
+                        <button
+                          onClick={() => {
+                            setStockErrors((prev) => { const n = { ...prev }; delete n[key]; return n; });
+                            updateQuantity(item.productId, item.quantity - 1, item.size, item.color);
+                          }}
+                          className="w-7 h-7 rounded-full border border-gray-200 flex items-center justify-center hover:border-brand transition-colors"
+                        >
+                          <Minus size={12} />
+                        </button>
+                        <span className="w-6 text-center text-sm font-medium">{item.quantity}</span>
+                        <button
+                          onClick={() => handleIncrement(item)}
+                          disabled={available !== undefined && item.quantity >= available}
+                          className="w-7 h-7 rounded-full border border-gray-200 flex items-center justify-center hover:border-brand transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          <Plus size={12} />
+                        </button>
+                        {available !== undefined && available <= 3 && available > 0 && (
+                          <span className="text-xs text-amber-600 font-medium">
+                            {available} disponíve{available !== 1 ? "is" : "l"}
+                          </span>
+                        )}
+                        <button
+                          onClick={() => removeItem(item.productId, item.size, item.color)}
+                          className="ml-auto text-gray-400 hover:text-red-500 transition-colors p-1"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                      {error && (
+                        <p className="text-xs text-red-500 font-medium mt-1">{error}</p>
+                      )}
+                      {available === 0 && (
+                        <p className="text-xs text-red-500 font-medium mt-1">Produto esgotado — remova do carrinho</p>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
             </div>
           ))}

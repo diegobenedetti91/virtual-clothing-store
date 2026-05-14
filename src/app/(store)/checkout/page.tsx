@@ -187,10 +187,34 @@ export default function CheckoutPage() {
     window.location.href = data.initPoint;
   };
 
+  const validateStock = async (): Promise<string | null> => {
+    const results = await Promise.all(
+      items.map(async (item) => {
+        const params = new URLSearchParams({ productId: item.productId });
+        if (item.size) params.set("size", item.size);
+        if (item.color) params.set("color", item.color);
+        const res = await fetch(`/api/stock?${params}`);
+        const { available } = await res.json();
+        if (available < item.quantity) {
+          const variant = [item.size && `Tam: ${item.size}`, item.color && `Cor: ${item.color}`].filter(Boolean).join(", ");
+          return `"${item.name}"${variant ? ` (${variant})` : ""}: apenas ${available} disponível${available !== 1 ? "is" : ""}`;
+        }
+        return null;
+      })
+    );
+    const errors = results.filter(Boolean) as string[];
+    return errors.length > 0 ? errors.join("\n") : null;
+  };
+
   const handleSubmit = async (e: { preventDefault: () => void }) => {
     e.preventDefault();
     setLoading(true);
     try {
+      const stockError = await validateStock();
+      if (stockError) {
+        alert(`Estoque insuficiente para alguns itens:\n\n${stockError}\n\nAtualize o carrinho antes de continuar.`);
+        return;
+      }
       if (isWhatsApp) {
         await handleWhatsAppSubmit();
       } else {

@@ -48,7 +48,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
             {FEATURES.map(({ icon: Icon, label, desc }) => (
               <div key={label} className="flex items-center gap-3 group">
-                <div className="shrink-0 w-10 h-10 rounded-xl bg-brand-light flex items-center justify-center group-hover:bg-brand-light transition-colors">
+                <div className="shrink-0 w-10 h-10 rounded-xl bg-brand-light flex items-center justify-center group-hover:bg-brand-muted transition-colors">
                   <Icon size={18} className="text-brand" />
                 </div>
                 <div>
