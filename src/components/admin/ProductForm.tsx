@@ -63,8 +63,6 @@ export default function ProductForm({ product, categories, navItems = [], variat
     return normalizeVariantStock(raw);
   });
 
-  // New attribute input state
-  const [newAttrName, setNewAttrName] = useState("");
   const [newAttrValues, setNewAttrValues] = useState<Record<number, string>>({});
   const [collapsedAttrs, setCollapsedAttrs] = useState<Record<number, boolean>>({});
 
@@ -106,13 +104,6 @@ export default function ProductForm({ product, categories, navItems = [], variat
           : v
       )
     );
-
-  const addAttribute = () => {
-    const trimmed = newAttrName.trim();
-    if (!trimmed || attributes.some((a) => a.name === trimmed)) return;
-    setAttributes((prev) => [...prev, { name: trimmed, values: [] }]);
-    setNewAttrName("");
-  };
 
   // Apply a variation template as a new attribute (or merge values if name already exists)
   const applyTemplate = (tpl: VariationTemplate) => {
@@ -388,25 +379,6 @@ export default function ProductForm({ product, categories, navItems = [], variat
                 )}
               </div>
             ))}
-
-            {/* Add attribute */}
-            <div className="flex gap-2">
-              <input
-                value={newAttrName}
-                onChange={(e) => setNewAttrName(e.target.value)}
-                className={inputClass}
-                placeholder="Nome do atributo — ex: Sabor, Tamanho, Cor"
-                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addAttribute(); } }}
-              />
-              <button
-                type="button"
-                onClick={addAttribute}
-                className="px-4 py-2 text-sm font-medium text-white rounded-xl transition-colors shrink-0"
-                style={{ backgroundColor: "var(--brand)" }}
-              >
-                <Plus size={16} />
-              </button>
-            </div>
 
             {/* Variant stock */}
             {combos.length > 0 && (
