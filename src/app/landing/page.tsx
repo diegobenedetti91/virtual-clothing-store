@@ -158,7 +158,7 @@ export default function LandingPage() {
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 md:py-36 text-center">
           <div className="inline-flex items-center gap-2 bg-pink-500/10 border border-pink-500/20 text-pink-300 text-xs font-medium px-4 py-1.5 rounded-full mb-8">
             <span className="w-1.5 h-1.5 bg-pink-400 rounded-full animate-pulse" />
-            Plataforma completa de moda
+            Plataforma completa de vendas online
           </div>
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-black tracking-tight mb-6 leading-tight">
             Sua loja virtual,{" "}
