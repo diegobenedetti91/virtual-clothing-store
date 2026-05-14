@@ -12,7 +12,6 @@ import {
   MessageCircle,
   TrendingUp,
   CheckCircle,
-  ArrowRight,
   Percent,
   MapPin,
   Tag,
@@ -162,29 +161,14 @@ export default function LandingPage() {
             Plataforma completa de moda
           </div>
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-black tracking-tight mb-6 leading-tight">
-            Sua loja virtual de moda,{" "}
+            Sua loja virtual,{" "}
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-fuchsia-400">
               do zero ao lucro
             </span>
           </h1>
-          <p className="text-gray-400 text-lg md:text-xl max-w-2xl mx-auto mb-10 leading-relaxed">
+          <p className="text-gray-400 text-lg md:text-xl max-w-2xl mx-auto leading-relaxed">
             Plataforma completa com gestão de produtos, pedidos, clientes, relatórios de margem de lucro, integração com WhatsApp e Mercado Pago — tudo em um só lugar.
           </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <a
-              href="/admin"
-              className="bg-pink-500 hover:bg-pink-600 text-white font-semibold px-8 py-3.5 rounded-xl transition-colors flex items-center gap-2 text-sm"
-            >
-              Acessar painel admin
-              <ArrowRight size={16} />
-            </a>
-            <a
-              href="/"
-              className="border border-gray-700 hover:border-gray-500 text-gray-300 hover:text-white font-medium px-8 py-3.5 rounded-xl transition-colors text-sm"
-            >
-              Ver loja virtual
-            </a>
-          </div>
         </div>
       </section>
 
