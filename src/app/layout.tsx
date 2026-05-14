@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist } from "next/font/google";
 import SessionProvider from "@/components/admin/SessionProvider";
+import { getCompanySettings } from "@/lib/company";
 import "./globals.css";
 
 const geist = Geist({
@@ -8,10 +9,14 @@ const geist = Geist({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "Loja de Roupas",
-  description: "Sua loja virtual de moda",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const settings = await getCompanySettings();
+  const name = settings?.name || "Loja de Roupas";
+  return {
+    title: name,
+    description: settings?.description || "Sua loja virtual de moda",
+  };
+}
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
