@@ -24,6 +24,7 @@ import {
   Layers,
   Search,
   Heart,
+  Sliders,
 } from "lucide-react";
 
 const features = [
@@ -40,6 +41,13 @@ const features = [
     description: "Acompanhe cada pedido do recebimento à entrega com fluxo de status completo, código de rastreio e comprovante de envio.",
     color: "bg-blue-50 text-blue-600",
     items: ["Fluxo de status completo", "Código de rastreio", "Comprovante de envio", "Cancelamento com restauração de estoque"],
+  },
+  {
+    icon: Sliders,
+    title: "Variações Personalizadas",
+    description: "Crie tipos de variação totalmente personalizados para sua loja — tamanhos, cores, materiais ou qualquer atributo. Gerencie os valores e aplique em qualquer produto.",
+    color: "bg-violet-50 text-violet-600",
+    items: ["Tipos de variação customizados", "Valores livres por tipo", "Reutilização em produtos", "Estoque por combinação"],
   },
   {
     icon: BarChart3,
@@ -176,7 +184,7 @@ export default function LandingPage() {
       <section className="border-y border-gray-100 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
           {[
-            { value: "12+", label: "Módulos integrados" },
+            { value: "13+", label: "Módulos integrados" },
             { value: "100%", label: "Responsivo mobile" },
             { value: "2", label: "Formas de checkout" },
             { value: "∞", label: "Produtos e pedidos" },
@@ -447,6 +455,39 @@ export default function LandingPage() {
                 ))}
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Developer contact */}
+      <section className="py-20 bg-gray-950 text-white">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <div className="inline-flex items-center gap-2 bg-pink-500/10 border border-pink-500/20 text-pink-300 text-xs font-medium px-4 py-1.5 rounded-full mb-6">
+            Desenvolvedor
+          </div>
+          <h2 className="text-3xl md:text-4xl font-black mb-4">
+            Quer uma loja igual para o seu negócio?
+          </h2>
+          <p className="text-gray-400 text-lg leading-relaxed mb-8 max-w-xl mx-auto">
+            Entre em contato e eu configuro toda a plataforma para você — do zero ao ar, pronto para vender.
+          </p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-10">
+            <a
+              href="https://wa.me/5519981687551"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-3 bg-green-500 hover:bg-green-600 text-white font-semibold px-8 py-4 rounded-2xl transition-colors text-base"
+            >
+              <MessageCircle size={20} />
+              Falar no WhatsApp
+            </a>
+          </div>
+          <div className="border-t border-gray-800 pt-8">
+            <p className="text-gray-500 text-sm">
+              Desenvolvido por{" "}
+              <span className="text-white font-semibold">Diego Benedetti</span>
+              {" "}· Desenvolvimento de lojas virtuais sob medida
+            </p>
           </div>
         </div>
       </section>

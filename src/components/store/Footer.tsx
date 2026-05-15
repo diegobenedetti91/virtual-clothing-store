@@ -74,8 +74,9 @@ export default function Footer({ settings }: FooterProps) {
           </div>
         </div>
 
-        <div className="border-t border-gray-800 mt-8 pt-6 text-center text-xs text-gray-500">
-          © {year} {name}. Todos os direitos reservados.
+        <div className="border-t border-gray-800 mt-8 pt-6 text-center text-xs text-gray-500 space-y-1">
+          <p>© {year} {name}. Todos os direitos reservados.</p>
+          <p>Desenvolvido por Diego Benedetti</p>
         </div>
       </div>
     </footer>
