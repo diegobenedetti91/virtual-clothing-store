@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Users, ShoppingCart, Heart, TrendingUp, Search } from "lucide-react";
+import { Users, ShoppingCart, Heart, TrendingUp, Search, XCircle } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 
 interface CustomerRow {
   id: string; name: string; email: string; phone?: string | null;
   city?: string | null; state?: string | null;
-  orderCount: number; wishlistCount: number; totalSpent: number;
+  orderCount: number; cancelledCount: number; wishlistCount: number; totalSpent: number;
   createdAt: string; lastOrderAt: string | null;
 }
 
@@ -72,7 +72,8 @@ export default function ClientesManager() {
                 <tr className="border-b border-gray-100 text-left">
                   <th className="px-4 py-3 font-semibold text-gray-500">Cliente</th>
                   <th className="px-4 py-3 font-semibold text-gray-500">Cidade/UF</th>
-                  <th className="px-4 py-3 font-semibold text-gray-500 text-center">Pedidos</th>
+                  <th className="px-4 py-3 font-semibold text-gray-500 text-center">Entregues</th>
+                  <th className="px-4 py-3 font-semibold text-gray-500 text-center">Cancelados</th>
                   <th className="px-4 py-3 font-semibold text-gray-500 text-center"><Heart size={13} className="inline" /></th>
                   <th className="px-4 py-3 font-semibold text-gray-500 text-right">Total gasto</th>
                   <th className="px-4 py-3 font-semibold text-gray-500">Cadastro</th>
@@ -93,6 +94,15 @@ export default function ClientesManager() {
                       <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-bold ${c.orderCount > 0 ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-400"}`}>
                         {c.orderCount}
                       </span>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      {c.cancelledCount > 0 ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-red-100 text-red-600">
+                          <XCircle size={11} />{c.cancelledCount}
+                        </span>
+                      ) : (
+                        <span className="text-gray-300 text-xs">—</span>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-center text-gray-500 text-xs">{c.wishlistCount}</td>
                     <td className="px-4 py-3 text-right font-bold text-gray-900">

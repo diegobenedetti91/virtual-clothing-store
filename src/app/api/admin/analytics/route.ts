@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
 
   const [orders, cancelledOrders] = await Promise.all([
     prisma.order.findMany({
-      where: { status: { not: "CANCELLED" } },
+      where: { status: "DELIVERED" },
       include: { items: { include: { product: { include: { category: true } } } } },
       orderBy: { createdAt: "asc" },
     }),

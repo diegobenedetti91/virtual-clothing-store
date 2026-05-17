@@ -74,26 +74,26 @@ function BarChart({ data, valueKey, labelKey, colorClass = "bg-brand" }: {
   );
 }
 
+const BAR_AREA_HEIGHT = 140;
+
 function MonthlyChart({ data }: { data: MonthData[] }) {
   const max = Math.max(...data.map((d) => d.revenue), 1);
   return (
-    <div className="flex items-end gap-1.5 h-40 pt-4">
+    <div className="flex items-end gap-1.5">
       {data.map((d) => {
-        const pct = (d.revenue / max) * 100;
+        const heightPx = d.revenue > 0 ? Math.max((d.revenue / max) * BAR_AREA_HEIGHT, 6) : 4;
         const hasData = d.revenue > 0;
         return (
           <div key={d.month} className="flex-1 flex flex-col items-center gap-1 group relative">
             {hasData && (
-              <div className="absolute -top-7 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-[10px] px-1.5 py-0.5 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+              <div className="absolute left-1/2 -translate-x-1/2 bg-gray-900 text-white text-[10px] px-1.5 py-0.5 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10" style={{ bottom: `calc(${heightPx}px + 20px)` }}>
                 {formatCurrency(d.revenue)}
               </div>
             )}
-            <div className="w-full flex-1 flex items-end">
-              <div
-                className={`w-full rounded-t-md transition-all duration-500 ${hasData ? "bg-brand hover:opacity-90" : "bg-gray-100"}`}
-                style={{ height: hasData ? `${Math.max(pct, 4)}%` : "4%" }}
-              />
-            </div>
+            <div
+              className={`w-full rounded-t-md transition-all duration-500 ${hasData ? "bg-brand hover:opacity-90" : "bg-gray-100"}`}
+              style={{ height: `${heightPx}px` }}
+            />
             <span className="text-[10px] text-gray-400 font-medium">{d.label}</span>
           </div>
         );

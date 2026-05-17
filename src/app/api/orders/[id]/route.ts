@@ -19,8 +19,20 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const current = await prisma.order.findUnique({
     where: { id },
-    select: { status: true, items: { select: { productId: true, quantity: true, size: true, color: true } } },
+    select: { status: true, items: { select: { productId: true, quantity: true, size: true, color: true, selectedAttributes: true } } },
   });
+
+  const ALLOWED_TRANSITIONS: Record<string, string[]> = {
+    PENDING:   ["CONFIRMED", "CANCELLED"],
+    CONFIRMED: ["SHIPPED",   "CANCELLED"],
+    SHIPPED:   ["DELIVERED", "CANCELLED"],
+    DELIVERED: ["CANCELLED"],
+    CANCELLED: [],
+  };
+
+  if (!current || !ALLOWED_TRANSITIONS[current.status]?.includes(status)) {
+    return NextResponse.json({ error: "Transição de status não permitida" }, { status: 400 });
+  }
 
   const updateData: Record<string, unknown> = { status };
   if (cancelReason !== undefined) updateData.cancelReason = cancelReason;

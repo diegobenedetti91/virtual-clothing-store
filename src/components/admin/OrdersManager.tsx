@@ -5,6 +5,14 @@ import { Order } from "@/types";
 import { formatCurrency, formatDate, ORDER_STATUS } from "@/lib/utils";
 import { Search, ChevronDown, ChevronUp, X, AlertCircle, User, Truck, Upload, Package } from "lucide-react";
 
+const ALLOWED_TRANSITIONS: Record<string, string[]> = {
+  PENDING:   ["CONFIRMED", "CANCELLED"],
+  CONFIRMED: ["SHIPPED",   "CANCELLED"],
+  SHIPPED:   ["DELIVERED", "CANCELLED"],
+  DELIVERED: ["CANCELLED"],
+  CANCELLED: [],
+};
+
 const STATUS_OPTIONS = [
   { value: "", label: "Todos os status" },
   { value: "PENDING", label: "Aguardando" },
@@ -444,20 +452,30 @@ export default function OrdersManager({ initialOrders }: Props) {
 
                     <div>
                       <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Alterar status</h4>
-                      <div className="flex gap-2 flex-wrap">
-                        {Object.entries(ORDER_STATUS).map(([key, { label, color }]) => (
-                          <button
-                            key={key}
-                            disabled={order.status === key || updatingStatus === order.id}
-                            onClick={() => requestStatusChange(order, key)}
-                            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all disabled:opacity-50 ${
-                              order.status === key ? color + " ring-2 ring-offset-1 ring-brand" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                            }`}
-                          >
-                            {label}
-                          </button>
-                        ))}
-                      </div>
+                      {order.status === "CANCELLED" ? (
+                        <p className="text-xs text-red-500 bg-red-50 border border-red-100 rounded-xl px-3 py-2">
+                          Pedido cancelado não pode ter o status alterado.
+                        </p>
+                      ) : (
+                        <div className="flex gap-2 flex-wrap">
+                          {Object.entries(ORDER_STATUS).map(([key, { label, color }]) => {
+                            const isCurrent = order.status === key;
+                            const isAllowed = ALLOWED_TRANSITIONS[order.status]?.includes(key) ?? false;
+                            return (
+                              <button
+                                key={key}
+                                disabled={isCurrent || !isAllowed || updatingStatus === order.id}
+                                onClick={() => requestStatusChange(order, key)}
+                                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
+                                  isCurrent ? color + " ring-2 ring-offset-1 ring-brand" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                                }`}
+                              >
+                                {label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
