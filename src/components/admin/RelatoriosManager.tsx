@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { TrendingUp, ShoppingCart, DollarSign, MapPin, Tag, ChevronDown, XCircle, Percent } from "lucide-react";
+import { TrendingUp, ShoppingCart, DollarSign, MapPin, Tag, ChevronDown, XCircle, Percent, Calendar, Filter } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 
 interface MonthData { month: number; label: string; revenue: number; orders: number }
@@ -22,6 +22,7 @@ interface AnalyticsData {
   year: number;
   month: number;
   years: number[];
+  allStates: string[];
   monthlyRevenue: MonthData[];
   byState: StateData[];
   byCategory: CategoryData[];
@@ -30,6 +31,12 @@ interface AnalyticsData {
   byOrder: OrderMarginData[];
   summary: Summary;
 }
+
+const STATUS_OPTIONS = [
+  { value: "DELIVERED", label: "Apenas entregues" },
+  { value: "CONFIRMED,SHIPPED,DELIVERED", label: "Confirmados + Enviados + Entregues" },
+  { value: "PENDING,CONFIRMED,SHIPPED,DELIVERED", label: "Todos (exceto cancelados)" },
+];
 
 const MONTHS = [
   { value: 0, label: "Todo o ano" },
@@ -107,44 +114,150 @@ export default function RelatoriosManager() {
   const [loading, setLoading] = useState(true);
   const [year, setYear] = useState(new Date().getFullYear());
   const [month, setMonth] = useState(0);
+  const [filterMode, setFilterMode] = useState<"period" | "range">("period");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [statuses, setStatuses] = useState("DELIVERED");
+  const [stateFilter, setStateFilter] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/admin/analytics?year=${year}&month=${month}`);
+      const params = new URLSearchParams({ statuses });
+      if (filterMode === "range") {
+        if (dateFrom) params.set("dateFrom", dateFrom);
+        if (dateTo) params.set("dateTo", dateTo);
+      } else {
+        params.set("year", String(year));
+        params.set("month", String(month));
+      }
+      if (stateFilter) params.set("state", stateFilter);
+      const res = await fetch(`/api/admin/analytics?${params}`);
       setData(await res.json());
     } finally {
       setLoading(false);
     }
-  }, [year, month]);
+  }, [year, month, filterMode, dateFrom, dateTo, statuses, stateFilter]);
 
   useEffect(() => { load(); }, [load]);
 
   const selectClass = "border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-brand transition appearance-none pr-8 cursor-pointer";
+  const inputClass = "border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-brand transition cursor-pointer";
+
+  const hasActiveFilters = stateFilter || statuses !== "DELIVERED" || (filterMode === "range" && (dateFrom || dateTo));
 
   return (
     <div className="space-y-6">
       {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="relative">
-          <select value={year} onChange={(e) => setYear(Number(e.target.value))} className={selectClass}>
-            {(data?.years ?? [year]).map((y) => (
-              <option key={y} value={y}>{y}</option>
-            ))}
-          </select>
-          <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Filter size={15} className="text-gray-400" />
+            <span className="text-sm font-semibold text-gray-700">Filtros</span>
+            {hasActiveFilters && (
+              <span className="bg-brand text-white text-[10px] font-bold px-2 py-0.5 rounded-full">ativos</span>
+            )}
+          </div>
+          {hasActiveFilters && (
+            <button
+              type="button"
+              onClick={() => { setStateFilter(""); setStatuses("DELIVERED"); setFilterMode("period"); setDateFrom(""); setDateTo(""); }}
+              className="text-xs text-gray-400 hover:text-gray-600 underline"
+            >
+              Limpar filtros
+            </button>
+          )}
         </div>
-        <div className="relative">
-          <select value={month} onChange={(e) => setMonth(Number(e.target.value))} className={selectClass}>
-            {MONTHS.map((m) => (
-              <option key={m.value} value={m.value}>{m.label}</option>
-            ))}
-          </select>
-          <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+
+        {/* Period mode toggle */}
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => setFilterMode("period")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${filterMode === "period" ? "border-brand bg-brand/5 text-brand" : "border-gray-200 text-gray-500 hover:border-gray-300"}`}
+          >
+            Ano / Mês
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilterMode("range")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${filterMode === "range" ? "border-brand bg-brand/5 text-brand" : "border-gray-200 text-gray-500 hover:border-gray-300"}`}
+          >
+            <Calendar size={13} />
+            Intervalo de datas
+          </button>
         </div>
-        {loading && (
-          <div className="w-4 h-4 border-2 border-brand border-t-transparent rounded-full animate-spin" />
-        )}
+
+        <div className="flex flex-wrap items-end gap-3">
+          {filterMode === "period" ? (
+            <>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-gray-500 font-medium">Ano</label>
+                <div className="relative">
+                  <select value={year} onChange={(e) => setYear(Number(e.target.value))} className={selectClass}>
+                    {(data?.years ?? [year]).map((y) => (
+                      <option key={y} value={y}>{y}</option>
+                    ))}
+                  </select>
+                  <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                </div>
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-gray-500 font-medium">Mês</label>
+                <div className="relative">
+                  <select value={month} onChange={(e) => setMonth(Number(e.target.value))} className={selectClass}>
+                    {MONTHS.map((m) => (
+                      <option key={m.value} value={m.value}>{m.label}</option>
+                    ))}
+                  </select>
+                  <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-gray-500 font-medium">Data início</label>
+                <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className={inputClass} />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-gray-500 font-medium">Data fim</label>
+                <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className={inputClass} />
+              </div>
+            </>
+          )}
+
+          <div className="flex flex-col gap-1">
+            <label className="text-xs text-gray-500 font-medium">Status dos pedidos</label>
+            <div className="relative">
+              <select value={statuses} onChange={(e) => setStatuses(e.target.value)} className={selectClass}>
+                {STATUS_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+              <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+            </div>
+          </div>
+
+          {(data?.allStates ?? []).length > 1 && (
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-gray-500 font-medium">Estado (UF)</label>
+              <div className="relative">
+                <select value={stateFilter} onChange={(e) => setStateFilter(e.target.value)} className={selectClass}>
+                  <option value="">Todos os estados</option>
+                  {(data?.allStates ?? []).map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+                <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+              </div>
+            </div>
+          )}
+
+          {loading && (
+            <div className="w-4 h-4 border-2 border-brand border-t-transparent rounded-full animate-spin mb-2" />
+          )}
+        </div>
       </div>
 
       {/* Summary cards */}
@@ -169,7 +282,11 @@ export default function RelatoriosManager() {
 
           {/* Monthly chart */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-            <h2 className="text-base font-bold text-gray-900 mb-1">Faturamento mensal — {year}</h2>
+            <h2 className="text-base font-bold text-gray-900 mb-1">
+              {filterMode === "range" && (dateFrom || dateTo)
+                ? `Faturamento — ${dateFrom ? new Date(dateFrom + "T12:00:00").toLocaleDateString("pt-BR") : "início"} até ${dateTo ? new Date(dateTo + "T12:00:00").toLocaleDateString("pt-BR") : "hoje"}`
+                : `Faturamento mensal — ${year}`}
+            </h2>
             <p className="text-xs text-gray-400 mb-5">Passe o mouse sobre as barras para ver o valor exato</p>
             <MonthlyChart data={data.monthlyRevenue} />
           </div>

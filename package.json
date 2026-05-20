@@ -6,11 +6,12 @@
     "seed": "npx ts-node --esm prisma/seed.ts"
   },
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --webpack",
     "build": "prisma generate && (prisma migrate resolve --rolled-back 20260513000001_waitlist_size_color 2>/dev/null || true) && (prisma migrate resolve --rolled-back 20260514000001_dynamic_attributes 2>/dev/null || true) && prisma migrate deploy && node scripts/setup-admin.mjs && mkdir -p public/uploads && next build",
     "start": "next start",
     "lint": "eslint",
-    "seed": "ts-node --project tsconfig.json prisma/seed.ts"
+    "seed": "ts-node --project tsconfig.json prisma/seed.ts",
+    "seed:demo": "npx tsx prisma/seed-demo.ts"
   },
 "dependencies": {
     "@prisma/client": "^6.19.3",

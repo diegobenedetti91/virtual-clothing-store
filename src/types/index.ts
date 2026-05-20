@@ -12,6 +12,18 @@ export interface VariantStock {
   stock: number;
 }
 
+export interface PackagePreset {
+  id: string;
+  name: string;
+  comprimento: number;
+  largura: number;
+  altura: number;
+  pesoGramas: number;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -29,6 +41,9 @@ export interface Product {
   attributes: string;
   stock: number;
   variantStock: string;
+  pesoGramas?: number | null;
+  embalagemId?: string | null;
+  embalagem?: PackagePreset | null;
   active: boolean;
   featured: boolean;
   slug: string;
@@ -71,6 +86,8 @@ export interface Order {
   zipCode: string;
   items: OrderItem[];
   subtotal: number;
+  shippingCost: number;
+  shippingMethod?: string | null;
   total: number;
   status: string;
   notes?: string | null;
@@ -101,6 +118,15 @@ export interface CompanySettings {
   heroTitle?: string | null;
   heroButtonText?: string | null;
   heroButtonSecondaryText?: string | null;
+  freteAtivo: boolean;
+  freteTipo: string;
+  freteValorFixo: number;
+  freteCEPOrigem?: string | null;
+  fretePesoDefaultGramas: number;
+  melhorEnvioToken?: string | null;
+  fretePacoteAltura: number;
+  fretePacoteLargura: number;
+  fretePacoteComprimento: number;
 }
 
 export interface CartItem {

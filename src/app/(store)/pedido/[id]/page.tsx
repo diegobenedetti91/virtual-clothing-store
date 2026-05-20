@@ -60,12 +60,26 @@ export default function OrderConfirmationPage() {
             </div>
           ))}
         </div>
-        <div className="border-t border-gray-100 pt-3">
-          <div className="flex justify-between font-bold text-gray-900">
+        <div className="border-t border-gray-100 pt-3 space-y-1">
+          <div className="flex justify-between text-sm text-gray-500">
             <span>Subtotal</span>
+            <span>{formatCurrency(order.subtotal)}</span>
+          </div>
+          {order.shippingCost > 0 ? (
+            <div className="flex justify-between text-sm text-gray-500">
+              <span>Frete{order.shippingMethod ? ` (${order.shippingMethod})` : ""}</span>
+              <span>{formatCurrency(order.shippingCost)}</span>
+            </div>
+          ) : (
+            <div className="flex justify-between text-sm text-gray-400">
+              <span>Frete</span>
+              <span>A combinar</span>
+            </div>
+          )}
+          <div className="flex justify-between font-bold text-gray-900 pt-1 border-t border-gray-100">
+            <span>Total</span>
             <span>{formatCurrency(order.total)}</span>
           </div>
-          <p className="text-xs text-gray-400 mt-1">+ frete a combinar</p>
         </div>
 
         <div className="border-t border-gray-100 mt-4 pt-4">

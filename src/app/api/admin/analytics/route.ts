@@ -9,15 +9,35 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const year = parseInt(searchParams.get("year") || String(new Date().getFullYear()));
   const month = parseInt(searchParams.get("month") || "0");
+  const dateFrom = searchParams.get("dateFrom");
+  const dateTo = searchParams.get("dateTo");
+  const statusesParam = searchParams.get("statuses") || "DELIVERED";
+  const stateFilter = searchParams.get("state") || "";
+
+  const activeStatuses = statusesParam.split(",").map((s) => s.trim()).filter(Boolean);
+
+  const dateWhere: Record<string, unknown> = {};
+  if (dateFrom) dateWhere.gte = new Date(dateFrom);
+  if (dateTo) {
+    const end = new Date(dateTo);
+    end.setHours(23, 59, 59, 999);
+    dateWhere.lte = end;
+  }
 
   const [orders, cancelledOrders] = await Promise.all([
     prisma.order.findMany({
-      where: { status: "DELIVERED" },
+      where: {
+        status: { in: activeStatuses },
+        ...(Object.keys(dateWhere).length > 0 ? { createdAt: dateWhere } : {}),
+      },
       include: { items: { include: { product: { include: { category: true } } } } },
       orderBy: { createdAt: "asc" },
     }),
     prisma.order.findMany({
-      where: { status: "CANCELLED" },
+      where: {
+        status: "CANCELLED",
+        ...(Object.keys(dateWhere).length > 0 ? { createdAt: dateWhere } : {}),
+      },
       select: { cancelReason: true, createdAt: true, total: true },
       orderBy: { createdAt: "asc" },
     }),
@@ -33,7 +53,20 @@ export async function GET(req: NextRequest) {
     return { month: m + 1, label, revenue: monthOrders.reduce((s, o) => s + o.total, 0), orders: monthOrders.length };
   });
 
-  const filteredOrders = orders.filter((o) => {
+  // When using date range, skip year/month filtering (already filtered in DB query)
+  const filteredOrders = dateFrom || dateTo ? orders.filter((o) => {
+    if (!stateFilter) return true;
+    return (o.state?.trim() || "Não informado") === stateFilter;
+  }) : orders.filter((o) => {
+    const d = new Date(o.createdAt);
+    if (d.getFullYear() !== year) return false;
+    if (month > 0 && d.getMonth() + 1 !== month) return false;
+    if (stateFilter && (o.state?.trim() || "Não informado") !== stateFilter) return false;
+    return true;
+  });
+
+  const filteredCancelled = cancelledOrders.filter((o) => {
+    if (dateFrom || dateTo) return true;
     const d = new Date(o.createdAt);
     if (d.getFullYear() !== year) return false;
     if (month > 0 && d.getMonth() + 1 !== month) return false;
@@ -63,12 +96,6 @@ export async function GET(req: NextRequest) {
     .sort((a, b) => b.revenue - a.revenue);
 
   // Cancellations by reason for selected period
-  const filteredCancelled = cancelledOrders.filter((o) => {
-    const d = new Date(o.createdAt);
-    if (d.getFullYear() !== year) return false;
-    if (month > 0 && d.getMonth() + 1 !== month) return false;
-    return true;
-  });
   const reasonMap = new Map<string, { count: number; total: number }>();
   for (const o of filteredCancelled) {
     const key = o.cancelReason?.trim() || "Sem motivo informado";
@@ -132,11 +159,17 @@ export async function GET(req: NextRequest) {
     };
   }).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-  const years = [...new Set([...orders, ...cancelledOrders].map((o) => new Date(o.createdAt).getFullYear()))].sort((a, b) => b - a);
+  // All-time years and states (unfiltered) for populating dropdowns
+  const allOrders = await prisma.order.findMany({
+    where: { status: { not: "CANCELLED" } },
+    select: { createdAt: true, state: true },
+  });
+  const years = [...new Set(allOrders.map((o) => new Date(o.createdAt).getFullYear()))].sort((a, b) => b - a);
   if (!years.includes(year)) years.unshift(year);
+  const allStates = [...new Set(allOrders.map((o) => o.state?.trim() || "Não informado"))].sort();
 
   return NextResponse.json({
-    year, month, years, monthlyRevenue, byState, byCategory, byCancelReason,
+    year, month, years, allStates, monthlyRevenue, byState, byCategory, byCancelReason,
     byProduct, byOrder,
     summary: { revenue: periodRevenue, orders: periodOrders, ticket: periodTicket, cancelled: filteredCancelled.length },
   });

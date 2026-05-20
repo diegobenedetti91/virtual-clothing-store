@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, X, ArrowLeft, ChevronDown, ChevronUp } from "lucide-react";
 import Link from "next/link";
-import { Category, Product, ProductAttribute } from "@/types";
+import { Category, PackagePreset, Product, ProductAttribute } from "@/types";
 import { NormalizedVariant, generateCombinations, getProductAttributes, normalizeVariantStock } from "@/lib/variantUtils";
 import ImageListInput from "./ImageListInput";
 
@@ -25,9 +25,10 @@ interface ProductFormProps {
   categories: Category[];
   navItems?: NavItemOption[];
   variationTemplates?: VariationTemplate[];
+  packages?: PackagePreset[];
 }
 
-export default function ProductForm({ product, categories, navItems = [], variationTemplates = [] }: ProductFormProps) {
+export default function ProductForm({ product, categories, navItems = [], variationTemplates = [], packages = [] }: ProductFormProps) {
   const router = useRouter();
   const isEditing = !!product;
   const [loading, setLoading] = useState(false);
@@ -38,6 +39,8 @@ export default function ProductForm({ product, categories, navItems = [], variat
   const [price, setPrice] = useState(product?.price?.toString() || "");
   const [comparePrice, setComparePrice] = useState(product?.comparePrice?.toString() || "");
   const [costPrice, setCostPrice] = useState(product?.costPrice?.toString() || "");
+  const [pesoGramas, setPesoGramas] = useState(product?.pesoGramas?.toString() || "");
+  const [embalagemId, setEmbalagemId] = useState(product?.embalagemId || "");
   const [categoryId, setCategoryId] = useState(product?.categoryId || "");
   const [stock, setStock] = useState(product?.stock?.toString() || "0");
   const [active, setActive] = useState(product?.active !== false);
@@ -163,6 +166,8 @@ export default function ProductForm({ product, categories, navItems = [], variat
         body: JSON.stringify({
           name, description, price, comparePrice, costPrice, categoryId,
           stock, variantStock, active, featured, images, attributes,
+          pesoGramas: pesoGramas ? parseInt(pesoGramas) : null,
+          embalagemId: embalagemId || null,
           navItemIds: selectedNavIds,
         }),
       });
@@ -248,7 +253,33 @@ export default function ProductForm({ product, categories, navItems = [], variat
                 </div>
                 <p className="text-xs text-gray-400 mt-1">Usado no relatório de margem de lucro</p>
               </div>
+              <div>
+                <label className={labelClass}>Peso (gramas)</label>
+                <input
+                  type="number"
+                  min="1"
+                  value={pesoGramas}
+                  onChange={(e) => setPesoGramas(e.target.value)}
+                  className={inputClass}
+                  placeholder="Ex: 300"
+                />
+                <p className="text-xs text-gray-400 mt-1">Para cálculo de frete pelos Correios</p>
+              </div>
             </div>
+            {packages.length > 0 && (
+              <div>
+                <label className={labelClass}>Embalagem padrão</label>
+                <select value={embalagemId} onChange={(e) => setEmbalagemId(e.target.value)} className={inputClass}>
+                  <option value="">Nenhuma (usar padrão das configurações)</option>
+                  {packages.map((pkg) => (
+                    <option key={pkg.id} value={pkg.id}>
+                      {pkg.name} — {pkg.comprimento}×{pkg.largura}×{pkg.altura} cm
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-400 mt-1">Dimensões usadas no cálculo de frete e sugestão de empacotamento</p>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className={labelClass}>Categoria *</label>

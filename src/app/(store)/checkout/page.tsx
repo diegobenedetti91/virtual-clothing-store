@@ -1,14 +1,22 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useCart } from "@/hooks/useCart";
 import { useCustomer } from "@/hooks/useCustomer";
 import { formatCurrency, generateOrderNumber } from "@/lib/utils";
-import { MessageCircle, ShoppingBag, MapPin, CreditCard, Loader2 } from "lucide-react";
+import { MessageCircle, ShoppingBag, MapPin, CreditCard, Loader2, Truck } from "lucide-react";
 import { attributesLabel } from "@/lib/variantUtils";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CompanySettings } from "@/types";
+
+interface ShippingOption {
+  servico: string;
+  codigo: string;
+  valor: number;
+  prazo: number;
+  erro: string;
+}
 
 export default function CheckoutPage() {
   const { items, total, clearCart } = useCart();
@@ -21,6 +29,11 @@ export default function CheckoutPage() {
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [notes, setNotes] = useState("");
+
+  const [shippingOptions, setShippingOptions] = useState<ShippingOption[]>([]);
+  const [shippingLoading, setShippingLoading] = useState(false);
+  const [shippingTipo, setShippingTipo] = useState<"fixo" | "correios" | null>(null);
+  const [selectedShipping, setSelectedShipping] = useState<ShippingOption | null>(null);
 
   // Address fields
   const [street, setStreet] = useState("");
@@ -56,6 +69,49 @@ export default function CheckoutPage() {
       if (p.zipCode) setZipCode((prev) => prev || p.zipCode);
     });
   }, [customer]);
+
+  const calcularFrete = useCallback(async (cep: string) => {
+    if (!settings?.freteAtivo) return;
+    const cepClean = cep.replace(/\D/g, "");
+    if (cepClean.length !== 8) {
+      setShippingOptions([]);
+      setSelectedShipping(null);
+      return;
+    }
+    setShippingLoading(true);
+    try {
+      const res = await fetch("/api/shipping/calculate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cepDestino: cepClean,
+          items: items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setShippingOptions([]);
+        setSelectedShipping(null);
+        return;
+      }
+      const opcoes: ShippingOption[] = (data.opcoes || []).filter((o: ShippingOption) => o.erro === "0" && o.valor > 0);
+      setShippingTipo(data.tipo === "fixo" ? "fixo" : "correios");
+      setShippingOptions(opcoes);
+      if (opcoes.length > 0) setSelectedShipping(opcoes[0]);
+      else setSelectedShipping(null);
+    } catch {
+      setShippingOptions([]);
+      setSelectedShipping(null);
+    } finally {
+      setShippingLoading(false);
+    }
+  }, [settings, items]);
+
+  useEffect(() => {
+    if (settings?.freteAtivo && zipCode) {
+      calcularFrete(zipCode);
+    }
+  }, [zipCode, settings, calcularFrete]);
 
   const checkoutType = settings?.checkoutType || "whatsapp";
   const isWhatsApp = checkoutType === "whatsapp";
@@ -97,6 +153,10 @@ export default function CheckoutPage() {
       })
       .join("\n");
 
+    const freteTexto = selectedShipping
+      ? `${formatCurrency(selectedShipping.valor)} (${selectedShipping.servico}${selectedShipping.prazo > 0 ? ` – ${selectedShipping.prazo} dias úteis` : ""})`
+      : "A combinar";
+
     const lines = [
       `${intro}🛍️ *NOVO PEDIDO - ${settings?.name || "Minha Loja"}*`,
       ``,
@@ -116,8 +176,9 @@ export default function CheckoutPage() {
       `*Produtos:*`,
       itemLines,
       ``,
-      `💰 *Total:* ${formatCurrency(total())}`,
-      `🚚 *Frete:* A combinar`,
+      `💰 *Subtotal:* ${formatCurrency(total())}`,
+      `🚚 *Frete:* ${freteTexto}`,
+      `💳 *Total:* ${formatCurrency(total() + (selectedShipping?.valor || 0))}`,
       ...(notes ? [``, `📝 *Observações:* ${notes}`] : []),
       ``,
       `_Pedido gerado em ${new Date().toLocaleString("pt-BR")}_`,
@@ -141,6 +202,8 @@ export default function CheckoutPage() {
         zipCode: zipCode || null,
         notes: notes || null,
         customerId: customer?.id || null,
+        shippingCost: selectedShipping?.valor || 0,
+        shippingMethod: selectedShipping?.servico || null,
         items: items.map((item) => ({
           productId: item.productId,
           quantity: item.quantity,
@@ -176,6 +239,8 @@ export default function CheckoutPage() {
         zipCode: zipCode || null,
         notes: notes || null,
         customerId: customer?.id || null,
+        shippingCost: selectedShipping?.valor || 0,
+        shippingMethod: selectedShipping?.servico || null,
         items: items.map((item) => ({
           productId: item.productId,
           quantity: item.quantity,
@@ -394,18 +459,58 @@ export default function CheckoutPage() {
                   ))}
                 </div>
 
-                <div className="border-t border-gray-100 pt-4 space-y-1 mb-4">
+                <div className="border-t border-gray-100 pt-4 space-y-2 mb-4">
                   <div className="flex justify-between text-sm text-gray-500">
                     <span>Subtotal</span>
                     <span>{formatCurrency(total())}</span>
                   </div>
-                  <div className="flex justify-between text-sm text-gray-500">
-                    <span>Frete</span>
-                    <span className="text-gray-400">A combinar</span>
-                  </div>
+
+                  {settings?.freteAtivo && collectAddress ? (
+                    <div>
+                      <div className="flex justify-between text-sm text-gray-500 mb-1">
+                        <span className="flex items-center gap-1"><Truck size={13} />Frete</span>
+                        {shippingLoading && <Loader2 size={13} className="animate-spin text-gray-400" />}
+                      </div>
+                      {!shippingLoading && shippingOptions.length > 0 && (
+                        <div className="space-y-1">
+                          {shippingOptions.map((opt) => (
+                            <label
+                              key={opt.codigo}
+                              className={`flex items-center justify-between text-xs px-3 py-2 rounded-lg border cursor-pointer transition-all ${selectedShipping?.codigo === opt.codigo ? "border-brand bg-brand/5 font-semibold" : "border-gray-200 hover:border-gray-300"}`}
+                            >
+                              <span className="flex items-center gap-2">
+                                <input
+                                  type="radio"
+                                  name="shipping"
+                                  checked={selectedShipping?.codigo === opt.codigo}
+                                  onChange={() => setSelectedShipping(opt)}
+                                  className="accent-brand"
+                                />
+                                {opt.servico}
+                                {opt.prazo > 0 && <span className="text-gray-400">({opt.prazo} dias úteis)</span>}
+                              </span>
+                              <span>{opt.valor === 0 ? "Grátis" : formatCurrency(opt.valor)}</span>
+                            </label>
+                          ))}
+                        </div>
+                      )}
+                      {!shippingLoading && shippingOptions.length === 0 && zipCode.replace(/\D/g, "").length === 8 && (
+                        <p className="text-xs text-gray-400">Não foi possível calcular. Será combinado.</p>
+                      )}
+                      {!shippingLoading && zipCode.replace(/\D/g, "").length < 8 && (
+                        <p className="text-xs text-gray-400">Informe o CEP para calcular.</p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex justify-between text-sm text-gray-500">
+                      <span>Frete</span>
+                      <span className="text-gray-400">A combinar</span>
+                    </div>
+                  )}
+
                   <div className="flex justify-between font-black text-gray-900 text-lg pt-2 border-t border-gray-100">
                     <span>Total</span>
-                    <span>{formatCurrency(total())}</span>
+                    <span>{formatCurrency(total() + (selectedShipping?.valor || 0))}</span>
                   </div>
                 </div>
 

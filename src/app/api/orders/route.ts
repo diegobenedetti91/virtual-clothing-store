@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { customerName, customerEmail, customerPhone, address, city, state, zipCode, items, notes, customerId } = body;
+  const { customerName, customerEmail, customerPhone, address, city, state, zipCode, items, notes, customerId, shippingCost, shippingMethod } = body;
 
   type OrderItemInput = {
     productId: string;
@@ -59,6 +59,7 @@ export async function POST(req: NextRequest) {
   for (const item of items as OrderItemInput[]) {
     subtotal += item.price * item.quantity;
   }
+  const shipping = typeof shippingCost === "number" ? shippingCost : 0;
 
   const orderNumber = generateOrderNumber();
 
@@ -111,7 +112,9 @@ export async function POST(req: NextRequest) {
         state: state || null,
         zipCode: zipCode || null,
         subtotal,
-        total: subtotal,
+        shippingCost: shipping,
+        shippingMethod: shippingMethod || null,
+        total: subtotal + shipping,
         notes: notes || null,
         customerId: customerId || null,
         items: {
@@ -140,7 +143,7 @@ export async function POST(req: NextRequest) {
       orderNumber,
       storeName: settings?.name || "Minha Loja",
       items: order.items.map((i) => ({ name: i.product.name, quantity: i.quantity, price: i.price })),
-      total: subtotal,
+      total: subtotal + shipping,
       isGateway: false,
     }).catch(console.error);
   }

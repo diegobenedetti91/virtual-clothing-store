@@ -16,6 +16,8 @@ export async function PUT(req: NextRequest) {
     primaryColor, buttonColor, menuColor, bannerImages, checkoutType, checkoutCollectEmail, checkoutCollectAddress,
     checkoutMessage, mercadoPagoPublicKey, mercadoPagoAccessToken,
     heroBadge, heroTitle, heroButtonText, heroButtonSecondaryText,
+    freteAtivo, freteTipo, freteValorFixo, freteCEPOrigem, fretePesoDefaultGramas,
+    melhorEnvioToken, fretePacoteAltura, fretePacoteLargura, fretePacoteComprimento,
   } = body;
 
   let settings = await prisma.companySettings.findFirst(ORDER);
@@ -41,6 +43,15 @@ export async function PUT(req: NextRequest) {
     heroTitle: heroTitle || null,
     heroButtonText: heroButtonText || null,
     heroButtonSecondaryText: heroButtonSecondaryText || null,
+    freteAtivo: !!freteAtivo,
+    freteTipo: freteTipo || "fixo",
+    freteValorFixo: typeof freteValorFixo === "number" ? freteValorFixo : 0,
+    freteCEPOrigem: freteCEPOrigem || null,
+    fretePesoDefaultGramas: typeof fretePesoDefaultGramas === "number" ? fretePesoDefaultGramas : 500,
+    melhorEnvioToken: melhorEnvioToken || null,
+    fretePacoteAltura: typeof fretePacoteAltura === "number" ? fretePacoteAltura : 5,
+    fretePacoteLargura: typeof fretePacoteLargura === "number" ? fretePacoteLargura : 12,
+    fretePacoteComprimento: typeof fretePacoteComprimento === "number" ? fretePacoteComprimento : 17,
   };
 
   if (settings) {

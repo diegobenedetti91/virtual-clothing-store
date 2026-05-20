@@ -68,13 +68,13 @@ export default function Header({ settings, navItems = [] }: HeaderProps) {
         "sticky top-0 z-50 bg-white/95 backdrop-blur-md transition-all duration-200",
         scrolled ? "shadow-sm border-b border-gray-100" : "border-b border-transparent"
       )}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto pl-2 pr-4 sm:pl-3 sm:pr-6 lg:pl-5 lg:pr-8">
           <div className="flex items-center h-16 gap-6">
 
             {/* Brand */}
             <Link href="/" className="shrink-0 flex items-center">
               {settings?.logo ? (
-                <img src={settings.logo} alt={name} className="h-9 w-auto object-contain" />
+                <img src={settings.logo} alt={name} className="h-14 w-auto object-contain" />
               ) : (
                 <span className="font-black text-xl tracking-tight text-gray-900 hover:text-brand transition-colors">
                   {name}

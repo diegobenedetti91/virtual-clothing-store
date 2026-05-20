@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Save, MessageCircle, CreditCard, Eye, EyeOff } from "lucide-react";
+import { Save, MessageCircle, CreditCard, Eye, EyeOff, Truck } from "lucide-react";
 import { CompanySettings } from "@/types";
 import { formatCurrency } from "@/lib/utils";
 import ImageUpload from "./ImageUpload";
@@ -43,6 +43,17 @@ export default function SettingsForm({ initialSettings }: Props) {
   const [mpAccessToken, setMpAccessToken] = useState(initialSettings?.mercadoPagoAccessToken || "");
   const [showToken, setShowToken] = useState(false);
 
+  const [freteAtivo, setFreteAtivo] = useState(initialSettings?.freteAtivo || false);
+  const [freteTipo, setFreteTipo] = useState(initialSettings?.freteTipo || "fixo");
+  const [freteValorFixo, setFreteValorFixo] = useState(initialSettings?.freteValorFixo?.toString() || "0");
+  const [freteCEPOrigem, setFreteCEPOrigem] = useState(initialSettings?.freteCEPOrigem || "");
+  const [fretePesoDefault, setFretePesoDefault] = useState(initialSettings?.fretePesoDefaultGramas?.toString() || "500");
+  const [melhorEnvioToken, setMelhorEnvioToken] = useState(initialSettings?.melhorEnvioToken || "");
+  const [showMEToken, setShowMEToken] = useState(false);
+  const [pacoteAltura, setPacoteAltura] = useState(initialSettings?.fretePacoteAltura?.toString() || "5");
+  const [pacoteLargura, setPacoteLargura] = useState(initialSettings?.fretePacoteLargura?.toString() || "12");
+  const [pacoteComprimento, setPacoteComprimento] = useState(initialSettings?.fretePacoteComprimento?.toString() || "17");
+
   const inputClass = "w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm text-gray-900 bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand transition";
   const labelClass = "block text-sm font-medium text-gray-700 mb-1.5";
 
@@ -59,6 +70,14 @@ export default function SettingsForm({ initialSettings }: Props) {
           primaryColor, buttonColor, menuColor, bannerImages, checkoutType, checkoutCollectEmail, checkoutCollectAddress,
           checkoutMessage, mercadoPagoPublicKey: mpPublicKey || null, mercadoPagoAccessToken: mpAccessToken || null,
           heroBadge, heroTitle, heroButtonText, heroButtonSecondaryText,
+          freteAtivo, freteTipo,
+          freteValorFixo: parseFloat(freteValorFixo) || 0,
+          freteCEPOrigem: freteCEPOrigem || null,
+          fretePesoDefaultGramas: parseInt(fretePesoDefault) || 500,
+          melhorEnvioToken: melhorEnvioToken || null,
+          fretePacoteAltura: parseInt(pacoteAltura) || 5,
+          fretePacoteLargura: parseInt(pacoteLargura) || 12,
+          fretePacoteComprimento: parseInt(pacoteComprimento) || 17,
         }),
       });
       if (!res.ok) throw new Error();
@@ -269,6 +288,133 @@ export default function SettingsForm({ initialSettings }: Props) {
                   <p className="text-xs text-gray-400 mt-1">Chave secreta usada no servidor. Nunca compartilhe.</p>
                 </div>
               </div>
+            )}
+          </div>
+
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
+            <div className="flex items-center gap-2 mb-1">
+              <Truck size={18} className="text-blue-600" />
+              <h2 className="font-semibold text-gray-900">Configurações de frete</h2>
+            </div>
+
+            <label className="flex items-center justify-between cursor-pointer">
+              <div>
+                <p className="text-sm font-medium text-gray-900">Frete ativo</p>
+                <p className="text-xs text-gray-500">Exibe e calcula frete no checkout</p>
+              </div>
+              <div
+                className={`relative w-11 h-6 rounded-full transition-colors ${freteAtivo ? "bg-blue-500" : "bg-gray-200"}`}
+                onClick={() => setFreteAtivo(!freteAtivo)}
+              >
+                <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${freteAtivo ? "translate-x-5" : ""}`} />
+              </div>
+            </label>
+
+            {freteAtivo && (
+              <>
+                <div>
+                  <label className={labelClass}>Tipo de cálculo</label>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    {[
+                      { value: "fixo", label: "Fixo", desc: "Valor único para todos" },
+                      { value: "correios", label: "Correios", desc: "PAC/SEDEX pelo CEP" },
+                      { value: "melhorenvio", label: "Melhor Envio", desc: "Múltiplas transportadoras" },
+                      { value: "hibrido", label: "Híbrido", desc: "Fixo local + transportadora" },
+                    ].map((opt) => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => setFreteTipo(opt.value)}
+                        className={`flex flex-col gap-1 p-3 rounded-xl border-2 text-left transition-all ${freteTipo === opt.value ? "border-blue-500 bg-blue-50" : "border-gray-200 hover:border-gray-300"}`}
+                      >
+                        <p className="font-semibold text-sm text-gray-900">{opt.label}</p>
+                        <p className="text-xs text-gray-500">{opt.desc}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {(freteTipo === "fixo" || freteTipo === "hibrido") && (
+                  <div>
+                    <label className={labelClass}>
+                      {freteTipo === "hibrido" ? "Valor fixo para entrega local (R$)" : "Valor do frete fixo (R$)"}
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">R$</span>
+                      <input type="number" step="0.01" min="0" value={freteValorFixo} onChange={(e) => setFreteValorFixo(e.target.value)} className={`${inputClass} pl-9`} placeholder="0,00" />
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1">Use 0 para frete grátis.</p>
+                  </div>
+                )}
+
+                {(freteTipo === "melhorenvio" || freteTipo === "hibrido" || freteTipo === "correios") && (
+                  <div>
+                    <label className={labelClass}>CEP de origem (da loja)</label>
+                    <input value={freteCEPOrigem} onChange={(e) => setFreteCEPOrigem(e.target.value)} className={inputClass} placeholder="00000-000" maxLength={9} />
+                    <p className="text-xs text-gray-400 mt-1">
+                      {freteTipo === "hibrido" ? "CEPs com mesmo prefixo (5 dígitos) recebem frete local; demais calculam pela transportadora." : "CEP de onde os produtos serão enviados."}
+                    </p>
+                  </div>
+                )}
+
+                {(freteTipo === "melhorenvio" || freteTipo === "hibrido") && (
+                  <div className="bg-orange-50 border border-orange-100 rounded-xl p-4 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">📦</span>
+                      <div>
+                        <p className="text-sm font-semibold text-orange-900">Melhor Envio</p>
+                        <p className="text-xs text-orange-700">Retorna preços de Correios, Jadlog, Total Express e outras em uma única consulta.</p>
+                      </div>
+                    </div>
+                    <div>
+                      <label className={labelClass}>Token de acesso</label>
+                      <div className="relative">
+                        <input
+                          type={showMEToken ? "text" : "password"}
+                          value={melhorEnvioToken}
+                          onChange={(e) => setMelhorEnvioToken(e.target.value)}
+                          className={`${inputClass} pr-10`}
+                          placeholder="eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9..."
+                        />
+                        <button type="button" onClick={() => setShowMEToken(!showMEToken)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                          {showMEToken ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
+                      </div>
+                      <p className="text-xs text-orange-700 mt-1">
+                        Obtenha em <strong>melhorenvio.com.br → Integrações → Tokens</strong>. Selecione permissão <strong>Cotações</strong>.
+                        {freteTipo === "hibrido" && " Se não configurado, usa Correios como fallback."}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {(freteTipo === "melhorenvio" || freteTipo === "correios" || freteTipo === "hibrido") && (
+                  <div>
+                    <label className={labelClass}>Dimensões padrão da embalagem (cm)</label>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <label className="text-xs text-gray-500 mb-1 block">Comprimento</label>
+                        <input type="number" min="16" value={pacoteComprimento} onChange={(e) => setPacoteComprimento(e.target.value)} className={inputClass} placeholder="17" />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500 mb-1 block">Largura</label>
+                        <input type="number" min="11" value={pacoteLargura} onChange={(e) => setPacoteLargura(e.target.value)} className={inputClass} placeholder="12" />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500 mb-1 block">Altura</label>
+                        <input type="number" min="2" value={pacoteAltura} onChange={(e) => setPacoteAltura(e.target.value)} className={inputClass} placeholder="5" />
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1">Mínimos aceitos pelos Correios: 16 × 11 × 2 cm. Ajuste conforme sua embalagem típica.</p>
+                  </div>
+                )}
+
+                <div>
+                  <label className={labelClass}>Peso padrão por produto (gramas)</label>
+                  <input type="number" min="1" value={fretePesoDefault} onChange={(e) => setFretePesoDefault(e.target.value)} className={inputClass} placeholder="500" />
+                  <p className="text-xs text-gray-400 mt-1">Usado quando o produto não tem peso cadastrado.</p>
+                </div>
+              </>
             )}
           </div>
 

@@ -45,6 +45,19 @@ model Category {
   createdAt DateTime  @default(now())
 }
 
+model PackagePreset {
+  id           String    @id @default(cuid())
+  name         String
+  comprimento  Int
+  largura      Int
+  altura       Int
+  pesoGramas   Int       @default(0)
+  active       Boolean   @default(true)
+  products     Product[]
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
 model Product {
   id           String          @id @default(cuid())
   name         String
@@ -60,6 +73,9 @@ model Product {
   attributes   String          @default("[]") @db.Text
   stock        Int             @default(0)
   variantStock String          @default("[]") @db.Text
+  pesoGramas   Int?
+  embalagemId  String?
+  embalagem    PackagePreset?  @relation(fields: [embalagemId], references: [id])
   active       Boolean         @default(true)
   featured     Boolean         @default(false)
   slug         String          @unique
@@ -95,6 +111,8 @@ model Order {
   zipCode       String?
   items         OrderItem[]
   subtotal      Float
+  shippingCost  Float         @default(0)
+  shippingMethod String?
   total         Float
   status        String        @default("PENDING")
   cancelReason  String?       @db.Text
@@ -153,6 +171,15 @@ model CompanySettings {
   heroTitle              String?
   heroButtonText         String?
   heroButtonSecondaryText String?
+  freteAtivo             Boolean  @default(false)
+  freteTipo              String   @default("fixo")
+  freteValorFixo         Float    @default(0)
+  freteCEPOrigem         String?
+  fretePesoDefaultGramas Int      @default(500)
+  melhorEnvioToken       String?  @db.Text
+  fretePacoteAltura      Int      @default(5)
+  fretePacoteLargura     Int      @default(12)
+  fretePacoteComprimento Int      @default(17)
   updatedAt              DateTime @updatedAt
 }
 
@@ -177,7 +204,7 @@ model WaitlistEntry {
   name      String?
   size       String   @default("") @db.VarChar(100)
   color      String   @default("") @db.VarChar(100)
-  variantKey String   @default("") @db.VarChar(512)
+  variantKey String   @default("") @db.VarChar(191)
   notified   Boolean  @default(false)
   createdAt  DateTime @default(now())
 
