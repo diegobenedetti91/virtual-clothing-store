@@ -2,6 +2,20 @@
 
 import Link from "next/link";
 import { ShoppingBag, Heart, Check, Tag } from "lucide-react";
+
+const COLOR_CSS: Record<string, string> = {
+  azul: "#3b82f6", vermelho: "#ef4444", verde: "#22c55e", preto: "#18181b",
+  branco: "#f4f4f5", rosa: "#ec4899", amarelo: "#eab308", laranja: "#f97316",
+  roxo: "#8b5cf6", cinza: "#71717a", marrom: "#78350f", bege: "#d6bc96",
+  caramelo: "#c08b5c", nude: "#e8c9a0", vinho: "#7f1d1d", navy: "#1e3a5f",
+  coral: "#fb7185", salmão: "#fda4af", turquesa: "#2dd4bf", dourado: "#d97706",
+  prata: "#9ca3af", off: "#fef3c7", lilás: "#c4b5fd", khaki: "#a3a062",
+};
+
+function colorToCss(name: string): string {
+  const key = name.toLowerCase().trim();
+  return COLOR_CSS[key] ?? COLOR_CSS[key.split(" ")[0]] ?? "#9ca3af";
+}
 import { Product } from "@/types";
 import { formatCurrency } from "@/lib/utils";
 import { useCart } from "@/hooks/useCart";
@@ -19,11 +33,20 @@ export default function ProductCard({ product }: ProductCardProps) {
 
   const images = JSON.parse(product.images || "[]") as string[];
   const firstImage = images[0] || "/placeholder-product.svg";
+  const secondImage = images[1];
   const inWishlist = has(product.id);
   const navItems = (product as unknown as { navItems?: { id: string; label: string }[] }).navItems || [];
   const variants = JSON.parse(product.variantStock || "[]") as unknown[];
   const hasVariants = variants.length > 0;
   const outOfStock = product.stock === 0;
+
+  const isNew = new Date(product.createdAt).getTime() > Date.now() - 14 * 24 * 60 * 60 * 1000;
+
+  const attrs = JSON.parse(product.attributes || "[]") as { name: string; values: string[] }[];
+  const colorAttr = attrs.find((a) => ["cor", "color", "cores"].includes(a.name.toLowerCase()));
+  const allColors = colorAttr?.values ?? [];
+  const colorValues = allColors.slice(0, 5);
+  const extraColors = allColors.length > 5 ? allColors.length - 5 : 0;
 
   const discount =
     product.comparePrice && product.comparePrice > product.price
@@ -69,9 +92,17 @@ export default function ProductCard({ product }: ProductCardProps) {
         <img
           src={firstImage}
           alt={product.name}
-          className="w-full h-full object-cover group-hover:scale-[1.04] transition-transform duration-500 ease-out"
+          className={`w-full h-full object-cover transition-all duration-500 ease-out ${secondImage ? "group-hover:opacity-0" : "group-hover:scale-[1.04]"}`}
           onError={(e) => { (e.target as HTMLImageElement).src = "/placeholder-product.svg"; }}
         />
+        {secondImage && (
+          <img
+            src={secondImage}
+            alt={product.name}
+            className="absolute inset-0 w-full h-full object-cover opacity-0 scale-[1.04] group-hover:opacity-100 group-hover:scale-100 transition-all duration-500 ease-out"
+            onError={(e) => { (e.target as HTMLImageElement).src = "/placeholder-product.svg"; }}
+          />
+        )}
 
         <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
@@ -80,6 +111,11 @@ export default function ProductCard({ product }: ProductCardProps) {
           {product.featured && (
             <span className="bg-brand text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-sm tracking-wide uppercase">
               Destaque
+            </span>
+          )}
+          {isNew && !product.featured && (
+            <span className="bg-emerald-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-sm tracking-wide uppercase">
+              Novo
             </span>
           )}
           {discount > 0 && (
@@ -152,6 +188,21 @@ export default function ProductCard({ product }: ProductCardProps) {
             <span className="text-xs text-gray-400 line-through">{formatCurrency(product.comparePrice!)}</span>
           )}
         </div>
+        {colorValues.length > 0 && (
+          <div className="flex items-center gap-1 mt-2">
+            {colorValues.map((c) => (
+              <span
+                key={c}
+                title={c}
+                className="w-3.5 h-3.5 rounded-full border border-black/10 shrink-0 inline-block"
+                style={{ background: colorToCss(c) }}
+              />
+            ))}
+            {extraColors > 0 && (
+              <span className="text-[10px] text-gray-400 font-medium ml-0.5">+{extraColors}</span>
+            )}
+          </div>
+        )}
       </div>
     </Link>
   );
