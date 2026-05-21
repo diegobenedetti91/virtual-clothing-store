@@ -125,36 +125,18 @@ export default function ProductCard({ product }: ProductCardProps) {
           )}
         </div>
 
-        {/* Wishlist button */}
+        {/* Wishlist button — always visible */}
         <button
           onClick={handleWishlist}
           className={`absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 shadow-sm ${
             inWishlist
-              ? "bg-brand text-white opacity-100"
-              : "bg-white/90 backdrop-blur text-gray-400 opacity-0 group-hover:opacity-100 hover:bg-brand-light hover:text-brand"
+              ? "bg-brand text-white"
+              : "bg-white/90 backdrop-blur text-gray-400 hover:bg-brand hover:text-white"
           }`}
           aria-label={inWishlist ? "Remover dos favoritos" : "Adicionar aos favoritos"}
         >
           <Heart size={14} fill={inWishlist ? "currentColor" : "none"} />
         </button>
-
-        {/* Add to cart — slides up */}
-        <div className="absolute inset-x-3 bottom-3 translate-y-2 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-250 ease-out">
-          <button
-            onClick={handleAddToCart}
-            disabled={outOfStock}
-            className={`w-full py-2.5 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 shadow-lg transition-colors disabled:cursor-not-allowed ${
-              outOfStock
-                ? "bg-gray-200 text-gray-400"
-                : added
-                  ? "bg-green-500 text-white"
-                  : "bg-white text-gray-900 hover:bg-brand hover:text-white"
-            }`}
-          >
-            {added ? <Check size={14} /> : <ShoppingBag size={14} />}
-            {outOfStock ? "Sem estoque" : added ? "Adicionado!" : hasVariants ? "Escolher opções" : "Adicionar ao carrinho"}
-          </button>
-        </div>
       </div>
 
       {/* Info */}
@@ -204,6 +186,28 @@ export default function ProductCard({ product }: ProductCardProps) {
           </div>
         )}
       </div>
+
+      {/* Add to cart — always visible below info */}
+      <button
+        onClick={handleAddToCart}
+        disabled={outOfStock}
+        className={`mt-3 w-full py-2.5 rounded-xl border font-semibold text-sm flex items-center justify-center gap-2 transition-all duration-200 disabled:cursor-not-allowed ${
+          outOfStock
+            ? "border-gray-200 bg-gray-50 text-gray-400"
+            : added
+              ? "border-green-500 bg-green-500 text-white"
+              : "border-gray-300 bg-white text-gray-800 hover:border-brand hover:bg-brand hover:text-white"
+        }`}
+      >
+        {added ? <Check size={14} /> : <ShoppingBag size={14} />}
+        {outOfStock
+          ? "Sem estoque"
+          : added
+            ? "Adicionado!"
+            : hasVariants
+              ? "Ver opções"
+              : "Adicionar ao carrinho"}
+      </button>
     </Link>
   );
 }

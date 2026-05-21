@@ -2,10 +2,13 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useCustomer } from "@/hooks/useCustomer";
-import { formatCurrency } from "@/lib/utils";
-import { Package, LogOut, User, ChevronRight, MapPin, Phone, Mail, Edit3, Check, X } from "lucide-react";
+import { formatCurrency, cn } from "@/lib/utils";
+import {
+  Package, LogOut, User, MapPin, Phone, Mail,
+  Edit3, Check, X, ShoppingBag, Heart,
+} from "lucide-react";
 
 interface OrderItem {
   id: string;
@@ -38,12 +41,12 @@ interface Profile {
   zipCode: string | null;
 }
 
-const STATUS_LABELS: Record<string, { label: string; color: string }> = {
-  PENDING: { label: "Aguardando", color: "bg-yellow-100 text-yellow-800" },
-  CONFIRMED: { label: "Confirmado", color: "bg-blue-100 text-blue-800" },
-  SHIPPED: { label: "Enviado", color: "bg-purple-100 text-purple-800" },
-  DELIVERED: { label: "Entregue", color: "bg-green-100 text-green-800" },
-  CANCELLED: { label: "Cancelado", color: "bg-red-100 text-red-800" },
+const STATUS: Record<string, { label: string; dot: string; badge: string }> = {
+  PENDING:   { label: "Aguardando",  dot: "bg-yellow-400", badge: "bg-yellow-50 text-yellow-700 border border-yellow-200" },
+  CONFIRMED: { label: "Confirmado",  dot: "bg-blue-400",   badge: "bg-blue-50 text-blue-700 border border-blue-200" },
+  SHIPPED:   { label: "Enviado",     dot: "bg-purple-400", badge: "bg-purple-50 text-purple-700 border border-purple-200" },
+  DELIVERED: { label: "Entregue",    dot: "bg-green-400",  badge: "bg-green-50 text-green-700 border border-green-200" },
+  CANCELLED: { label: "Cancelado",   dot: "bg-red-400",    badge: "bg-red-50 text-red-700 border border-red-200" },
 };
 
 const UF_LIST = [
@@ -53,7 +56,11 @@ const UF_LIST = [
 
 export default function AccountPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { customer, logout, loading } = useCustomer();
+  const [activeTab, setActiveTab] = useState<"profile" | "orders">(
+    searchParams.get("tab") === "orders" ? "orders" : "profile"
+  );
   const [orders, setOrders] = useState<Order[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(true);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -70,19 +77,20 @@ export default function AccountPage() {
   }, [customer, loading, router]);
 
   useEffect(() => {
+    const tab = searchParams.get("tab");
+    if (tab === "orders" || tab === "profile") setActiveTab(tab);
+  }, [searchParams]);
+
+  useEffect(() => {
     if (!customer) return;
     fetch("/api/customer/orders").then((r) => r.json()).then((d) => { setOrders(d); setOrdersLoading(false); });
     fetch("/api/customer/profile").then((r) => r.json()).then((d: Profile) => {
       setProfile(d);
       setForm({
-        name: d.name || "",
-        phone: d.phone || "",
-        street: d.street || "",
-        number: d.number || "",
-        neighborhood: d.neighborhood || "",
-        city: d.city || "",
-        state: d.state || "",
-        zipCode: d.zipCode || "",
+        name: d.name || "", phone: d.phone || "",
+        street: d.street || "", number: d.number || "",
+        neighborhood: d.neighborhood || "", city: d.city || "",
+        state: d.state || "", zipCode: d.zipCode || "",
       });
     });
   }, [customer]);
@@ -114,14 +122,10 @@ export default function AccountPage() {
   const handleCancel = () => {
     if (profile) {
       setForm({
-        name: profile.name || "",
-        phone: profile.phone || "",
-        street: profile.street || "",
-        number: profile.number || "",
-        neighborhood: profile.neighborhood || "",
-        city: profile.city || "",
-        state: profile.state || "",
-        zipCode: profile.zipCode || "",
+        name: profile.name || "", phone: profile.phone || "",
+        street: profile.street || "", number: profile.number || "",
+        neighborhood: profile.neighborhood || "", city: profile.city || "",
+        state: profile.state || "", zipCode: profile.zipCode || "",
       });
     }
     setEditing(false);
@@ -130,8 +134,8 @@ export default function AccountPage() {
   const f = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm((prev) => ({ ...prev, [k]: e.target.value }));
 
-  const inputClass = "w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand transition";
-  const labelClass = "block text-xs font-semibold text-gray-500 mb-1";
+  const inputCls = "w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand transition";
+  const labelCls = "block text-xs font-semibold text-gray-500 mb-1";
 
   if (loading || !customer) {
     return (
@@ -141,208 +145,246 @@ export default function AccountPage() {
     );
   }
 
+  const initials = customer.name.split(" ").slice(0, 2).map((w: string) => w[0]).join("").toUpperCase();
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-3xl mx-auto px-4 py-10">
+    <div className="min-h-screen bg-gray-50/80">
+      <div className="max-w-2xl mx-auto px-4 py-8 sm:py-12">
 
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-2xl font-black text-gray-900">Minha conta</h1>
-            <p className="text-gray-500 text-sm mt-0.5">{customer.email}</p>
-          </div>
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-2 text-sm text-gray-500 hover:text-red-600 transition-colors px-4 py-2 rounded-xl hover:bg-red-50"
-          >
-            <LogOut size={15} /> Sair
-          </button>
-        </div>
-
-        {/* Profile card */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-5">
-          <div className="flex items-center justify-between mb-5">
-            <div className="flex items-center gap-3">
-              <div className="w-11 h-11 bg-brand-light rounded-full flex items-center justify-center shrink-0">
-                <User size={20} className="text-brand" />
+        {/* Hero card */}
+        <div
+          className="relative rounded-3xl p-6 mb-6 overflow-hidden"
+          style={{ background: "linear-gradient(135deg, var(--brand), color-mix(in srgb, var(--brand) 60%, #1a1a2e))" }}
+        >
+          <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full pointer-events-none" />
+          <div className="absolute -bottom-8 -left-8 w-28 h-28 bg-white/10 rounded-full pointer-events-none" />
+          <div className="relative flex items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center shrink-0 border border-white/30 shadow-inner">
+                <span className="text-xl font-black text-white">{initials}</span>
               </div>
               <div>
-                <p className="font-bold text-gray-900">{profile?.name || customer.name}</p>
-                <p className="text-sm text-gray-400">Dados da conta</p>
+                <p className="font-black text-white text-lg leading-tight">{customer.name}</p>
+                <p className="text-white/65 text-sm mt-0.5">{customer.email}</p>
               </div>
             </div>
-            {!editing ? (
-              <button
-                onClick={() => setEditing(true)}
-                className="flex items-center gap-1.5 text-sm font-semibold text-brand hover:opacity-80 px-3 py-2 rounded-xl hover:bg-brand-light transition-colors"
-              >
-                <Edit3 size={14} /> Editar
-              </button>
-            ) : (
-              <div className="flex gap-2">
-                <button onClick={handleCancel} className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 px-3 py-2 rounded-xl hover:bg-gray-100 transition-colors">
-                  <X size={14} /> Cancelar
-                </button>
-                <button
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="flex items-center gap-1 text-sm font-bold text-white bg-brand hover:opacity-90 px-4 py-2 rounded-xl transition-colors disabled:opacity-60"
-                >
-                  {saving ? "Salvando..." : <><Check size={14} /> Salvar</>}
-                </button>
-              </div>
-            )}
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-1.5 text-white/80 hover:text-white text-xs font-semibold bg-white/10 hover:bg-white/20 px-3 py-2 rounded-xl transition-colors shrink-0"
+            >
+              <LogOut size={13} /> Sair
+            </button>
           </div>
-
-          {saveOk && (
-            <div className="mb-4 text-sm text-green-700 bg-green-50 border border-green-100 rounded-xl px-4 py-2.5 flex items-center gap-2">
-              <Check size={14} /> Dados salvos com sucesso!
-            </div>
-          )}
-
-          {!editing ? (
-            /* View mode */
-            <div className="space-y-4">
-              <div className="flex items-start gap-3 text-sm">
-                <Mail size={15} className="text-gray-400 mt-0.5 shrink-0" />
-                <div>
-                  <p className="text-xs text-gray-400 mb-0.5">E-mail</p>
-                  <p className="text-gray-900">{profile?.email || customer.email}</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-3 text-sm">
-                <Phone size={15} className="text-gray-400 mt-0.5 shrink-0" />
-                <div>
-                  <p className="text-xs text-gray-400 mb-0.5">Celular / WhatsApp</p>
-                  <p className="text-gray-900">{profile?.phone || <span className="text-gray-400 italic">Não informado</span>}</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-3 text-sm">
-                <MapPin size={15} className="text-gray-400 mt-0.5 shrink-0" />
-                <div>
-                  <p className="text-xs text-gray-400 mb-0.5">Endereço de entrega</p>
-                  {profile?.street ? (
-                    <p className="text-gray-900">
-                      {profile.street}{profile.number ? `, ${profile.number}` : ""}
-                      {profile.neighborhood ? ` — ${profile.neighborhood}` : ""}<br />
-                      {profile.city}{profile.state ? `/${profile.state}` : ""}
-                      {profile.zipCode ? ` · CEP ${profile.zipCode}` : ""}
-                    </p>
-                  ) : (
-                    <p className="text-gray-400 italic">Não informado</p>
-                  )}
-                </div>
-              </div>
-            </div>
-          ) : (
-            /* Edit mode */
-            <div className="space-y-4">
-              <div>
-                <label className={labelClass}>Nome completo</label>
-                <input value={form.name} onChange={f("name")} className={inputClass} placeholder="Seu nome" />
-              </div>
-              <div className="bg-gray-50 rounded-xl p-1 -mx-1">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-wide px-3 pt-2 pb-1">Contato</p>
-                <div className="p-2">
-                  <label className={labelClass}>Celular / WhatsApp</label>
-                  <input value={form.phone} onChange={f("phone")} className={inputClass} placeholder="(00) 00000-0000" />
-                </div>
-              </div>
-              <div className="bg-gray-50 rounded-xl p-1 -mx-1">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-wide px-3 pt-2 pb-1">Endereço de entrega</p>
-                <div className="p-2 grid grid-cols-3 gap-3">
-                  <div className="col-span-2">
-                    <label className={labelClass}>Rua / Avenida</label>
-                    <input value={form.street} onChange={f("street")} className={inputClass} placeholder="Ex: Rua das Flores" />
-                  </div>
-                  <div>
-                    <label className={labelClass}>Número</label>
-                    <input value={form.number} onChange={f("number")} className={inputClass} placeholder="123" />
-                  </div>
-                  <div>
-                    <label className={labelClass}>Bairro</label>
-                    <input value={form.neighborhood} onChange={f("neighborhood")} className={inputClass} placeholder="Centro" />
-                  </div>
-                  <div>
-                    <label className={labelClass}>Cidade</label>
-                    <input value={form.city} onChange={f("city")} className={inputClass} placeholder="São Paulo" />
-                  </div>
-                  <div>
-                    <label className={labelClass}>Estado</label>
-                    <select value={form.state} onChange={f("state")} className={inputClass}>
-                      <option value="">UF</option>
-                      {UF_LIST.map((uf) => <option key={uf} value={uf}>{uf}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className={labelClass}>CEP</label>
-                    <input value={form.zipCode} onChange={f("zipCode")} className={inputClass} placeholder="00000-000" />
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
 
-        {/* Orders */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
-          <div className="flex items-center gap-2 px-6 py-4 border-b border-gray-100">
-            <Package size={18} className="text-brand" />
-            <h2 className="font-bold text-gray-900">Meus pedidos</h2>
-          </div>
+        {/* Tabs */}
+        <div className="flex gap-1 bg-white border border-gray-100 shadow-sm p-1 rounded-2xl mb-5">
+          {(["profile", "orders"] as const).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={cn(
+                "flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-semibold rounded-xl transition-all duration-200",
+                activeTab === tab
+                  ? "bg-brand text-white shadow-sm"
+                  : "text-gray-500 hover:text-gray-800 hover:bg-gray-50"
+              )}
+            >
+              {tab === "profile" ? <User size={14} /> : <Package size={14} />}
+              {tab === "profile" ? "Dados da conta" : "Meus Pedidos"}
+              {tab === "orders" && orders.length > 0 && (
+                <span className={cn(
+                  "text-[10px] font-black rounded-full w-4 h-4 flex items-center justify-center leading-none",
+                  activeTab === "orders" ? "bg-white text-brand" : "bg-brand text-white"
+                )}>
+                  {orders.length > 9 ? "9+" : orders.length}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
 
-          {ordersLoading ? (
-            <div className="py-12 flex justify-center">
-              <div className="w-6 h-6 border-2 border-brand border-t-transparent rounded-full animate-spin" />
+        {/* ── Profile Tab ── */}
+        {activeTab === "profile" && (
+          <>
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+              <div className="flex items-center justify-between mb-5">
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Informações pessoais</p>
+                {!editing ? (
+                  <button
+                    onClick={() => setEditing(true)}
+                    className="flex items-center gap-1.5 text-xs font-bold text-brand hover:opacity-80 px-3 py-1.5 rounded-xl hover:bg-brand-light transition-colors"
+                  >
+                    <Edit3 size={12} /> Editar
+                  </button>
+                ) : (
+                  <div className="flex gap-2">
+                    <button onClick={handleCancel} className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 px-3 py-1.5 rounded-xl hover:bg-gray-100 transition-colors">
+                      <X size={12} /> Cancelar
+                    </button>
+                    <button
+                      onClick={handleSave}
+                      disabled={saving}
+                      className="flex items-center gap-1 text-xs font-bold text-white bg-brand hover:opacity-90 px-4 py-1.5 rounded-xl transition-colors disabled:opacity-60"
+                    >
+                      {saving ? "Salvando..." : <><Check size={12} /> Salvar</>}
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {saveOk && (
+                <div className="mb-4 text-sm text-green-700 bg-green-50 border border-green-200 rounded-xl px-4 py-2.5 flex items-center gap-2">
+                  <Check size={14} /> Dados salvos com sucesso!
+                </div>
+              )}
+
+              {!editing ? (
+                <div className="space-y-0 divide-y divide-gray-50">
+                  {[
+                    { icon: Mail, label: "E-mail", value: profile?.email || customer.email },
+                    { icon: Phone, label: "Celular / WhatsApp", value: profile?.phone },
+                    {
+                      icon: MapPin, label: "Endereço de entrega",
+                      value: profile?.street
+                        ? `${profile.street}${profile.number ? `, ${profile.number}` : ""}${profile.neighborhood ? ` — ${profile.neighborhood}` : ""}\n${profile.city}${profile.state ? `/${profile.state}` : ""}${profile.zipCode ? ` · CEP ${profile.zipCode}` : ""}`
+                        : null,
+                    },
+                  ].map(({ icon: Icon, label, value }) => (
+                    <div key={label} className="flex items-start gap-3 py-4 first:pt-0 last:pb-0">
+                      <div className="w-8 h-8 bg-gray-50 rounded-xl flex items-center justify-center shrink-0 mt-0.5">
+                        <Icon size={14} className="text-gray-400" />
+                      </div>
+                      <div>
+                        <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">{label}</p>
+                        {value ? (
+                          <p className="text-sm text-gray-800 whitespace-pre-line">{value}</p>
+                        ) : (
+                          <p className="text-sm text-gray-300 italic">Não informado</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div>
+                    <label className={labelCls}>Nome completo</label>
+                    <input value={form.name} onChange={f("name")} className={inputCls} placeholder="Seu nome" />
+                  </div>
+                  <div className="bg-gray-50 rounded-xl p-3">
+                    <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wide mb-3">Contato</p>
+                    <label className={labelCls}>Celular / WhatsApp</label>
+                    <input value={form.phone} onChange={f("phone")} className={inputCls} placeholder="(00) 00000-0000" />
+                  </div>
+                  <div className="bg-gray-50 rounded-xl p-3">
+                    <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wide mb-3">Endereço de entrega</p>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="col-span-2">
+                        <label className={labelCls}>Rua / Avenida</label>
+                        <input value={form.street} onChange={f("street")} className={inputCls} placeholder="Ex: Rua das Flores" />
+                      </div>
+                      <div>
+                        <label className={labelCls}>Número</label>
+                        <input value={form.number} onChange={f("number")} className={inputCls} placeholder="123" />
+                      </div>
+                      <div>
+                        <label className={labelCls}>Bairro</label>
+                        <input value={form.neighborhood} onChange={f("neighborhood")} className={inputCls} placeholder="Centro" />
+                      </div>
+                      <div>
+                        <label className={labelCls}>Cidade</label>
+                        <input value={form.city} onChange={f("city")} className={inputCls} placeholder="São Paulo" />
+                      </div>
+                      <div>
+                        <label className={labelCls}>Estado</label>
+                        <select value={form.state} onChange={f("state")} className={inputCls}>
+                          <option value="">UF</option>
+                          {UF_LIST.map((uf) => <option key={uf} value={uf}>{uf}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className={labelCls}>CEP</label>
+                        <input value={form.zipCode} onChange={f("zipCode")} className={inputCls} placeholder="00000-000" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
-          ) : orders.length === 0 ? (
-            <div className="py-12 text-center text-gray-400">
-              <Package size={40} className="mx-auto mb-3 opacity-30" />
-              <p className="text-sm">Nenhum pedido ainda</p>
-              <Link href="/produtos" className="text-brand text-sm font-semibold hover:underline mt-2 inline-block">
-                Ver produtos
+
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              <Link href="/favoritos" className="flex items-center justify-center gap-2 text-sm font-medium text-gray-600 hover:text-brand py-3.5 bg-white rounded-2xl border border-gray-100 shadow-sm hover:border-brand/30 hover:shadow-md transition-all">
+                <Heart size={15} /> Favoritos
+              </Link>
+              <Link href="/produtos" className="flex items-center justify-center gap-2 text-sm font-medium text-gray-600 hover:text-brand py-3.5 bg-white rounded-2xl border border-gray-100 shadow-sm hover:border-brand/30 hover:shadow-md transition-all">
+                <ShoppingBag size={15} /> Produtos
               </Link>
             </div>
-          ) : (
-            <div className="divide-y divide-gray-100">
-              {orders.map((order) => {
-                const status = STATUS_LABELS[order.status] || { label: order.status, color: "bg-gray-100 text-gray-700" };
+          </>
+        )}
+
+        {/* ── Orders Tab ── */}
+        {activeTab === "orders" && (
+          <div className="space-y-3">
+            {ordersLoading ? (
+              <div className="py-16 flex justify-center">
+                <div className="w-7 h-7 border-2 border-brand border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : orders.length === 0 ? (
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm py-16 text-center">
+                <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <Package size={28} className="text-gray-300" />
+                </div>
+                <p className="font-bold text-gray-700 mb-1">Nenhum pedido ainda</p>
+                <p className="text-sm text-gray-400 mb-6">Que tal explorar nossa coleção?</p>
+                <Link href="/produtos" className="inline-flex items-center gap-2 bg-brand text-white px-6 py-2.5 rounded-xl text-sm font-bold hover:opacity-90 transition">
+                  <ShoppingBag size={14} /> Ver produtos
+                </Link>
+              </div>
+            ) : (
+              orders.map((order) => {
+                const s = STATUS[order.status] || { label: order.status, dot: "bg-gray-400", badge: "bg-gray-100 text-gray-700 border border-gray-200" };
                 return (
-                  <div key={order.id} className="px-6 py-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-3">
-                        <span className="font-bold text-gray-900 text-sm">#{order.orderNumber}</span>
-                        <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${status.color}`}>{status.label}</span>
-                      </div>
-                      <span className="font-bold text-gray-900 text-sm">{formatCurrency(order.total)}</span>
-                    </div>
-                    <div className="text-xs text-gray-400 mb-2">
-                      {new Date(order.createdAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })}
-                    </div>
-                    <div className="space-y-0.5">
-                      {order.items.map((item) => (
-                        <p key={item.id} className="text-xs text-gray-600">
-                          {item.quantity}× {item.product.name}
-                          {item.size ? ` (Tam: ${item.size})` : ""}
-                          {item.color ? ` · ${item.color}` : ""}
+                  <div
+                    key={order.id}
+                    className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:border-brand/20 hover:shadow-md transition-all"
+                  >
+                    <div className="flex items-start justify-between gap-3 mb-3">
+                      <div>
+                        <p className="font-black text-gray-900 text-base">#{order.orderNumber}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">
+                          {new Date(order.createdAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })}
                         </p>
+                      </div>
+                      <div className="flex flex-col items-end gap-2 shrink-0">
+                        <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full ${s.badge}`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
+                          {s.label}
+                        </span>
+                        <span className="font-black text-gray-900">{formatCurrency(order.total)}</span>
+                      </div>
+                    </div>
+                    <div className="border-t border-gray-50 pt-3 space-y-1.5">
+                      {order.items.map((item) => (
+                        <div key={item.id} className="flex items-center gap-2 text-xs text-gray-500">
+                          <span className="w-5 h-5 bg-gray-100 rounded-lg flex items-center justify-center text-[10px] font-bold text-gray-600 shrink-0">
+                            {item.quantity}×
+                          </span>
+                          <span>
+                            {item.product.name}
+                            {item.size ? <span className="text-gray-400"> · Tam: {item.size}</span> : null}
+                            {item.color ? <span className="text-gray-400"> · {item.color}</span> : null}
+                          </span>
+                        </div>
                       ))}
                     </div>
                   </div>
                 );
-              })}
-            </div>
-          )}
-        </div>
-
-        <div className="mt-5 flex gap-3">
-          <Link href="/favoritos" className="flex items-center gap-2 text-sm text-gray-600 hover:text-brand transition-colors px-4 py-2.5 bg-white rounded-xl border border-gray-100 shadow-sm hover:border-brand">
-            Ver favoritos <ChevronRight size={14} />
-          </Link>
-          <Link href="/produtos" className="flex items-center gap-2 text-sm text-gray-600 hover:text-brand transition-colors px-4 py-2.5 bg-white rounded-xl border border-gray-100 shadow-sm hover:border-brand">
-            Explorar produtos <ChevronRight size={14} />
-          </Link>
-        </div>
+              })
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

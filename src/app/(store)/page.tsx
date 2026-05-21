@@ -77,43 +77,41 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
         </div>
       </section>
 
-      {/* Category grid */}
+      {/* Category circles */}
       {categories.length > 0 && (
         <section className="py-14 bg-white">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex items-end justify-between mb-8">
-              <div>
-                <span className="inline-flex items-center gap-1.5 text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
-                  Explorar
-                </span>
-                <h2 className="text-3xl font-black text-gray-900 tracking-tight">Compre por categoria</h2>
-              </div>
-            </div>
-            <div className={`grid gap-4 ${categories.length === 1 ? "grid-cols-1 max-w-sm" : categories.length === 2 ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4"}`}>
+            <h2 className="text-2xl font-bold text-gray-900 text-center mb-10 tracking-tight">
+              Compre por Categoria
+            </h2>
+            <div className="flex flex-wrap justify-center gap-6 sm:gap-8 lg:gap-10">
               {categories.map((cat, i) => (
                 <Link
                   key={cat.id}
                   href={`/produtos?category=${cat.slug}`}
-                  className="group relative rounded-2xl overflow-hidden aspect-[4/3]"
+                  className="group flex flex-col items-center gap-3"
                 >
-                  {cat.image ? (
-                    <img
-                      src={cat.image}
-                      alt={cat.name}
-                      className="w-full h-full object-cover group-hover:scale-[1.05] transition-transform duration-500"
-                    />
-                  ) : (
-                    <div className="w-full h-full" style={{ background: CATEGORY_BG[i % CATEGORY_BG.length] }} />
-                  )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/25 to-transparent group-hover:from-black/80 transition-all duration-300" />
-                  <div className="absolute bottom-0 left-0 right-0 p-4">
-                    <p className="text-white font-bold text-base leading-tight">{cat.name}</p>
-                    {cat._count != null && (
-                      <p className="text-white/65 text-xs mt-0.5">
-                        {cat._count.products} {cat._count.products === 1 ? "produto" : "produtos"}
-                      </p>
+                  <div className="w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 rounded-full overflow-hidden border-2 border-gray-200 group-hover:border-menu transition-colors duration-300 shadow-sm group-hover:shadow-md">
+                    {cat.image ? (
+                      <img
+                        src={cat.image}
+                        alt={cat.name}
+                        className="w-full h-full object-cover object-top group-hover:scale-110 transition-transform duration-500"
+                      />
+                    ) : (
+                      <div
+                        className="w-full h-full flex items-center justify-center"
+                        style={{ background: CATEGORY_BG[i % CATEGORY_BG.length] }}
+                      >
+                        <span className="text-white font-black text-2xl">
+                          {cat.name[0]}
+                        </span>
+                      </div>
                     )}
                   </div>
+                  <p className="text-sm font-medium text-gray-700 group-hover:text-menu transition-colors text-center">
+                    {cat.name}
+                  </p>
                 </Link>
               ))}
             </div>
