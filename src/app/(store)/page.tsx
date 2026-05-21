@@ -40,9 +40,16 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   const newArrivals = newArrivalsRaw as unknown as Product[];
   const categories = categoriesRaw as unknown as Category[];
 
+  const shippingLabel = settings?.freteAtivo && settings?.freteTipo === "local"
+    ? `Entrega local${settings.freteLocalCidade ? ` em ${settings.freteLocalCidade}` : ""}`
+    : "Entrega para todo Brasil";
+  const shippingDesc = settings?.freteAtivo && settings?.freteTipo === "local"
+    ? "Entregamos dentro da cidade"
+    : "Frete combinado na conversa";
+
   const FEATURES = [
     { icon: ShieldCheck, label: "Qualidade garantida", desc: "Peças selecionadas com cuidado" },
-    { icon: Truck, label: "Entrega para todo Brasil", desc: "Frete combinado na conversa" },
+    { icon: Truck, label: shippingLabel, desc: shippingDesc },
     { icon: MessageCircle, label: "Atendimento humano", desc: "Suporte rápido pelo WhatsApp" },
     { icon: RefreshCcw, label: "Troca sem burocracia", desc: "Simples e sem complicação" },
   ];

@@ -129,6 +129,7 @@ export interface CompanySettings {
   fretePacoteAltura: number;
   fretePacoteLargura: number;
   fretePacoteComprimento: number;
+  freteLocalCidade?: string | null;
 }
 
 export interface CartItem {

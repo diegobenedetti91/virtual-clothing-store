@@ -48,6 +48,7 @@ export default function SettingsForm({ initialSettings }: Props) {
 
   const [freteAtivo, setFreteAtivo] = useState(initialSettings?.freteAtivo || false);
   const [freteTipo, setFreteTipo] = useState(initialSettings?.freteTipo || "fixo");
+  const [freteLocalCidade, setFreteLocalCidade] = useState(initialSettings?.freteLocalCidade || "");
   const [freteValorFixo, setFreteValorFixo] = useState(initialSettings?.freteValorFixo?.toString() || "0");
   const [freteCEPOrigem, setFreteCEPOrigem] = useState(initialSettings?.freteCEPOrigem || "");
   const [fretePesoDefault, setFretePesoDefault] = useState(initialSettings?.fretePesoDefaultGramas?.toString() || "500");
@@ -74,7 +75,7 @@ export default function SettingsForm({ initialSettings }: Props) {
           checkoutMessage, mercadoPagoPublicKey: mpPublicKey || null, mercadoPagoAccessToken: mpAccessToken || null,
           nuPayClientId: nuPayClientId || null, nuPayClientSecret: nuPayClientSecret || null,
           heroBadge, heroTitle, heroButtonText, heroButtonSecondaryText,
-          freteAtivo, freteTipo,
+          freteAtivo, freteTipo, freteLocalCidade: freteLocalCidade || null,
           freteValorFixo: parseFloat(freteValorFixo) || 0,
           freteCEPOrigem: freteCEPOrigem || null,
           fretePesoDefaultGramas: parseInt(fretePesoDefault) || 500,
@@ -375,6 +376,7 @@ export default function SettingsForm({ initialSettings }: Props) {
                   <label className={labelClass}>Tipo de cálculo</label>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     {[
+                      { value: "local", label: "Entrega local", desc: "Só dentro da cidade" },
                       { value: "fixo", label: "Fixo", desc: "Valor único para todos" },
                       { value: "correios", label: "Correios", desc: "PAC/SEDEX pelo CEP" },
                       { value: "melhorenvio", label: "Melhor Envio", desc: "Múltiplas transportadoras" },
@@ -392,6 +394,29 @@ export default function SettingsForm({ initialSettings }: Props) {
                     ))}
                   </div>
                 </div>
+
+                {freteTipo === "local" && (
+                  <div className="space-y-4">
+                    <div>
+                      <label className={labelClass}>Nome da cidade atendida</label>
+                      <input
+                        value={freteLocalCidade}
+                        onChange={(e) => setFreteLocalCidade(e.target.value)}
+                        className={inputClass}
+                        placeholder="Ex: São Paulo"
+                      />
+                      <p className="text-xs text-gray-400 mt-1">Aparece na home da loja no lugar de "Entrega para todo Brasil".</p>
+                    </div>
+                    <div>
+                      <label className={labelClass}>Valor da entrega local (R$)</label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">R$</span>
+                        <input type="number" step="0.01" min="0" value={freteValorFixo} onChange={(e) => setFreteValorFixo(e.target.value)} className={`${inputClass} pl-9`} placeholder="0,00" />
+                      </div>
+                      <p className="text-xs text-gray-400 mt-1">Use 0 para entrega grátis.</p>
+                    </div>
+                  </div>
+                )}
 
                 {(freteTipo === "fixo" || freteTipo === "hibrido") && (
                   <div>
