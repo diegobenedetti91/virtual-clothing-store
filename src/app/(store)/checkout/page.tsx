@@ -34,6 +34,7 @@ export default function CheckoutPage() {
   const [shippingLoading, setShippingLoading] = useState(false);
   const [shippingTipo, setShippingTipo] = useState<"fixo" | "correios" | null>(null);
   const [selectedShipping, setSelectedShipping] = useState<ShippingOption | null>(null);
+  const [freteForaArea, setFreteForaArea] = useState<string | null>(null);
 
   // Address fields
   const [street, setStreet] = useState("");
@@ -76,6 +77,7 @@ export default function CheckoutPage() {
     if (cepClean.length !== 8) {
       setShippingOptions([]);
       setSelectedShipping(null);
+      setFreteForaArea(null);
       return;
     }
     setShippingLoading(true);
@@ -88,13 +90,21 @@ export default function CheckoutPage() {
           items: items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
         }),
       });
+      if (res.status === 422) {
+        const data = await res.json();
+        setFreteForaArea(data.cidade || "sua cidade");
+        setShippingOptions([]);
+        setSelectedShipping(null);
+        return;
+      }
+      setFreteForaArea(null);
       const data = await res.json();
       if (!res.ok) {
         setShippingOptions([]);
         setSelectedShipping(null);
         return;
       }
-      const opcoes: ShippingOption[] = (data.opcoes || []).filter((o: ShippingOption) => o.erro === "0" && o.valor > 0);
+      const opcoes: ShippingOption[] = (data.opcoes || []).filter((o: ShippingOption) => o.erro === "0" && o.valor >= 0);
       setShippingTipo(data.tipo === "fixo" ? "fixo" : "correios");
       setShippingOptions(opcoes);
       if (opcoes.length > 0) setSelectedShipping(opcoes[0]);
@@ -102,6 +112,7 @@ export default function CheckoutPage() {
     } catch {
       setShippingOptions([]);
       setSelectedShipping(null);
+      setFreteForaArea(null);
     } finally {
       setShippingLoading(false);
     }
@@ -315,6 +326,7 @@ export default function CheckoutPage() {
 
   const handleSubmit = async (e: { preventDefault: () => void }) => {
     e.preventDefault();
+    if (freteForaArea) return;
     setLoading(true);
     try {
       const stockError = await validateStock();
@@ -426,6 +438,31 @@ export default function CheckoutPage() {
                 </div>
               )}
 
+              {/* CEP para entrega local quando coleta de endereço está desativada */}
+              {!collectAddress && settings?.freteAtivo && settings?.freteTipo === "local" && (
+                <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm space-y-3">
+                  <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
+                    <MapPin size={16} className="text-brand" />
+                    Verificar área de entrega
+                  </h2>
+                  <div>
+                    <label className={labelClass}>CEP</label>
+                    <input
+                      value={zipCode}
+                      onChange={(e) => setZipCode(e.target.value)}
+                      className={inputClass}
+                      placeholder="00000-000"
+                      maxLength={9}
+                    />
+                    {freteForaArea && (
+                      <p className="text-sm text-red-600 mt-2 font-medium">
+                        Entregamos apenas em {settings.freteLocalCidade || "nossa cidade"}. O CEP informado pertence a: <strong>{freteForaArea}</strong>.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Notes */}
               <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
                 <label className={labelClass}>Observações (opcional)</label>
@@ -513,13 +550,16 @@ export default function CheckoutPage() {
                     <span>{formatCurrency(total())}</span>
                   </div>
 
-                  {settings?.freteAtivo && collectAddress ? (
+                  {settings?.freteAtivo && (collectAddress || settings?.freteTipo === "local") ? (
                     <div>
                       <div className="flex justify-between text-sm text-gray-500 mb-1">
                         <span className="flex items-center gap-1"><Truck size={13} />Frete</span>
                         {shippingLoading && <Loader2 size={13} className="animate-spin text-gray-400" />}
                       </div>
-                      {!shippingLoading && shippingOptions.length > 0 && (
+                      {!shippingLoading && freteForaArea && (
+                        <p className="text-xs text-red-500 font-medium">Fora da área de entrega ({freteForaArea}).</p>
+                      )}
+                      {!shippingLoading && !freteForaArea && shippingOptions.length > 0 && (
                         <div className="space-y-1">
                           {shippingOptions.map((opt) => (
                             <label
@@ -542,7 +582,7 @@ export default function CheckoutPage() {
                           ))}
                         </div>
                       )}
-                      {!shippingLoading && shippingOptions.length === 0 && zipCode.replace(/\D/g, "").length === 8 && (
+                      {!shippingLoading && !freteForaArea && shippingOptions.length === 0 && zipCode.replace(/\D/g, "").length === 8 && (
                         <p className="text-xs text-gray-400">Não foi possível calcular. Será combinado.</p>
                       )}
                       {!shippingLoading && zipCode.replace(/\D/g, "").length < 8 && (
@@ -565,7 +605,7 @@ export default function CheckoutPage() {
                 {isWhatsApp ? (
                   <button
                     type="submit"
-                    disabled={loading}
+                    disabled={loading || !!freteForaArea}
                     className="w-full bg-green-600 text-white py-3.5 rounded-xl font-bold hover:bg-green-700 transition-colors disabled:opacity-60 flex items-center justify-center gap-2 shadow-lg shadow-green-100"
                   >
                     {loading ? <Loader2 size={18} className="animate-spin" /> : <MessageCircle size={18} />}
@@ -574,7 +614,7 @@ export default function CheckoutPage() {
                 ) : isNuPay ? (
                   <button
                     type="submit"
-                    disabled={loading}
+                    disabled={loading || !!freteForaArea}
                     className="w-full bg-purple-600 text-white py-3.5 rounded-xl font-bold hover:bg-purple-700 transition-colors disabled:opacity-60 flex items-center justify-center gap-2 shadow-lg shadow-purple-100"
                   >
                     {loading ? <Loader2 size={18} className="animate-spin" /> : <CreditCard size={18} />}
@@ -583,7 +623,7 @@ export default function CheckoutPage() {
                 ) : (
                   <button
                     type="submit"
-                    disabled={loading}
+                    disabled={loading || !!freteForaArea}
                     className="w-full bg-blue-600 text-white py-3.5 rounded-xl font-bold hover:bg-blue-700 transition-colors disabled:opacity-60 flex items-center justify-center gap-2 shadow-lg shadow-blue-100"
                   >
                     {loading ? <Loader2 size={18} className="animate-spin" /> : <CreditCard size={18} />}

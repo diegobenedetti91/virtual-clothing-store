@@ -398,14 +398,19 @@ export default function SettingsForm({ initialSettings }: Props) {
                 {freteTipo === "local" && (
                   <div className="space-y-4">
                     <div>
-                      <label className={labelClass}>Nome da cidade atendida</label>
+                      <label className={labelClass}>Cidade atendida</label>
                       <input
                         value={freteLocalCidade}
                         onChange={(e) => setFreteLocalCidade(e.target.value)}
                         className={inputClass}
                         placeholder="Ex: São Paulo"
                       />
-                      <p className="text-xs text-gray-400 mt-1">Aparece na home da loja no lugar de "Entrega para todo Brasil".</p>
+                      <p className="text-xs text-gray-400 mt-1">Usada para validar o CEP do cliente no checkout via ViaCEP. Aparece na home no lugar de "Entrega para todo Brasil".</p>
+                    </div>
+                    <div>
+                      <label className={labelClass}>CEP da loja (origem)</label>
+                      <input value={freteCEPOrigem} onChange={(e) => setFreteCEPOrigem(e.target.value)} className={inputClass} placeholder="00000-000" maxLength={9} />
+                      <p className="text-xs text-gray-400 mt-1">CEP de onde os produtos são enviados.</p>
                     </div>
                     <div>
                       <label className={labelClass}>Valor da entrega local (R$)</label>

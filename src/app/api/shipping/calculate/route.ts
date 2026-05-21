@@ -116,6 +116,10 @@ async function calcularCorreios(
   return results;
 }
 
+function normalizeCity(str: string) {
+  return str.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+}
+
 export async function POST(req: NextRequest) {
   const { cepDestino, items } = await req.json();
 
@@ -136,6 +140,28 @@ export async function POST(req: NextRequest) {
   let altura = settings.fretePacoteAltura || 5;
   let largura = settings.fretePacoteLargura || 12;
   let comprimento = settings.fretePacoteComprimento || 17;
+
+  // Modo entrega local: valida cidade pelo CEP via ViaCEP
+  if (freteTipo === "local") {
+    const cidadeConfigurada = (settings as Record<string, unknown>).freteLocalCidade as string | null;
+    if (cidadeConfigurada) {
+      try {
+        const viacepRes = await fetch(`https://viacep.com.br/ws/${cepDestinoClean}/json/`, { signal: AbortSignal.timeout(5000) });
+        if (viacepRes.ok) {
+          const viacep = await viacepRes.json();
+          if (!viacep.erro && normalizeCity(viacep.localidade) !== normalizeCity(cidadeConfigurada)) {
+            return NextResponse.json({ error: "fora_da_area", cidade: viacep.localidade }, { status: 422 });
+          }
+        }
+      } catch {
+        // Se ViaCEP falhar, permite continuar sem bloquear
+      }
+    }
+    return NextResponse.json({
+      tipo: "local",
+      opcoes: [{ servico: "Entrega local", codigo: "local", valor: settings.freteValorFixo, prazo: 0, erro: "0" }],
+    });
+  }
 
   // Modo fixo
   if (freteTipo === "fixo") {
