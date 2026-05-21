@@ -183,6 +183,7 @@ model CompanySettings {
   fretePacoteLargura     Int      @default(12)
   fretePacoteComprimento Int      @default(17)
   freteLocalCidade       String?
+  freteLocalUF           String?
   updatedAt              DateTime @updatedAt
 }
 
