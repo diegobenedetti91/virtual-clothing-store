@@ -115,6 +115,7 @@ export default function CheckoutPage() {
 
   const checkoutType = settings?.checkoutType || "whatsapp";
   const isWhatsApp = checkoutType === "whatsapp";
+  const isNuPay = checkoutType === "nupay";
   const collectEmail = settings?.checkoutCollectEmail;
   const collectAddress = settings?.checkoutCollectAddress;
 
@@ -225,6 +226,37 @@ export default function CheckoutPage() {
     window.open(url, "_blank");
   };
 
+  const handleNuPaySubmit = async () => {
+    const res = await fetch("/api/checkout/nupay", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        customerName: name,
+        customerEmail: email || null,
+        customerPhone: phone,
+        address: fullAddress || null,
+        city: city || null,
+        state: state || null,
+        zipCode: zipCode || null,
+        notes: notes || null,
+        customerId: customer?.id || null,
+        shippingCost: selectedShipping?.valor || 0,
+        shippingMethod: selectedShipping?.servico || null,
+        items: items.map((item) => ({
+          productId: item.productId,
+          quantity: item.quantity,
+          size: item.size,
+          color: item.color,
+          selectedAttributes: item.selectedAttributes,
+        })),
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Erro ao iniciar pagamento");
+    clearCart();
+    window.location.href = data.paymentUrl;
+  };
+
   const handleMercadoPagoSubmit = async () => {
     const res = await fetch("/api/checkout/mercadopago", {
       method: "POST",
@@ -292,6 +324,8 @@ export default function CheckoutPage() {
       }
       if (isWhatsApp) {
         await handleWhatsAppSubmit();
+      } else if (isNuPay) {
+        await handleNuPaySubmit();
       } else {
         await handleMercadoPagoSubmit();
       }
@@ -318,6 +352,8 @@ export default function CheckoutPage() {
           <p className="text-gray-500 flex items-center gap-2 text-sm">
             {isWhatsApp ? (
               <><MessageCircle size={16} className="text-green-500" />Seu pedido será enviado via WhatsApp para combinarmos o pagamento e entrega.</>
+            ) : isNuPay ? (
+              <><CreditCard size={16} className="text-purple-500" />Pagamento seguro via NuPay — débito, crédito Nubank ou Pix em até 24×.</>
             ) : (
               <><CreditCard size={16} className="text-blue-500" />Pagamento seguro via Mercado Pago — cartão, Pix ou boleto.</>
             )}
@@ -413,6 +449,18 @@ export default function CheckoutPage() {
                     <li>O WhatsApp abrirá com seu pedido formatado</li>
                     <li>Envie a mensagem e aguarde nossa resposta</li>
                     <li>Combinaremos pagamento, frete e prazo de entrega</li>
+                  </ol>
+                </div>
+              ) : isNuPay ? (
+                <div className="bg-purple-50 border border-purple-100 rounded-2xl p-4 text-sm text-purple-800">
+                  <p className="font-bold mb-2 flex items-center gap-2">
+                    <CreditCard size={15} /> Pagamento seguro via NuPay
+                  </p>
+                  <ol className="space-y-1 text-xs list-decimal list-inside">
+                    <li>Preencha seus dados e clique em "Pagar com NuPay"</li>
+                    <li>Você será redirecionado ao app do Nubank</li>
+                    <li>Autorize com biometria ou senha — débito, crédito ou Pix em até 24×</li>
+                    <li>Após confirmação, seu pedido será processado automaticamente</li>
                   </ol>
                 </div>
               ) : (
@@ -522,6 +570,15 @@ export default function CheckoutPage() {
                   >
                     {loading ? <Loader2 size={18} className="animate-spin" /> : <MessageCircle size={18} />}
                     {loading ? "Gerando pedido..." : "Enviar pelo WhatsApp"}
+                  </button>
+                ) : isNuPay ? (
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full bg-purple-600 text-white py-3.5 rounded-xl font-bold hover:bg-purple-700 transition-colors disabled:opacity-60 flex items-center justify-center gap-2 shadow-lg shadow-purple-100"
+                  >
+                    {loading ? <Loader2 size={18} className="animate-spin" /> : <CreditCard size={18} />}
+                    {loading ? "Aguarde..." : "Pagar com NuPay"}
                   </button>
                 ) : (
                   <button

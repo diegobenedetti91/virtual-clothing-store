@@ -14,7 +14,7 @@ export async function PUT(req: NextRequest) {
   const {
     name, logo, phone, whatsapp, instagram, address, description,
     primaryColor, buttonColor, menuColor, bannerImages, checkoutType, checkoutCollectEmail, checkoutCollectAddress,
-    checkoutMessage, mercadoPagoPublicKey, mercadoPagoAccessToken,
+    checkoutMessage, mercadoPagoPublicKey, mercadoPagoAccessToken, nuPayClientId, nuPayClientSecret,
     heroBadge, heroTitle, heroButtonText, heroButtonSecondaryText,
     freteAtivo, freteTipo, freteValorFixo, freteCEPOrigem, fretePesoDefaultGramas,
     melhorEnvioToken, fretePacoteAltura, fretePacoteLargura, fretePacoteComprimento,
@@ -39,6 +39,8 @@ export async function PUT(req: NextRequest) {
     checkoutMessage: checkoutMessage || null,
     mercadoPagoPublicKey: mercadoPagoPublicKey || null,
     mercadoPagoAccessToken: mercadoPagoAccessToken || null,
+    nuPayClientId: nuPayClientId || null,
+    nuPayClientSecret: nuPayClientSecret || null,
     heroBadge: heroBadge || null,
     heroTitle: heroTitle || null,
     heroButtonText: heroButtonText || null,

@@ -167,6 +167,8 @@ model CompanySettings {
   checkoutMessage        String?  @db.Text
   mercadoPagoPublicKey   String?
   mercadoPagoAccessToken String?
+  nuPayClientId          String?
+  nuPayClientSecret      String?  @db.Text
   heroBadge              String?
   heroTitle              String?
   heroButtonText         String?

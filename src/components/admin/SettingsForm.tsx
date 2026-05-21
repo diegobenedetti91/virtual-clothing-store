@@ -42,6 +42,9 @@ export default function SettingsForm({ initialSettings }: Props) {
   const [mpPublicKey, setMpPublicKey] = useState(initialSettings?.mercadoPagoPublicKey || "");
   const [mpAccessToken, setMpAccessToken] = useState(initialSettings?.mercadoPagoAccessToken || "");
   const [showToken, setShowToken] = useState(false);
+  const [nuPayClientId, setNuPayClientId] = useState(initialSettings?.nuPayClientId || "");
+  const [nuPayClientSecret, setNuPayClientSecret] = useState(initialSettings?.nuPayClientSecret || "");
+  const [showNuPaySecret, setShowNuPaySecret] = useState(false);
 
   const [freteAtivo, setFreteAtivo] = useState(initialSettings?.freteAtivo || false);
   const [freteTipo, setFreteTipo] = useState(initialSettings?.freteTipo || "fixo");
@@ -69,6 +72,7 @@ export default function SettingsForm({ initialSettings }: Props) {
           name, logo, phone, whatsapp, instagram, address, description,
           primaryColor, buttonColor, menuColor, bannerImages, checkoutType, checkoutCollectEmail, checkoutCollectAddress,
           checkoutMessage, mercadoPagoPublicKey: mpPublicKey || null, mercadoPagoAccessToken: mpAccessToken || null,
+          nuPayClientId: nuPayClientId || null, nuPayClientSecret: nuPayClientSecret || null,
           heroBadge, heroTitle, heroButtonText, heroButtonSecondaryText,
           freteAtivo, freteTipo,
           freteValorFixo: parseFloat(freteValorFixo) || 0,
@@ -165,7 +169,7 @@ export default function SettingsForm({ initialSettings }: Props) {
 
             <div>
               <label className={labelClass}>Tipo de checkout</label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <button
                   type="button"
                   onClick={() => setCheckoutType("whatsapp")}
@@ -184,8 +188,19 @@ export default function SettingsForm({ initialSettings }: Props) {
                 >
                   <span className="text-2xl mt-0.5">💳</span>
                   <div>
-                    <p className="font-semibold text-sm text-gray-900">Gateway de pagamento</p>
+                    <p className="font-semibold text-sm text-gray-900">Mercado Pago</p>
                     <p className="text-xs text-gray-500 mt-0.5">Checkout completo com cartão, PIX e boleto via Mercado Pago.</p>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCheckoutType("nupay")}
+                  className={`flex items-start gap-3 p-4 rounded-xl border-2 text-left transition-all ${checkoutType === "nupay" ? "border-purple-500 bg-purple-50" : "border-gray-200 hover:border-gray-300"}`}
+                >
+                  <span className="text-2xl mt-0.5">🟣</span>
+                  <div>
+                    <p className="font-semibold text-sm text-gray-900">NuPay</p>
+                    <p className="text-xs text-gray-500 mt-0.5">Pagamento pelo app do Nubank — débito, crédito ou Pix em até 24×.</p>
                   </div>
                 </button>
               </div>
@@ -283,6 +298,50 @@ export default function SettingsForm({ initialSettings }: Props) {
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                     >
                       {showToken ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1">Chave secreta usada no servidor. Nunca compartilhe.</p>
+                </div>
+              </div>
+            )}
+
+            {checkoutType === "nupay" && (
+              <div className="space-y-4">
+                <div className="bg-purple-50 border border-purple-100 rounded-xl p-4 text-sm text-purple-800">
+                  <p className="font-semibold mb-1 flex items-center gap-2"><CreditCard size={14} /> Credenciais do NuPay for Business</p>
+                  <p className="text-xs mb-2">
+                    Após o credenciamento, acesse o painel <strong>NuPay for Business</strong> para obter seu Client ID e Client Secret.
+                  </p>
+                  <p className="text-xs">
+                    Configure também o webhook no painel NuPay apontando para:{" "}
+                    <strong className="break-all">{typeof window !== "undefined" ? window.location.origin : ""}/api/checkout/nupay/webhook</strong>
+                  </p>
+                </div>
+                <div>
+                  <label className={labelClass}>Client ID</label>
+                  <input
+                    value={nuPayClientId}
+                    onChange={(e) => setNuPayClientId(e.target.value)}
+                    className={inputClass}
+                    placeholder="Seu Client ID do NuPay"
+                  />
+                </div>
+                <div>
+                  <label className={labelClass}>Client Secret</label>
+                  <div className="relative">
+                    <input
+                      type={showNuPaySecret ? "text" : "password"}
+                      value={nuPayClientSecret}
+                      onChange={(e) => setNuPayClientSecret(e.target.value)}
+                      className={`${inputClass} pr-10`}
+                      placeholder="Seu Client Secret do NuPay"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNuPaySecret(!showNuPaySecret)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      {showNuPaySecret ? <EyeOff size={16} /> : <Eye size={16} />}
                     </button>
                   </div>
                   <p className="text-xs text-gray-400 mt-1">Chave secreta usada no servidor. Nunca compartilhe.</p>

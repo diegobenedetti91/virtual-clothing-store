@@ -114,6 +114,8 @@ export interface CompanySettings {
   checkoutMessage?: string | null;
   mercadoPagoPublicKey?: string | null;
   mercadoPagoAccessToken?: string | null;
+  nuPayClientId?: string | null;
+  nuPayClientSecret?: string | null;
   heroBadge?: string | null;
   heroTitle?: string | null;
   heroButtonText?: string | null;
