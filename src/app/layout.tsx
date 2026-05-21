@@ -15,6 +15,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: name,
     description: settings?.description || "Sua loja virtual de moda",
+    icons: settings?.logo ? { icon: settings.logo } : undefined,
   };
 }
 
