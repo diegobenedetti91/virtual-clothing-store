@@ -49,6 +49,7 @@ export default function SettingsForm({ initialSettings }: Props) {
   const [freteAtivo, setFreteAtivo] = useState(initialSettings?.freteAtivo || false);
   const [freteTipo, setFreteTipo] = useState(initialSettings?.freteTipo || "fixo");
   const [freteLocalCidade, setFreteLocalCidade] = useState(initialSettings?.freteLocalCidade || "");
+  const [freteLocalUF, setFreteLocalUF] = useState(initialSettings?.freteLocalUF || "");
   const [freteValorFixo, setFreteValorFixo] = useState(initialSettings?.freteValorFixo?.toString() || "0");
   const [freteCEPOrigem, setFreteCEPOrigem] = useState(initialSettings?.freteCEPOrigem || "");
   const [fretePesoDefault, setFretePesoDefault] = useState(initialSettings?.fretePesoDefaultGramas?.toString() || "500");
@@ -75,7 +76,7 @@ export default function SettingsForm({ initialSettings }: Props) {
           checkoutMessage, mercadoPagoPublicKey: mpPublicKey || null, mercadoPagoAccessToken: mpAccessToken || null,
           nuPayClientId: nuPayClientId || null, nuPayClientSecret: nuPayClientSecret || null,
           heroBadge, heroTitle, heroButtonText, heroButtonSecondaryText,
-          freteAtivo, freteTipo, freteLocalCidade: freteLocalCidade || null,
+          freteAtivo, freteTipo, freteLocalCidade: freteLocalCidade || null, freteLocalUF: freteLocalUF || null,
           freteValorFixo: parseFloat(freteValorFixo) || 0,
           freteCEPOrigem: freteCEPOrigem || null,
           fretePesoDefaultGramas: parseInt(fretePesoDefault) || 500,
@@ -397,16 +398,27 @@ export default function SettingsForm({ initialSettings }: Props) {
 
                 {freteTipo === "local" && (
                   <div className="space-y-4">
-                    <div>
-                      <label className={labelClass}>Cidade atendida</label>
-                      <input
-                        value={freteLocalCidade}
-                        onChange={(e) => setFreteLocalCidade(e.target.value)}
-                        className={inputClass}
-                        placeholder="Ex: São Paulo"
-                      />
-                      <p className="text-xs text-gray-400 mt-1">Usada para validar o CEP do cliente no checkout via ViaCEP. Aparece na home no lugar de "Entrega para todo Brasil".</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <div className="sm:col-span-2">
+                        <label className={labelClass}>Cidade atendida</label>
+                        <input
+                          value={freteLocalCidade}
+                          onChange={(e) => setFreteLocalCidade(e.target.value)}
+                          className={inputClass}
+                          placeholder="Ex: São Paulo"
+                        />
+                      </div>
+                      <div>
+                        <label className={labelClass}>Estado (UF)</label>
+                        <select value={freteLocalUF} onChange={(e) => setFreteLocalUF(e.target.value)} className={inputClass}>
+                          <option value="">Selecione</option>
+                          {["AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG","PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO"].map((uf) => (
+                            <option key={uf} value={uf}>{uf}</option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
+                    <p className="text-xs text-gray-400 -mt-2">Cidade e estado usados para validar o CEP do cliente via ViaCEP. Evita conflito com cidades homônimas em outros estados.</p>
                     <div>
                       <label className={labelClass}>CEP da loja (origem)</label>
                       <input value={freteCEPOrigem} onChange={(e) => setFreteCEPOrigem(e.target.value)} className={inputClass} placeholder="00000-000" maxLength={9} />

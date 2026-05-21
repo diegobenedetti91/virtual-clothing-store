@@ -130,6 +130,7 @@ export interface CompanySettings {
   fretePacoteLargura: number;
   fretePacoteComprimento: number;
   freteLocalCidade?: string | null;
+  freteLocalUF?: string | null;
 }
 
 export interface CartItem {

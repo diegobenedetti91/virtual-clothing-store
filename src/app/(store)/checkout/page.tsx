@@ -34,7 +34,7 @@ export default function CheckoutPage() {
   const [shippingLoading, setShippingLoading] = useState(false);
   const [shippingTipo, setShippingTipo] = useState<"fixo" | "correios" | null>(null);
   const [selectedShipping, setSelectedShipping] = useState<ShippingOption | null>(null);
-  const [freteForaArea, setFreteForaArea] = useState<string | null>(null);
+  const [freteForaArea, setFreteForaArea] = useState<{ cidade: string; uf: string } | null>(null);
 
   // Address fields
   const [street, setStreet] = useState("");
@@ -92,7 +92,7 @@ export default function CheckoutPage() {
       });
       if (res.status === 422) {
         const data = await res.json();
-        setFreteForaArea(data.cidade || "sua cidade");
+        setFreteForaArea({ cidade: data.cidade || "sua cidade", uf: data.uf || "" });
         setShippingOptions([]);
         setSelectedShipping(null);
         return;
@@ -456,7 +456,7 @@ export default function CheckoutPage() {
                     />
                     {freteForaArea && (
                       <p className="text-sm text-red-600 mt-2 font-medium">
-                        Entregamos apenas em {settings.freteLocalCidade || "nossa cidade"}. O CEP informado pertence a: <strong>{freteForaArea}</strong>.
+                        Entregamos apenas em {settings.freteLocalCidade || "nossa cidade"}{settings.freteLocalUF ? `/${settings.freteLocalUF}` : ""}. O CEP informado pertence a: <strong>{freteForaArea.cidade}{freteForaArea.uf ? `/${freteForaArea.uf}` : ""}</strong>.
                       </p>
                     )}
                   </div>
@@ -557,7 +557,7 @@ export default function CheckoutPage() {
                         {shippingLoading && <Loader2 size={13} className="animate-spin text-gray-400" />}
                       </div>
                       {!shippingLoading && freteForaArea && (
-                        <p className="text-xs text-red-500 font-medium">Fora da área de entrega ({freteForaArea}).</p>
+                        <p className="text-xs text-red-500 font-medium">Fora da área de entrega ({freteForaArea.cidade}{freteForaArea.uf ? `/${freteForaArea.uf}` : ""}).</p>
                       )}
                       {!shippingLoading && !freteForaArea && shippingOptions.length > 0 && (
                         <div className="space-y-1">

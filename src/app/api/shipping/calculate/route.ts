@@ -141,16 +141,25 @@ export async function POST(req: NextRequest) {
   let largura = settings.fretePacoteLargura || 12;
   let comprimento = settings.fretePacoteComprimento || 17;
 
-  // Modo entrega local: valida cidade pelo CEP via ViaCEP
+  // Modo entrega local: valida cidade e UF pelo CEP via ViaCEP
   if (freteTipo === "local") {
-    const cidadeConfigurada = (settings as Record<string, unknown>).freteLocalCidade as string | null;
+    const s = settings as Record<string, unknown>;
+    const cidadeConfigurada = s.freteLocalCidade as string | null;
+    const ufConfigurada = s.freteLocalUF as string | null;
     if (cidadeConfigurada) {
       try {
         const viacepRes = await fetch(`https://viacep.com.br/ws/${cepDestinoClean}/json/`, { signal: AbortSignal.timeout(5000) });
         if (viacepRes.ok) {
           const viacep = await viacepRes.json();
-          if (!viacep.erro && normalizeCity(viacep.localidade) !== normalizeCity(cidadeConfigurada)) {
-            return NextResponse.json({ error: "fora_da_area", cidade: viacep.localidade }, { status: 422 });
+          if (!viacep.erro) {
+            const cidadeOk = normalizeCity(viacep.localidade) === normalizeCity(cidadeConfigurada);
+            const ufOk = !ufConfigurada || viacep.uf?.toUpperCase() === ufConfigurada.toUpperCase();
+            if (!cidadeOk || !ufOk) {
+              return NextResponse.json(
+                { error: "fora_da_area", cidade: viacep.localidade, uf: viacep.uf },
+                { status: 422 }
+              );
+            }
           }
         }
       } catch {
