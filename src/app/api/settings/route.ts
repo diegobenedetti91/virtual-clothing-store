@@ -18,7 +18,7 @@ export async function PUT(req: NextRequest) {
     heroBadge, heroTitle, heroButtonText, heroButtonSecondaryText,
     freteAtivo, freteTipo, freteValorFixo, freteCEPOrigem, fretePesoDefaultGramas,
     melhorEnvioToken, fretePacoteAltura, fretePacoteLargura, fretePacoteComprimento,
-    freteLocalCidade, freteLocalUF,
+    freteLocalCidade, freteLocalUF, freteLocalRetirada, mercadoPagoAtivo, nuPayAtivo,
   } = body;
 
   let settings = await prisma.companySettings.findFirst(ORDER);
@@ -57,6 +57,9 @@ export async function PUT(req: NextRequest) {
     fretePacoteComprimento: typeof fretePacoteComprimento === "number" ? fretePacoteComprimento : 17,
     freteLocalCidade: freteLocalCidade || null,
     freteLocalUF: freteLocalUF || null,
+    freteLocalRetirada: !!freteLocalRetirada,
+    mercadoPagoAtivo: !!mercadoPagoAtivo,
+    nuPayAtivo: !!nuPayAtivo,
   };
 
   if (settings) {

@@ -131,6 +131,9 @@ export interface CompanySettings {
   fretePacoteComprimento: number;
   freteLocalCidade?: string | null;
   freteLocalUF?: string | null;
+  freteLocalRetirada?: boolean;
+  mercadoPagoAtivo?: boolean;
+  nuPayAtivo?: boolean;
 }
 
 export interface CartItem {

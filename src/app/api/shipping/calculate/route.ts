@@ -146,6 +146,11 @@ export async function POST(req: NextRequest) {
     const s = settings as Record<string, unknown>;
     const cidadeConfigurada = s.freteLocalCidade as string | null;
     const ufConfigurada = s.freteLocalUF as string | null;
+    const retiradaAtiva = !!(s.freteLocalRetirada as boolean);
+
+    let podeEntregarLocal = true;
+    let foraArea: { cidade: string; uf: string } | null = null;
+
     if (cidadeConfigurada) {
       try {
         const viacepRes = await fetch(`https://viacep.com.br/ws/${cepDestinoClean}/json/`, { signal: AbortSignal.timeout(5000) });
@@ -155,10 +160,8 @@ export async function POST(req: NextRequest) {
             const cidadeOk = normalizeCity(viacep.localidade) === normalizeCity(cidadeConfigurada);
             const ufOk = !ufConfigurada || viacep.uf?.toUpperCase() === ufConfigurada.toUpperCase();
             if (!cidadeOk || !ufOk) {
-              return NextResponse.json(
-                { error: "fora_da_area", cidade: viacep.localidade, uf: viacep.uf },
-                { status: 422 }
-              );
+              podeEntregarLocal = false;
+              foraArea = { cidade: viacep.localidade, uf: viacep.uf };
             }
           }
         }
@@ -166,10 +169,22 @@ export async function POST(req: NextRequest) {
         // Se ViaCEP falhar, permite continuar sem bloquear
       }
     }
-    return NextResponse.json({
-      tipo: "local",
-      opcoes: [{ servico: "Entrega local", codigo: "local", valor: settings.freteValorFixo, prazo: 0, erro: "0" }],
-    });
+
+    if (!podeEntregarLocal && !retiradaAtiva) {
+      return NextResponse.json(
+        { error: "fora_da_area", ...foraArea },
+        { status: 422 }
+      );
+    }
+
+    const opcoes = [];
+    if (podeEntregarLocal) {
+      opcoes.push({ servico: "Entrega local", codigo: "local", valor: settings.freteValorFixo, prazo: 0, erro: "0" });
+    }
+    if (retiradaAtiva) {
+      opcoes.push({ servico: "Retirada na loja", codigo: "retirada", valor: 0, prazo: 0, erro: "0" });
+    }
+    return NextResponse.json({ tipo: "local", opcoes });
   }
 
   // Modo fixo

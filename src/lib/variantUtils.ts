@@ -16,6 +16,15 @@ export function normalizeVariantStock(raw: unknown[]): NormalizedVariant[] {
   });
 }
 
+const ATTR_PRIORITY: Record<string, number> = {
+  tamanho: 0, tam: 0, size: 0, taille: 0,
+  cor: 1, color: 1, colour: 1, couleur: 1,
+};
+
+function attrPriority(name: string): number {
+  return ATTR_PRIORITY[name.toLowerCase()] ?? 99;
+}
+
 // Get attribute definitions — prefers new `attributes` field, falls back to legacy sizes/colors
 export function getProductAttributes(product: {
   attributes: string;
@@ -23,7 +32,7 @@ export function getProductAttributes(product: {
   colors: string;
 }): ProductAttribute[] {
   const attrs = JSON.parse(product.attributes || "[]") as ProductAttribute[];
-  if (attrs.length > 0) return attrs;
+  if (attrs.length > 0) return [...attrs].sort((a, b) => attrPriority(a.name) - attrPriority(b.name));
 
   const result: ProductAttribute[] = [];
   const sizes = JSON.parse(product.sizes || "[]") as string[];

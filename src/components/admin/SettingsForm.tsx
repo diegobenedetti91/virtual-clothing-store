@@ -35,21 +35,28 @@ export default function SettingsForm({ initialSettings }: Props) {
   const [heroButtonText, setHeroButtonText] = useState(initialSettings?.heroButtonText || "");
   const [heroButtonSecondaryText, setHeroButtonSecondaryText] = useState(initialSettings?.heroButtonSecondaryText || "");
 
-  const [checkoutType, setCheckoutType] = useState(initialSettings?.checkoutType || "whatsapp");
+  const [checkoutType] = useState(initialSettings?.checkoutType || "whatsapp");
   const [checkoutCollectEmail, setCheckoutCollectEmail] = useState(initialSettings?.checkoutCollectEmail || false);
   const [checkoutCollectAddress, setCheckoutCollectAddress] = useState(initialSettings?.checkoutCollectAddress || false);
   const [checkoutMessage, setCheckoutMessage] = useState(initialSettings?.checkoutMessage || "");
   const [mpPublicKey, setMpPublicKey] = useState(initialSettings?.mercadoPagoPublicKey || "");
   const [mpAccessToken, setMpAccessToken] = useState(initialSettings?.mercadoPagoAccessToken || "");
   const [showToken, setShowToken] = useState(false);
+  const [mercadoPagoAtivo, setMercadoPagoAtivo] = useState(
+    initialSettings?.mercadoPagoAtivo ?? initialSettings?.checkoutType === "gateway"
+  );
   const [nuPayClientId, setNuPayClientId] = useState(initialSettings?.nuPayClientId || "");
   const [nuPayClientSecret, setNuPayClientSecret] = useState(initialSettings?.nuPayClientSecret || "");
   const [showNuPaySecret, setShowNuPaySecret] = useState(false);
+  const [nuPayAtivo, setNuPayAtivo] = useState(
+    initialSettings?.nuPayAtivo ?? initialSettings?.checkoutType === "nupay"
+  );
 
   const [freteAtivo, setFreteAtivo] = useState(initialSettings?.freteAtivo || false);
   const [freteTipo, setFreteTipo] = useState(initialSettings?.freteTipo || "fixo");
   const [freteLocalCidade, setFreteLocalCidade] = useState(initialSettings?.freteLocalCidade || "");
   const [freteLocalUF, setFreteLocalUF] = useState(initialSettings?.freteLocalUF || "");
+  const [freteLocalRetirada, setFreteLocalRetirada] = useState(initialSettings?.freteLocalRetirada || false);
   const [freteValorFixo, setFreteValorFixo] = useState(initialSettings?.freteValorFixo?.toString() || "0");
   const [freteCEPOrigem, setFreteCEPOrigem] = useState(initialSettings?.freteCEPOrigem || "");
   const [fretePesoDefault, setFretePesoDefault] = useState(initialSettings?.fretePesoDefaultGramas?.toString() || "500");
@@ -74,9 +81,9 @@ export default function SettingsForm({ initialSettings }: Props) {
           name, logo, phone, whatsapp, instagram, address, description,
           primaryColor, buttonColor, menuColor, bannerImages, checkoutType, checkoutCollectEmail, checkoutCollectAddress,
           checkoutMessage, mercadoPagoPublicKey: mpPublicKey || null, mercadoPagoAccessToken: mpAccessToken || null,
-          nuPayClientId: nuPayClientId || null, nuPayClientSecret: nuPayClientSecret || null,
+          mercadoPagoAtivo, nuPayClientId: nuPayClientId || null, nuPayClientSecret: nuPayClientSecret || null, nuPayAtivo,
           heroBadge, heroTitle, heroButtonText, heroButtonSecondaryText,
-          freteAtivo, freteTipo, freteLocalCidade: freteLocalCidade || null, freteLocalUF: freteLocalUF || null,
+          freteAtivo, freteTipo, freteLocalCidade: freteLocalCidade || null, freteLocalUF: freteLocalUF || null, freteLocalRetirada,
           freteValorFixo: parseFloat(freteValorFixo) || 0,
           freteCEPOrigem: freteCEPOrigem || null,
           fretePesoDefaultGramas: parseInt(fretePesoDefault) || 500,
@@ -163,193 +170,158 @@ export default function SettingsForm({ initialSettings }: Props) {
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-6">
             <div className="flex items-center gap-2 mb-1">
               <MessageCircle size={18} className="text-green-600" />
-              <h2 className="font-semibold text-gray-900">Configurações do checkout</h2>
+              <h2 className="font-semibold text-gray-900">Formas de pagamento disponíveis</h2>
+            </div>
+            <p className="text-xs text-gray-500 -mt-4">O cliente escolhe como quer pagar no momento do checkout. WhatsApp e Dinheiro estão sempre disponíveis.</p>
+
+            {/* WhatsApp — sempre ativo */}
+            <div className="border border-gray-100 rounded-xl p-4 space-y-4">
+              <div className="flex items-center gap-3">
+                <span className="text-xl">💬</span>
+                <div className="flex-1">
+                  <p className="font-semibold text-sm text-gray-900">WhatsApp <span className="ml-1 text-xs text-green-600 font-normal bg-green-50 px-2 py-0.5 rounded-full">Sempre ativo</span></p>
+                  <p className="text-xs text-gray-500 mt-0.5">Pedido enviado pelo WhatsApp — pagamento e entrega combinados na conversa.</p>
+                </div>
+              </div>
+              <p className="text-xs text-gray-500">Configure o que aparece na mensagem enviada ao WhatsApp da loja.</p>
+              <div>
+                <label className={labelClass}>Mensagem inicial personalizada (opcional)</label>
+                <textarea
+                  value={checkoutMessage}
+                  onChange={(e) => setCheckoutMessage(e.target.value)}
+                  rows={2}
+                  className={inputClass}
+                  placeholder="Ex: Olá! Gostaria de fazer um pedido:"
+                />
+              </div>
+              <div className="space-y-3">
+                <label className="flex items-center justify-between cursor-pointer group">
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">Solicitar e-mail do cliente</p>
+                    <p className="text-xs text-gray-500">Inclui campo de e-mail no checkout</p>
+                  </div>
+                  <div
+                    className={`relative w-11 h-6 rounded-full transition-colors ${checkoutCollectEmail ? "bg-green-500" : "bg-gray-200"}`}
+                    onClick={() => setCheckoutCollectEmail(!checkoutCollectEmail)}
+                  >
+                    <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${checkoutCollectEmail ? "translate-x-5" : ""}`} />
+                  </div>
+                </label>
+                <label className="flex items-center justify-between cursor-pointer group">
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">Solicitar endereço de entrega</p>
+                    <p className="text-xs text-gray-500">Inclui campo de endereço no checkout</p>
+                  </div>
+                  <div
+                    className={`relative w-11 h-6 rounded-full transition-colors ${checkoutCollectAddress ? "bg-green-500" : "bg-gray-200"}`}
+                    onClick={() => setCheckoutCollectAddress(!checkoutCollectAddress)}
+                  >
+                    <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${checkoutCollectAddress ? "translate-x-5" : ""}`} />
+                  </div>
+                </label>
+              </div>
+              <div>
+                <p className={labelClass}>Preview da mensagem WhatsApp</p>
+                <div className="bg-[#e5ddd5] rounded-xl p-4">
+                  <div className="bg-white rounded-xl p-3 max-w-xs shadow-sm">
+                    <pre className="text-xs text-gray-800 whitespace-pre-wrap font-sans leading-relaxed">{whatsappPreview}</pre>
+                  </div>
+                </div>
+              </div>
             </div>
 
-            <div>
-              <label className={labelClass}>Tipo de checkout</label>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setCheckoutType("whatsapp")}
-                  className={`flex items-start gap-3 p-4 rounded-xl border-2 text-left transition-all ${checkoutType === "whatsapp" ? "border-green-500 bg-green-50" : "border-gray-200 hover:border-gray-300"}`}
-                >
-                  <span className="text-2xl mt-0.5">💬</span>
-                  <div>
-                    <p className="font-semibold text-sm text-gray-900">Via WhatsApp</p>
-                    <p className="text-xs text-gray-500 mt-0.5">Cliente monta o pedido e envia pelo WhatsApp. Pagamento e frete combinados na conversa.</p>
-                  </div>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCheckoutType("gateway")}
-                  className={`flex items-start gap-3 p-4 rounded-xl border-2 text-left transition-all ${checkoutType === "gateway" ? "border-blue-500 bg-blue-50" : "border-gray-200 hover:border-gray-300"}`}
-                >
-                  <span className="text-2xl mt-0.5">💳</span>
+            {/* Mercado Pago */}
+            <div className="border border-gray-100 rounded-xl p-4 space-y-4">
+              <label className="flex items-center justify-between cursor-pointer">
+                <div className="flex items-center gap-3">
+                  <span className="text-xl">💳</span>
                   <div>
                     <p className="font-semibold text-sm text-gray-900">Mercado Pago</p>
-                    <p className="text-xs text-gray-500 mt-0.5">Checkout completo com cartão, PIX e boleto via Mercado Pago.</p>
+                    <p className="text-xs text-gray-500 mt-0.5">Cartão de crédito, Pix ou boleto. Requer credenciais de produção.</p>
                   </div>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCheckoutType("nupay")}
-                  className={`flex items-start gap-3 p-4 rounded-xl border-2 text-left transition-all ${checkoutType === "nupay" ? "border-purple-500 bg-purple-50" : "border-gray-200 hover:border-gray-300"}`}
+                </div>
+                <div
+                  className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${mercadoPagoAtivo ? "bg-blue-500" : "bg-gray-200"}`}
+                  onClick={() => setMercadoPagoAtivo(!mercadoPagoAtivo)}
                 >
-                  <span className="text-2xl mt-0.5">🟣</span>
-                  <div>
-                    <p className="font-semibold text-sm text-gray-900">NuPay</p>
-                    <p className="text-xs text-gray-500 mt-0.5">Pagamento pelo app do Nubank — débito, crédito ou Pix em até 24×.</p>
+                  <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${mercadoPagoAtivo ? "translate-x-5" : ""}`} />
+                </div>
+              </label>
+              {mercadoPagoAtivo && (
+                <div className="space-y-4 pt-1">
+                  <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-sm text-blue-800">
+                    <p className="font-semibold mb-1 flex items-center gap-2"><CreditCard size={14} /> Credenciais do Mercado Pago</p>
+                    <p className="text-xs">
+                      Acesse <strong>mercadopago.com.br → Seu negócio → Configurações → Credenciais</strong> para obter suas chaves.
+                      Use as credenciais de <strong>produção</strong> para receber pagamentos reais.
+                    </p>
                   </div>
-                </button>
-              </div>
+                  <div>
+                    <label className={labelClass}>Public Key (chave pública)</label>
+                    <input value={mpPublicKey} onChange={(e) => setMpPublicKey(e.target.value)} className={inputClass} placeholder="APP_USR-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
+                    <p className="text-xs text-gray-400 mt-1">Usada no frontend para identificar sua conta.</p>
+                  </div>
+                  <div>
+                    <label className={labelClass}>Access Token (chave secreta)</label>
+                    <div className="relative">
+                      <input type={showToken ? "text" : "password"} value={mpAccessToken} onChange={(e) => setMpAccessToken(e.target.value)} className={`${inputClass} pr-10`} placeholder="APP_USR-xxxxxxxx..." />
+                      <button type="button" onClick={() => setShowToken(!showToken)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                        {showToken ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1">Chave secreta usada no servidor. Nunca compartilhe.</p>
+                  </div>
+                </div>
+              )}
             </div>
 
-            {checkoutType === "whatsapp" && (
-              <>
-                <p className="text-xs text-gray-500">Configure o que aparece na mensagem enviada ao WhatsApp da loja.</p>
-                <div>
-                  <label className={labelClass}>Mensagem inicial personalizada (opcional)</label>
-                  <textarea
-                    value={checkoutMessage}
-                    onChange={(e) => setCheckoutMessage(e.target.value)}
-                    rows={2}
-                    className={inputClass}
-                    placeholder="Ex: Olá! Gostaria de fazer um pedido:"
-                  />
-                </div>
-              </>
-            )}
-
-            {checkoutType === "whatsapp" && (
-              <>
-                <div className="space-y-3">
-                  <label className="flex items-center justify-between cursor-pointer group">
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">Solicitar e-mail do cliente</p>
-                      <p className="text-xs text-gray-500">Inclui campo de e-mail no checkout</p>
-                    </div>
-                    <div
-                      className={`relative w-11 h-6 rounded-full transition-colors ${checkoutCollectEmail ? "bg-green-500" : "bg-gray-200"}`}
-                      onClick={() => setCheckoutCollectEmail(!checkoutCollectEmail)}
-                    >
-                      <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${checkoutCollectEmail ? "translate-x-5" : ""}`} />
-                    </div>
-                  </label>
-
-                  <label className="flex items-center justify-between cursor-pointer group">
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">Solicitar endereço de entrega</p>
-                      <p className="text-xs text-gray-500">Inclui campo de endereço no checkout</p>
-                    </div>
-                    <div
-                      className={`relative w-11 h-6 rounded-full transition-colors ${checkoutCollectAddress ? "bg-green-500" : "bg-gray-200"}`}
-                      onClick={() => setCheckoutCollectAddress(!checkoutCollectAddress)}
-                    >
-                      <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${checkoutCollectAddress ? "translate-x-5" : ""}`} />
-                    </div>
-                  </label>
-                </div>
-
-                <div>
-                  <p className={labelClass}>Preview da mensagem WhatsApp</p>
-                  <div className="bg-[#e5ddd5] rounded-xl p-4">
-                    <div className="bg-white rounded-xl p-3 max-w-xs shadow-sm">
-                      <pre className="text-xs text-gray-800 whitespace-pre-wrap font-sans leading-relaxed">{whatsappPreview}</pre>
-                    </div>
+            {/* NuPay */}
+            <div className="border border-gray-100 rounded-xl p-4 space-y-4">
+              <label className="flex items-center justify-between cursor-pointer">
+                <div className="flex items-center gap-3">
+                  <span className="text-xl">🟣</span>
+                  <div>
+                    <p className="font-semibold text-sm text-gray-900">NuPay</p>
+                    <p className="text-xs text-gray-500 mt-0.5">Débito, crédito Nubank ou Pix em até 24×. Requer credenciais NuPay for Business.</p>
                   </div>
                 </div>
-              </>
-            )}
-
-            {checkoutType === "gateway" && (
-              <div className="space-y-4">
-                <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-sm text-blue-800">
-                  <p className="font-semibold mb-1 flex items-center gap-2"><CreditCard size={14} /> Credenciais do Mercado Pago</p>
-                  <p className="text-xs mb-3">
-                    Acesse <strong>mercadopago.com.br → Seu negócio → Configurações → Credenciais</strong> para obter suas chaves.
-                    Use as credenciais de <strong>produção</strong> para receber pagamentos reais.
-                  </p>
+                <div
+                  className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${nuPayAtivo ? "bg-purple-500" : "bg-gray-200"}`}
+                  onClick={() => setNuPayAtivo(!nuPayAtivo)}
+                >
+                  <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${nuPayAtivo ? "translate-x-5" : ""}`} />
                 </div>
-                <div>
-                  <label className={labelClass}>Public Key (chave pública)</label>
-                  <input
-                    value={mpPublicKey}
-                    onChange={(e) => setMpPublicKey(e.target.value)}
-                    className={inputClass}
-                    placeholder="APP_USR-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                  />
-                  <p className="text-xs text-gray-400 mt-1">Usada no frontend para identificar sua conta.</p>
-                </div>
-                <div>
-                  <label className={labelClass}>Access Token (chave secreta)</label>
-                  <div className="relative">
-                    <input
-                      type={showToken ? "text" : "password"}
-                      value={mpAccessToken}
-                      onChange={(e) => setMpAccessToken(e.target.value)}
-                      className={`${inputClass} pr-10`}
-                      placeholder="APP_USR-xxxxxxxx..."
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowToken(!showToken)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                    >
-                      {showToken ? <EyeOff size={16} /> : <Eye size={16} />}
-                    </button>
+              </label>
+              {nuPayAtivo && (
+                <div className="space-y-4 pt-1">
+                  <div className="bg-purple-50 border border-purple-100 rounded-xl p-4 text-sm text-purple-800">
+                    <p className="font-semibold mb-1 flex items-center gap-2"><CreditCard size={14} /> Credenciais do NuPay for Business</p>
+                    <p className="text-xs mb-2">Após o credenciamento, acesse o painel <strong>NuPay for Business</strong> para obter seu Client ID e Client Secret.</p>
+                    <p className="text-xs">
+                      Configure o webhook no painel NuPay apontando para:{" "}
+                      <strong className="break-all">{typeof window !== "undefined" ? window.location.origin : ""}/api/checkout/nupay/webhook</strong>
+                    </p>
                   </div>
-                  <p className="text-xs text-gray-400 mt-1">Chave secreta usada no servidor. Nunca compartilhe.</p>
-                </div>
-              </div>
-            )}
-
-            {checkoutType === "nupay" && (
-              <div className="space-y-4">
-                <div className="bg-purple-50 border border-purple-100 rounded-xl p-4 text-sm text-purple-800">
-                  <p className="font-semibold mb-1 flex items-center gap-2"><CreditCard size={14} /> Credenciais do NuPay for Business</p>
-                  <p className="text-xs mb-2">
-                    Após o credenciamento, acesse o painel <strong>NuPay for Business</strong> para obter seu Client ID e Client Secret.
-                  </p>
-                  <p className="text-xs">
-                    Configure também o webhook no painel NuPay apontando para:{" "}
-                    <strong className="break-all">{typeof window !== "undefined" ? window.location.origin : ""}/api/checkout/nupay/webhook</strong>
-                  </p>
-                </div>
-                <div>
-                  <label className={labelClass}>Client ID</label>
-                  <input
-                    value={nuPayClientId}
-                    onChange={(e) => setNuPayClientId(e.target.value)}
-                    className={inputClass}
-                    placeholder="Seu Client ID do NuPay"
-                  />
-                </div>
-                <div>
-                  <label className={labelClass}>Client Secret</label>
-                  <div className="relative">
-                    <input
-                      type={showNuPaySecret ? "text" : "password"}
-                      value={nuPayClientSecret}
-                      onChange={(e) => setNuPayClientSecret(e.target.value)}
-                      className={`${inputClass} pr-10`}
-                      placeholder="Seu Client Secret do NuPay"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowNuPaySecret(!showNuPaySecret)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                    >
-                      {showNuPaySecret ? <EyeOff size={16} /> : <Eye size={16} />}
-                    </button>
+                  <div>
+                    <label className={labelClass}>Client ID</label>
+                    <input value={nuPayClientId} onChange={(e) => setNuPayClientId(e.target.value)} className={inputClass} placeholder="Seu Client ID do NuPay" />
                   </div>
-                  <p className="text-xs text-gray-400 mt-1">Chave secreta usada no servidor. Nunca compartilhe.</p>
+                  <div>
+                    <label className={labelClass}>Client Secret</label>
+                    <div className="relative">
+                      <input type={showNuPaySecret ? "text" : "password"} value={nuPayClientSecret} onChange={(e) => setNuPayClientSecret(e.target.value)} className={`${inputClass} pr-10`} placeholder="Seu Client Secret do NuPay" />
+                      <button type="button" onClick={() => setShowNuPaySecret(!showNuPaySecret)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                        {showNuPaySecret ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1">Chave secreta usada no servidor. Nunca compartilhe.</p>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
 
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
@@ -432,6 +404,18 @@ export default function SettingsForm({ initialSettings }: Props) {
                       </div>
                       <p className="text-xs text-gray-400 mt-1">Use 0 para entrega grátis.</p>
                     </div>
+                    <label className="flex items-center justify-between cursor-pointer">
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">Permitir retirada na loja</p>
+                        <p className="text-xs text-gray-500">Cliente pode optar por retirar o pedido na loja (grátis)</p>
+                      </div>
+                      <div
+                        className={`relative w-11 h-6 rounded-full transition-colors ${freteLocalRetirada ? "bg-blue-500" : "bg-gray-200"}`}
+                        onClick={() => setFreteLocalRetirada(!freteLocalRetirada)}
+                      >
+                        <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${freteLocalRetirada ? "translate-x-5" : ""}`} />
+                      </div>
+                    </label>
                   </div>
                 )}
 

@@ -184,6 +184,9 @@ model CompanySettings {
   fretePacoteComprimento Int      @default(17)
   freteLocalCidade       String?
   freteLocalUF           String?
+  freteLocalRetirada     Boolean  @default(false)
+  mercadoPagoAtivo       Boolean  @default(false)
+  nuPayAtivo             Boolean  @default(false)
   updatedAt              DateTime @updatedAt
 }
 
