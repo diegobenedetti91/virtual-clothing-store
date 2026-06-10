@@ -483,10 +483,9 @@ export default function CheckoutPage() {
             </div>
 
             {/* Sidebar direita - Resumo do pedido + Forma de pagamento */}
-            <div className="lg:col-span-1">
-              <div className="flex flex-col sticky top-24 max-h-screen gap-5">
+            <div className="lg:col-span-1 space-y-5">
                 {/* Order summary */}
-                <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm overflow-y-auto">
+                <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm max-h-64 overflow-y-auto">
                   <h2 className="text-base font-bold text-gray-900 mb-4 sticky top-0 bg-white">Seu pedido</h2>
 
                   <div className="space-y-3 mb-4">
@@ -514,10 +513,10 @@ export default function CheckoutPage() {
                   </div>
 
                   <div className="border-t border-gray-100 pt-4 space-y-2 mb-4">
-                  <div className="flex justify-between text-sm text-gray-500">
-                    <span>Subtotal</span>
-                    <span>{formatCurrency(total())}</span>
-                  </div>
+                    <div className="flex justify-between text-sm text-gray-500">
+                      <span>Subtotal</span>
+                      <span>{formatCurrency(total())}</span>
+                    </div>
 
                   {settings?.freteAtivo && (collectAddress || settings?.freteTipo === "local") ? (
                     <div>
@@ -574,12 +573,12 @@ export default function CheckoutPage() {
 
                 {/* Payment method selector */}
                 <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm space-y-4">
-                  <div>
+                  <div className="space-y-2">
                     <h2 className="text-base font-bold text-gray-900">Forma de pagamento</h2>
-                    <p className="text-sm text-gray-500 mt-1">Escolha como você deseja pagar</p>
+                    <p className="text-sm text-gray-500">Escolha como você deseja pagar</p>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-2 gap-2 mb-4">
                     {paymentOptions.map((opt) => (
                       <label
                         key={opt.id}
