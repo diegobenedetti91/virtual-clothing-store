@@ -480,93 +480,17 @@ export default function CheckoutPage() {
                   placeholder="Alguma preferência, dúvida ou observação..."
                 />
               </div>
-
-              {/* Payment method selector */}
-              <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm space-y-4">
-                <div>
-                  <h2 className="text-base font-bold text-gray-900">Forma de pagamento</h2>
-                  <p className="text-sm text-gray-500 mt-1">Escolha como você deseja pagar seu pedido</p>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {paymentOptions.map((opt) => (
-                    <label
-                      key={opt.id}
-                      className={`relative flex flex-col p-5 rounded-xl border-2 cursor-pointer transition-all transform hover:scale-105 ${
-                        selectedPayment === opt.id
-                          ? "border-brand bg-brand/10 shadow-lg shadow-brand/20"
-                          : "border-gray-200 bg-gray-50 hover:border-gray-300 hover:bg-gray-100"
-                      }`}
-                    >
-                      <div className="flex items-start justify-between mb-3">
-                        <span className="text-4xl">{opt.emoji}</span>
-                        <input
-                          type="radio"
-                          name="payment"
-                          value={opt.id}
-                          checked={selectedPayment === opt.id}
-                          onChange={() => setSelectedPayment(opt.id)}
-                          className="accent-brand w-5 h-5 mt-1"
-                        />
-                      </div>
-                      <p className="font-bold text-sm text-gray-900 mb-1">{opt.label}</p>
-                      <p className="text-xs text-gray-600 leading-relaxed">{opt.desc}</p>
-
-                      {selectedPayment === opt.id && (
-                        <div className="absolute -top-2 -right-2 w-6 h-6 bg-brand rounded-full flex items-center justify-center">
-                          <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                          </svg>
-                        </div>
-                      )}
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              {/* How it works — dynamic by selected method */}
-              {selectedPayment === "nupay" ? (
-                <div className="bg-purple-50 border border-purple-100 rounded-2xl p-4 text-sm text-purple-800">
-                  <p className="font-bold mb-2 flex items-center gap-2"><CreditCard size={15} /> Pagamento via NuPay</p>
-                  <ol className="space-y-1 text-xs list-decimal list-inside">
-                    <li>Clique em "Pagar com NuPay"</li>
-                    <li>Você será redirecionado ao app do Nubank</li>
-                    <li>Autorize com biometria ou senha</li>
-                    <li>Após confirmação, seu pedido é processado automaticamente</li>
-                  </ol>
-                </div>
-              ) : selectedPayment === "mercadopago" ? (
-                <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 text-sm text-blue-800">
-                  <p className="font-bold mb-2 flex items-center gap-2"><CreditCard size={15} /> Pagamento via Mercado Pago</p>
-                  <ol className="space-y-1 text-xs list-decimal list-inside">
-                    <li>Clique em "Pagar com Mercado Pago"</li>
-                    <li>Você será redirecionado ao Mercado Pago</li>
-                    <li>Escolha: cartão, Pix ou boleto</li>
-                    <li>Após confirmação, seu pedido é processado automaticamente</li>
-                  </ol>
-                </div>
-              ) : (
-                <div className="bg-green-50 border border-green-100 rounded-2xl p-4 text-sm text-green-800">
-                  <p className="font-bold mb-2 flex items-center gap-2"><MessageCircle size={15} /> Como funciona?</p>
-                  <ol className="space-y-1 text-xs list-decimal list-inside">
-                    <li>Preencha seus dados e clique em "Enviar pelo WhatsApp"</li>
-                    <li>O WhatsApp abrirá com seu pedido formatado</li>
-                    <li>Envie a mensagem e aguarde nossa resposta</li>
-                    {selectedPayment === "dinheiro"
-                      ? <li>Combinamos a entrega — pagamento feito ao receber</li>
-                      : <li>Combinamos pagamento, frete e prazo de entrega</li>}
-                  </ol>
-                </div>
-              )}
             </div>
 
-            {/* Order summary */}
+            {/* Sidebar direita - Resumo do pedido + Forma de pagamento */}
             <div className="lg:col-span-1">
-              <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm sticky top-24">
-                <h2 className="text-base font-bold text-gray-900 mb-4">Seu pedido</h2>
+              <div className="space-y-5 sticky top-24">
+                {/* Order summary */}
+                <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
+                  <h2 className="text-base font-bold text-gray-900 mb-4">Seu pedido</h2>
 
-                <div className="space-y-3 mb-4">
-                  {items.map((item) => (
+                  <div className="space-y-3 mb-4">
+                    {items.map((item) => (
                     <div key={`${item.productId}-${item.selectedAttributes ? JSON.stringify(item.selectedAttributes) : `${item.size ?? ""}-${item.color ?? ""}`}`} className="flex items-start gap-3">
                       <img
                         src={item.image}
@@ -586,10 +510,10 @@ export default function CheckoutPage() {
                         </p>
                       </div>
                     </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
 
-                <div className="border-t border-gray-100 pt-4 space-y-2 mb-4">
+                  <div className="border-t border-gray-100 pt-4 space-y-2 mb-4">
                   <div className="flex justify-between text-sm text-gray-500">
                     <span>Subtotal</span>
                     <span>{formatCurrency(total())}</span>
@@ -641,11 +565,84 @@ export default function CheckoutPage() {
                     </div>
                   )}
 
-                  <div className="flex justify-between font-black text-gray-900 text-lg pt-2 border-t border-gray-100">
-                    <span>Total</span>
-                    <span>{formatCurrency(total() + (selectedShipping?.valor || 0))}</span>
+                    <div className="flex justify-between font-black text-gray-900 text-lg pt-2 border-t border-gray-100">
+                      <span>Total</span>
+                      <span>{formatCurrency(total() + (selectedShipping?.valor || 0))}</span>
+                    </div>
                   </div>
                 </div>
+
+                {/* Payment method selector */}
+                <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm space-y-4">
+                  <div>
+                    <h2 className="text-base font-bold text-gray-900">Forma de pagamento</h2>
+                    <p className="text-sm text-gray-500 mt-1">Escolha como você deseja pagar</p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    {paymentOptions.map((opt) => (
+                      <label
+                        key={opt.id}
+                        className={`relative flex flex-col p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                          selectedPayment === opt.id
+                            ? "border-brand bg-brand/10 shadow-md shadow-brand/20"
+                            : "border-gray-200 bg-gray-50 hover:border-gray-300 hover:bg-gray-100"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <span className="text-3xl">{opt.emoji}</span>
+                          <input
+                            type="radio"
+                            name="payment"
+                            value={opt.id}
+                            checked={selectedPayment === opt.id}
+                            onChange={() => setSelectedPayment(opt.id)}
+                            className="accent-brand w-4 h-4 mt-0.5 flex-shrink-0"
+                          />
+                        </div>
+                        <p className="font-bold text-xs text-gray-900 mt-2 leading-tight">{opt.label}</p>
+
+                        {selectedPayment === opt.id && (
+                          <div className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-brand rounded-full flex items-center justify-center">
+                            <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
+                          </div>
+                        )}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* How it works — dynamic by selected method */}
+                {selectedPayment === "nupay" ? (
+                  <div className="bg-purple-50 border border-purple-100 rounded-2xl p-3 text-xs text-purple-800">
+                    <p className="font-bold mb-1.5 flex items-center gap-1.5"><CreditCard size={13} /> NuPay</p>
+                    <ol className="space-y-0.5 list-decimal list-inside">
+                      <li>Clique em "Pagar com NuPay"</li>
+                      <li>Autorize com biometria</li>
+                      <li>Pedido confirmado!</li>
+                    </ol>
+                  </div>
+                ) : selectedPayment === "mercadopago" ? (
+                  <div className="bg-blue-50 border border-blue-100 rounded-2xl p-3 text-xs text-blue-800">
+                    <p className="font-bold mb-1.5 flex items-center gap-1.5"><CreditCard size={13} /> Mercado Pago</p>
+                    <ol className="space-y-0.5 list-decimal list-inside">
+                      <li>Clique em "Pagar com Mercado Pago"</li>
+                      <li>Escolha: cartão, Pix ou boleto</li>
+                      <li>Pedido confirmado!</li>
+                    </ol>
+                  </div>
+                ) : (
+                  <div className="bg-green-50 border border-green-100 rounded-2xl p-3 text-xs text-green-800">
+                    <p className="font-bold mb-1.5 flex items-center gap-1.5"><MessageCircle size={13} /> WhatsApp</p>
+                    <ol className="space-y-0.5 list-decimal list-inside">
+                      <li>Clique em "Enviar pelo WhatsApp"</li>
+                      <li>Envie a mensagem</li>
+                      <li>Responderemos em breve!</li>
+                    </ol>
+                  </div>
+                )}
 
                 {selectedPayment === "nupay" ? (
                   <button type="submit" disabled={loading || !!freteForaArea} className="w-full bg-purple-600 text-white py-3.5 rounded-xl font-bold hover:bg-purple-700 transition-colors disabled:opacity-60 flex items-center justify-center gap-2 shadow-lg shadow-purple-100">
