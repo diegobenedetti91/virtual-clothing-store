@@ -482,32 +482,46 @@ export default function CheckoutPage() {
               </div>
 
               {/* Payment method selector */}
-              <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm space-y-3">
-                <h2 className="text-base font-bold text-gray-900">Forma de pagamento</h2>
-                {paymentOptions.map((opt) => (
-                  <label
-                    key={opt.id}
-                    className={`flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                      selectedPayment === opt.id
-                        ? "border-brand bg-brand/5"
-                        : "border-gray-200 hover:border-gray-300"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="payment"
-                      value={opt.id}
-                      checked={selectedPayment === opt.id}
-                      onChange={() => setSelectedPayment(opt.id)}
-                      className="accent-brand"
-                    />
-                    <span className="text-xl">{opt.emoji}</span>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-sm text-gray-900">{opt.label}</p>
-                      <p className="text-xs text-gray-500 mt-0.5">{opt.desc}</p>
-                    </div>
-                  </label>
-                ))}
+              <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm space-y-4">
+                <div>
+                  <h2 className="text-base font-bold text-gray-900">Forma de pagamento</h2>
+                  <p className="text-sm text-gray-500 mt-1">Escolha como você deseja pagar seu pedido</p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {paymentOptions.map((opt) => (
+                    <label
+                      key={opt.id}
+                      className={`relative flex flex-col p-5 rounded-xl border-2 cursor-pointer transition-all transform hover:scale-105 ${
+                        selectedPayment === opt.id
+                          ? "border-brand bg-brand/10 shadow-lg shadow-brand/20"
+                          : "border-gray-200 bg-gray-50 hover:border-gray-300 hover:bg-gray-100"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between mb-3">
+                        <span className="text-4xl">{opt.emoji}</span>
+                        <input
+                          type="radio"
+                          name="payment"
+                          value={opt.id}
+                          checked={selectedPayment === opt.id}
+                          onChange={() => setSelectedPayment(opt.id)}
+                          className="accent-brand w-5 h-5 mt-1"
+                        />
+                      </div>
+                      <p className="font-bold text-sm text-gray-900 mb-1">{opt.label}</p>
+                      <p className="text-xs text-gray-600 leading-relaxed">{opt.desc}</p>
+
+                      {selectedPayment === opt.id && (
+                        <div className="absolute -top-2 -right-2 w-6 h-6 bg-brand rounded-full flex items-center justify-center">
+                          <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                      )}
+                    </label>
+                  ))}
+                </div>
               </div>
 
               {/* How it works — dynamic by selected method */}
