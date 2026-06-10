@@ -484,10 +484,10 @@ export default function CheckoutPage() {
 
             {/* Sidebar direita - Resumo do pedido + Forma de pagamento */}
             <div className="lg:col-span-1">
-              <div className="space-y-5 sticky top-24">
+              <div className="flex flex-col sticky top-24 max-h-screen gap-5">
                 {/* Order summary */}
-                <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
-                  <h2 className="text-base font-bold text-gray-900 mb-4">Seu pedido</h2>
+                <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm overflow-y-auto">
+                  <h2 className="text-base font-bold text-gray-900 mb-4 sticky top-0 bg-white">Seu pedido</h2>
 
                   <div className="space-y-3 mb-4">
                     {items.map((item) => (
