@@ -4,7 +4,7 @@ import { generateOrderNumber } from "@/lib/utils";
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { customerName, customerEmail, customerPhone, address, city, state, zipCode, notes, customerId, items } = body;
+  const { customerName, customerEmail, customerPhone, address, city, state, zipCode, notes, customerId, items, shippingCost, shippingMethod } = body;
 
   if (!customerName || !customerPhone || !items?.length) {
     return NextResponse.json({ error: "Dados incompletos" }, { status: 400 });
@@ -34,7 +34,19 @@ export async function POST(req: NextRequest) {
     };
   });
 
+  // Add shipping as a separate item if applicable
+  if (shippingCost && shippingCost > 0) {
+    mpItems.push({
+      id: "frete",
+      title: `Frete${shippingMethod ? ` (${shippingMethod})` : ""}`,
+      quantity: 1,
+      unit_price: shippingCost,
+      currency_id: "BRL",
+    });
+  }
+
   const subtotal = mpItems.reduce((s: number, i: { unit_price: number; quantity: number }) => s + i.unit_price * i.quantity, 0);
+  const total = subtotal + (shippingCost || 0);
   const orderNumber = generateOrderNumber();
 
   const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
@@ -127,7 +139,9 @@ export async function POST(req: NextRequest) {
       notes: notes || null,
       customerId: customerId || null,
       subtotal,
-      total: subtotal,
+      shippingCost: shippingCost || 0,
+      shippingMethod: shippingMethod || null,
+      total,
       status: "PENDING",
       items: {
         create: (items as CartItem[]).map((item) => ({

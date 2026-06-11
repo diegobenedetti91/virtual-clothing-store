@@ -26,7 +26,7 @@ async function getNuPayToken(clientId: string, clientSecret: string): Promise<st
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { customerName, customerEmail, customerPhone, address, city, state, zipCode, notes, customerId, items } = body;
+  const { customerName, customerEmail, customerPhone, address, city, state, zipCode, notes, customerId, items, shippingCost, shippingMethod } = body;
 
   if (!customerName || !customerPhone || !items?.length) {
     return NextResponse.json({ error: "Dados incompletos" }, { status: 400 });
@@ -69,6 +69,7 @@ export async function POST(req: NextRequest) {
     (s: number, i: { unitPrice: number; quantity: number }) => s + i.unitPrice * i.quantity,
     0
   );
+  const total = subtotal + (shippingCost || 0);
   const orderNumber = generateOrderNumber();
   const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
 
@@ -82,7 +83,7 @@ export async function POST(req: NextRequest) {
 
   const orderPayload = {
     externalReference: orderNumber,
-    amount: Math.round(subtotal * 100), // NuPay expects value in cents
+    amount: Math.round(total * 100), // NuPay expects value in cents
     currency: "BRL",
     description: `Pedido ${orderNumber} - ${settings?.name || "Minha Loja"}`,
     customer: {
@@ -140,7 +141,9 @@ export async function POST(req: NextRequest) {
       notes: notes || null,
       customerId: customerId || null,
       subtotal,
-      total: subtotal,
+      shippingCost: shippingCost || 0,
+      shippingMethod: shippingMethod || null,
+      total,
       status: "PENDING",
       items: {
         create: (items as CartItem[]).map((item) => ({
