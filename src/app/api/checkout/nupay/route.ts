@@ -145,6 +145,7 @@ export async function POST(req: NextRequest) {
       shippingMethod: shippingMethod || null,
       total,
       status: "PENDING",
+      paymentMethod: "NuPay",
       items: {
         create: (items as CartItem[]).map((item) => ({
           productId: item.productId,

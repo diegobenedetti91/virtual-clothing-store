@@ -50,15 +50,23 @@ export async function POST(req: NextRequest) {
 
     // Store payment info for future refunds
     try {
+      const updateData: any = {
+        status: newStatus,
+        paymentGateway: "nupay",
+        paymentId: orderNumber,
+        paymentMethod: "NuPay",
+      };
+
+      // NuPay fee (if available in webhook payload)
+      if (body.fee) {
+        updateData.paymentFee = body.fee;
+      }
+
       await prisma.order.update({
         where: { orderNumber },
-        data: {
-          status: newStatus,
-          paymentGateway: "nupay",
-          paymentId: orderNumber,
-        },
+        data: updateData,
       });
-      console.log("[NUPAY WEBHOOK] Order updated successfully");
+      console.log("[NUPAY WEBHOOK] Order updated successfully", { paymentFee: body.fee });
     } catch (updateErr) {
       console.error("[NUPAY WEBHOOK] Error updating order:", updateErr);
       // Continue anyway, at least update status

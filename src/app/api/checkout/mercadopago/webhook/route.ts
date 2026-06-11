@@ -69,15 +69,23 @@ export async function POST(req: NextRequest) {
 
     // Store payment info for future refunds
     try {
+      const updateData: any = {
+        status: newStatus,
+        paymentGateway: "mercadopago",
+        paymentId: String(payment.id),
+        paymentMethod: "Mercado Pago",
+      };
+
+      // Save fee and payment method when confirmed
+      if (newStatus === "CONFIRMED" && payment.fee) {
+        updateData.paymentFee = payment.fee;
+      }
+
       await prisma.order.update({
         where: { orderNumber },
-        data: {
-          status: newStatus,
-          paymentGateway: "mercadopago",
-          paymentId: String(payment.id),
-        },
+        data: updateData,
       });
-      console.log("[MP WEBHOOK] Order updated successfully");
+      console.log("[MP WEBHOOK] Order updated successfully", { paymentFee: payment.fee });
     } catch (updateErr) {
       console.error("[MP WEBHOOK] Error updating order:", updateErr);
       // Continue anyway, at least update status
