@@ -53,11 +53,15 @@ async function refundMercadoPago(paymentId: string): Promise<void> {
     throw new Error("Mercado Pago não configurado");
   }
 
+  // Generate unique idempotency key to prevent duplicate refunds
+  const idempotencyKey = `refund-${paymentId}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
   const res = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}/refunds`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${accessToken}`,
+      "X-Idempotency-Key": idempotencyKey,
     },
   });
 
