@@ -61,6 +61,17 @@ export async function POST(req: NextRequest) {
     },
     auto_return: "approved",
     notification_url: `${baseUrl}/api/checkout/mercadopago/webhook`,
+    ...(address && city ? {
+      shipments: {
+        receiver_address: {
+          zip_code: zipCode || "",
+          street_name: address || "",
+          street_number: "",
+          city_name: city || "",
+          state_name: state || "",
+        },
+      },
+    } : {}),
     metadata: {
       orderNumber,
       customerName,
