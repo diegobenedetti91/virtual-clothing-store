@@ -100,29 +100,32 @@ model WishlistItem {
 }
 
 model Order {
-  id            String        @id @default(cuid())
-  orderNumber   String        @unique
-  customerName  String
-  customerEmail String?
-  customerPhone String
-  address       String?
-  city          String?
-  state         String?
-  zipCode       String?
-  items         OrderItem[]
-  subtotal      Float
-  shippingCost  Float         @default(0)
-  shippingMethod String?
-  total         Float
-  status        String        @default("PENDING")
-  cancelReason  String?       @db.Text
-  trackingCode  String?
-  shippingProof String?
-  notes         String?       @db.Text
-  customerId    String?
-  customer      CustomerUser? @relation(fields: [customerId], references: [id])
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  id               String        @id @default(cuid())
+  orderNumber      String        @unique
+  customerName     String
+  customerEmail    String?
+  customerPhone    String
+  address          String?
+  city             String?
+  state            String?
+  zipCode          String?
+  items            OrderItem[]
+  subtotal         Float
+  shippingCost     Float         @default(0)
+  shippingMethod   String?
+  total            Float
+  status           String        @default("PENDING")
+  cancelReason     String?       @db.Text
+  trackingCode     String?
+  shippingProof    String?
+  notes            String?       @db.Text
+  customerId       String?
+  customer         CustomerUser? @relation(fields: [customerId], references: [id])
+  paymentGateway   String?
+  paymentId        String?
+  refundedAt       DateTime?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
 }
 
 model OrderItem {
