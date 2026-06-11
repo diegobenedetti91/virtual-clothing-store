@@ -38,13 +38,21 @@ export async function POST(req: NextRequest) {
   const orderNumber = generateOrderNumber();
 
   const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
+
+  // Parse phone number for MP format (area_code + number)
+  const phoneClean = customerPhone.replace(/\D/g, "");
+  const areaCode = phoneClean.length >= 11 ? phoneClean.slice(0, 2) : "";
+  const phoneNumber = phoneClean.length >= 11 ? phoneClean.slice(2) : phoneClean;
+
   const preference = {
     external_reference: orderNumber,
     items: mpItems,
     payer: {
       name: customerName,
       email: customerEmail || undefined,
-      phone: { number: customerPhone },
+      ...(areaCode && phoneNumber ? {
+        phone: { area_code: areaCode, number: phoneNumber }
+      } : {}),
     },
     back_urls: {
       success: `${baseUrl}/checkout/sucesso?order=${orderNumber}`,
