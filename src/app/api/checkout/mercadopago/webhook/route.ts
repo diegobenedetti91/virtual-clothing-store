@@ -4,26 +4,42 @@ import { sendOrderStatusEmail, sendOrderConfirmationEmail } from "@/lib/email";
 import { decrementOrderStock } from "@/lib/stockUtils";
 
 export async function POST(req: NextRequest) {
-  const body = await req.json().catch(() => ({}));
-  const { type, data } = body;
+  try {
+    const body = await req.json().catch(() => ({}));
+    const { type, data } = body;
 
-  if (type !== "payment" || !data?.id) {
-    return NextResponse.json({ ok: true });
-  }
+    console.log("[MP WEBHOOK] Received webhook:", { type, paymentId: data?.id });
 
-  const settings = await prisma.companySettings.findFirst({ orderBy: { updatedAt: "desc" } });
-  const accessToken = settings?.mercadoPagoAccessToken;
-  if (!accessToken) return NextResponse.json({ ok: true });
+    if (type !== "payment" || !data?.id) {
+      console.log("[MP WEBHOOK] Ignoring non-payment webhook");
+      return NextResponse.json({ ok: true });
+    }
 
-  const paymentRes = await fetch(`https://api.mercadopago.com/v1/payments/${data.id}`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
+    const settings = await prisma.companySettings.findFirst({ orderBy: { updatedAt: "desc" } });
+    const accessToken = settings?.mercadoPagoAccessToken;
+    if (!accessToken) {
+      console.error("[MP WEBHOOK] MP Access token not configured");
+      return NextResponse.json({ ok: true });
+    }
 
-  if (!paymentRes.ok) return NextResponse.json({ ok: true });
+    const paymentRes = await fetch(`https://api.mercadopago.com/v1/payments/${data.id}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
 
-  const payment = await paymentRes.json();
-  const orderNumber = payment.external_reference;
-  if (!orderNumber) return NextResponse.json({ ok: true });
+    if (!paymentRes.ok) {
+      const err = await paymentRes.text();
+      console.error("[MP WEBHOOK] Failed to fetch payment from MP:", err);
+      return NextResponse.json({ ok: true });
+    }
+
+    const payment = await paymentRes.json();
+    const orderNumber = payment.external_reference;
+    console.log("[MP WEBHOOK] Payment status:", { paymentStatus: payment.status, orderNumber });
+
+    if (!orderNumber) {
+      console.error("[MP WEBHOOK] No external_reference in payment");
+      return NextResponse.json({ ok: true });
+    }
 
   const statusMap: Record<string, string> = {
     approved: "CONFIRMED",
@@ -43,8 +59,15 @@ export async function POST(req: NextRequest) {
 
   // If order doesn't exist and payment is approved, create it
   if (!order && newStatus === "CONFIRMED") {
+    console.log("[MP WEBHOOK] Creating order for payment:", orderNumber);
+
     const metadata = payment.metadata || {};
     const itemsData = metadata.items ? JSON.parse(metadata.items) : [];
+
+    if (!itemsData.length) {
+      console.error("[MP WEBHOOK] No items in metadata:", metadata);
+      return NextResponse.json({ ok: true });
+    }
 
     // Fetch product info to get prices
     const productIds = itemsData.map((i: { productId: string }) => i.productId);
@@ -98,9 +121,12 @@ export async function POST(req: NextRequest) {
       });
     });
 
+    console.log("[MP WEBHOOK] Order created successfully:", orderNumber);
+
     const emailTarget = order.customerEmail;
     if (emailTarget) {
       const storeName = settings?.name || "Minha Loja";
+      console.log("[MP WEBHOOK] Sending confirmation email to:", emailTarget);
       sendOrderConfirmationEmail({
         to: emailTarget,
         customerName: order.customerName,
@@ -109,7 +135,7 @@ export async function POST(req: NextRequest) {
         items: order.items.map((i) => ({ name: i.product.name, quantity: i.quantity, price: i.price })),
         total: order.total,
         isGateway: true,
-      }).catch(console.error);
+      }).catch((err) => console.error("[MP WEBHOOK] Failed to send email:", err));
     }
   } else if (order && order.status !== newStatus) {
     // Order exists, just update status
@@ -130,7 +156,11 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    console.error("[MP WEBHOOK] Error processing webhook:", error);
+    return NextResponse.json({ ok: true });
+  }
 }
 
 // MP sends GET to validate the webhook URL
