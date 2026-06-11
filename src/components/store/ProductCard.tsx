@@ -22,12 +22,20 @@ import { useCart } from "@/hooks/useCart";
 import { useWishlist } from "@/hooks/useWishlist";
 import { track } from "@/lib/analytics";
 import { useState } from "react";
+import { Zap } from "lucide-react";
+
+interface FlashSale {
+  id: string;
+  discountType: string;
+  discountValue: number;
+}
 
 interface ProductCardProps {
   product: Product;
+  flashSale?: FlashSale;
 }
 
-export default function ProductCard({ product }: ProductCardProps) {
+export default function ProductCard({ product, flashSale }: ProductCardProps) {
   const addItem = useCart((s) => s.addItem);
   const { toggle, has } = useWishlist();
   const [added, setAdded] = useState(false);
@@ -49,10 +57,18 @@ export default function ProductCard({ product }: ProductCardProps) {
   const colorValues = allColors.slice(0, 5);
   const extraColors = allColors.length > 5 ? allColors.length - 5 : 0;
 
+  // Flash sale discount
+  let flashDiscount = 0;
+  if (flashSale) {
+    flashDiscount = flashSale.discountType === "PERCENT" ? flashSale.discountValue : (flashSale.discountValue / product.price) * 100;
+  }
+
   const discount =
-    product.comparePrice && product.comparePrice > product.price
-      ? Math.round(((product.comparePrice - product.price) / product.comparePrice) * 100)
-      : 0;
+    flashDiscount > 0
+      ? Math.round(flashDiscount)
+      : product.comparePrice && product.comparePrice > product.price
+        ? Math.round(((product.comparePrice - product.price) / product.comparePrice) * 100)
+        : 0;
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -113,12 +129,17 @@ export default function ProductCard({ product }: ProductCardProps) {
 
         {/* Badges */}
         <div className="absolute top-3 left-3 flex flex-col gap-1.5">
-          {product.featured && (
+          {flashSale && (
+            <span className="bg-red-600 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-sm tracking-wide uppercase flex items-center gap-1">
+              <Zap size={10} fill="white" /> Flash
+            </span>
+          )}
+          {product.featured && !flashSale && (
             <span className="bg-brand text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-sm tracking-wide uppercase">
               Destaque
             </span>
           )}
-          {isNew && !product.featured && (
+          {isNew && !product.featured && !flashSale && (
             <span className="bg-emerald-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-sm tracking-wide uppercase">
               Novo
             </span>
