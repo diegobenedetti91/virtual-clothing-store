@@ -346,9 +346,10 @@ export default function AccountPage() {
               orders.map((order) => {
                 const s = STATUS[order.status] || { label: order.status, dot: "bg-gray-400", badge: "bg-gray-100 text-gray-700 border border-gray-200" };
                 return (
-                  <div
+                  <Link
+                    href={`/pedido/${order.id}`}
                     key={order.id}
-                    className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:border-brand/20 hover:shadow-md transition-all"
+                    className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:border-brand/20 hover:shadow-md transition-all block"
                   >
                     <div className="flex items-start justify-between gap-3 mb-3">
                       <div>
@@ -379,7 +380,12 @@ export default function AccountPage() {
                         </div>
                       ))}
                     </div>
-                  </div>
+                    {order.status === "CONFIRMED" && (
+                      <div className="border-t border-gray-50 mt-3 pt-3">
+                        <p className="text-xs text-gray-500 mb-2">Clique para ver detalhes ou cancelar este pedido</p>
+                      </div>
+                    )}
+                  </Link>
                 );
               })
             )}
