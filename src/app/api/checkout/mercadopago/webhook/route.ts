@@ -57,6 +57,12 @@ export async function POST(req: NextRequest) {
     include: { items: { include: { product: true } } },
   });
 
+  // Don't revert cancelled orders
+  if (order?.status === "CANCELLED") {
+    console.log("[MP WEBHOOK] Order is already cancelled, ignoring webhook");
+    return NextResponse.json({ ok: true });
+  }
+
   // Order was already created with PENDING status, just update it
   if (order && order.status !== newStatus) {
     console.log("[MP WEBHOOK] Updating order status:", { orderNumber, from: order.status, to: newStatus });

@@ -39,6 +39,12 @@ export async function POST(req: NextRequest) {
     include: { items: { include: { product: true } } },
   });
 
+  // Don't revert cancelled orders
+  if (order?.status === "CANCELLED") {
+    console.log("[NUPAY WEBHOOK] Order is already cancelled, ignoring webhook");
+    return NextResponse.json({ ok: true });
+  }
+
   if (order && order.status !== newStatus) {
     console.log("[NUPAY WEBHOOK] Updating order status:", { orderNumber, from: order.status, to: newStatus });
 
