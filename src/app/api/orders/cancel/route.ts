@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
 
     const order = await prisma.order.findUnique({
       where: { orderNumber },
-      include: { customer: true, items: true },
+      include: { items: true },
     });
 
     if (!order) {
