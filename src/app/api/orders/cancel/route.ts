@@ -65,6 +65,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Update order status
+    console.log("[CANCEL] Updating order status to CANCELLED:", { orderNumber, currentStatus: order.status });
     const updatedOrder = await prisma.order.update({
       where: { orderNumber },
       data: {
@@ -73,6 +74,7 @@ export async function POST(req: NextRequest) {
       },
       include: { items: { include: { product: true } } },
     });
+    console.log("[CANCEL] Order updated successfully:", { orderNumber, newStatus: updatedOrder.status });
 
     // Send notification email to customer
     if (order.customerEmail) {
@@ -100,8 +102,9 @@ export async function POST(req: NextRequest) {
     );
   } catch (error) {
     console.error("[CANCEL] Error:", error);
+    console.error("[CANCEL] Full error details:", JSON.stringify(error, null, 2));
     return NextResponse.json(
-      { error: "Erro ao cancelar pedido" },
+      { error: `Erro ao cancelar pedido: ${String(error)}` },
       { status: 500 }
     );
   }
