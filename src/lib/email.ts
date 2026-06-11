@@ -205,3 +205,49 @@ export async function sendOrderStatusEmail({
     html,
   });
 }
+
+export async function sendNewOrderNotificationEmail({
+  to, orderNumber, customerName, customerEmail, customerPhone, storeName, items, total,
+}: {
+  to: string; orderNumber: string; customerName: string; customerEmail?: string | null; customerPhone: string; storeName: string;
+  items: { name: string; quantity: number; price: number }[];
+  total: number;
+}) {
+  if (!process.env.SMTP_USER) return;
+
+  const itemsHtml = items
+    .map((i) => `<tr><td style="padding:6px 0;color:#444;">${i.name}</td><td style="padding:6px 0;color:#888;text-align:center;">${i.quantity}×</td><td style="padding:6px 0;font-weight:600;color:#111;text-align:right;">R$ ${(i.price * i.quantity).toFixed(2).replace(".", ",")}</td></tr>`)
+    .join("");
+
+  const html = baseWrapper(`
+    <h2 style="color:#ec4899;margin:0 0 4px;">🎉 Novo pedido recebido!</h2>
+    <p style="color:#555;margin:0 0 20px;">Um cliente acaba de finalizar uma compra com pagamento confirmado.</p>
+
+    <div style="background:#fdf2f8;border-radius:10px;padding:16px 20px;margin-bottom:20px;">
+      <p style="margin:0 0 4px;font-size:12px;color:#888;">Número do pedido</p>
+      <p style="margin:0;font-weight:700;font-size:20px;color:#be185d;">${orderNumber}</p>
+    </div>
+
+    <div style="background:#f9fafb;border-radius:8px;padding:12px 16px;margin-bottom:20px;font-size:13px;">
+      <p style="margin:0 0 8px;"><strong>👤 Cliente:</strong> ${customerName}</p>
+      ${customerEmail ? `<p style="margin:0 0 8px;"><strong>📧 Email:</strong> ${customerEmail}</p>` : ""}
+      <p style="margin:0;"><strong>📱 Telefone:</strong> ${customerPhone}</p>
+    </div>
+
+    <table style="width:100%;border-collapse:collapse;margin-bottom:12px;">${itemsHtml}</table>
+    <div style="border-top:1px solid #f0f0f0;padding-top:10px;text-align:right;">
+      <span style="font-size:16px;font-weight:700;color:#111;">Total: R$ ${total.toFixed(2).replace(".", ",")}</span>
+    </div>
+
+    <div style="margin-top:20px;background:#ecfdf5;border:1px solid #d1fae5;border-radius:8px;padding:12px 16px;color:#065f46;font-size:13px;">
+      ✅ <strong>Pagamento confirmado.</strong> Pedido pronto para processamento.
+    </div>
+  `, storeName);
+
+  await transporter.sendMail({
+    from: `"${storeName}" <${process.env.SMTP_USER}>`,
+    to,
+    subject: `🎉 Novo pedido ${orderNumber} — Pagamento confirmado`,
+    html,
+  });
+}

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { sendOrderStatusEmail, sendOrderConfirmationEmail } from "@/lib/email";
+import { sendOrderStatusEmail, sendOrderConfirmationEmail, sendNewOrderNotificationEmail } from "@/lib/email";
 import { decrementOrderStock } from "@/lib/stockUtils";
 
 // NuPay status → internal status mapping
@@ -58,20 +58,38 @@ export async function POST(req: NextRequest) {
     }
 
     const emailTarget = order.customerEmail;
-    if (emailTarget) {
+    if (emailTarget || newStatus === "CONFIRMED") {
       const storeName = settings?.name || "Minha Loja";
       if (newStatus === "CONFIRMED") {
-        console.log("[NUPAY WEBHOOK] Sending confirmation email to:", emailTarget);
-        sendOrderConfirmationEmail({
-          to: emailTarget,
-          customerName: order.customerName,
-          orderNumber: order.orderNumber,
-          storeName,
-          items: order.items.map((i) => ({ name: i.product.name, quantity: i.quantity, price: i.price })),
-          total: order.total,
-          isGateway: true,
-        }).catch((err) => console.error("[NUPAY WEBHOOK] Failed to send email:", err));
-      } else if (newStatus !== "PENDING") {
+        console.log("[NUPAY WEBHOOK] Sending confirmation email to customer:", emailTarget);
+        if (emailTarget) {
+          sendOrderConfirmationEmail({
+            to: emailTarget,
+            customerName: order.customerName,
+            orderNumber: order.orderNumber,
+            storeName,
+            items: order.items.map((i) => ({ name: i.product.name, quantity: i.quantity, price: i.price })),
+            total: order.total,
+            isGateway: true,
+          }).catch((err) => console.error("[NUPAY WEBHOOK] Failed to send customer email:", err));
+        }
+
+        // Send notification email to store owner (uses SMTP_USER which is the store email)
+        const adminEmail = process.env.SMTP_USER;
+        if (adminEmail) {
+          console.log("[NUPAY WEBHOOK] Sending notification email to admin:", adminEmail);
+          sendNewOrderNotificationEmail({
+            to: adminEmail,
+            orderNumber: order.orderNumber,
+            customerName: order.customerName,
+            customerEmail: order.customerEmail,
+            customerPhone: order.customerPhone,
+            storeName,
+            items: order.items.map((i) => ({ name: i.product.name, quantity: i.quantity, price: i.price })),
+            total: order.total,
+          }).catch((err) => console.error("[NUPAY WEBHOOK] Failed to send admin email:", err));
+        }
+      } else if (newStatus !== "PENDING" && emailTarget) {
         sendOrderStatusEmail({
           to: emailTarget,
           customerName: order.customerName,
