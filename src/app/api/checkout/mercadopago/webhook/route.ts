@@ -60,12 +60,14 @@ export async function POST(req: NextRequest) {
   // If order doesn't exist and payment is approved, create it
   if (!order && newStatus === "CONFIRMED") {
     console.log("[MP WEBHOOK] Creating order for payment:", orderNumber);
+    console.log("[MP WEBHOOK] Payment metadata:", JSON.stringify(payment.metadata));
 
     const metadata = payment.metadata || {};
-    const itemsData = metadata.items ? JSON.parse(metadata.items) : [];
+    let itemsData = metadata.items ? JSON.parse(metadata.items as string) : [];
 
     if (!itemsData.length) {
       console.error("[MP WEBHOOK] No items in metadata:", metadata);
+      console.error("[MP WEBHOOK] Full payment object:", JSON.stringify(payment));
       return NextResponse.json({ ok: true });
     }
 
