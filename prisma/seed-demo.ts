@@ -90,8 +90,8 @@ async function main() {
       heroButtonSecondaryText: "Ver Novidades",
       checkoutType: "whatsapp",
       checkoutCollectAddress: true,
-      checkoutMessage:
-        "Olá! Gostaria de finalizar meu pedido. Segue abaixo os itens escolhidos:",
+      checkoutMessage: "Olá! Gostaria de finalizar meu pedido. Segue abaixo os itens escolhidos:",
+      bannerImages: "[]",
     },
   });
 

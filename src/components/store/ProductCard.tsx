@@ -20,6 +20,7 @@ import { Product } from "@/types";
 import { formatCurrency } from "@/lib/utils";
 import { useCart } from "@/hooks/useCart";
 import { useWishlist } from "@/hooks/useWishlist";
+import { track } from "@/lib/analytics";
 import { useState } from "react";
 
 interface ProductCardProps {
@@ -73,6 +74,10 @@ export default function ProductCard({ product }: ProductCardProps) {
     setTimeout(() => setAdded(false), 1800);
   };
 
+  const handleProductClick = () => {
+    track("PRODUCT_VIEW", { productId: product.id, path: `/produtos/${product.slug}` });
+  };
+
   const handleWishlist = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -86,7 +91,7 @@ export default function ProductCard({ product }: ProductCardProps) {
   };
 
   return (
-    <Link href={`/produtos/${product.slug}`} className="group block">
+    <Link href={`/produtos/${product.slug}`} className="group block" onClick={handleProductClick}>
       {/* Image area */}
       <div className="relative bg-gray-100 rounded-2xl overflow-hidden aspect-[3/4]">
         <img

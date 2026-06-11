@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useCart } from "@/hooks/useCart";
 import { useCustomer } from "@/hooks/useCustomer";
 import { formatCurrency, generateOrderNumber } from "@/lib/utils";
+import { track } from "@/lib/analytics";
 import { MessageCircle, ShoppingBag, MapPin, CreditCard, Loader2, Truck } from "lucide-react";
 import { attributesLabel } from "@/lib/variantUtils";
 import Link from "next/link";
@@ -49,6 +50,12 @@ export default function CheckoutPage() {
       router.replace("/conta/login?redirect=/checkout");
     }
   }, [customerLoading, customer, router]);
+
+  useEffect(() => {
+    if (items.length > 0) {
+      track("CHECKOUT_START", { path: "/checkout", value: total() });
+    }
+  }, []);
 
   useEffect(() => {
     fetch("/api/settings").then((r) => r.json()).then(setSettings);

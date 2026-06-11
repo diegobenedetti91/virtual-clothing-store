@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendOrderStatusEmail, sendOrderConfirmationEmail, sendNewOrderNotificationEmail } from "@/lib/email";
 import { decrementOrderStock } from "@/lib/stockUtils";
+import { track } from "@/lib/analytics";
 
 // NuPay status → internal status mapping
 const statusMap: Record<string, string> = {
@@ -87,6 +88,17 @@ export async function POST(req: NextRequest) {
         selectedAttributes: item.selectedAttributes,
       }));
       await decrementOrderStock(itemsForStock).catch(console.error);
+
+      // Track order completion
+      try {
+        await track("ORDER_COMPLETE", {
+          orderId: order.id,
+          customerId: order.customerId,
+          value: order.total,
+        });
+      } catch (err) {
+        console.error("[NUPAY WEBHOOK] Failed to track order:", err);
+      }
     }
 
     const emailTarget = order.customerEmail;

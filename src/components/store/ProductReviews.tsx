@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Star } from "lucide-react";
+import { Star, X } from "lucide-react";
 import { useCustomer } from "@/hooks/useCustomer";
 
-interface Review { id: string; authorName: string; rating: number; comment: string | null; createdAt: string }
+interface Review { id: string; authorName: string; rating: number; comment: string | null; photoUrl: string | null; createdAt: string }
 
 function Stars({ rating, interactive = false, onChange }: { rating: number; interactive?: boolean; onChange?: (r: number) => void }) {
   const [hover, setHover] = useState(0);
@@ -40,6 +40,9 @@ export default function ProductReviews({ productId }: { productId: string }) {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
+  const [photoUrl, setPhotoUrl] = useState("");
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
   useEffect(() => {
     fetch(`/api/products/${productId}/reviews`)
@@ -48,6 +51,22 @@ export default function ProductReviews({ productId }: { productId: string }) {
   }, [productId]);
 
   const avgRating = reviews.length > 0 ? reviews.reduce((s, r) => s + r.rating, 0) / reviews.length : 0;
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingPhoto(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      const data = await res.json();
+      if (res.ok) setPhotoUrl(data.filename);
+      else setError("Erro ao fazer upload da foto");
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -58,7 +77,7 @@ export default function ProductReviews({ productId }: { productId: string }) {
       const res = await fetch(`/api/products/${productId}/reviews`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rating, comment: comment.trim() || null, authorName }),
+        body: JSON.stringify({ rating, comment: comment.trim() || null, authorName, photoUrl: photoUrl || null }),
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error || "Erro ao enviar avaliação"); return; }
@@ -96,8 +115,28 @@ export default function ProductReviews({ productId }: { productId: string }) {
                 <span className="text-xs text-gray-400 ml-auto">{new Date(r.createdAt).toLocaleDateString("pt-BR")}</span>
               </div>
               {r.comment && <p className="text-sm text-gray-600 leading-relaxed">{r.comment}</p>}
+              {r.photoUrl && (
+                <img
+                  src={`/uploads/${r.photoUrl}`}
+                  alt="Foto da avaliação"
+                  onClick={() => setLightboxImage(`/uploads/${r.photoUrl}`)}
+                  className="mt-3 w-32 h-32 object-cover rounded-lg cursor-pointer hover:opacity-90"
+                />
+              )}
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Lightbox */}
+      {lightboxImage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-80" onClick={() => setLightboxImage(null)}>
+          <div className="relative max-w-2xl max-h-[80vh]">
+            <img src={lightboxImage} alt="Ampliada" className="max-w-full max-h-[80vh] object-contain" />
+            <button onClick={() => setLightboxImage(null)} className="absolute top-4 right-4 bg-white rounded-full p-2 hover:bg-gray-100">
+              <X size={20} />
+            </button>
+          </div>
         </div>
       )}
 
@@ -136,6 +175,20 @@ export default function ProductReviews({ productId }: { productId: string }) {
                 placeholder="Conte o que achou do produto..."
                 className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-none"
               />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Foto (opcional)</label>
+              <div className="flex gap-2 items-end">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handlePhotoUpload}
+                  disabled={uploadingPhoto}
+                  className="flex-1 text-sm"
+                />
+                {uploadingPhoto && <span className="text-xs text-gray-400">Enviando...</span>}
+              </div>
+              {photoUrl && <p className="text-xs text-green-600 mt-1.5">Foto adicionada ✓</p>}
             </div>
             {error && <p className="text-sm text-red-600">{error}</p>}
             <button

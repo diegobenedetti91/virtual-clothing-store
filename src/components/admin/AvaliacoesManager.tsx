@@ -6,7 +6,7 @@ import Link from "next/link";
 
 interface Review {
   id: string; productId: string; authorName: string;
-  rating: number; comment: string | null; approved: boolean;
+  rating: number; comment: string | null; photoUrl: string | null; approved: boolean;
   createdAt: string;
   product: { name: string; slug: string };
 }
@@ -85,6 +85,7 @@ export default function AvaliacoesManager() {
                     {r.product.name}
                   </Link>
                   {r.comment && <p className="text-sm text-gray-700 mt-2 leading-relaxed">{r.comment}</p>}
+                  {r.photoUrl && <img src={`/uploads/${r.photoUrl}`} alt="Foto" className="mt-2 w-24 h-24 object-cover rounded-lg" />}
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
                   {!r.approved && (

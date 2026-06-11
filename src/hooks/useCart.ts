@@ -4,6 +4,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { CartItem } from "@/types";
 import { variantKey } from "@/lib/variantUtils";
+import { track } from "@/lib/analytics";
 
 function itemKey(item: Pick<CartItem, "productId" | "selectedAttributes" | "size" | "color">): string {
   if (item.selectedAttributes && Object.keys(item.selectedAttributes).length > 0) {
@@ -28,6 +29,7 @@ export const useCart = create<CartStore>()(
       items: [],
 
       addItem: (item) => {
+        track("ADD_TO_CART", { productId: item.productId, value: item.price });
         set((state) => {
           const key = itemKey(item);
           const existing = state.items.find((i) => itemKey(i) === key);

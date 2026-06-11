@@ -16,7 +16,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
 export async function POST(req: NextRequest, { params }: Params) {
   const { id } = await params;
   const customer = getCustomerFromRequest(req);
-  const { rating, comment, authorName } = await req.json();
+  const { rating, comment, authorName, photoUrl } = await req.json();
 
   if (!rating || rating < 1 || rating > 5) {
     return NextResponse.json({ error: "Nota inválida" }, { status: 400 });
@@ -40,6 +40,7 @@ export async function POST(req: NextRequest, { params }: Params) {
       authorName: name,
       rating,
       comment: comment?.trim() || null,
+      photoUrl: photoUrl || null,
       approved: false,
     },
   });

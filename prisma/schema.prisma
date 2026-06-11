@@ -65,14 +65,14 @@ model Product {
   price        Float
   comparePrice Float?
   costPrice    Float?
-  images       String          @default("[]") @db.Text
+  images       String          @db.Text
   categoryId   String
   category     Category        @relation(fields: [categoryId], references: [id])
-  sizes        String          @default("[]") @db.Text
-  colors       String          @default("[]") @db.Text
-  attributes   String          @default("[]") @db.Text
+  sizes        String          @db.Text
+  colors       String          @db.Text
+  attributes   String          @db.Text
   stock        Int             @default(0)
-  variantStock String          @default("[]") @db.Text
+  variantStock String          @db.Text
   pesoGramas   Int?
   embalagemId  String?
   embalagem    PackagePreset?  @relation(fields: [embalagemId], references: [id])
@@ -86,6 +86,7 @@ model Product {
   navItems     NavItem[]
   reviews      ProductReview[]
   waitlist     WaitlistEntry[]
+  flashSales   FlashSale[]
 }
 
 model WishlistItem {
@@ -126,6 +127,8 @@ model Order {
   paymentMethod    String?
   paymentFee       Float         @default(0)
   refundedAt       DateTime?
+  reviewEmailSentAt DateTime?
+  upsellEmailSentAt DateTime?
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
 }
@@ -165,7 +168,7 @@ model CompanySettings {
   primaryColor           String   @default("#ec4899")
   buttonColor            String   @default("#ec4899")
   menuColor              String   @default("#ec4899")
-  bannerImages           String   @default("[]") @db.Text
+  bannerImages           String   @db.Text
   checkoutType           String   @default("whatsapp")
   checkoutCollectEmail   Boolean  @default(false)
   checkoutCollectAddress Boolean  @default(false)
@@ -205,6 +208,7 @@ model ProductReview {
   authorName String
   rating     Int
   comment    String?       @db.Text
+  photoUrl   String?       @db.Text
   approved   Boolean       @default(false)
   createdAt  DateTime      @default(now())
 }
@@ -228,7 +232,7 @@ model WaitlistEntry {
 model VariationTemplate {
   id        String   @id @default(cuid())
   name      String   @unique
-  values    String   @default("[]") @db.Text
+  values    String   @db.Text
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -242,4 +246,38 @@ model AbandonedCart {
   reminderSent Boolean  @default(false)
   updatedAt    DateTime @updatedAt
   createdAt    DateTime @default(now())
+}
+
+model FlashSale {
+  id            String   @id @default(cuid())
+  title         String
+  productId     String?
+  product       Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  discountType  String   @default("PERCENT")
+  discountValue Float
+  startAt       DateTime
+  endAt         DateTime
+  active        Boolean  @default(true)
+  notifySent    Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([startAt, endAt])
+  @@index([active])
+}
+
+model AnalyticsEvent {
+  id         String   @id @default(cuid())
+  type       String
+  productId  String?
+  sessionId  String?
+  customerId String?
+  orderId    String?
+  path       String?
+  value      Float?
+  createdAt  DateTime @default(now())
+
+  @@index([type, createdAt])
+  @@index([productId, type])
+  @@index([sessionId])
 }
