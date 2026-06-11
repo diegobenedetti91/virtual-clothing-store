@@ -91,6 +91,9 @@ export interface Order {
   total: number;
   status: string;
   notes?: string | null;
+  paymentGateway?: string | null;
+  paymentId?: string | null;
+  refundedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }
