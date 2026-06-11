@@ -6,6 +6,8 @@ import Link from "next/link";
 import { CheckCircle2, MessageCircle, Loader2 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { CompanySettings } from "@/types";
+import { useCart } from "@/hooks/useCart";
+import { useCustomer } from "@/hooks/useCustomer";
 
 interface OrderItem {
   id: string;
@@ -76,6 +78,21 @@ export default function CheckoutSucessoPage() {
   const [loading, setLoading] = useState(true);
   const [waOpened, setWaOpened] = useState(false);
   const hasSent = useRef(false);
+
+  // Clear cart on successful payment
+  const { clearCart } = useCart();
+  const customer = useCustomer((s) => s.customer);
+  
+  useEffect(() => {
+    if (orderNumber && order) {
+      clearCart();
+      // Save empty cart to backend
+      const email = customer?.email || order.customerEmail;
+      if (email) {
+        fetch(`/api/cart/save?email=${encodeURIComponent(email)}`, { method: "DELETE" }).catch(() => {});
+      }
+    }
+  }, [orderNumber, order, clearCart, customer?.email]);
 
   useEffect(() => {
     if (!orderNumber) { setLoading(false); return; }

@@ -275,7 +275,7 @@ export default function CheckoutPage() {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "Erro ao iniciar pagamento");
-    clearCart();
+    // Don't clear cart here - only clear when payment is confirmed via webhook
     window.location.href = data.paymentUrl;
   };
 
@@ -306,7 +306,7 @@ export default function CheckoutPage() {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "Erro ao iniciar pagamento");
-    clearCart();
+    // Don't clear cart here - only clear when payment is confirmed via webhook
     window.location.href = data.initPoint;
   };
 
