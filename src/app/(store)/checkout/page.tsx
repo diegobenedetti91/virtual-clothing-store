@@ -614,36 +614,6 @@ export default function CheckoutPage() {
                   </div>
                 </div>
 
-                {/* How it works — dynamic by selected method */}
-                {selectedPayment === "nupay" ? (
-                  <div className="bg-purple-50 border border-purple-100 rounded-2xl p-3 text-xs text-purple-800">
-                    <p className="font-bold mb-1.5 flex items-center gap-1.5"><CreditCard size={13} /> NuPay</p>
-                    <ol className="space-y-0.5 list-decimal list-inside">
-                      <li>Clique em "Pagar com NuPay"</li>
-                      <li>Autorize com biometria</li>
-                      <li>Pedido confirmado!</li>
-                    </ol>
-                  </div>
-                ) : selectedPayment === "mercadopago" ? (
-                  <div className="bg-blue-50 border border-blue-100 rounded-2xl p-3 text-xs text-blue-800">
-                    <p className="font-bold mb-1.5 flex items-center gap-1.5"><CreditCard size={13} /> Mercado Pago</p>
-                    <ol className="space-y-0.5 list-decimal list-inside">
-                      <li>Clique em "Pagar com Mercado Pago"</li>
-                      <li>Escolha: cartão, Pix ou boleto</li>
-                      <li>Pedido confirmado!</li>
-                    </ol>
-                  </div>
-                ) : (
-                  <div className="bg-green-50 border border-green-100 rounded-2xl p-3 text-xs text-green-800">
-                    <p className="font-bold mb-1.5 flex items-center gap-1.5"><MessageCircle size={13} /> WhatsApp</p>
-                    <ol className="space-y-0.5 list-decimal list-inside">
-                      <li>Clique em "Enviar pelo WhatsApp"</li>
-                      <li>Envie a mensagem</li>
-                      <li>Responderemos em breve!</li>
-                    </ol>
-                  </div>
-                )}
-
                 {selectedPayment === "nupay" ? (
                   <button type="submit" disabled={loading || !!freteForaArea} className="w-full bg-purple-600 text-white py-3.5 rounded-xl font-bold hover:bg-purple-700 transition-colors disabled:opacity-60 flex items-center justify-center gap-2 shadow-lg shadow-purple-100">
                     {loading ? <Loader2 size={18} className="animate-spin" /> : <CreditCard size={18} />}
