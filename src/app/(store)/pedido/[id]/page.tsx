@@ -15,13 +15,19 @@ export default function OrderConfirmationPage() {
   const [cancelling, setCancelling] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
   const [cancelMessage, setCancelMessage] = useState<string | null>(null);
+  const [orderCancelledLocally, setOrderCancelledLocally] = useState(false);
 
   useEffect(() => {
     fetch(`/api/orders/${id}`)
       .then((r) => r.json())
-      .then(setOrder)
+      .then((data) => {
+        // Don't override if we just cancelled locally
+        if (!orderCancelledLocally) {
+          setOrder(data);
+        }
+      })
       .finally(() => setLoading(false));
-  }, [id]);
+  }, [id, orderCancelledLocally]);
 
   const handleCancel = async () => {
     if (!order || !window.confirm("Tem certeza que deseja cancelar este pedido?")) return;
@@ -47,6 +53,8 @@ export default function OrderConfirmationPage() {
       setCancelMessage(data.message);
       // Update order state and refetch from server to ensure sync
       setOrder(data.order);
+      // Prevent automatic reload from overriding the cancelled state
+      setOrderCancelledLocally(true);
     } catch (err) {
       setCancelError("Erro ao cancelar pedido. Tente novamente.");
       console.error(err);
