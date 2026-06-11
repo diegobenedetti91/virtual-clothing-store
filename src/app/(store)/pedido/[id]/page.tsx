@@ -45,7 +45,8 @@ export default function OrderConfirmationPage() {
       }
 
       setCancelMessage(data.message);
-      setOrder({ ...order, status: "CANCELLED" });
+      // Update order state and refetch from server to ensure sync
+      setOrder(data.order);
     } catch (err) {
       setCancelError("Erro ao cancelar pedido. Tente novamente.");
       console.error(err);
