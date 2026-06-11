@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendOrderStatusEmail, sendOrderConfirmationEmail } from "@/lib/email";
 import { decrementOrderStock } from "@/lib/stockUtils";
-import { getPendingOrder, removePendingOrder } from "@/lib/pendingOrderCache";
 
 // NuPay status → internal status mapping
 const statusMap: Record<string, string> = {
@@ -34,93 +33,45 @@ export async function POST(req: NextRequest) {
   const newStatus = statusMap[nuPayStatus.toUpperCase()] ?? "PENDING";
   const settings = await prisma.companySettings.findFirst({ orderBy: { updatedAt: "desc" } });
 
-  // Check if order exists
-  let order = await prisma.order.findUnique({
+  // Order was already created with PENDING status, just update it
+  const order = await prisma.order.findUnique({
     where: { orderNumber },
     include: { items: { include: { product: true } } },
   });
 
-  // If order doesn't exist and payment is confirmed, create it
-  if (!order && newStatus === "CONFIRMED") {
-    const pendingData = getPendingOrder(orderNumber);
-    if (!pendingData) return NextResponse.json({ ok: true });
+  if (order && order.status !== newStatus) {
+    console.log("[NUPAY WEBHOOK] Updating order status:", { orderNumber, from: order.status, to: newStatus });
 
-    // Fetch product info to get prices
-    const productIds = pendingData.items.map((i) => i.productId);
-    const products = await prisma.product.findMany({ where: { id: { in: productIds } } });
-    const productMap = new Map(products.map((p) => [p.id, p]));
-
-    const fullAddress = pendingData.address && pendingData.city
-      ? `${pendingData.address}, ${pendingData.city}${pendingData.state ? `/${pendingData.state}` : ""}`
-      : null;
-
-    // Create order in transaction with stock decrement
-    order = await prisma.$transaction(async (tx) => {
-      // Decrement stock (convert selectedAttributes to string if needed)
-      const itemsForStock = pendingData.items.map((item) => ({
-        ...item,
-        selectedAttributes: item.selectedAttributes
-          ? JSON.stringify(item.selectedAttributes)
-          : null,
-      }));
-      await decrementOrderStock(itemsForStock).catch(console.error);
-
-      // Create order
-      return tx.order.create({
-        data: {
-          orderNumber,
-          customerName: pendingData.customerName,
-          customerEmail: pendingData.customerEmail,
-          customerPhone: pendingData.customerPhone,
-          address: fullAddress,
-          city: pendingData.city,
-          state: pendingData.state,
-          zipCode: pendingData.zipCode,
-          notes: pendingData.notes,
-          customerId: pendingData.customerId,
-          subtotal: pendingData.subtotal,
-          total: pendingData.subtotal,
-          status: "CONFIRMED",
-          items: {
-            create: pendingData.items.map((item) => ({
-              productId: item.productId,
-              quantity: item.quantity,
-              price: productMap.get(item.productId)?.price || 0,
-              size: item.size || null,
-              color: item.color || null,
-              selectedAttributes: item.selectedAttributes
-                ? JSON.stringify(item.selectedAttributes)
-                : null,
-            })),
-          },
-        },
-        include: { items: { include: { product: true } } },
-      });
-    });
-
-    removePendingOrder(orderNumber);
-
-    const emailTarget = order.customerEmail;
-    if (emailTarget) {
-      const storeName = settings?.name || "Minha Loja";
-      sendOrderConfirmationEmail({
-        to: emailTarget,
-        customerName: order.customerName,
-        orderNumber: order.orderNumber,
-        storeName,
-        items: order.items.map((i) => ({ name: i.product.name, quantity: i.quantity, price: i.price })),
-        total: order.total,
-        isGateway: true,
-      }).catch(console.error);
-    }
-  } else if (order && order.status !== newStatus) {
-    // Order exists, just update status
     await prisma.order.update({ where: { orderNumber }, data: { status: newStatus } });
 
+    // Decrement stock when payment is confirmed
+    if (newStatus === "CONFIRMED") {
+      console.log("[NUPAY WEBHOOK] Decrementing stock for order:", orderNumber);
+      const itemsForStock = order.items.map((item) => ({
+        productId: item.productId,
+        quantity: item.quantity,
+        size: item.size,
+        color: item.color,
+        selectedAttributes: item.selectedAttributes,
+      }));
+      await decrementOrderStock(itemsForStock).catch(console.error);
+    }
+
     const emailTarget = order.customerEmail;
     if (emailTarget) {
       const storeName = settings?.name || "Minha Loja";
-      if (newStatus !== "PENDING") {
+      if (newStatus === "CONFIRMED") {
+        console.log("[NUPAY WEBHOOK] Sending confirmation email to:", emailTarget);
+        sendOrderConfirmationEmail({
+          to: emailTarget,
+          customerName: order.customerName,
+          orderNumber: order.orderNumber,
+          storeName,
+          items: order.items.map((i) => ({ name: i.product.name, quantity: i.quantity, price: i.price })),
+          total: order.total,
+          isGateway: true,
+        }).catch((err) => console.error("[NUPAY WEBHOOK] Failed to send email:", err));
+      } else if (newStatus !== "PENDING") {
         sendOrderStatusEmail({
           to: emailTarget,
           customerName: order.customerName,

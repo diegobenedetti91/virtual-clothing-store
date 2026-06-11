@@ -104,8 +104,46 @@ export async function POST(req: NextRequest) {
 
   const mpData = await mpRes.json();
 
-  // Store order data in MP preference metadata for webhook to create order upon confirmation
-  // Do NOT create order here - only create when payment is confirmed via webhook
+  // Create order with PENDING status immediately
+  type CartItem = {
+    productId: string;
+    quantity: number;
+    price?: number;
+    size?: string;
+    color?: string;
+    selectedAttributes?: Record<string, string>;
+  };
+  const fullAddress = address && city ? `${address}, ${city}${state ? `/${state}` : ""}` : null;
+  await prisma.order.create({
+    data: {
+      orderNumber,
+      customerName,
+      customerEmail: customerEmail || null,
+      customerPhone,
+      address: fullAddress,
+      city: city || null,
+      state: state || null,
+      zipCode: zipCode || null,
+      notes: notes || null,
+      customerId: customerId || null,
+      subtotal,
+      total: subtotal,
+      status: "PENDING",
+      items: {
+        create: (items as CartItem[]).map((item) => ({
+          productId: item.productId,
+          quantity: item.quantity,
+          price: productMap.get(item.productId)!.price,
+          size: item.size || null,
+          color: item.color || null,
+          selectedAttributes: item.selectedAttributes
+            ? JSON.stringify(item.selectedAttributes)
+            : null,
+        })),
+      },
+    },
+  });
+
   return NextResponse.json({
     initPoint: mpData.init_point,
     sandboxInitPoint: mpData.sandbox_init_point,

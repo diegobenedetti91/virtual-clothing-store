@@ -57,96 +57,40 @@ export async function POST(req: NextRequest) {
     include: { items: { include: { product: true } } },
   });
 
-  // If order doesn't exist and payment is approved, create it
-  if (!order && newStatus === "CONFIRMED") {
-    console.log("[MP WEBHOOK] Creating order for payment:", orderNumber);
-    console.log("[MP WEBHOOK] Payment metadata:", JSON.stringify(payment.metadata));
+  // Order was already created with PENDING status, just update it
+  if (order && order.status !== newStatus) {
+    console.log("[MP WEBHOOK] Updating order status:", { orderNumber, from: order.status, to: newStatus });
 
-    const metadata = payment.metadata || {};
-    let itemsData = metadata.items ? JSON.parse(metadata.items as string) : [];
-
-    if (!itemsData.length) {
-      console.error("[MP WEBHOOK] No items in metadata:", metadata);
-      console.error("[MP WEBHOOK] Full payment object:", JSON.stringify(payment));
-      return NextResponse.json({ ok: true });
-    }
-
-    // Fetch product info to get prices
-    const productIds = itemsData.map((i: { productId: string }) => i.productId);
-    const products = await prisma.product.findMany({ where: { id: { in: productIds } } });
-    const productMap = new Map(products.map((p) => [p.id, p]));
-
-    const fullAddress = metadata.address && metadata.city
-      ? `${metadata.address}, ${metadata.city}${metadata.state ? `/${metadata.state}` : ""}`
-      : null;
-
-    // Create order in transaction with stock decrement
-    order = await prisma.$transaction(async (tx) => {
-      // Decrement stock (convert selectedAttributes to string if needed)
-      const itemsForStock = itemsData.map((item: { productId: string; quantity: number; size?: string; color?: string; selectedAttributes?: string }) => ({
-        productId: item.productId,
-        quantity: item.quantity,
-        size: item.size || null,
-        color: item.color || null,
-        selectedAttributes: item.selectedAttributes || null,
-      }));
-      await decrementOrderStock(itemsForStock).catch(console.error);
-
-      // Create order
-      return tx.order.create({
-        data: {
-          orderNumber,
-          customerName: metadata.customerName,
-          customerEmail: metadata.customerEmail || null,
-          customerPhone: metadata.customerPhone,
-          address: fullAddress,
-          city: metadata.city || null,
-          state: metadata.state || null,
-          zipCode: metadata.zipCode || null,
-          notes: metadata.notes || null,
-          customerId: metadata.customerId || null,
-          subtotal: metadata.subtotal || 0,
-          total: metadata.subtotal || 0,
-          status: "CONFIRMED",
-          items: {
-            create: itemsData.map((item: { productId: string; quantity: number; size?: string; color?: string; selectedAttributes?: string }) => ({
-              productId: item.productId,
-              quantity: item.quantity,
-              price: productMap.get(item.productId)?.price || 0,
-              size: item.size || null,
-              color: item.color || null,
-              selectedAttributes: item.selectedAttributes || null,
-            })),
-          },
-        },
-        include: { items: { include: { product: true } } },
-      });
-    });
-
-    console.log("[MP WEBHOOK] Order created successfully:", orderNumber);
-
-    const emailTarget = order.customerEmail;
-    if (emailTarget) {
-      const storeName = settings?.name || "Minha Loja";
-      console.log("[MP WEBHOOK] Sending confirmation email to:", emailTarget);
-      sendOrderConfirmationEmail({
-        to: emailTarget,
-        customerName: order.customerName,
-        orderNumber: order.orderNumber,
-        storeName,
-        items: order.items.map((i) => ({ name: i.product.name, quantity: i.quantity, price: i.price })),
-        total: order.total,
-        isGateway: true,
-      }).catch((err) => console.error("[MP WEBHOOK] Failed to send email:", err));
-    }
-  } else if (order && order.status !== newStatus) {
-    // Order exists, just update status
     await prisma.order.update({ where: { orderNumber }, data: { status: newStatus } });
 
+    // Decrement stock when payment is confirmed
+    if (newStatus === "CONFIRMED") {
+      console.log("[MP WEBHOOK] Decrementing stock for order:", orderNumber);
+      const itemsForStock = order.items.map((item) => ({
+        productId: item.productId,
+        quantity: item.quantity,
+        size: item.size,
+        color: item.color,
+        selectedAttributes: item.selectedAttributes,
+      }));
+      await decrementOrderStock(itemsForStock).catch(console.error);
+    }
+
     const emailTarget = order.customerEmail;
     if (emailTarget) {
       const storeName = settings?.name || "Minha Loja";
-      if (newStatus !== "PENDING") {
+      if (newStatus === "CONFIRMED") {
+        console.log("[MP WEBHOOK] Sending confirmation email to:", emailTarget);
+        sendOrderConfirmationEmail({
+          to: emailTarget,
+          customerName: order.customerName,
+          orderNumber: order.orderNumber,
+          storeName,
+          items: order.items.map((i) => ({ name: i.product.name, quantity: i.quantity, price: i.price })),
+          total: order.total,
+          isGateway: true,
+        }).catch((err) => console.error("[MP WEBHOOK] Failed to send email:", err));
+      } else if (newStatus !== "PENDING") {
         sendOrderStatusEmail({
           to: emailTarget,
           customerName: order.customerName,

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { generateOrderNumber } from "@/lib/utils";
-import { cachePendingOrder } from "@/lib/pendingOrderCache";
 
 // NuPay for Business API base URL
 // Confirm the exact URL in your NuPay for Business dashboard after credentialing
@@ -125,19 +124,37 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "NuPay não retornou URL de pagamento" }, { status: 500 });
   }
 
-  // Store order data for webhook to create order upon confirmation
-  cachePendingOrder(orderNumber, {
-    customerName,
-    customerEmail: customerEmail || null,
-    customerPhone,
-    address: address || null,
-    city: city || null,
-    state: state || null,
-    zipCode: zipCode || null,
-    notes: notes || null,
-    customerId: customerId || null,
-    subtotal,
-    items,
+  // Create order with PENDING status immediately
+  const fullAddress = address && city ? `${address}, ${city}${state ? `/${state}` : ""}` : null;
+
+  await prisma.order.create({
+    data: {
+      orderNumber,
+      customerName,
+      customerEmail: customerEmail || null,
+      customerPhone,
+      address: fullAddress,
+      city: city || null,
+      state: state || null,
+      zipCode: zipCode || null,
+      notes: notes || null,
+      customerId: customerId || null,
+      subtotal,
+      total: subtotal,
+      status: "PENDING",
+      items: {
+        create: (items as CartItem[]).map((item) => ({
+          productId: item.productId,
+          quantity: item.quantity,
+          price: productMap.get(item.productId)!.price,
+          size: item.size || null,
+          color: item.color || null,
+          selectedAttributes: item.selectedAttributes
+            ? JSON.stringify(item.selectedAttributes)
+            : null,
+        })),
+      },
+    },
   });
 
   return NextResponse.json({ paymentUrl, orderNumber });
