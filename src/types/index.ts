@@ -137,6 +137,7 @@ export interface CompanySettings {
   freteLocalRetirada?: boolean;
   mercadoPagoAtivo?: boolean;
   nuPayAtivo?: boolean;
+  whatsappAtivo?: boolean;
 }
 
 export interface CartItem {

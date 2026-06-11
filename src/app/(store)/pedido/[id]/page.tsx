@@ -110,28 +110,47 @@ export default function OrderConfirmationPage() {
         </div>
         <p className="text-xs text-gray-500 mb-4">{formatDate(order.createdAt)}</p>
 
-        <h3 className="font-semibold text-gray-900 mb-3">Itens do pedido</h3>
-        <div className="space-y-2 mb-4">
-          {order.items.map((item) => (
-            <div key={item.id} className="flex justify-between text-sm text-gray-700">
-              <span>
-                {item.product.name} × {item.quantity}
-                {item.size ? ` (${item.size})` : ""}
-                {item.color ? ` - ${item.color}` : ""}
-              </span>
-              <span>{formatCurrency(item.price * item.quantity)}</span>
-            </div>
-          ))}
+        <h3 className="font-semibold text-gray-900 mb-4">Itens do pedido</h3>
+        <div className="space-y-4 mb-6">
+          {order.items.map((item) => {
+            const images = item.product.images ? JSON.parse(item.product.images) : [];
+            const image = images[0];
+            return (
+              <div key={item.id} className="flex gap-4 p-4 bg-gray-50 rounded-lg">
+                {image && (
+                  <img
+                    src={image}
+                    alt={item.product.name}
+                    className="w-20 h-20 object-cover rounded-lg flex-shrink-0"
+                  />
+                )}
+                <div className="flex-1 flex flex-col justify-between">
+                  <div>
+                    <p className="font-semibold text-gray-900">{item.product.name}</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {item.size ? `Tamanho: ${item.size}` : ""}
+                      {item.color && item.size ? " • " : ""}
+                      {item.color ? `Cor: ${item.color}` : ""}
+                    </p>
+                  </div>
+                  <div className="flex justify-between items-end">
+                    <span className="text-sm text-gray-600">Qtd: {item.quantity}</span>
+                    <span className="font-semibold text-gray-900">{formatCurrency(item.price * item.quantity)}</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
-        <div className="border-t border-gray-100 pt-3 space-y-1">
-          <div className="flex justify-between text-sm text-gray-500">
+        <div className="border-t border-gray-100 pt-4 space-y-2">
+          <div className="flex justify-between text-sm text-gray-600">
             <span>Subtotal</span>
-            <span>{formatCurrency(order.subtotal)}</span>
+            <span className="font-medium">{formatCurrency(order.subtotal)}</span>
           </div>
           {order.shippingCost > 0 ? (
-            <div className="flex justify-between text-sm text-gray-500">
+            <div className="flex justify-between text-sm text-gray-600">
               <span>Frete{order.shippingMethod ? ` (${order.shippingMethod})` : ""}</span>
-              <span>{formatCurrency(order.shippingCost)}</span>
+              <span className="font-medium">{formatCurrency(order.shippingCost)}</span>
             </div>
           ) : (
             <div className="flex justify-between text-sm text-gray-400">
@@ -139,9 +158,19 @@ export default function OrderConfirmationPage() {
               <span>A combinar</span>
             </div>
           )}
-          <div className="flex justify-between font-bold text-gray-900 pt-1 border-t border-gray-100">
+          <div className="flex justify-between text-sm text-gray-600">
+            <span>Forma de pagamento</span>
+            <span className="font-medium">
+              {order.paymentGateway === "mercadopago"
+                ? "Mercado Pago"
+                : order.paymentGateway === "nupay"
+                ? "NuPay"
+                : "A combinar"}
+            </span>
+          </div>
+          <div className="flex justify-between font-bold text-gray-900 pt-3 border-t border-gray-100">
             <span>Total</span>
-            <span>{formatCurrency(order.total)}</span>
+            <span className="text-lg">{formatCurrency(order.total)}</span>
           </div>
         </div>
 

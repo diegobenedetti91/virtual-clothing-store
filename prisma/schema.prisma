@@ -190,6 +190,7 @@ model CompanySettings {
   freteLocalRetirada     Boolean  @default(false)
   mercadoPagoAtivo       Boolean  @default(false)
   nuPayAtivo             Boolean  @default(false)
+  whatsappAtivo          Boolean  @default(false)
   updatedAt              DateTime @updatedAt
 }
 

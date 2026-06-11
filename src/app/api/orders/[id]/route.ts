@@ -64,7 +64,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const recipientName = order.customer?.name || order.customerName;
 
   if (emailTarget) {
-    const settings = await prisma.companySettings.findFirst({ orderBy: { updatedAt: "desc" }, select: { name: true } });
+    const settings = await prisma.companySettings.findFirst({ orderBy: { updatedAt: "desc" }, select: { name: true, address: true, phone: true } });
     const storeName = settings?.name || "Minha Loja";
 
     if (status === "SHIPPED") {
@@ -75,6 +75,23 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         storeName,
         trackingCode: trackingCode || undefined,
         shippingProofUrl: shippingProof || undefined,
+      }).catch(console.error);
+    } else if (status === "PRONTO_PARA_RETIRADA") {
+      // Send ready for pickup notification
+      const pickupMessage = `
+Seu pedido ${order.orderNumber} está pronto para retirada!
+
+Endereço: ${settings?.address || "A definir"}
+${settings?.phone ? `Telefone: ${settings.phone}` : ""}
+
+Compareça em nosso endereço para fazer a retirada do seu pedido.
+`;
+      sendOrderStatusEmail({
+        to: emailTarget,
+        customerName: recipientName,
+        orderNumber: order.orderNumber,
+        newStatus: status,
+        storeName,
       }).catch(console.error);
     } else {
       sendOrderStatusEmail({

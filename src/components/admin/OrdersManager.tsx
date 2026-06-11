@@ -6,11 +6,13 @@ import { formatCurrency, formatDate, ORDER_STATUS } from "@/lib/utils";
 import { Search, ChevronDown, ChevronUp, X, AlertCircle, User, Truck, Upload, Package } from "lucide-react";
 
 const ALLOWED_TRANSITIONS: Record<string, string[]> = {
-  PENDING:   ["CONFIRMED", "CANCELLED"],
-  CONFIRMED: ["SHIPPED",   "CANCELLED"],
-  SHIPPED:   ["DELIVERED", "CANCELLED"],
-  DELIVERED: ["CANCELLED"],
-  CANCELLED: [],
+  PENDING:                    ["CONFIRMED", "CANCELLED"],
+  CONFIRMED:                  ["SHIPPED", "PRONTO_PARA_RETIRADA", "CANCELLED"],
+  SHIPPED:                    ["DELIVERED", "CANCELLED"],
+  PRONTO_PARA_RETIRADA:       ["RETIRADO", "CANCELLED"],
+  RETIRADO:                   ["CANCELLED"],
+  DELIVERED:                  ["CANCELLED"],
+  CANCELLED:                  [],
 };
 
 const STATUS_OPTIONS = [
@@ -18,6 +20,8 @@ const STATUS_OPTIONS = [
   { value: "PENDING", label: "Aguardando" },
   { value: "CONFIRMED", label: "Confirmado" },
   { value: "SHIPPED", label: "Enviado" },
+  { value: "PRONTO_PARA_RETIRADA", label: "Pronto para Retirada" },
+  { value: "RETIRADO", label: "Retirado" },
   { value: "DELIVERED", label: "Entregue" },
   { value: "CANCELLED", label: "Cancelado" },
 ];

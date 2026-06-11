@@ -47,6 +47,8 @@ export const ORDER_STATUS: Record<string, { label: string; color: string }> = {
   PENDING: { label: "Aguardando", color: "bg-yellow-100 text-yellow-800" },
   CONFIRMED: { label: "Confirmado", color: "bg-blue-100 text-blue-800" },
   SHIPPED: { label: "Enviado", color: "bg-purple-100 text-purple-800" },
+  PRONTO_PARA_RETIRADA: { label: "Pronto para Retirada", color: "bg-orange-100 text-orange-800" },
+  RETIRADO: { label: "Retirado", color: "bg-green-100 text-green-800" },
   DELIVERED: { label: "Entregue", color: "bg-green-100 text-green-800" },
   CANCELLED: { label: "Cancelado", color: "bg-red-100 text-red-800" },
 };

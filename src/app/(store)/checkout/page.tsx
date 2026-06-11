@@ -129,13 +129,15 @@ export default function CheckoutPage() {
 
   const mpAvailable = !!(settings?.mercadoPagoAtivo && settings?.mercadoPagoPublicKey);
   const nuPayAvailable = !!(settings?.nuPayAtivo && settings?.nuPayClientId);
+  const whatsappAvailable = settings?.whatsappAtivo;
 
   type PaymentMethod = "dinheiro" | "whatsapp" | "mercadopago" | "nupay";
-  const [selectedPayment, setSelectedPayment] = useState<PaymentMethod>("whatsapp");
+  const defaultPayment: PaymentMethod = whatsappAvailable ? "whatsapp" : "dinheiro";
+  const [selectedPayment, setSelectedPayment] = useState<PaymentMethod>(defaultPayment);
 
   const paymentOptions: Array<{ id: PaymentMethod; label: string; desc: string; emoji: string }> = [
-    { id: "dinheiro", label: "Dinheiro / Na entrega", desc: "Pague ao receber ou ao retirar na loja", emoji: "💵" },
-    { id: "whatsapp", label: "WhatsApp", desc: "Combinamos a forma de pagamento pela conversa", emoji: "💬" },
+    { id: "dinheiro" as PaymentMethod, label: "Dinheiro / Na entrega", desc: "Pague ao receber ou ao retirar na loja", emoji: "💵" },
+    ...(whatsappAvailable ? [{ id: "whatsapp" as PaymentMethod, label: "WhatsApp", desc: "Combinamos a forma de pagamento pela conversa", emoji: "💬" }] : []),
     ...(mpAvailable ? [{ id: "mercadopago" as PaymentMethod, label: "Mercado Pago", desc: "Cartão de crédito, Pix ou boleto", emoji: "💳" }] : []),
     ...(nuPayAvailable ? [{ id: "nupay" as PaymentMethod, label: "NuPay", desc: "Débito, crédito Nubank ou Pix em até 24×", emoji: "🟣" }] : []),
   ];
@@ -249,6 +251,13 @@ export default function CheckoutPage() {
   };
 
 const handleNuPaySubmit = async () => {
+    try {
+      validateCheckout();
+    } catch (err) {
+      alert(String(err).replace("Error: ", ""));
+      return;
+    }
+
     const res = await fetch("/api/checkout/nupay", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -284,7 +293,38 @@ const handleNuPaySubmit = async () => {
     window.location.href = data.paymentUrl;
   };
 
+  const validateCheckout = () => {
+    // Name and phone always required
+    if (!name?.trim()) throw new Error("Nome é obrigatório");
+    if (!phone?.trim()) throw new Error("Telefone é obrigatório");
+
+    // If collecting address, validate all address fields
+    if (settings?.checkoutCollectAddress || (settings?.freteAtivo && settings?.freteTipo === "local")) {
+      if (!street?.trim()) throw new Error("Rua é obrigatória");
+      if (!number?.trim()) throw new Error("Número é obrigatório");
+      if (!city?.trim()) throw new Error("Cidade é obrigatória");
+      if (!state?.trim()) throw new Error("Estado é obrigatório");
+      if (!zipCode?.trim()) throw new Error("CEP é obrigatório");
+    }
+
+    // If local pickup with retirada, block if city doesn't match
+    if (settings?.freteAtivo && settings?.freteTipo === "local" && settings?.freteLocalRetirada && freteForaArea) {
+      throw new Error(
+        `Desculpe, fazemos entrega apenas em ${settings.freteLocalCidade || "nossa cidade"}. ` +
+        `Você está em ${freteForaArea.cidade}${freteForaArea.uf ? `/${freteForaArea.uf}` : ""}. ` +
+        `Para retirada, entre em contato conosco.`
+      );
+    }
+  };
+
   const handleMercadoPagoSubmit = async () => {
+    try {
+      validateCheckout();
+    } catch (err) {
+      alert(String(err).replace("Error: ", ""));
+      return;
+    }
+
     const res = await fetch("/api/checkout/mercadopago", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
