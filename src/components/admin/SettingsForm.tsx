@@ -51,6 +51,7 @@ export default function SettingsForm({ initialSettings }: Props) {
   const [nuPayAtivo, setNuPayAtivo] = useState(
     initialSettings?.nuPayAtivo ?? initialSettings?.checkoutType === "nupay"
   );
+  const [whatsappAtivo, setWhatsappAtivo] = useState(initialSettings?.whatsappAtivo ?? true);
 
   const [freteAtivo, setFreteAtivo] = useState(initialSettings?.freteAtivo || false);
   const [freteTipo, setFreteTipo] = useState(initialSettings?.freteTipo || "fixo");
@@ -81,7 +82,7 @@ export default function SettingsForm({ initialSettings }: Props) {
           name, logo, phone, whatsapp, instagram, address, description,
           primaryColor, buttonColor, menuColor, bannerImages, checkoutType, checkoutCollectEmail, checkoutCollectAddress,
           checkoutMessage, mercadoPagoPublicKey: mpPublicKey || null, mercadoPagoAccessToken: mpAccessToken || null,
-          mercadoPagoAtivo, nuPayClientId: nuPayClientId || null, nuPayClientSecret: nuPayClientSecret || null, nuPayAtivo,
+          mercadoPagoAtivo, nuPayClientId: nuPayClientId || null, nuPayClientSecret: nuPayClientSecret || null, nuPayAtivo, whatsappAtivo,
           heroBadge, heroTitle, heroButtonText, heroButtonSecondaryText,
           freteAtivo, freteTipo, freteLocalCidade: freteLocalCidade || null, freteLocalUF: freteLocalUF || null, freteLocalRetirada,
           freteValorFixo: parseFloat(freteValorFixo) || 0,
@@ -322,6 +323,30 @@ export default function SettingsForm({ initialSettings }: Props) {
                 </div>
               )}
             </div>
+          </div>
+
+          {/* WhatsApp */}
+          <div className="border border-gray-100 rounded-xl p-4 space-y-4">
+            <label className="flex items-center justify-between cursor-pointer">
+              <div className="flex items-center gap-3">
+                <span className="text-xl">💬</span>
+                <div>
+                  <p className="font-semibold text-sm text-gray-900">WhatsApp</p>
+                  <p className="text-xs text-gray-500 mt-0.5">Oferece WhatsApp como opção de pagamento no checkout</p>
+                </div>
+              </div>
+              <div
+                className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${whatsappAtivo ? "bg-green-500" : "bg-gray-200"}`}
+                onClick={() => setWhatsappAtivo(!whatsappAtivo)}
+              >
+                <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${whatsappAtivo ? "translate-x-5" : ""}`} />
+              </div>
+            </label>
+            {!whatsappAtivo && (
+              <div className="bg-gray-50 border border-gray-100 rounded-xl p-3 text-xs text-gray-600">
+                WhatsApp está desativado. Ele não aparecerá como opção de pagamento no checkout.
+              </div>
+            )}
           </div>
 
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
