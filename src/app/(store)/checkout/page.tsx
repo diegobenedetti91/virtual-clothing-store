@@ -248,7 +248,7 @@ export default function CheckoutPage() {
     window.open(url, "_blank");
   };
 
-  const handleNuPaySubmit = async () => {
+const handleNuPaySubmit = async () => {
     const res = await fetch("/api/checkout/nupay", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -275,7 +275,12 @@ export default function CheckoutPage() {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "Erro ao iniciar pagamento");
-    // Don't clear cart here - only clear when payment is confirmed via webhook
+    // Clear cart only if payment initialization was successful
+    clearCart();
+    if (email || customer?.email) {
+      const e = email || customer!.email;
+      fetch(`/api/cart/save?email=${encodeURIComponent(e)}`, { method: "DELETE" }).catch(() => {});
+    }
     window.location.href = data.paymentUrl;
   };
 
@@ -306,7 +311,12 @@ export default function CheckoutPage() {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "Erro ao iniciar pagamento");
-    // Don't clear cart here - only clear when payment is confirmed via webhook
+    // Clear cart only if payment initialization was successful
+    clearCart();
+    if (email || customer?.email) {
+      const e = email || customer!.email;
+      fetch(`/api/cart/save?email=${encodeURIComponent(e)}`, { method: "DELETE" }).catch(() => {});
+    }
     window.location.href = data.initPoint;
   };
 
