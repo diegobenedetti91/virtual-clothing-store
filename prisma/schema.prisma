@@ -123,6 +123,8 @@ model Order {
   customer         CustomerUser? @relation(fields: [customerId], references: [id])
   paymentGateway   String?
   paymentId        String?
+  paymentMethod    String?
+  paymentFee       Float         @default(0)
   refundedAt       DateTime?
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt

@@ -93,6 +93,8 @@ export interface Order {
   notes?: string | null;
   paymentGateway?: string | null;
   paymentId?: string | null;
+  paymentMethod?: string | null;
+  paymentFee?: number;
   refundedAt?: string | null;
   createdAt: string;
   updatedAt: string;

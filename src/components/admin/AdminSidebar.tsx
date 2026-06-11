@@ -29,9 +29,10 @@ import { useState } from "react";
 
 const links = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
+  { href: "/admin/esteira", label: "Esteira de Pedidos", icon: ShoppingCart },
+  { href: "/admin/pedidos", label: "Pedidos (Listagem)", icon: Package },
   { href: "/admin/produtos", label: "Produtos", icon: Package },
   { href: "/admin/categorias", label: "Categorias", icon: Tag },
-  { href: "/admin/pedidos", label: "Pedidos", icon: ShoppingCart },
   { href: "/admin/menu", label: "Menu da loja", icon: Navigation },
   { href: "/admin/clientes", label: "Clientes", icon: Users },
   { href: "/admin/avaliacoes", label: "Avaliações", icon: Star },
