@@ -359,7 +359,7 @@ export default function CheckoutPage() {
     }
   };
 
-  const inputClass = "w-full border border-gray-300 rounded-xl px-4 py-3 text-sm text-gray-900 bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand transition";
+  const inputClass = "w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm text-gray-900 bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand transition";
   const labelClass = "block text-sm font-medium text-gray-700 mb-1.5";
 
   const UF_LIST = [
@@ -379,11 +379,11 @@ export default function CheckoutPage() {
         </div>
 
         <form onSubmit={handleSubmit}>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 space-y-5">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <div className="lg:col-span-2 space-y-4">
 
               {/* Personal data */}
-              <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm space-y-4">
+              <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm space-y-3">
                 <h2 className="text-base font-bold text-gray-900">Seus dados</h2>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -406,7 +406,7 @@ export default function CheckoutPage() {
 
               {/* Address */}
               {collectAddress && (
-                <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm space-y-4">
+                <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm space-y-3">
                   <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
                     <MapPin size={16} className="text-brand" />
                     Endereço de entrega
@@ -489,7 +489,7 @@ export default function CheckoutPage() {
                 <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm overflow-y-auto">
                   <h2 className="text-base font-bold text-gray-900 mb-4 sticky top-0 bg-white">Seu pedido</h2>
 
-                  <div className="space-y-3 mb-4">
+                  <div className="space-y-2 mb-3">
                     {items.map((item) => (
                     <div key={`${item.productId}-${item.selectedAttributes ? JSON.stringify(item.selectedAttributes) : `${item.size ?? ""}-${item.color ?? ""}`}`} className="flex items-start gap-3">
                       <img
@@ -573,7 +573,7 @@ export default function CheckoutPage() {
                 </div>
 
                 {/* Payment method selector */}
-                <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm space-y-4">
+                <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm space-y-3">
                   <div>
                     <h2 className="text-base font-bold text-gray-900">Forma de pagamento</h2>
                     <p className="text-sm text-gray-500 mt-1">Escolha como você deseja pagar</p>
