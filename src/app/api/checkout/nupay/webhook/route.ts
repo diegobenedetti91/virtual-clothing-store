@@ -43,14 +43,24 @@ export async function POST(req: NextRequest) {
     console.log("[NUPAY WEBHOOK] Updating order status:", { orderNumber, from: order.status, to: newStatus });
 
     // Store payment info for future refunds
-    await prisma.order.update({
-      where: { orderNumber },
-      data: {
-        status: newStatus,
-        paymentGateway: "nupay",
-        paymentId: orderNumber,
-      },
-    });
+    try {
+      await prisma.order.update({
+        where: { orderNumber },
+        data: {
+          status: newStatus,
+          paymentGateway: "nupay",
+          paymentId: orderNumber,
+        },
+      });
+      console.log("[NUPAY WEBHOOK] Order updated successfully");
+    } catch (updateErr) {
+      console.error("[NUPAY WEBHOOK] Error updating order:", updateErr);
+      // Continue anyway, at least update status
+      await prisma.order.update({
+        where: { orderNumber },
+        data: { status: newStatus },
+      });
+    }
 
     // Decrement stock when payment is confirmed
     if (newStatus === "CONFIRMED") {
