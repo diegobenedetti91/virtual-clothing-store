@@ -33,8 +33,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             window.OneSignalDeferred = window.OneSignalDeferred || [];
             OneSignalDeferred.push(async function(OneSignal) {
               await OneSignal.init({
-                appId: "47e5daed-ae5d-47e9-a0d0-1ed2fa2c4aa1",
-                safari_web_id: "web.onesignal.auto.2b467c5d-2ccd-4e09-a57b-cb7ab9efd0c0",
+                appId: "${process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID}",
+                safari_web_id: "${process.env.NEXT_PUBLIC_ONESIGNAL_SAFARI_ID}",
                 notifyButton: {
                   enable: true,
                 },
