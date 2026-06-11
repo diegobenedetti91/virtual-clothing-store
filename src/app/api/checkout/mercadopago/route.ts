@@ -34,7 +34,11 @@ export async function POST(req: NextRequest) {
     };
   });
 
-  // Add shipping as a separate item if applicable
+  // Calculate subtotal from products only (before adding shipping)
+  const subtotal = mpItems.reduce((s: number, i: { unit_price: number; quantity: number }) => s + i.unit_price * i.quantity, 0);
+  const total = subtotal + (shippingCost || 0);
+
+  // Add shipping as a separate item to display in MP checkout
   if (shippingCost && shippingCost > 0) {
     mpItems.push({
       id: "frete",
@@ -44,9 +48,6 @@ export async function POST(req: NextRequest) {
       currency_id: "BRL",
     });
   }
-
-  const subtotal = mpItems.reduce((s: number, i: { unit_price: number; quantity: number }) => s + i.unit_price * i.quantity, 0);
-  const total = subtotal + (shippingCost || 0);
   const orderNumber = generateOrderNumber();
 
   const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
