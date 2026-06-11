@@ -58,12 +58,18 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Determine cancel reason
+    let cancelReason = reason || null;
+    if (!isAdmin && !cancelReason) {
+      cancelReason = "Cancelado pelo cliente";
+    }
+
     // Update order status
     const updatedOrder = await prisma.order.update({
       where: { orderNumber },
       data: {
         status: "CANCELLED",
-        cancelReason: reason || null,
+        cancelReason,
       },
       include: { items: { include: { product: true } } },
     });
