@@ -5,7 +5,7 @@ import { Order } from "@/types";
 export default async function AdminOrdersPage() {
   const orders = await prisma.order.findMany({
     orderBy: { createdAt: "desc" },
-    include: { items: { include: { product: true } }, customer: true },
+    include: { items: { include: { product: true } } },
   }) as unknown as Order[];
 
   return (
