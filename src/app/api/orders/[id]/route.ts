@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendOrderStatusEmail, sendShippingEmail } from "@/lib/email";
 import { restoreOrderStock } from "@/lib/stockUtils";
+import { refundPayment } from "@/lib/refundUtils";
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -46,7 +47,18 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   });
 
   if (status === "CANCELLED" && current && current.status !== "CANCELLED") {
+    // Restore stock
     await restoreOrderStock(current.items).catch(console.error);
+
+    // Process refund if payment was confirmed
+    const fullOrder = await prisma.order.findUnique({ where: { id } });
+    if (fullOrder?.paymentGateway && fullOrder?.paymentId && fullOrder?.status === "CONFIRMED") {
+      console.log("[ADMIN CANCEL] Processing refund for order:", order.orderNumber);
+      const refundResult = await refundPayment(order.orderNumber);
+      if (!refundResult.success) {
+        console.error("[ADMIN CANCEL] Refund failed:", refundResult.message);
+      }
+    }
   }
 
   const emailTarget = order.customer?.email || order.customerEmail;
