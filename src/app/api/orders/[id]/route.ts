@@ -50,9 +50,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     // Restore stock
     await restoreOrderStock(current.items).catch(console.error);
 
-    // Process refund if payment was confirmed
-    const fullOrder = await prisma.order.findUnique({ where: { id } });
-    if (fullOrder?.paymentGateway && fullOrder?.paymentId && fullOrder?.status === "CONFIRMED") {
+    // Process refund if payment was confirmed (check current status before update)
+    if (current.status === "CONFIRMED" && order.paymentGateway && order.paymentId) {
       console.log("[ADMIN CANCEL] Processing refund for order:", order.orderNumber);
       const refundResult = await refundPayment(order.orderNumber);
       if (!refundResult.success) {
