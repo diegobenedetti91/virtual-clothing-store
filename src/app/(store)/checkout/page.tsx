@@ -137,8 +137,8 @@ export default function CheckoutPage() {
   const mpAvailable = !!(settings?.mercadoPagoAtivo && settings?.mercadoPagoPublicKey);
   const nuPayAvailable = !!(settings?.nuPayAtivo && settings?.nuPayClientId);
   const whatsappAvailable = settings?.whatsappAtivo;
-  const pixDiscount = settings?.pixDiscountPercent ?? 0;
-  const pixDiscountEnabled = settings?.pixDiscountEnabled && pixDiscount > 0;
+  const pixDiscountEnabled = settings?.pixDiscountEnabled && settings?.pixDiscountPercent > 0;
+  const pixDiscount = settings?.pixDiscountPercent || 0;
 
   type PaymentMethod = "whatsapp" | "mercadopago" | "nupay" | "pix";
 

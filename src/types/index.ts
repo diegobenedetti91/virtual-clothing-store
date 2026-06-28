@@ -140,8 +140,6 @@ export interface CompanySettings {
   mercadoPagoAtivo?: boolean;
   nuPayAtivo?: boolean;
   whatsappAtivo?: boolean;
-  pixDiscountEnabled?: boolean;
-  pixDiscountPercent?: number;
 }
 
 export interface CartItem {
