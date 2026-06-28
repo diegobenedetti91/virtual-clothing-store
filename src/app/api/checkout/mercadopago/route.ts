@@ -4,7 +4,7 @@ import { generateOrderNumber } from "@/lib/utils";
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { customerName, customerEmail, customerPhone, address, city, state, zipCode, notes, customerId, items, shippingCost, shippingMethod } = body;
+  const { customerName, customerEmail, customerPhone, address, city, state, zipCode, notes, customerId, items, shippingCost, shippingMethod, discountAmount = 0, pixOnly = false } = body;
 
   if (!customerName || !customerPhone || !items?.length) {
     return NextResponse.json({ error: "Dados incompletos" }, { status: 400 });
@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
 
   // Calculate subtotal from products only (before adding shipping)
   const subtotal = mpItems.reduce((s: number, i: { unit_price: number; quantity: number }) => s + i.unit_price * i.quantity, 0);
-  const total = subtotal + (shippingCost || 0);
+  const total = subtotal + (shippingCost || 0) - (discountAmount || 0);
 
   // Add shipping as a separate item to display in MP checkout
   if (shippingCost && shippingCost > 0) {
@@ -85,6 +85,24 @@ export async function POST(req: NextRequest) {
         },
       },
     } : {}),
+    // Force PIX-only if discount was applied
+    ...(pixOnly ? {
+      payment_methods: {
+        excluded_payment_methods: [
+          { id: "credit_card" },
+          { id: "debit_card" },
+          { id: "atm" },
+          { id: "ticket" },
+          { id: "bank_transfer" }
+        ],
+        excluded_payment_types: [
+          { id: "credit_card" },
+          { id: "debit_card" },
+          { id: "ticket" }
+        ],
+        default_payment_method_id: "pix",
+      }
+    } : {}),
     metadata: {
       orderNumber,
       customerName,
@@ -97,6 +115,8 @@ export async function POST(req: NextRequest) {
       notes: notes || "",
       customerId: customerId || "",
       items: JSON.stringify(items),
+      pixOnly: pixOnly ? "true" : "false",
+      discountAmount: discountAmount || 0,
     },
   };
 

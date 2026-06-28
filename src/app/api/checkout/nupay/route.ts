@@ -26,7 +26,7 @@ async function getNuPayToken(clientId: string, clientSecret: string): Promise<st
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { customerName, customerEmail, customerPhone, address, city, state, zipCode, notes, customerId, items, shippingCost, shippingMethod } = body;
+  const { customerName, customerEmail, customerPhone, address, city, state, zipCode, notes, customerId, items, shippingCost, shippingMethod, discountAmount = 0, pixOnly = false } = body;
 
   if (!customerName || !customerPhone || !items?.length) {
     return NextResponse.json({ error: "Dados incompletos" }, { status: 400 });
@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
     (s: number, i: { unitPrice: number; quantity: number }) => s + i.unitPrice * i.quantity,
     0
   );
-  const total = subtotal + (shippingCost || 0);
+  const total = subtotal + (shippingCost || 0) - (discountAmount || 0);
   const orderNumber = generateOrderNumber();
   const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
 
@@ -100,6 +100,14 @@ export async function POST(req: NextRequest) {
     returnUrl: `${baseUrl}/checkout/sucesso?order=${orderNumber}`,
     cancelUrl: `${baseUrl}/checkout/falha?order=${orderNumber}`,
     notificationUrl: `${baseUrl}/api/checkout/nupay/webhook`,
+    // Force PIX-only if discount was applied
+    ...(pixOnly ? {
+      paymentMethod: "pix",
+      metadata: {
+        pixOnly: "true",
+        discountAmount: discountAmount || 0,
+      }
+    } : {}),
   };
 
   const nuPayRes = await fetch(`${NUPAY_API_URL}/v1/orders`, {

@@ -196,6 +196,8 @@ model CompanySettings {
   mercadoPagoAtivo       Boolean  @default(false)
   nuPayAtivo             Boolean  @default(false)
   whatsappAtivo          Boolean  @default(false)
+  pixDiscountEnabled     Boolean  @default(false)
+  pixDiscountPercent     Float    @default(0)
   updatedAt              DateTime @updatedAt
 }
 

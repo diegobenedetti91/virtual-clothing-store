@@ -137,10 +137,13 @@ export default function CheckoutPage() {
   const mpAvailable = !!(settings?.mercadoPagoAtivo && settings?.mercadoPagoPublicKey);
   const nuPayAvailable = !!(settings?.nuPayAtivo && settings?.nuPayClientId);
   const whatsappAvailable = settings?.whatsappAtivo;
+  const pixDiscountEnabled = settings?.pixDiscountEnabled && settings?.pixDiscountPercent > 0;
+  const pixDiscount = settings?.pixDiscountPercent || 0;
 
-  type PaymentMethod = "whatsapp" | "mercadopago" | "nupay";
+  type PaymentMethod = "whatsapp" | "mercadopago" | "nupay" | "pix";
 
-  const paymentOptions: Array<{ id: PaymentMethod; label: string; desc: string; emoji: string }> = [
+  const paymentOptions: Array<{ id: PaymentMethod; label: string; desc: string; emoji: string; discount?: number }> = [
+    ...(pixDiscountEnabled ? [{ id: "pix" as PaymentMethod, label: `PIX com Desconto`, desc: `Desconto de ${pixDiscount}% em pagamentos via PIX`, emoji: "💰", discount: pixDiscount }] : []),
     ...(whatsappAvailable ? [{ id: "whatsapp" as PaymentMethod, label: "WhatsApp", desc: "Combinamos a forma de pagamento pela conversa", emoji: "💬" }] : []),
     ...(mpAvailable ? [{ id: "mercadopago" as PaymentMethod, label: "Mercado Pago", desc: "Cartão de crédito, Pix ou boleto", emoji: "💳" }] : []),
     ...(nuPayAvailable ? [{ id: "nupay" as PaymentMethod, label: "NuPay", desc: "Débito, crédito Nubank ou Pix em até 24×", emoji: "🟣" }] : []),
@@ -148,6 +151,9 @@ export default function CheckoutPage() {
 
   const defaultPayment: PaymentMethod = paymentOptions.length > 0 ? paymentOptions[0].id : "whatsapp";
   const [selectedPayment, setSelectedPayment] = useState<PaymentMethod>(defaultPayment);
+
+  const discountAmount = selectedPayment === "pix" ? (total() * pixDiscount) / 100 : 0;
+  const finalTotal = total() + (selectedShipping?.valor || 0) - discountAmount;
 
   const fullAddress = collectAddress && street
     ? `${street}, ${number}${neighborhood ? ` - ${neighborhood}` : ""}, ${city}${state ? `/${state}` : ""}${zipCode ? ` - CEP: ${zipCode}` : ""}`
@@ -256,7 +262,7 @@ export default function CheckoutPage() {
     window.open(url, "_blank");
   };
 
-const handleNuPaySubmit = async () => {
+const handleNuPaySubmit = async (forcePixOnly: boolean = false) => {
     try {
       validateCheckout();
     } catch (err) {
@@ -279,6 +285,8 @@ const handleNuPaySubmit = async () => {
         customerId: customer?.id || null,
         shippingCost: selectedShipping?.valor || 0,
         shippingMethod: selectedShipping?.servico || null,
+        discountAmount: discountAmount,
+        pixOnly: forcePixOnly,
         items: items.map((item) => ({
           productId: item.productId,
           quantity: item.quantity,
@@ -323,7 +331,7 @@ const handleNuPaySubmit = async () => {
     }
   };
 
-  const handleMercadoPagoSubmit = async () => {
+  const handleMercadoPagoSubmit = async (forcePixOnly: boolean = false) => {
     try {
       validateCheckout();
     } catch (err) {
@@ -346,6 +354,8 @@ const handleNuPaySubmit = async () => {
         customerId: customer?.id || null,
         shippingCost: selectedShipping?.valor || 0,
         shippingMethod: selectedShipping?.servico || null,
+        discountAmount: discountAmount,
+        pixOnly: forcePixOnly,
         items: items.map((item) => ({
           productId: item.productId,
           quantity: item.quantity,
@@ -401,10 +411,18 @@ const handleNuPaySubmit = async () => {
         alert(`Estoque insuficiente para alguns itens:\n\n${stockError}\n\nAtualize o carrinho antes de continuar.`);
         return;
       }
-      if (selectedPayment === "mercadopago") {
-        await handleMercadoPagoSubmit();
+      if (selectedPayment === "pix") {
+        // User selected PIX discount - use Mercado Pago or NuPay with PIX-only restriction
+        // Prefer Mercado Pago if available, otherwise use NuPay
+        if (mpAvailable) {
+          await handleMercadoPagoSubmit(true);
+        } else if (nuPayAvailable) {
+          await handleNuPaySubmit(true);
+        }
+      } else if (selectedPayment === "mercadopago") {
+        await handleMercadoPagoSubmit(false);
       } else if (selectedPayment === "nupay") {
-        await handleNuPaySubmit();
+        await handleNuPaySubmit(false);
       } else {
         await handleWhatsAppSubmit();
       }
@@ -621,9 +639,16 @@ const handleNuPaySubmit = async () => {
                     </div>
                   )}
 
+                    {discountAmount > 0 && (
+                      <div className="flex justify-between text-sm text-green-600 font-semibold">
+                        <span>🎉 Desconto PIX ({pixDiscount}%)</span>
+                        <span>-{formatCurrency(discountAmount)}</span>
+                      </div>
+                    )}
+
                     <div className="flex justify-between font-black text-gray-900 text-lg pt-2 border-t border-gray-100">
                       <span>Total</span>
-                      <span>{formatCurrency(total() + (selectedShipping?.valor || 0))}</span>
+                      <span>{formatCurrency(finalTotal)}</span>
                     </div>
                   </div>
                 </div>
@@ -670,7 +695,12 @@ const handleNuPaySubmit = async () => {
                   </div>
                 </div>
 
-                {selectedPayment === "nupay" ? (
+                {selectedPayment === "pix" ? (
+                  <button type="submit" disabled={loading || !!freteForaArea} className="w-full bg-gradient-to-r from-yellow-500 to-orange-500 text-white py-3.5 rounded-xl font-bold hover:from-yellow-600 hover:to-orange-600 transition-colors disabled:opacity-60 flex items-center justify-center gap-2 shadow-lg shadow-yellow-200">
+                    {loading ? <Loader2 size={18} className="animate-spin" /> : <span className="text-xl">🎉</span>}
+                    {loading ? "Aguarde..." : `Pagar com PIX (${pixDiscount}% off)`}
+                  </button>
+                ) : selectedPayment === "nupay" ? (
                   <button type="submit" disabled={loading || !!freteForaArea} className="w-full bg-purple-600 text-white py-3.5 rounded-xl font-bold hover:bg-purple-700 transition-colors disabled:opacity-60 flex items-center justify-center gap-2 shadow-lg shadow-purple-100">
                     {loading ? <Loader2 size={18} className="animate-spin" /> : <CreditCard size={18} />}
                     {loading ? "Aguarde..." : "Pagar com NuPay"}
