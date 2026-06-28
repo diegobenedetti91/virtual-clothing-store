@@ -19,6 +19,7 @@ export async function PUT(req: NextRequest) {
     freteAtivo, freteTipo, freteValorFixo, freteCEPOrigem, fretePesoDefaultGramas,
     melhorEnvioToken, fretePacoteAltura, fretePacoteLargura, fretePacoteComprimento,
     freteLocalCidade, freteLocalUF, freteLocalRetirada, mercadoPagoAtivo, nuPayAtivo,
+    pixDiscountEnabled, pixDiscountPercent, whatsappAtivo,
   } = body;
 
   let settings = await prisma.companySettings.findFirst(ORDER);
@@ -60,6 +61,9 @@ export async function PUT(req: NextRequest) {
     freteLocalRetirada: !!freteLocalRetirada,
     mercadoPagoAtivo: !!mercadoPagoAtivo,
     nuPayAtivo: !!nuPayAtivo,
+    whatsappAtivo: !!whatsappAtivo,
+    pixDiscountEnabled: !!pixDiscountEnabled,
+    pixDiscountPercent: typeof pixDiscountPercent === "number" ? pixDiscountPercent : 0,
   };
 
   if (settings) {
