@@ -5,6 +5,7 @@ import { getCompanySettings } from "@/lib/company";
 import HeroBanner from "@/components/store/HeroBanner";
 import ProductCard from "@/components/store/ProductCard";
 import NewArrivalsSection from "@/components/store/NewArrivalsSection";
+import { StoreStats } from "@/components/store/StoreStats";
 import Link from "next/link";
 import { ArrowRight, Sparkles, ShieldCheck, Truck, RefreshCcw, MessageCircle } from "lucide-react";
 
@@ -57,6 +58,9 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   return (
     <>
       <HeroBanner settings={settings} />
+
+      {/* Store Stats - Delivered Orders & Items Sold */}
+      <StoreStats />
 
       {/* Features strip */}
       <section className="bg-white border-y border-gray-100 py-6">

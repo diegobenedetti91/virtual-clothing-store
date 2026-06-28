@@ -138,16 +138,16 @@ export default function CheckoutPage() {
   const nuPayAvailable = !!(settings?.nuPayAtivo && settings?.nuPayClientId);
   const whatsappAvailable = settings?.whatsappAtivo;
 
-  type PaymentMethod = "dinheiro" | "whatsapp" | "mercadopago" | "nupay";
-  const defaultPayment: PaymentMethod = whatsappAvailable ? "whatsapp" : "dinheiro";
-  const [selectedPayment, setSelectedPayment] = useState<PaymentMethod>(defaultPayment);
+  type PaymentMethod = "whatsapp" | "mercadopago" | "nupay";
 
   const paymentOptions: Array<{ id: PaymentMethod; label: string; desc: string; emoji: string }> = [
-    { id: "dinheiro" as PaymentMethod, label: "Dinheiro / Na entrega", desc: "Pague ao receber ou ao retirar na loja", emoji: "💵" },
     ...(whatsappAvailable ? [{ id: "whatsapp" as PaymentMethod, label: "WhatsApp", desc: "Combinamos a forma de pagamento pela conversa", emoji: "💬" }] : []),
     ...(mpAvailable ? [{ id: "mercadopago" as PaymentMethod, label: "Mercado Pago", desc: "Cartão de crédito, Pix ou boleto", emoji: "💳" }] : []),
     ...(nuPayAvailable ? [{ id: "nupay" as PaymentMethod, label: "NuPay", desc: "Débito, crédito Nubank ou Pix em até 24×", emoji: "🟣" }] : []),
   ];
+
+  const defaultPayment: PaymentMethod = paymentOptions.length > 0 ? paymentOptions[0].id : "whatsapp";
+  const [selectedPayment, setSelectedPayment] = useState<PaymentMethod>(defaultPayment);
 
   const fullAddress = collectAddress && street
     ? `${street}, ${number}${neighborhood ? ` - ${neighborhood}` : ""}, ${city}${state ? `/${state}` : ""}${zipCode ? ` - CEP: ${zipCode}` : ""}`
@@ -210,7 +210,6 @@ export default function CheckoutPage() {
       `💰 *Subtotal:* ${formatCurrency(total())}`,
       `🚚 *Frete:* ${freteTexto}`,
       `💳 *Total:* ${formatCurrency(total() + (selectedShipping?.valor || 0))}`,
-      `💵 *Pagamento:* ${selectedPayment === "dinheiro" ? "Dinheiro / Na entrega" : "A combinar via WhatsApp"}`,
       ...(notes ? [``, `📝 *Observações:* ${notes}`] : []),
       ``,
       `_Pedido gerado em ${new Date().toLocaleString("pt-BR")}_`,
