@@ -52,8 +52,8 @@ export default function SettingsForm({ initialSettings }: Props) {
     initialSettings?.nuPayAtivo ?? initialSettings?.checkoutType === "nupay"
   );
   const [whatsappAtivo, setWhatsappAtivo] = useState(initialSettings?.whatsappAtivo ?? true);
-  const [pixDiscountEnabled, setPixDiscountEnabled] = useState(initialSettings?.pixDiscountEnabled || false);
-  const [pixDiscountPercent, setPixDiscountPercent] = useState(initialSettings?.pixDiscountPercent?.toString() || "0");
+  const [pixDiscountEnabled, setPixDiscountEnabled] = useState(initialSettings?.pixDiscountEnabled ?? false);
+  const [pixDiscountPercent, setPixDiscountPercent] = useState((initialSettings?.pixDiscountPercent ?? 0).toString());
 
   const [freteAtivo, setFreteAtivo] = useState(initialSettings?.freteAtivo || false);
   const [freteTipo, setFreteTipo] = useState(initialSettings?.freteTipo || "fixo");
