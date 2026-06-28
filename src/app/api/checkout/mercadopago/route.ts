@@ -39,12 +39,14 @@ export async function POST(req: NextRequest) {
   const total = subtotal + (shippingCost || 0) - (discountAmount || 0);
 
   // Add shipping as a separate item to display in MP checkout
+  // Apply discount to shipping cost if available
+  const shippingWithDiscount = Math.max(0, (shippingCost || 0) - (discountAmount || 0));
   if (shippingCost && shippingCost > 0) {
     mpItems.push({
       id: "frete",
       title: `Frete${shippingMethod ? ` (${shippingMethod})` : ""}`,
       quantity: 1,
-      unit_price: shippingCost,
+      unit_price: shippingWithDiscount,
       currency_id: "BRL",
     });
   }
