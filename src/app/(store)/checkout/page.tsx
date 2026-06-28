@@ -138,12 +138,13 @@ export default function CheckoutPage() {
   const nuPayAvailable = !!(settings?.nuPayAtivo && settings?.nuPayClientId);
   const whatsappAvailable = settings?.whatsappAtivo;
   const pixDiscount = settings?.pixDiscountPercent ?? 0;
-  const pixDiscountEnabled = settings?.pixDiscountEnabled && pixDiscount > 0;
+  const pixDiscountAvailable = settings?.pixDiscountEnabled && pixDiscount > 0;
 
-  type PaymentMethod = "whatsapp" | "mercadopago" | "nupay" | "pix";
+  const [applyPixDiscount, setApplyPixDiscount] = useState(false);
 
-  const paymentOptions: Array<{ id: PaymentMethod; label: string; desc: string; emoji: string; discount?: number }> = [
-    ...(pixDiscountEnabled ? [{ id: "pix" as PaymentMethod, label: `PIX com Desconto`, desc: `Desconto de ${pixDiscount}% em pagamentos via PIX`, emoji: "💰", discount: pixDiscount }] : []),
+  type PaymentMethod = "whatsapp" | "mercadopago" | "nupay";
+
+  const paymentOptions: Array<{ id: PaymentMethod; label: string; desc: string; emoji: string }> = [
     ...(whatsappAvailable ? [{ id: "whatsapp" as PaymentMethod, label: "WhatsApp", desc: "Combinamos a forma de pagamento pela conversa", emoji: "💬" }] : []),
     ...(mpAvailable ? [{ id: "mercadopago" as PaymentMethod, label: "Mercado Pago", desc: "Cartão de crédito, Pix ou boleto", emoji: "💳" }] : []),
     ...(nuPayAvailable ? [{ id: "nupay" as PaymentMethod, label: "NuPay", desc: "Débito, crédito Nubank ou Pix em até 24×", emoji: "🟣" }] : []),
@@ -152,7 +153,7 @@ export default function CheckoutPage() {
   const defaultPayment: PaymentMethod = paymentOptions.length > 0 ? paymentOptions[0].id : "whatsapp";
   const [selectedPayment, setSelectedPayment] = useState<PaymentMethod>(defaultPayment);
 
-  const discountAmount = selectedPayment === "pix" ? (total() * pixDiscount) / 100 : 0;
+  const discountAmount = applyPixDiscount ? (total() * pixDiscount) / 100 : 0;
   const finalTotal = total() + (selectedShipping?.valor || 0) - discountAmount;
 
   const fullAddress = collectAddress && street
@@ -411,18 +412,10 @@ const handleNuPaySubmit = async (forcePixOnly: boolean = false) => {
         alert(`Estoque insuficiente para alguns itens:\n\n${stockError}\n\nAtualize o carrinho antes de continuar.`);
         return;
       }
-      if (selectedPayment === "pix") {
-        // User selected PIX discount - use Mercado Pago or NuPay with PIX-only restriction
-        // Prefer Mercado Pago if available, otherwise use NuPay
-        if (mpAvailable) {
-          await handleMercadoPagoSubmit(true);
-        } else if (nuPayAvailable) {
-          await handleNuPaySubmit(true);
-        }
-      } else if (selectedPayment === "mercadopago") {
-        await handleMercadoPagoSubmit(false);
+      if (selectedPayment === "mercadopago") {
+        await handleMercadoPagoSubmit(applyPixDiscount);
       } else if (selectedPayment === "nupay") {
-        await handleNuPaySubmit(false);
+        await handleNuPaySubmit(applyPixDiscount);
       } else {
         await handleWhatsAppSubmit();
       }
@@ -653,6 +646,24 @@ const handleNuPaySubmit = async (forcePixOnly: boolean = false) => {
                   </div>
                 </div>
 
+                {/* PIX Discount Checkbox */}
+                {pixDiscountAvailable && (
+                  <div className="bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-2xl p-4 shadow-sm">
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={applyPixDiscount}
+                        onChange={(e) => setApplyPixDiscount(e.target.checked)}
+                        className="w-5 h-5 accent-yellow-500 rounded cursor-pointer"
+                      />
+                      <div>
+                        <p className="font-semibold text-sm text-gray-900">🎉 Desejo pagar com PIX e ganhar {pixDiscount}% de desconto</p>
+                        <p className="text-xs text-gray-600 mt-0.5">O desconto será aplicado no total abaixo</p>
+                      </div>
+                    </label>
+                  </div>
+                )}
+
                 {/* Payment method selector */}
                 <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm space-y-3">
                   <div>
@@ -695,20 +706,15 @@ const handleNuPaySubmit = async (forcePixOnly: boolean = false) => {
                   </div>
                 </div>
 
-                {selectedPayment === "pix" ? (
-                  <button type="submit" disabled={loading || !!freteForaArea} className="w-full bg-gradient-to-r from-yellow-500 to-orange-500 text-white py-3.5 rounded-xl font-bold hover:from-yellow-600 hover:to-orange-600 transition-colors disabled:opacity-60 flex items-center justify-center gap-2 shadow-lg shadow-yellow-200">
-                    {loading ? <Loader2 size={18} className="animate-spin" /> : <span className="text-xl">🎉</span>}
-                    {loading ? "Aguarde..." : `Pagar com PIX (${pixDiscount}% off)`}
-                  </button>
-                ) : selectedPayment === "nupay" ? (
+                {selectedPayment === "nupay" ? (
                   <button type="submit" disabled={loading || !!freteForaArea} className="w-full bg-purple-600 text-white py-3.5 rounded-xl font-bold hover:bg-purple-700 transition-colors disabled:opacity-60 flex items-center justify-center gap-2 shadow-lg shadow-purple-100">
                     {loading ? <Loader2 size={18} className="animate-spin" /> : <CreditCard size={18} />}
-                    {loading ? "Aguarde..." : "Pagar com NuPay"}
+                    {loading ? "Aguarde..." : `Pagar com NuPay${applyPixDiscount ? " (PIX)" : ""}`}
                   </button>
                 ) : selectedPayment === "mercadopago" ? (
                   <button type="submit" disabled={loading || !!freteForaArea} className="w-full bg-blue-600 text-white py-3.5 rounded-xl font-bold hover:bg-blue-700 transition-colors disabled:opacity-60 flex items-center justify-center gap-2 shadow-lg shadow-blue-100">
                     {loading ? <Loader2 size={18} className="animate-spin" /> : <CreditCard size={18} />}
-                    {loading ? "Aguarde..." : "Pagar com Mercado Pago"}
+                    {loading ? "Aguarde..." : `Pagar com Mercado Pago${applyPixDiscount ? " (PIX)" : ""}`}
                   </button>
                 ) : (
                   <button type="submit" disabled={loading || !!freteForaArea} className="w-full bg-green-600 text-white py-3.5 rounded-xl font-bold hover:bg-green-700 transition-colors disabled:opacity-60 flex items-center justify-center gap-2 shadow-lg shadow-green-100">
