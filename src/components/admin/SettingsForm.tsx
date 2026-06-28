@@ -52,6 +52,8 @@ export default function SettingsForm({ initialSettings }: Props) {
     initialSettings?.nuPayAtivo ?? initialSettings?.checkoutType === "nupay"
   );
   const [whatsappAtivo, setWhatsappAtivo] = useState(initialSettings?.whatsappAtivo ?? true);
+  const [pixDiscountEnabled, setPixDiscountEnabled] = useState(initialSettings?.pixDiscountEnabled || false);
+  const [pixDiscountPercent, setPixDiscountPercent] = useState(initialSettings?.pixDiscountPercent?.toString() || "0");
 
   const [freteAtivo, setFreteAtivo] = useState(initialSettings?.freteAtivo || false);
   const [freteTipo, setFreteTipo] = useState(initialSettings?.freteTipo || "fixo");
@@ -84,6 +86,7 @@ export default function SettingsForm({ initialSettings }: Props) {
           checkoutMessage, mercadoPagoPublicKey: mpPublicKey || null, mercadoPagoAccessToken: mpAccessToken || null,
           mercadoPagoAtivo, nuPayClientId: nuPayClientId || null, nuPayClientSecret: nuPayClientSecret || null, nuPayAtivo, whatsappAtivo,
           heroBadge, heroTitle, heroButtonText, heroButtonSecondaryText,
+          pixDiscountEnabled, pixDiscountPercent: parseFloat(pixDiscountPercent) || 0,
           freteAtivo, freteTipo, freteLocalCidade: freteLocalCidade || null, freteLocalUF: freteLocalUF || null, freteLocalRetirada,
           freteValorFixo: parseFloat(freteValorFixo) || 0,
           freteCEPOrigem: freteCEPOrigem || null,
@@ -345,6 +348,60 @@ export default function SettingsForm({ initialSettings }: Props) {
             {!whatsappAtivo && (
               <div className="bg-gray-50 border border-gray-100 rounded-xl p-3 text-xs text-gray-600">
                 WhatsApp está desativado. Ele não aparecerá como opção de pagamento no checkout.
+              </div>
+            )}
+          </div>
+
+          {/* PIX com Desconto */}
+          <div className="border border-gray-100 rounded-xl p-4 space-y-4">
+            <label className="flex items-center justify-between cursor-pointer">
+              <div className="flex items-center gap-3">
+                <span className="text-xl">🎉</span>
+                <div>
+                  <p className="font-semibold text-sm text-gray-900">PIX com Desconto</p>
+                  <p className="text-xs text-gray-500 mt-0.5">Ofereça desconto para pagamentos exclusivos via PIX</p>
+                </div>
+              </div>
+              <div
+                className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${pixDiscountEnabled ? "bg-yellow-500" : "bg-gray-200"}`}
+                onClick={() => setPixDiscountEnabled(!pixDiscountEnabled)}
+              >
+                <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${pixDiscountEnabled ? "translate-x-5" : ""}`} />
+              </div>
+            </label>
+            {pixDiscountEnabled && (
+              <div className="space-y-4 pt-1">
+                <div className="bg-yellow-50 border border-yellow-100 rounded-xl p-4 text-sm text-yellow-800">
+                  <p className="font-semibold mb-1">💰 Configuração de Desconto PIX</p>
+                  <p className="text-xs">
+                    Quando ativado, seus clientes verão a opção "PIX com Desconto" no checkout.
+                    O sistema forçará pagamento exclusivo via PIX (sem possibilidade de escolher cartão depois).
+                  </p>
+                </div>
+                <div>
+                  <label className={labelClass}>Percentual de desconto (%)</label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.5"
+                      value={pixDiscountPercent}
+                      onChange={(e) => setPixDiscountPercent(e.target.value)}
+                      className={inputClass}
+                      placeholder="Ex: 5"
+                    />
+                    <span className="text-gray-600 font-semibold">%</span>
+                  </div>
+                  <p className="text-xs text-gray-400 mt-2">
+                    Ex: 5 oferecerá 5% de desconto em pagamentos via PIX. Clientes verão "PIX com Desconto (5% off)".
+                  </p>
+                </div>
+              </div>
+            )}
+            {!pixDiscountEnabled && (
+              <div className="bg-gray-50 border border-gray-100 rounded-xl p-3 text-xs text-gray-600">
+                PIX com desconto está desativado. A opção não aparecerá no checkout.
               </div>
             )}
           </div>
