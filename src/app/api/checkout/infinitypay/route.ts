@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
     const product = productMap.get(item.productId);
     if (!product) throw new Error(`Produto não encontrado: ${item.productId}`);
     return {
-      price: Math.round(product.price * 100), // Infinity Pay espera valor em centavos
+      price: Math.round(product.price * 100),
       quantity: item.quantity,
       description: `${product.name}${item.size ? ` (${item.size})` : ""}${item.color ? ` - ${item.color}` : ""}`,
     };
@@ -54,11 +54,11 @@ export async function POST(req: NextRequest) {
 
   const payload = {
     handle,
-    items: ipItems,
+    itens: ipItems,
     order_nsu: orderNumber,
     redirect_url: `${baseUrl}/checkout/sucesso?order=${orderNumber}`,
     webhook_url: `${baseUrl}/api/checkout/infinitypay/webhook`,
-    ...(customerEmail || customerPhone ? {
+    ...(customerName || customerEmail || customerPhone ? {
       customer: {
         ...(customerName && { name: customerName }),
         ...(customerEmail && { email: customerEmail }),
@@ -80,7 +80,6 @@ export async function POST(req: NextRequest) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify(payload),
     });

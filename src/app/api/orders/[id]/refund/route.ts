@@ -160,33 +160,30 @@ async function processInfinityPayRefund(
   reason: string,
   apiKey: string
 ) {
-  // Extract transaction_nsu from order notes
-  const transactionMatch = order.notes?.match(/Transaction ID: (\w+)/);
-  const transactionId = transactionMatch?.[1];
+  // Extract transaction_nsu and invoice_slug from order notes
+  const transactionMatch = order.notes?.match(/Transaction: ([\w-]+)/);
+  const invoiceMatch = order.notes?.match(/Invoice: ([\w-]+)/);
 
-  if (!transactionId) {
-    throw new Error("Transaction ID não encontrado no pedido");
+  const transactionId = transactionMatch?.[1];
+  const invoiceSlug = invoiceMatch?.[1];
+
+  if (!transactionId || !invoiceSlug) {
+    throw new Error("Transaction ID ou Invoice Slug não encontrado no pedido");
   }
 
-  const refundRes = await fetch("https://api.checkout.infinitepay.io/refund", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      transaction_nsu: transactionId,
-      amount: Math.round(amount),
-      reason: reason,
-    }),
+  // TODO: Implementar reembolso via Infinity Pay
+  // A documentação fornecida não menciona endpoint de reembolso
+  // Você precisa verificar com Infinity Pay:
+  // 1. Qual é o endpoint de reembolso?
+  // 2. Como se autentica?
+  // 3. Quais parâmetros são necessários?
+
+  console.log("Infinity Pay refund requested:", {
+    transactionId,
+    invoiceSlug,
+    amount,
+    reason,
   });
 
-  if (!refundRes.ok) {
-    const err = await refundRes.text();
-    console.error("Infinity Pay refund error:", err);
-    throw new Error(`Infinity Pay refund failed: ${err}`);
-  }
-
-  const refundData = await refundRes.json();
-  console.log("Infinity Pay refund processed:", refundData);
+  throw new Error("Reembolso via Infinity Pay ainda não implementado. Contate o suporte.");
 }

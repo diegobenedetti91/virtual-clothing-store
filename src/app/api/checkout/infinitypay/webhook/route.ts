@@ -5,11 +5,11 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
 
-    // Webhook payload example from Infinity Pay documentation
-    const { order_nsu, transaction_nsu, status, paid_amount, installments } = body;
+    // Webhook payload from Infinity Pay documentation
+    const { order_nsu, transaction_nsu, invoice_slug, capture_method, amount, paid_amount, installments, receipt_url } = body;
 
-    if (!order_nsu || !status) {
-      console.warn("Webhook inválido do Infinity Pay:", body);
+    if (!order_nsu) {
+      console.warn("Webhook inválido do Infinity Pay - order_nsu ausente:", body);
       return NextResponse.json({ success: false }, { status: 400 });
     }
 
@@ -23,27 +23,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false }, { status: 400 });
     }
 
-    // Update order status based on Infinity Pay status
-    let orderStatus = "PENDING";
-
-    if (status === "approved" || status === "paid") {
-      orderStatus = "PAID";
-    } else if (status === "declined" || status === "failed") {
-      orderStatus = "FAILED";
-    } else if (status === "pending") {
-      orderStatus = "PENDING";
-    }
-
+    // Se recebeu o webhook, significa que o pagamento foi aprovado
+    // Atualizar status para PAID
     await prisma.order.update({
       where: { id: order.id },
       data: {
-        status: orderStatus,
-        // Opcionalmente armazenar dados da transação
-        ...(transaction_nsu && { notes: `${order.notes || ""}\nTransaction ID: ${transaction_nsu}`.trim() }),
+        status: "PAID",
+        // Armazenar dados da transação para futuras consultas/reembolsos
+        notes: `${order.notes || ""}\n[Infinity Pay]\nTransaction: ${transaction_nsu}\nInvoice: ${invoice_slug}\nMethod: ${capture_method}\nReceipt: ${receipt_url}`.trim(),
       },
     });
 
-    console.log(`Order ${order_nsu} updated to status: ${orderStatus}`);
+    console.log(`Order ${order_nsu} marked as PAID via Infinity Pay webhook`);
 
     // Respond quickly with 200 OK
     return NextResponse.json({ success: true }, { status: 200 });
