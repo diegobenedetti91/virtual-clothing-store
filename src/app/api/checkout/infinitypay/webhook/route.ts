@@ -32,17 +32,17 @@ export async function POST(req: NextRequest) {
     }
 
     // Se recebeu o webhook, significa que o pagamento foi aprovado
-    // Atualizar status para PAID
+    // Atualizar status para CONFIRMED
     await prisma.order.update({
       where: { id: order.id },
       data: {
-        status: "PAID",
+        status: "CONFIRMED",
         // Armazenar dados da transação para futuras consultas/reembolsos
         notes: `${order.notes || ""}\n[Infinity Pay]\nTransaction: ${transaction_nsu}\nInvoice: ${invoice_slug}\nMethod: ${capture_method}\nReceipt: ${receipt_url}`.trim(),
       },
     });
 
-    console.log(`Order ${order_nsu} marked as PAID via Infinity Pay webhook`);
+    console.log(`✅ Order ${order_nsu} marked as CONFIRMED via Infinity Pay webhook`);
 
     // Respond with 200 OK in the format Infinity Pay expects
     return NextResponse.json({ success: true, message: null }, { status: 200 });

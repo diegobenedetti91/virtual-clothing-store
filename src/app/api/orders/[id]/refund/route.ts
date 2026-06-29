@@ -23,9 +23,9 @@ export async function POST(
       return NextResponse.json({ error: "Pedido não encontrado" }, { status: 404 });
     }
 
-    if (order.status !== "PAID") {
+    if (order.status !== "CONFIRMED" && order.status !== "PAID") {
       return NextResponse.json(
-        { error: "Apenas pedidos pagos podem ser reembolsados" },
+        { error: "Apenas pedidos confirmados/pagos podem ser reembolsados" },
         { status: 400 }
       );
     }
