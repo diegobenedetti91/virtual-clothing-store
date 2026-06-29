@@ -73,7 +73,12 @@ export async function POST(req: NextRequest) {
   };
 
   try {
-    const ipRes = await fetch("https://api.checkout.infinitypay.io/links", {
+    console.log("\n📤 [Infinity Pay] Enviando requisição");
+    console.log("Handle:", handle);
+    console.log("Items:", JSON.stringify(ipItems));
+    console.log("Order NSU:", orderNumber);
+
+    const ipRes = await fetch("https://api.checkout.infinitepay.io/links", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -81,12 +86,13 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify(payload),
     });
 
+    console.log("📥 [Infinity Pay] Status:", ipRes.status);
+
     if (!ipRes.ok) {
       const err = await ipRes.text();
-      console.error("❌ Infinity Pay API Error");
+      console.error("❌ [Infinity Pay] Erro na resposta:");
       console.error("Status:", ipRes.status);
-      console.error("Response:", err);
-      console.error("Payload sent:", JSON.stringify(payload, null, 2));
+      console.error("Body:", err);
       return NextResponse.json({
         error: "Erro ao criar link de pagamento Infinity Pay",
         status: ipRes.status,
@@ -95,12 +101,16 @@ export async function POST(req: NextRequest) {
     }
 
     const ipData = await ipRes.json();
+    console.log("✅ [Infinity Pay] Resposta completa:", JSON.stringify(ipData));
+
     const paymentUrl = ipData.url;
 
     if (!paymentUrl) {
-      console.error("Infinity Pay response missing payment URL:", ipData);
+      console.error("❌ [Infinity Pay] URL não encontrada na resposta:", ipData);
       return NextResponse.json({ error: "Infinity Pay não retornou URL de pagamento" }, { status: 500 });
     }
+
+    console.log("✅ [Infinity Pay] Link gerado:", paymentUrl);
 
     // Create order with PENDING status immediately
     type CartItem = {
@@ -153,8 +163,13 @@ export async function POST(req: NextRequest) {
       transactionId: ipData.transaction_nsu || ipData.id,
     });
   } catch (error) {
-    console.error("❌ Infinity Pay integration error:", error);
-    console.error("Error type:", error instanceof Error ? error.message : String(error));
+    console.error("\n❌ [Infinity Pay] Erro na integração:");
+    console.error("Tipo:", error instanceof Error ? "Error" : typeof error);
+    console.error("Mensagem:", error instanceof Error ? error.message : String(error));
+    if (error instanceof Error) {
+      console.error("Stack:", error.stack);
+    }
+
     return NextResponse.json({
       error: "Erro ao processar pagamento",
       details: error instanceof Error ? error.message : String(error)
