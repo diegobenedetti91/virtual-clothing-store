@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
 
   const payload = {
     handle,
-    itens: ipItems,
+    items: ipItems,
     order_nsu: orderNumber,
     redirect_url: `${baseUrl}/checkout/sucesso?order=${orderNumber}`,
     webhook_url: `${baseUrl}/api/checkout/infinitypay/webhook`,
@@ -65,12 +65,9 @@ export async function POST(req: NextRequest) {
         ...(customerPhone && { phone_number: customerPhone.replace(/\D/g, "") }),
       },
     } : {}),
-    ...(address && city ? {
+    ...(address || zipCode ? {
       address: {
         ...(zipCode && { cep: zipCode.replace(/\D/g, "") }),
-        ...(address && { street: address }),
-        ...(city && { neighborhood: city }),
-        ...(state && { number: state }),
       },
     } : {}),
   };
@@ -92,7 +89,7 @@ export async function POST(req: NextRequest) {
     }
 
     const ipData = await ipRes.json();
-    const paymentUrl = ipData.short_url || ipData.link || ipData.checkout_url;
+    const paymentUrl = ipData.url;
 
     if (!paymentUrl) {
       console.error("Infinity Pay response missing payment URL:", ipData);

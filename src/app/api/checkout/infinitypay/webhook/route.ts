@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
 
     if (!order_nsu) {
       console.warn("Webhook inválido do Infinity Pay - order_nsu ausente:", body);
-      return NextResponse.json({ success: false }, { status: 400 });
+      return NextResponse.json({ success: false, message: "order_nsu ausente" }, { status: 400 });
     }
 
     // Find order by orderNumber (which is our order_nsu)
@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
 
     if (!order) {
       console.warn(`Order not found: ${order_nsu}`);
-      return NextResponse.json({ success: false }, { status: 400 });
+      return NextResponse.json({ success: false, message: "Pedido não encontrado" }, { status: 400 });
     }
 
     // Se recebeu o webhook, significa que o pagamento foi aprovado
@@ -36,11 +36,11 @@ export async function POST(req: NextRequest) {
 
     console.log(`Order ${order_nsu} marked as PAID via Infinity Pay webhook`);
 
-    // Respond quickly with 200 OK
-    return NextResponse.json({ success: true }, { status: 200 });
+    // Respond with 200 OK in the format Infinity Pay expects
+    return NextResponse.json({ success: true, message: null }, { status: 200 });
   } catch (error) {
     console.error("Infinity Pay webhook error:", error);
     // Return 400 Bad Request to trigger retry (Infinity Pay will retry)
-    return NextResponse.json({ success: false, error: String(error) }, { status: 400 });
+    return NextResponse.json({ success: false, message: String(error) }, { status: 400 });
   }
 }
