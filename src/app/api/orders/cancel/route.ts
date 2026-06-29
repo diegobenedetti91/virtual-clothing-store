@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { refundPayment } from "@/lib/refundUtils";
 import { sendOrderStatusEmail } from "@/lib/email";
+import { restoreOrderStock } from "@/lib/stockUtils";
 
 export async function POST(req: NextRequest) {
   try {
@@ -62,6 +63,19 @@ export async function POST(req: NextRequest) {
     let cancelReason = reason || null;
     if (!isAdmin && !cancelReason) {
       cancelReason = "Cancelado pelo cliente";
+    }
+
+    // Restore stock if order was confirmed/paid
+    if ((order.status === "CONFIRMED" || order.status === "PAID") && order.items?.length > 0) {
+      console.log("[CANCEL] Restoring stock for order:", orderNumber);
+      const itemsForStock = order.items.map((item) => ({
+        productId: item.productId,
+        quantity: item.quantity,
+        size: item.size,
+        color: item.color,
+        selectedAttributes: item.selectedAttributes,
+      }));
+      await restoreOrderStock(itemsForStock).catch(console.error);
     }
 
     // Update order status

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { restoreOrderStock } from "@/lib/stockUtils";
 
 interface RefundPayload {
   amount?: number;
@@ -79,6 +80,24 @@ export async function POST(
         { error: "Erro ao processar reembolso" },
         { status: 500 }
       );
+    }
+
+    // Restore stock before updating status
+    const updatedOrder = await prisma.order.findUnique({
+      where: { id },
+      include: { items: true },
+    });
+
+    if (updatedOrder?.items?.length > 0 && (order.status === "CONFIRMED" || order.status === "PAID")) {
+      console.log("[REFUND] Restoring stock for order:", order.orderNumber);
+      const itemsForStock = updatedOrder.items.map((item) => ({
+        productId: item.productId,
+        quantity: item.quantity,
+        size: item.size,
+        color: item.color,
+        selectedAttributes: item.selectedAttributes,
+      }));
+      await restoreOrderStock(itemsForStock).catch(console.error);
     }
 
     // Update order status
