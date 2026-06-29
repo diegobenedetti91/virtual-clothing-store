@@ -19,6 +19,7 @@ export async function PUT(req: NextRequest) {
     freteAtivo, freteTipo, freteValorFixo, freteCEPOrigem, fretePesoDefaultGramas,
     melhorEnvioToken, fretePacoteAltura, fretePacoteLargura, fretePacoteComprimento,
     freteLocalCidade, freteLocalUF, freteLocalRetirada, mercadoPagoAtivo, nuPayAtivo,
+    infinityPayAtivo, infinityPayHandle, infinityPayApiKey,
     pixDiscountEnabled, pixDiscountPercent, whatsappAtivo,
   } = body;
 
@@ -61,6 +62,9 @@ export async function PUT(req: NextRequest) {
     freteLocalRetirada: !!freteLocalRetirada,
     mercadoPagoAtivo: !!mercadoPagoAtivo,
     nuPayAtivo: !!nuPayAtivo,
+    infinityPayAtivo: !!infinityPayAtivo,
+    infinityPayHandle: infinityPayHandle || null,
+    infinityPayApiKey: infinityPayApiKey || null,
     whatsappAtivo: !!whatsappAtivo,
     pixDiscountEnabled: !!pixDiscountEnabled,
     pixDiscountPercent: typeof pixDiscountPercent === "number" ? pixDiscountPercent : 0,

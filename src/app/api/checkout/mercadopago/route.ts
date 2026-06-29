@@ -133,8 +133,14 @@ export async function POST(req: NextRequest) {
 
   if (!mpRes.ok) {
     const err = await mpRes.text();
-    console.error("MP preference error:", err);
-    return NextResponse.json({ error: "Erro ao criar preferência MP" }, { status: 500 });
+    console.error("MP preference error:", mpRes.status, err);
+    console.error("Preference sent:", JSON.stringify(preference, null, 2));
+    try {
+      const errJson = JSON.parse(err);
+      return NextResponse.json({ error: "Erro ao criar preferência MP", details: errJson }, { status: 500 });
+    } catch {
+      return NextResponse.json({ error: "Erro ao criar preferência MP", details: err }, { status: 500 });
+    }
   }
 
   const mpData = await mpRes.json();

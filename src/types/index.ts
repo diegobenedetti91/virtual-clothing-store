@@ -139,6 +139,9 @@ export interface CompanySettings {
   freteLocalRetirada?: boolean;
   mercadoPagoAtivo?: boolean;
   nuPayAtivo?: boolean;
+  infinityPayAtivo?: boolean;
+  infinityPayHandle?: string | null;
+  infinityPayApiKey?: string | null;
   whatsappAtivo?: boolean;
   pixDiscountEnabled?: boolean;
   pixDiscountPercent?: number;

@@ -136,18 +136,20 @@ export default function CheckoutPage() {
 
   const mpAvailable = !!(settings?.mercadoPagoAtivo && settings?.mercadoPagoPublicKey);
   const nuPayAvailable = !!(settings?.nuPayAtivo && settings?.nuPayClientId);
+  const infinityPayAvailable = !!(settings?.infinityPayAtivo && settings?.infinityPayHandle && settings?.infinityPayApiKey);
   const whatsappAvailable = settings?.whatsappAtivo;
   const pixDiscount = settings?.pixDiscountPercent ?? 0;
   const pixDiscountAvailable = settings?.pixDiscountEnabled && pixDiscount > 0;
 
   const [applyPixDiscount, setApplyPixDiscount] = useState(false);
 
-  type PaymentMethod = "whatsapp" | "mercadopago" | "nupay";
+  type PaymentMethod = "whatsapp" | "mercadopago" | "nupay" | "infinitypay";
 
   const paymentOptions: Array<{ id: PaymentMethod; label: string; desc: string; emoji: string }> = [
     ...(whatsappAvailable ? [{ id: "whatsapp" as PaymentMethod, label: "WhatsApp", desc: "Combinamos a forma de pagamento pela conversa", emoji: "💬" }] : []),
     ...(mpAvailable ? [{ id: "mercadopago" as PaymentMethod, label: "Mercado Pago", desc: "Cartão de crédito, Pix ou boleto", emoji: "💳" }] : []),
     ...(nuPayAvailable ? [{ id: "nupay" as PaymentMethod, label: "NuPay", desc: "Débito, crédito Nubank ou Pix em até 24×", emoji: "🟣" }] : []),
+    ...(infinityPayAvailable ? [{ id: "infinitypay" as PaymentMethod, label: "Infinity Pay", desc: "Cartão de crédito, Pix ou boleto", emoji: "♾️" }] : []),
   ];
 
   const defaultPayment: PaymentMethod = paymentOptions.length > 0 ? paymentOptions[0].id : "whatsapp";
@@ -377,6 +379,50 @@ const handleNuPaySubmit = async (forcePixOnly: boolean = false) => {
     window.location.href = data.initPoint;
   };
 
+  const handleInfinityPaySubmit = async () => {
+    try {
+      validateCheckout();
+    } catch (err) {
+      alert(String(err).replace("Error: ", ""));
+      return;
+    }
+
+    const res = await fetch("/api/checkout/infinitypay", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        customerName: name,
+        customerEmail: email || null,
+        customerPhone: phone,
+        address: fullAddress || null,
+        city: city || null,
+        state: state || null,
+        zipCode: zipCode || null,
+        notes: notes || null,
+        customerId: customer?.id || null,
+        shippingCost: selectedShipping?.valor || 0,
+        shippingMethod: selectedShipping?.servico || null,
+        discountAmount: discountAmount,
+        items: items.map((item) => ({
+          productId: item.productId,
+          quantity: item.quantity,
+          size: item.size,
+          color: item.color,
+          selectedAttributes: item.selectedAttributes,
+        })),
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Erro ao iniciar pagamento");
+    // Clear cart only if payment initialization was successful
+    clearCart();
+    if (email || customer?.email) {
+      const e = email || customer!.email;
+      fetch(`/api/cart/save?email=${encodeURIComponent(e)}`, { method: "DELETE" }).catch(() => {});
+    }
+    window.location.href = data.paymentUrl;
+  };
+
   const validateStock = async (): Promise<string | null> => {
     const results = await Promise.all(
       items.map(async (item) => {
@@ -416,6 +462,8 @@ const handleNuPaySubmit = async (forcePixOnly: boolean = false) => {
         await handleMercadoPagoSubmit(applyPixDiscount);
       } else if (selectedPayment === "nupay") {
         await handleNuPaySubmit(applyPixDiscount);
+      } else if (selectedPayment === "infinitypay") {
+        await handleInfinityPaySubmit();
       } else {
         await handleWhatsAppSubmit();
       }
@@ -715,6 +763,11 @@ const handleNuPaySubmit = async (forcePixOnly: boolean = false) => {
                   <button type="submit" disabled={loading || !!freteForaArea} className="w-full bg-blue-600 text-white py-3.5 rounded-xl font-bold hover:bg-blue-700 transition-colors disabled:opacity-60 flex items-center justify-center gap-2 shadow-lg shadow-blue-100">
                     {loading ? <Loader2 size={18} className="animate-spin" /> : <CreditCard size={18} />}
                     {loading ? "Aguarde..." : `Pagar com Mercado Pago${applyPixDiscount ? " (PIX)" : ""}`}
+                  </button>
+                ) : selectedPayment === "infinitypay" ? (
+                  <button type="submit" disabled={loading || !!freteForaArea} className="w-full bg-indigo-600 text-white py-3.5 rounded-xl font-bold hover:bg-indigo-700 transition-colors disabled:opacity-60 flex items-center justify-center gap-2 shadow-lg shadow-indigo-100">
+                    {loading ? <Loader2 size={18} className="animate-spin" /> : <CreditCard size={18} />}
+                    {loading ? "Aguarde..." : "Pagar com Infinity Pay"}
                   </button>
                 ) : (
                   <button type="submit" disabled={loading || !!freteForaArea} className="w-full bg-green-600 text-white py-3.5 rounded-xl font-bold hover:bg-green-700 transition-colors disabled:opacity-60 flex items-center justify-center gap-2 shadow-lg shadow-green-100">

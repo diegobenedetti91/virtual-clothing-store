@@ -51,6 +51,12 @@ export default function SettingsForm({ initialSettings }: Props) {
   const [nuPayAtivo, setNuPayAtivo] = useState(
     initialSettings?.nuPayAtivo ?? initialSettings?.checkoutType === "nupay"
   );
+  const [infinityPayHandle, setInfinityPayHandle] = useState(initialSettings?.infinityPayHandle || "");
+  const [infinityPayApiKey, setInfinityPayApiKey] = useState(initialSettings?.infinityPayApiKey || "");
+  const [showInfinityPayKey, setShowInfinityPayKey] = useState(false);
+  const [infinityPayAtivo, setInfinityPayAtivo] = useState(
+    initialSettings?.infinityPayAtivo ?? false
+  );
   const [whatsappAtivo, setWhatsappAtivo] = useState(initialSettings?.whatsappAtivo ?? true);
   const [pixDiscountEnabled, setPixDiscountEnabled] = useState(initialSettings?.pixDiscountEnabled ?? false);
   const [pixDiscountPercent, setPixDiscountPercent] = useState((initialSettings?.pixDiscountPercent ?? 0).toString());
@@ -84,7 +90,9 @@ export default function SettingsForm({ initialSettings }: Props) {
           name, logo, phone, whatsapp, instagram, address, description,
           primaryColor, buttonColor, menuColor, bannerImages, checkoutType, checkoutCollectEmail, checkoutCollectAddress,
           checkoutMessage, mercadoPagoPublicKey: mpPublicKey || null, mercadoPagoAccessToken: mpAccessToken || null,
-          mercadoPagoAtivo, nuPayClientId: nuPayClientId || null, nuPayClientSecret: nuPayClientSecret || null, nuPayAtivo, whatsappAtivo,
+          mercadoPagoAtivo, nuPayClientId: nuPayClientId || null, nuPayClientSecret: nuPayClientSecret || null, nuPayAtivo,
+          infinityPayHandle: infinityPayHandle || null, infinityPayApiKey: infinityPayApiKey || null, infinityPayAtivo,
+          whatsappAtivo,
           heroBadge, heroTitle, heroButtonText, heroButtonSecondaryText,
           pixDiscountEnabled, pixDiscountPercent: parseFloat(pixDiscountPercent) || 0,
           freteAtivo, freteTipo, freteLocalCidade: freteLocalCidade || null, freteLocalUF: freteLocalUF || null, freteLocalRetirada,
@@ -319,6 +327,52 @@ export default function SettingsForm({ initialSettings }: Props) {
                       <input type={showNuPaySecret ? "text" : "password"} value={nuPayClientSecret} onChange={(e) => setNuPayClientSecret(e.target.value)} className={`${inputClass} pr-10`} placeholder="Seu Client Secret do NuPay" />
                       <button type="button" onClick={() => setShowNuPaySecret(!showNuPaySecret)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
                         {showNuPaySecret ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1">Chave secreta usada no servidor. Nunca compartilhe.</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Infinity Pay */}
+            <div className="border border-gray-100 rounded-xl p-4 space-y-4">
+              <label className="flex items-center justify-between cursor-pointer">
+                <div className="flex items-center gap-3">
+                  <span className="text-xl">♾️</span>
+                  <div>
+                    <p className="font-semibold text-sm text-gray-900">Infinity Pay</p>
+                    <p className="text-xs text-gray-500 mt-0.5">Cartão de crédito, Pix ou boleto. Requer credenciais Infinity Pay.</p>
+                  </div>
+                </div>
+                <div
+                  className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${infinityPayAtivo ? "bg-indigo-500" : "bg-gray-200"}`}
+                  onClick={() => setInfinityPayAtivo(!infinityPayAtivo)}
+                >
+                  <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${infinityPayAtivo ? "translate-x-5" : ""}`} />
+                </div>
+              </label>
+              {infinityPayAtivo && (
+                <div className="space-y-4 pt-1">
+                  <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 text-sm text-indigo-800">
+                    <p className="font-semibold mb-1 flex items-center gap-2"><CreditCard size={14} /> Credenciais do Infinity Pay</p>
+                    <p className="text-xs mb-2">Acesse o painel <strong>Infinity Pay</strong> para obter seu Handle (InfiniteTag) e API Key.</p>
+                    <p className="text-xs">
+                      Configure o webhook no painel Infinity Pay apontando para:{" "}
+                      <strong className="break-all">{typeof window !== "undefined" ? window.location.origin : ""}/api/checkout/infinitypay/webhook</strong>
+                    </p>
+                  </div>
+                  <div>
+                    <label className={labelClass}>Handle (InfiniteTag)</label>
+                    <input value={infinityPayHandle} onChange={(e) => setInfinityPayHandle(e.target.value)} className={inputClass} placeholder="Seu Handle Infinity Pay (sem o símbolo $)" />
+                    <p className="text-xs text-gray-400 mt-1">Seu nome de usuário no app Infinity Pay, sem o símbolo $ do início.</p>
+                  </div>
+                  <div>
+                    <label className={labelClass}>API Key</label>
+                    <div className="relative">
+                      <input type={showInfinityPayKey ? "text" : "password"} value={infinityPayApiKey} onChange={(e) => setInfinityPayApiKey(e.target.value)} className={`${inputClass} pr-10`} placeholder="Sua API Key do Infinity Pay" />
+                      <button type="button" onClick={() => setShowInfinityPayKey(!showInfinityPayKey)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                        {showInfinityPayKey ? <EyeOff size={16} /> : <Eye size={16} />}
                       </button>
                     </div>
                     <p className="text-xs text-gray-400 mt-1">Chave secreta usada no servidor. Nunca compartilhe.</p>

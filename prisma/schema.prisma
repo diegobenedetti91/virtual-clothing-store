@@ -195,6 +195,9 @@ model CompanySettings {
   freteLocalRetirada     Boolean  @default(false)
   mercadoPagoAtivo       Boolean  @default(false)
   nuPayAtivo             Boolean  @default(false)
+  infinityPayAtivo       Boolean  @default(false)
+  infinityPayHandle      String?
+  infinityPayApiKey      String?  @db.Text
   whatsappAtivo          Boolean  @default(false)
   pixDiscountEnabled     Boolean  @default(false)
   pixDiscountPercent     Float    @default(0)
