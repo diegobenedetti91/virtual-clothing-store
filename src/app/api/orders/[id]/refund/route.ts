@@ -45,16 +45,19 @@ export async function POST(
 
     const refundAmount = amount || order.total;
 
-    // Process refund based on payment method
+    // Process refund based on payment method or gateway
     try {
-      if (order.paymentMethod === "Mercado Pago" && settings.mercadoPagoAccessToken) {
+      const paymentMethod = order.paymentMethod?.toLowerCase() || "";
+      const paymentGateway = (order as any).paymentGateway?.toLowerCase() || "";
+
+      if ((paymentMethod.includes("mercado") || paymentGateway === "mercadopago") && settings.mercadoPagoAccessToken) {
         await processMercadoPagoRefund(
           order,
           refundAmount,
           reason || "Reembolso solicitado",
           settings.mercadoPagoAccessToken
         );
-      } else if (order.paymentMethod === "NuPay" && settings.nuPayClientId && settings.nuPayClientSecret) {
+      } else if ((paymentMethod.includes("nupay") || paymentGateway === "nupay") && settings.nuPayClientId && settings.nuPayClientSecret) {
         await processNuPayRefund(
           order,
           refundAmount,
@@ -62,7 +65,7 @@ export async function POST(
           settings.nuPayClientId,
           settings.nuPayClientSecret
         );
-      } else if (order.paymentMethod === "Infinity Pay" && settings.infinityPayApiKey) {
+      } else if ((paymentMethod.includes("infinity") || paymentGateway === "infinitypay") && settings.infinityPayApiKey) {
         await processInfinityPayRefund(
           order,
           refundAmount,
@@ -71,7 +74,7 @@ export async function POST(
         );
       } else {
         return NextResponse.json(
-          { error: `Reembolso não suportado para ${order.paymentMethod}` },
+          { error: `Reembolso não suportado para ${order.paymentMethod || paymentGateway}. Gateway: ${paymentGateway}, Método: ${paymentMethod}` },
           { status: 400 }
         );
       }
