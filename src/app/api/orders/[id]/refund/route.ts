@@ -18,6 +18,7 @@ export async function POST(
 
     const order = await prisma.order.findUnique({
       where: { id },
+      include: { items: true },
     });
 
     if (!order) {
@@ -83,14 +84,9 @@ export async function POST(
     }
 
     // Restore stock before updating status
-    const updatedOrder = await prisma.order.findUnique({
-      where: { id },
-      include: { items: true },
-    });
-
-    if (updatedOrder?.items?.length > 0 && (order.status === "CONFIRMED" || order.status === "PAID")) {
+    if (order.items?.length > 0 && (order.status === "CONFIRMED" || order.status === "PAID")) {
       console.log("[REFUND] Restoring stock for order:", order.orderNumber);
-      const itemsForStock = updatedOrder.items.map((item) => ({
+      const itemsForStock = order.items.map((item) => ({
         productId: item.productId,
         quantity: item.quantity,
         size: item.size,
