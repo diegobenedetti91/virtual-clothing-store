@@ -5,11 +5,19 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
 
+    console.log("\n📥 [Infinity Pay Webhook] Recebido:");
+    console.log(JSON.stringify(body, null, 2));
+
     // Webhook payload from Infinity Pay documentation
     const { order_nsu, transaction_nsu, invoice_slug, capture_method, amount, paid_amount, installments, receipt_url } = body;
 
+    console.log("order_nsu:", order_nsu);
+    console.log("transaction_nsu:", transaction_nsu);
+    console.log("invoice_slug:", invoice_slug);
+
     if (!order_nsu) {
-      console.warn("Webhook inválido do Infinity Pay - order_nsu ausente:", body);
+      console.warn("❌ Webhook inválido - order_nsu ausente");
+      console.warn("Body completo:", JSON.stringify(body, null, 2));
       return NextResponse.json({ success: false, message: "order_nsu ausente" }, { status: 400 });
     }
 
