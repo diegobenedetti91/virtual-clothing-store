@@ -83,9 +83,15 @@ export async function POST(req: NextRequest) {
 
     if (!ipRes.ok) {
       const err = await ipRes.text();
-      console.error("Infinity Pay error:", ipRes.status, err);
+      console.error("❌ Infinity Pay API Error");
+      console.error("Status:", ipRes.status);
+      console.error("Response:", err);
       console.error("Payload sent:", JSON.stringify(payload, null, 2));
-      return NextResponse.json({ error: "Erro ao criar link de pagamento Infinity Pay" }, { status: 500 });
+      return NextResponse.json({
+        error: "Erro ao criar link de pagamento Infinity Pay",
+        status: ipRes.status,
+        details: err
+      }, { status: 500 });
     }
 
     const ipData = await ipRes.json();
@@ -147,7 +153,11 @@ export async function POST(req: NextRequest) {
       transactionId: ipData.transaction_nsu || ipData.id,
     });
   } catch (error) {
-    console.error("Infinity Pay integration error:", error);
-    return NextResponse.json({ error: "Erro ao processar pagamento" }, { status: 500 });
+    console.error("❌ Infinity Pay integration error:", error);
+    console.error("Error type:", error instanceof Error ? error.message : String(error));
+    return NextResponse.json({
+      error: "Erro ao processar pagamento",
+      details: error instanceof Error ? error.message : String(error)
+    }, { status: 500 });
   }
 }
