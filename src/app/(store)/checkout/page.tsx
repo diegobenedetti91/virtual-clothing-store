@@ -152,7 +152,7 @@ export default function CheckoutPage() {
     ...(infinityPayAvailable ? [{ id: "infinitypay" as PaymentMethod, label: "Infinity Pay", desc: "Cartão de crédito, Pix ou boleto", emoji: "♾️" }] : []),
   ];
 
-  const defaultPayment: PaymentMethod = paymentOptions.length > 0 ? paymentOptions[0].id : "whatsapp";
+  const defaultPayment: PaymentMethod = paymentOptions.length > 0 ? paymentOptions[0].id : "mercadopago";
   const [selectedPayment, setSelectedPayment] = useState<PaymentMethod>(defaultPayment);
 
   const discountAmount = applyPixDiscount ? (total() * pixDiscount) / 100 : 0;
@@ -458,14 +458,16 @@ const handleNuPaySubmit = async (forcePixOnly: boolean = false) => {
         alert(`Estoque insuficiente para alguns itens:\n\n${stockError}\n\nAtualize o carrinho antes de continuar.`);
         return;
       }
-      if (selectedPayment === "mercadopago") {
+      if (selectedPayment === "mercadopago" && mpAvailable) {
         await handleMercadoPagoSubmit(applyPixDiscount);
-      } else if (selectedPayment === "nupay") {
+      } else if (selectedPayment === "nupay" && nuPayAvailable) {
         await handleNuPaySubmit(applyPixDiscount);
-      } else if (selectedPayment === "infinitypay") {
+      } else if (selectedPayment === "infinitypay" && infinityPayAvailable) {
         await handleInfinityPaySubmit();
-      } else {
+      } else if (selectedPayment === "whatsapp" && whatsappAvailable) {
         await handleWhatsAppSubmit();
+      } else {
+        alert("Forma de pagamento não disponível. Selecione outra opção.");
       }
     } catch {
       alert("Erro ao processar pedido. Tente novamente.");
@@ -754,25 +756,29 @@ const handleNuPaySubmit = async (forcePixOnly: boolean = false) => {
                   </div>
                 </div>
 
-                {selectedPayment === "nupay" ? (
+                {selectedPayment === "nupay" && nuPayAvailable ? (
                   <button type="submit" disabled={loading || !!freteForaArea} className="w-full bg-purple-600 text-white py-3.5 rounded-xl font-bold hover:bg-purple-700 transition-colors disabled:opacity-60 flex items-center justify-center gap-2 shadow-lg shadow-purple-100">
                     {loading ? <Loader2 size={18} className="animate-spin" /> : <CreditCard size={18} />}
                     {loading ? "Aguarde..." : `Pagar com NuPay${applyPixDiscount ? " (PIX)" : ""}`}
                   </button>
-                ) : selectedPayment === "mercadopago" ? (
+                ) : selectedPayment === "mercadopago" && mpAvailable ? (
                   <button type="submit" disabled={loading || !!freteForaArea} className="w-full bg-blue-600 text-white py-3.5 rounded-xl font-bold hover:bg-blue-700 transition-colors disabled:opacity-60 flex items-center justify-center gap-2 shadow-lg shadow-blue-100">
                     {loading ? <Loader2 size={18} className="animate-spin" /> : <CreditCard size={18} />}
                     {loading ? "Aguarde..." : `Pagar com Mercado Pago${applyPixDiscount ? " (PIX)" : ""}`}
                   </button>
-                ) : selectedPayment === "infinitypay" ? (
+                ) : selectedPayment === "infinitypay" && infinityPayAvailable ? (
                   <button type="submit" disabled={loading || !!freteForaArea} className="w-full bg-indigo-600 text-white py-3.5 rounded-xl font-bold hover:bg-indigo-700 transition-colors disabled:opacity-60 flex items-center justify-center gap-2 shadow-lg shadow-indigo-100">
                     {loading ? <Loader2 size={18} className="animate-spin" /> : <CreditCard size={18} />}
                     {loading ? "Aguarde..." : "Pagar com Infinity Pay"}
                   </button>
-                ) : (
+                ) : selectedPayment === "whatsapp" && whatsappAvailable ? (
                   <button type="submit" disabled={loading || !!freteForaArea} className="w-full bg-green-600 text-white py-3.5 rounded-xl font-bold hover:bg-green-700 transition-colors disabled:opacity-60 flex items-center justify-center gap-2 shadow-lg shadow-green-100">
                     {loading ? <Loader2 size={18} className="animate-spin" /> : <MessageCircle size={18} />}
                     {loading ? "Gerando pedido..." : "Enviar pelo WhatsApp"}
+                  </button>
+                ) : (
+                  <button type="button" disabled className="w-full bg-gray-300 text-gray-500 py-3.5 rounded-xl font-bold flex items-center justify-center gap-2">
+                    Nenhuma forma de pagamento disponível
                   </button>
                 )}
                 <Link href="/carrinho" className="block text-center text-sm text-gray-400 hover:text-gray-600 mt-3 transition-colors">
