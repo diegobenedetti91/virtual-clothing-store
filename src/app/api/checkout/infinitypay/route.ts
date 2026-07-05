@@ -58,6 +58,7 @@ export async function POST(req: NextRequest) {
     order_nsu: orderNumber,
     redirect_url: `${baseUrl}/checkout/sucesso?order=${orderNumber}`,
     webhook_url: `${baseUrl}/api/checkout/infinitypay/webhook`,
+    ...(pixOnly && { pix_only: true }),
     ...(customerName || customerEmail || customerPhone ? {
       customer: {
         ...(customerName && { name: customerName }),

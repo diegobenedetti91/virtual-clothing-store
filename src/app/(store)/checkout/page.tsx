@@ -403,6 +403,7 @@ const handleNuPaySubmit = async (forcePixOnly: boolean = false) => {
         shippingCost: selectedShipping?.valor || 0,
         shippingMethod: selectedShipping?.servico || null,
         discountAmount: discountAmount,
+        pixOnly: applyPixDiscount,
         items: items.map((item) => ({
           productId: item.productId,
           quantity: item.quantity,
