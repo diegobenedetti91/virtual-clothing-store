@@ -52,13 +52,12 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  const payload = {
+  const payload: Record<string, any> = {
     handle,
     items: ipItems,
     order_nsu: orderNumber,
     redirect_url: `${baseUrl}/checkout/sucesso?order=${orderNumber}`,
     webhook_url: `${baseUrl}/api/checkout/infinitypay/webhook`,
-    ...(pixOnly && { pix_only: true }),
     ...(customerName || customerEmail || customerPhone ? {
       customer: {
         ...(customerName && { name: customerName }),
@@ -73,11 +72,18 @@ export async function POST(req: NextRequest) {
     } : {}),
   };
 
+  // Restrict payment methods if PIX discount was applied
+  if (pixOnly) {
+    payload.payment_methods = ["pix"];
+  }
+
   try {
     console.log("\n📤 [Infinity Pay] Enviando requisição");
     console.log("Handle:", handle);
     console.log("Items:", JSON.stringify(ipItems));
     console.log("Order NSU:", orderNumber);
+    console.log("PIX Only:", pixOnly);
+    console.log("Payment Methods:", payload.payment_methods);
 
     const ipRes = await fetch("https://api.checkout.infinitepay.io/links", {
       method: "POST",
