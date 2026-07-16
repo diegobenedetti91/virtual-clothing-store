@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
   const month = parseInt(searchParams.get("month") || "0");
   const dateFrom = searchParams.get("dateFrom");
   const dateTo = searchParams.get("dateTo");
-  const statusesParam = searchParams.get("statuses") || "DELIVERED";
+  const statusesParam = searchParams.get("statuses") || "DELIVERED,RETIRADO";
   const stateFilter = searchParams.get("state") || "";
 
   const activeStatuses = statusesParam.split(",").map((s) => s.trim()).filter(Boolean);

@@ -33,9 +33,9 @@ interface AnalyticsData {
 }
 
 const STATUS_OPTIONS = [
-  { value: "DELIVERED", label: "Apenas entregues" },
-  { value: "CONFIRMED,SHIPPED,DELIVERED", label: "Confirmados + Enviados + Entregues" },
-  { value: "PENDING,CONFIRMED,SHIPPED,DELIVERED", label: "Todos (exceto cancelados)" },
+  { value: "DELIVERED,RETIRADO", label: "Entregues e Retirados" },
+  { value: "CONFIRMED,SHIPPED,DELIVERED,RETIRADO", label: "Confirmados + Enviados + Entregues + Retirados" },
+  { value: "PENDING,CONFIRMED,SHIPPED,DELIVERED,RETIRADO", label: "Todos (exceto cancelados)" },
 ];
 
 const MONTHS = [
@@ -117,7 +117,7 @@ export default function RelatoriosManager() {
   const [filterMode, setFilterMode] = useState<"period" | "range">("period");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
-  const [statuses, setStatuses] = useState("DELIVERED");
+  const [statuses, setStatuses] = useState("DELIVERED,RETIRADO");
   const [stateFilter, setStateFilter] = useState("");
 
   const load = useCallback(async () => {
@@ -144,7 +144,7 @@ export default function RelatoriosManager() {
   const selectClass = "border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-brand transition appearance-none pr-8 cursor-pointer";
   const inputClass = "border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-brand transition cursor-pointer";
 
-  const hasActiveFilters = stateFilter || statuses !== "DELIVERED" || (filterMode === "range" && (dateFrom || dateTo));
+  const hasActiveFilters = stateFilter || statuses !== "DELIVERED,RETIRADO" || (filterMode === "range" && (dateFrom || dateTo));
 
   return (
     <div className="space-y-6">
@@ -161,7 +161,7 @@ export default function RelatoriosManager() {
           {hasActiveFilters && (
             <button
               type="button"
-              onClick={() => { setStateFilter(""); setStatuses("DELIVERED"); setFilterMode("period"); setDateFrom(""); setDateTo(""); }}
+              onClick={() => { setStateFilter(""); setStatuses("DELIVERED,RETIRADO"); setFilterMode("period"); setDateFrom(""); setDateTo(""); }}
               className="text-xs text-gray-400 hover:text-gray-600 underline"
             >
               Limpar filtros

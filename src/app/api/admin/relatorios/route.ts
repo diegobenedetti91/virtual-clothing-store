@@ -7,7 +7,9 @@ export async function GET(req: NextRequest) {
     const dateFrom = searchParams.get("dateFrom");
     const dateTo = searchParams.get("dateTo");
 
-    const where: any = {};
+    const where: any = {
+      status: { in: ["DELIVERED", "RETIRADO"] },
+    };
 
     if (dateFrom) {
       where.createdAt = { gte: new Date(dateFrom) };

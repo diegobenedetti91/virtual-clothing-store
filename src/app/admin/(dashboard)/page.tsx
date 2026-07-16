@@ -15,7 +15,7 @@ export default async function AdminDashboard() {
     }),
   ]);
 
-  const totalRevenue = orders.filter((o) => o.status !== "CANCELLED").reduce((s, o) => s + o.total, 0);
+  const totalRevenue = orders.filter((o) => o.status === "DELIVERED" || o.status === "RETIRADO").reduce((s, o) => s + o.total, 0);
   const pendingOrders = orders.filter((o) => o.status === "PENDING").length;
 
   const stats = [
