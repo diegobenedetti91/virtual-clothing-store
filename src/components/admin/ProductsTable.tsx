@@ -25,22 +25,8 @@ interface ProductsTableProps {
   products: Product[];
 }
 
-function calculateSimilarity(text: string, query: string): number {
-  const normalizedText = text.toLowerCase();
-  const normalizedQuery = query.toLowerCase();
-
-  if (normalizedText.includes(normalizedQuery)) {
-    return 1;
-  }
-
-  let matches = 0;
-  for (let i = 0; i < normalizedQuery.length; i++) {
-    if (normalizedText.includes(normalizedQuery[i])) {
-      matches++;
-    }
-  }
-
-  return matches / normalizedQuery.length;
+function matchesQuery(text: string, query: string): boolean {
+  return text.toLowerCase().includes(query.toLowerCase());
 }
 
 export default function ProductsTable({ products }: ProductsTableProps) {
@@ -51,15 +37,10 @@ export default function ProductsTable({ products }: ProductsTableProps) {
       return products;
     }
 
-    return products
-      .map((product) => {
-        const descriptionForSearch = product.description || product.name;
-        const similarity = calculateSimilarity(descriptionForSearch, searchQuery);
-        return { product, similarity };
-      })
-      .filter(({ similarity }) => similarity > 0.4)
-      .sort(({ similarity: a }, { similarity: b }) => b - a)
-      .map(({ product }) => product);
+    return products.filter((product) => {
+      const descriptionForSearch = product.description || product.name;
+      return matchesQuery(descriptionForSearch, searchQuery) || matchesQuery(product.name, searchQuery);
+    });
   }, [products, searchQuery]);
 
   return (

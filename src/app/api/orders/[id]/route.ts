@@ -24,11 +24,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   });
 
   const ALLOWED_TRANSITIONS: Record<string, string[]> = {
-    PENDING:   ["CONFIRMED", "CANCELLED"],
-    CONFIRMED: ["SHIPPED",   "CANCELLED"],
-    SHIPPED:   ["DELIVERED", "CANCELLED"],
-    DELIVERED: ["CANCELLED"],
-    CANCELLED: [],
+    PENDING:                 ["CONFIRMED", "CANCELLED"],
+    CONFIRMED:               ["SHIPPED", "PRONTO_PARA_RETIRADA", "CANCELLED"],
+    SHIPPED:                 ["DELIVERED", "CANCELLED"],
+    PRONTO_PARA_RETIRADA:    ["RETIRADO", "CANCELLED"],
+    RETIRADO:                ["CANCELLED"],
+    DELIVERED:               ["CANCELLED"],
+    CANCELLED:               [],
   };
 
   if (!current || !ALLOWED_TRANSITIONS[current.status]?.includes(status)) {

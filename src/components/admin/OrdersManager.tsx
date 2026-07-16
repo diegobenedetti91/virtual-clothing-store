@@ -133,8 +133,16 @@ export default function OrdersManager({ initialOrders }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus, ...extra }),
       });
+      if (!res.ok) {
+        const error = await res.json();
+        alert(`Erro: ${error.error || "Não foi possível alterar o status"}`);
+        return;
+      }
       const updated = await res.json();
       setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, ...updated } : o)));
+    } catch (err) {
+      alert("Erro ao alterar status do pedido");
+      console.error(err);
     } finally {
       setUpdatingStatus(null);
     }
