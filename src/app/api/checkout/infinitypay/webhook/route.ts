@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendOrderStatusEmail, sendOrderConfirmationEmail, sendNewOrderNotificationEmail } from "@/lib/email";
 import { decrementOrderStock } from "@/lib/stockUtils";
+import { createAutomaticShipment } from "@/lib/shipmentUtils";
 import { track } from "@/lib/analytics";
 
 export async function POST(req: NextRequest) {
@@ -70,6 +71,15 @@ export async function POST(req: NextRequest) {
         selectedAttributes: item.selectedAttributes,
       }));
       await decrementOrderStock(itemsForStock).catch(console.error);
+
+      // Create shipment automatically on Melhor Envio
+      try {
+        console.log("[IP WEBHOOK] Creating automatic shipment for order:", order_nsu);
+        await createAutomaticShipment(order.id);
+      } catch (err) {
+        console.error("[IP WEBHOOK] Failed to create shipment:", err);
+        // Don't fail the whole webhook, just log the error
+      }
 
       // Track order completion
       try {

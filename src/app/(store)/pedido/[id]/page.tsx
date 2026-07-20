@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { CheckCircle, MessageCircle, Loader2, AlertCircle, X } from "lucide-react";
+import { CheckCircle, MessageCircle, Loader2, AlertCircle, X, Package } from "lucide-react";
 import Link from "next/link";
 import { Order } from "@/types";
 import { formatCurrency, formatDate, ORDER_STATUS } from "@/lib/utils";
@@ -184,6 +184,58 @@ export default function OrderConfirmationPage() {
 
         {!isAlreadyCancelled && (
           <div className="border-t border-gray-100 mt-4 pt-4">
+        {order.trackingCode && (
+          <div className="border-t border-gray-100 mt-4 pt-4">
+            <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <Package size={18} />
+              Rastreamento em Tempo Real
+            </h3>
+            
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+              <p className="text-xs text-blue-700 mb-1 font-semibold">CÓDIGO DE RASTREAMENTO</p>
+              <p className="text-lg font-mono font-bold text-blue-900 mb-3">{order.trackingCode}</p>
+              {order.trackingUrl && (
+                <a 
+                  href={order.trackingUrl} 
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 font-semibold"
+                >
+                  🔍 Rastrear no Melhor Envio →
+                </a>
+              )}
+            </div>
+
+            {order.shipmentStatus && (
+              <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                <p className="text-xs text-gray-600 mb-2 font-semibold">STATUS DO ENVIO</p>
+                <div className="flex items-center gap-3">
+                  <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900 capitalize">
+                      {order.shipmentStatus === 'posted' ? '📦 Postado' : 
+                       order.shipmentStatus === 'in_transit' ? '🚚 Em Trânsito' :
+                       order.shipmentStatus === 'out_for_delivery' ? '📍 Saindo para Entrega' :
+                       order.shipmentStatus === 'delivered' ? '✅ Entregue' :
+                       order.shipmentStatus}
+                    </p>
+                    {order.lastTrackingUpdate && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        Atualizado em {new Date(order.lastTrackingUpdate).toLocaleDateString('pt-BR', {
+                          day: '2-digit',
+                          month: '2-digit',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
             {canCancel ? (
               <div>
                 <p className="text-xs text-gray-500 mb-3">Você pode cancelar este pedido e receber um reembolso automático.</p>

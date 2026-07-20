@@ -129,6 +129,15 @@ model Order {
   refundedAt       DateTime?
   reviewEmailSentAt DateTime?
   upsellEmailSentAt DateTime?
+
+  // Melhor Envio integration
+  melhorEnvioShipmentId    String?
+  trackingUrl              String?
+  shipmentStatus           String?       @default("pending")
+  lastTrackingUpdate       DateTime?
+  etiquetaUrl              String?
+  trackingEvents           TrackingEvent[]
+
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
 }
@@ -285,4 +294,17 @@ model AnalyticsEvent {
   @@index([type, createdAt])
   @@index([productId, type])
   @@index([sessionId])
+}
+
+model TrackingEvent {
+  id        String   @id @default(cuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  status    String
+  location  String?
+  timestamp DateTime
+  details   String?  @db.Text
+  createdAt DateTime @default(now())
+
+  @@index([orderId, timestamp])
 }

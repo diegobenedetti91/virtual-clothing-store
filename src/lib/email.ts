@@ -251,3 +251,47 @@ export async function sendNewOrderNotificationEmail({
     html,
   });
 }
+
+export async function sendShippingConfirmationEmail({
+  to, customerName, orderNumber, storeName, trackingCode, trackingUrl,
+}: {
+  to: string; customerName: string; orderNumber: string; storeName: string;
+  trackingCode: string; trackingUrl: string;
+}) {
+  if (!process.env.SMTP_USER) return;
+
+  const html = baseWrapper(`
+    <h2 style="color:#ec4899;margin:0 0 8px;">Seu pedido foi enviado! 📦</h2>
+    <p style="color:#555;margin:0 0 20px;">Olá, <strong>${customerName}</strong>! Seu pedido foi postado e já pode ser rastreado em tempo real.</p>
+
+    <div style="background:#fdf2f8;border-radius:10px;padding:20px 24px;margin-bottom:20px;text-align:center;">
+      <p style="margin:0 0 6px;font-size:12px;color:#888;text-transform:uppercase;">Código de Rastreamento</p>
+      <p style="margin:0 0 12px;font-weight:700;font-size:24px;color:#be185d;letter-spacing:1px;font-family:monospace;">${trackingCode}</p>
+      <p style="margin:0 0 4px;font-size:12px;color:#888;text-transform:uppercase;">Pedido</p>
+      <p style="margin:0;font-weight:700;font-size:18px;color:#111;">${orderNumber}</p>
+    </div>
+
+    <div style="margin-bottom:20px;">
+      <a href="${trackingUrl}" target="_blank"
+         style="display:block;background:#ec4899;color:#fff;text-decoration:none;padding:14px 24px;border-radius:10px;font-weight:700;font-size:15px;text-align:center;">
+        🔍 Rastrear Agora →
+      </a>
+    </div>
+
+    <div style="background:#f9fafb;border-radius:8px;padding:14px 16px;font-size:13px;color:#555;">
+      <p style="margin:0 0 8px;"><strong>⏱️ Dicas:</strong></p>
+      <ul style="margin:0;padding-left:20px;color:#666;">
+        <li>Você receberá atualizações automáticas do rastreamento por email</li>
+        <li>O frete saiu via Melhor Envio e pode ser rastreado em tempo real</li>
+        <li>Verifique a abas "Meus Pedidos" no site para mais detalhes</li>
+      </ul>
+    </div>
+  `, storeName);
+
+  await transporter.sendMail({
+    from: `"${storeName}" <${process.env.SMTP_USER}>`,
+    to,
+    subject: `📦 Seu pedido ${orderNumber} foi postado — Rastreio: ${trackingCode}`,
+    html,
+  });
+}

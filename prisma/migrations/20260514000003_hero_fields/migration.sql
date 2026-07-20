@@ -1,0 +1,2 @@
+-- This migration was already applied but the file was empty
+-- No additional changes needed
