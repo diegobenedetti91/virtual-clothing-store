@@ -5,10 +5,23 @@ import { signToken, buildCookieHeader } from "@/lib/customerAuth";
 
 export async function POST(req: NextRequest) {
   try {
-    const { name, email, password } = await req.json();
+    const {
+      name,
+      email,
+      password,
+      phone,
+      cpfCnpj,
+      street,
+      number,
+      neighborhood,
+      city,
+      state,
+      zipCode,
+    } = await req.json();
 
-    if (!name || !email || !password) {
-      return NextResponse.json({ error: "Dados incompletos" }, { status: 400 });
+    // Validar campos obrigatórios
+    if (!name || !email || !password || !phone || !cpfCnpj || !street || !number || !neighborhood || !city || !state || !zipCode) {
+      return NextResponse.json({ error: "Todos os campos são obrigatórios" }, { status: 400 });
     }
 
     const existing = await prisma.customerUser.findUnique({ where: { email } });
@@ -18,7 +31,19 @@ export async function POST(req: NextRequest) {
 
     const hashed = await bcrypt.hash(password, 10);
     const customer = await prisma.customerUser.create({
-      data: { name, email, password: hashed },
+      data: {
+        name,
+        email,
+        password: hashed,
+        phone,
+        cpfCnpj,
+        street,
+        number,
+        neighborhood,
+        city,
+        state,
+        zipCode,
+      },
     });
 
     const token = signToken({ id: customer.id, email: customer.email, name: customer.name });
