@@ -244,7 +244,7 @@ export default function CheckoutPage() {
         notes: notes || null,
         customerId: customer?.id || null,
         shippingCost: selectedShipping?.valor || 0,
-        shippingMethod: selectedShipping?.servico || null,
+        shippingMethod: selectedShipping?.codigo || null,
         items: items.map((item) => ({
           productId: item.productId,
           quantity: item.quantity,
@@ -288,7 +288,7 @@ const handleNuPaySubmit = async (forcePixOnly: boolean = false) => {
         notes: notes || null,
         customerId: customer?.id || null,
         shippingCost: selectedShipping?.valor || 0,
-        shippingMethod: selectedShipping?.servico || null,
+        shippingMethod: selectedShipping?.codigo || null,
         discountAmount: discountAmount,
         pixOnly: forcePixOnly,
         items: items.map((item) => ({
@@ -360,7 +360,7 @@ const handleNuPaySubmit = async (forcePixOnly: boolean = false) => {
         notes: notes || null,
         customerId: customer?.id || null,
         shippingCost: selectedShipping?.valor || 0,
-        shippingMethod: selectedShipping?.servico || null,
+        shippingMethod: selectedShipping?.codigo || null,
         discountAmount: discountAmount,
         pixOnly: forcePixOnly,
         items: items.map((item) => ({
@@ -405,7 +405,7 @@ const handleNuPaySubmit = async (forcePixOnly: boolean = false) => {
         notes: notes || null,
         customerId: customer?.id || null,
         shippingCost: selectedShipping?.valor || 0,
-        shippingMethod: selectedShipping?.servico || null,
+        shippingMethod: selectedShipping?.codigo || null,
         discountAmount: discountAmount,
         pixOnly: applyPixDiscount,
         items: items.map((item) => ({
