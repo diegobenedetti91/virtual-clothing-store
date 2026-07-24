@@ -4,7 +4,7 @@ import { generateOrderNumber } from "@/lib/utils";
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { customerName, customerEmail, customerPhone, address, city, state, zipCode, notes, customerId, items, shippingCost, shippingMethod, discountAmount = 0, pixOnly = false } = body;
+  const { customerName, customerEmail, customerPhone, address, streetNumber, neighborhood, city, state, zipCode, cpfCnpj, notes, customerId, items, shippingCost, shippingMethod, discountAmount = 0, pixOnly = false } = body;
 
   if (!customerName || !customerPhone || !items?.length) {
     return NextResponse.json({ error: "Dados incompletos" }, { status: 400 });
@@ -111,9 +111,12 @@ export async function POST(req: NextRequest) {
       customerEmail: customerEmail || "",
       customerPhone,
       address: address || "",
+      streetNumber: streetNumber || "",
+      neighborhood: neighborhood || "",
       city: city || "",
       state: state || "",
       zipCode: zipCode || "",
+      cpfCnpj: cpfCnpj || "",
       notes: notes || "",
       customerId: customerId || "",
       items: JSON.stringify(items),
@@ -162,9 +165,12 @@ export async function POST(req: NextRequest) {
       customerEmail: customerEmail || null,
       customerPhone,
       address: fullAddress,
+      streetNumber: streetNumber || null,
+      neighborhood: neighborhood || null,
       city: city || null,
       state: state || null,
       zipCode: zipCode || null,
+      cpfCnpj: cpfCnpj || null,
       notes: notes || null,
       customerId: customerId || null,
       subtotal,

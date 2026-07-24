@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { customerName, customerEmail, customerPhone, address, city, state, zipCode, items, notes, customerId, shippingCost, shippingMethod } = body;
+  const { customerName, customerEmail, customerPhone, address, streetNumber, neighborhood, city, state, zipCode, cpfCnpj, items, notes, customerId, shippingCost, shippingMethod } = body;
 
   type OrderItemInput = {
     productId: string;
@@ -108,9 +108,12 @@ export async function POST(req: NextRequest) {
         customerEmail: customerEmail || null,
         customerPhone,
         address: address || null,
+        streetNumber: streetNumber || null,
+        neighborhood: neighborhood || null,
         city: city || null,
         state: state || null,
         zipCode: zipCode || null,
+        cpfCnpj: cpfCnpj || null,
         subtotal,
         shippingCost: shipping,
         shippingMethod: shippingMethod || null,

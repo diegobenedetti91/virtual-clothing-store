@@ -84,8 +84,23 @@ export async function createAutomaticShipment(orderId: string) {
     console.log("[SHIPMENT] API Token found:", settings.melhorEnvioApiToken.substring(0, 20) + "...");
 
     // Validar dados necessários
+    console.log("[SHIPMENT] Order shipping data:", {
+      shippingMethod: order.shippingMethod,
+      address: order.address,
+      city: order.city,
+      state: order.state,
+      zipCode: order.zipCode,
+    });
+
     if (!order.shippingMethod || !order.address || !order.city || !order.state || !order.zipCode) {
-      console.warn(`Order ${order.orderNumber} missing shipping data`);
+      console.warn(`[SHIPMENT] Order ${order.orderNumber} missing shipping data`);
+      console.warn("[SHIPMENT] Details:", {
+        shippingMethod: order.shippingMethod,
+        address: order.address,
+        city: order.city,
+        state: order.state,
+        zipCode: order.zipCode,
+      });
       return;
     }
 
