@@ -6,86 +6,100 @@ import { createAutomaticShipment } from "@/lib/shipmentUtils";
 import { track } from "@/lib/analytics";
 
 export async function POST(req: NextRequest) {
+  console.log("[MP WEBHOOK] ========== RECEIVED WEBHOOK ==========");
   try {
     const body = await req.json().catch(() => ({}));
     const { type, data } = body;
 
-    console.log("[MP WEBHOOK] ========== RECEIVED WEBHOOK ==========");
     console.log("[MP WEBHOOK] Full body:", JSON.stringify(body, null, 2));
     console.log("[MP WEBHOOK] Type:", type);
     console.log("[MP WEBHOOK] Data:", data);
-    console.log("========================================");
 
     // Handle merchant_order webhook (order closed/updated)
     if (type === "topic_merchant_order_wh") {
-      const merchantOrderId = body.id;
-      if (!merchantOrderId) {
-        console.log("[MP WEBHOOK] No merchant order ID");
+      // Only process when order is closed (payment confirmed)
+      if (data?.status !== "closed") {
+        console.log("[MP WEBHOOK] Merchant order not closed yet, ignoring");
         return NextResponse.json({ ok: true });
       }
 
-      const settings = await prisma.companySettings.findFirst({ orderBy: { updatedAt: "desc" } });
-      const accessToken = settings?.mercadoPagoAccessToken;
-      if (!accessToken) {
-        console.error("[MP WEBHOOK] MP Access token not configured");
-        return NextResponse.json({ ok: true });
-      }
+      console.log("[MP WEBHOOK] Processing merchant order closure");
 
-      // Fetch merchant order to get payment info
+      // Find the most recent PENDING order (which should be the one just paid)
       try {
-        const orderRes = await fetch(`https://api.mercadopago.com/v1/merchant_orders/${merchantOrderId}`, {
-          headers: { Authorization: `Bearer ${accessToken}` },
+        const pendingOrder = await prisma.order.findFirst({
+          where: { status: "PENDING" },
+          orderBy: { createdAt: "desc" },
         });
 
-        if (!orderRes.ok) {
-          const errText = await orderRes.text();
-          console.error("[MP WEBHOOK] Failed to fetch merchant order from MP:", {
-            status: orderRes.status,
-            statusText: orderRes.statusText,
-            error: errText
+        if (!pendingOrder) {
+          console.log("[MP WEBHOOK] No pending order found");
+          return NextResponse.json({ ok: true });
+        }
+
+        console.log("[MP WEBHOOK] Found pending order:", pendingOrder.orderNumber);
+
+        // Update order to CONFIRMED (payment received)
+        const updatedOrder = await prisma.order.update({
+          where: { id: pendingOrder.id },
+          data: {
+            status: "CONFIRMED",
+            paymentGateway: "mercadopago",
+            paymentMethod: "Mercado Pago",
+          },
+          include: { items: { include: { product: true } }, customer: true },
+        });
+
+        console.log("[MP WEBHOOK] Order confirmed:", updatedOrder.orderNumber);
+
+        // Decrement stock
+        const itemsForStock = updatedOrder.items.map((item) => ({
+          productId: item.productId,
+          quantity: item.quantity,
+          size: item.size,
+          color: item.color,
+          selectedAttributes: item.selectedAttributes,
+        }));
+        await decrementOrderStock(itemsForStock).catch(console.error);
+
+        // Create shipment automatically
+        try {
+          console.log("[MP WEBHOOK] Creating automatic shipment");
+          await createAutomaticShipment(updatedOrder.id);
+        } catch (err) {
+          console.error("[MP WEBHOOK] Failed to create shipment:", err);
+        }
+
+        // Track order completion
+        try {
+          await track("ORDER_COMPLETE", {
+            orderId: updatedOrder.id,
+            customerId: updatedOrder.customerId,
+            value: updatedOrder.total,
           });
-          return NextResponse.json({ ok: true });
+        } catch (err) {
+          console.error("[MP WEBHOOK] Failed to track order:", err);
         }
 
-        const merchantOrder = await orderRes.json();
-        console.log("[MP WEBHOOK] Merchant Order Status:", { status: merchantOrder.status, orderNumber: merchantOrder.external_reference });
+        // Send confirmation email
+        const settings = await prisma.companySettings.findFirst({ orderBy: { updatedAt: "desc" } });
+        const storeName = settings?.name || "Minha Loja";
+        const emailTarget = updatedOrder.customer?.email || updatedOrder.customerEmail;
 
-        // Only process if order is closed (payment confirmed)
-        if (merchantOrder.status !== "closed") {
-          console.log("[MP WEBHOOK] Merchant order not closed yet, ignoring");
-          return NextResponse.json({ ok: true });
+        if (emailTarget) {
+          sendOrderConfirmationEmail({
+            to: emailTarget,
+            customerName: updatedOrder.customerName,
+            orderNumber: updatedOrder.orderNumber,
+            storeName,
+            items: updatedOrder.items.map((i) => ({ name: i.product.name, quantity: i.quantity, price: i.price })),
+            total: updatedOrder.total,
+            isGateway: true,
+          }).catch((err) => console.error("[MP WEBHOOK] Failed to send email:", err));
         }
 
-        // Get first payment from merchant order
-        const payment = merchantOrder.payments?.[0];
-        if (!payment) {
-          console.error("[MP WEBHOOK] No payment found in merchant order");
-          return NextResponse.json({ ok: true });
-        }
-
-        // Fetch payment details
-        const paymentRes = await fetch(`https://api.mercadopago.com/v1/payments/${payment.id}`, {
-          headers: { Authorization: `Bearer ${accessToken}` },
-        });
-
-        if (!paymentRes.ok) {
-          console.error("[MP WEBHOOK] Failed to fetch payment");
-          return NextResponse.json({ ok: true });
-        }
-
-        const paymentData = await paymentRes.json();
-        const orderNumber = merchantOrder.external_reference;
-
-        console.log("[MP WEBHOOK] Processing payment:", { orderId: orderNumber, paymentStatus: paymentData.status });
-
-        if (!orderNumber) {
-          console.error("[MP WEBHOOK] No external_reference in merchant order");
-          return NextResponse.json({ ok: true });
-        }
-
-        // Continue with payment processing using paymentData
-        body.type = "payment";
-        body.data = { id: paymentData.id };
+        console.log("[MP WEBHOOK] Order processing complete");
+        return NextResponse.json({ ok: true });
       } catch (err) {
         console.error("[MP WEBHOOK] Error processing merchant order:", err);
         return NextResponse.json({ ok: true });
@@ -256,8 +270,12 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ ok: true });
   } catch (error) {
-    console.error("[MP WEBHOOK] Error processing webhook:", error);
-    return NextResponse.json({ ok: true });
+    console.error("[MP WEBHOOK] ========== ERROR ==========");
+    console.error("[MP WEBHOOK] Error type:", error instanceof Error ? error.constructor.name : typeof error);
+    console.error("[MP WEBHOOK] Error message:", error instanceof Error ? error.message : String(error));
+    console.error("[MP WEBHOOK] Error stack:", error instanceof Error ? error.stack : "No stack");
+    console.error("========================================");
+    return NextResponse.json({ ok: true }, { status: 500 });
   }
 }
 
