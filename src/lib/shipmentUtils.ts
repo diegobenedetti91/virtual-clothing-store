@@ -75,8 +75,8 @@ export async function createAutomaticShipment(orderId: string) {
 
     const settings = await prisma.companySettings.findFirst();
 
-    if (!settings?.melhorEnvioToken) {
-      console.warn("Melhor Envio token not configured - shipment creation skipped");
+    if (!settings?.melhorEnvioApiToken) {
+      console.warn("Melhor Envio API token not configured - shipment creation skipped");
       return;
     }
 
@@ -152,7 +152,7 @@ export async function createAutomaticShipment(orderId: string) {
     };
 
     // Criar shipment no Melhor Envio
-    const shipment = await createMelhorEnvioShipment(settings.melhorEnvioToken, payload, payload.from);
+    const shipment = await createMelhorEnvioShipment(settings.melhorEnvioApiToken, payload, payload.from);
 
     // Armazenar dados no banco
     await prisma.order.update({

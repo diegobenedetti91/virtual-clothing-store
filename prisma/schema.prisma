@@ -197,6 +197,7 @@ model CompanySettings {
   freteCEPOrigem         String?
   fretePesoDefaultGramas Int      @default(500)
   melhorEnvioToken       String?  @db.Text
+  melhorEnvioApiToken    String?  @db.Text
   fretePacoteAltura      Int      @default(5)
   fretePacoteLargura     Int      @default(12)
   fretePacoteComprimento Int      @default(17)

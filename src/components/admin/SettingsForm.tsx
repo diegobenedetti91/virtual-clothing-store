@@ -70,7 +70,9 @@ export default function SettingsForm({ initialSettings }: Props) {
   const [freteCEPOrigem, setFreteCEPOrigem] = useState(initialSettings?.freteCEPOrigem || "");
   const [fretePesoDefault, setFretePesoDefault] = useState(initialSettings?.fretePesoDefaultGramas?.toString() || "500");
   const [melhorEnvioToken, setMelhorEnvioToken] = useState(initialSettings?.melhorEnvioToken || "");
+  const [melhorEnvioApiToken, setMelhorEnvioApiToken] = useState(initialSettings?.melhorEnvioApiToken || "");
   const [showMEToken, setShowMEToken] = useState(false);
+  const [showMEApiToken, setShowMEApiToken] = useState(false);
   const [pacoteAltura, setPacoteAltura] = useState(initialSettings?.fretePacoteAltura?.toString() || "5");
   const [pacoteLargura, setPacoteLargura] = useState(initialSettings?.fretePacoteLargura?.toString() || "12");
   const [pacoteComprimento, setPacoteComprimento] = useState(initialSettings?.fretePacoteComprimento?.toString() || "17");
@@ -100,6 +102,7 @@ export default function SettingsForm({ initialSettings }: Props) {
           freteCEPOrigem: freteCEPOrigem || null,
           fretePesoDefaultGramas: parseInt(fretePesoDefault) || 500,
           melhorEnvioToken: melhorEnvioToken || null,
+          melhorEnvioApiToken: melhorEnvioApiToken || null,
           fretePacoteAltura: parseInt(pacoteAltura) || 5,
           fretePacoteLargura: parseInt(pacoteLargura) || 12,
           fretePacoteComprimento: parseInt(pacoteComprimento) || 17,
@@ -588,7 +591,7 @@ export default function SettingsForm({ initialSettings }: Props) {
                       </div>
                     </div>
                     <div>
-                      <label className={labelClass}>Token de acesso</label>
+                      <label className={labelClass}>Token de acesso (Cálculo de frete)</label>
                       <div className="relative">
                         <input
                           type={showMEToken ? "text" : "password"}
@@ -604,6 +607,25 @@ export default function SettingsForm({ initialSettings }: Props) {
                       <p className="text-xs text-orange-700 mt-1">
                         Obtenha em <strong>melhorenvio.com.br → Integrações → Tokens</strong>. Selecione permissão <strong>Cotações</strong>.
                         {freteTipo === "hibrido" && " Se não configurado, usa Correios como fallback."}
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className={labelClass}>Token de acesso (API - Criar etiquetas)</label>
+                      <div className="relative">
+                        <input
+                          type={showMEApiToken ? "text" : "password"}
+                          value={melhorEnvioApiToken}
+                          onChange={(e) => setMelhorEnvioApiToken(e.target.value)}
+                          className={`${inputClass} pr-10`}
+                          placeholder="10v4wcpYXt8hmw9XyaXh8H0ivZACXkLcgk120stI"
+                        />
+                        <button type="button" onClick={() => setShowMEApiToken(!showMEApiToken)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                          {showMEApiToken ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
+                      </div>
+                      <p className="text-xs text-orange-700 mt-1">
+                        Token para criar etiquetas e shipments automaticamente. Obtenha em <strong>melhorenvio.com.br → Integrações → Tokens</strong>. Selecione permissão <strong>Cotações + Envios</strong>.
                       </p>
                     </div>
                   </div>
