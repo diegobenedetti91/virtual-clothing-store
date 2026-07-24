@@ -41,6 +41,7 @@ export default function CheckoutPage() {
   const [street, setStreet] = useState("");
   const [number, setNumber] = useState("");
   const [neighborhood, setNeighborhood] = useState("");
+  const [cpfCnpj, setCpfCnpj] = useState("");
   const [city, setCity] = useState("");
   const [state, setState] = useState("");
   const [zipCode, setZipCode] = useState("");
@@ -349,6 +350,9 @@ const handleNuPaySubmit = async (forcePixOnly: boolean = false) => {
         customerName: name,
         customerEmail: email || null,
         customerPhone: phone,
+        streetNumber: number || null,
+        neighborhood: neighborhood || null,
+        cpfCnpj: cpfCnpj || null,
         address: fullAddress || null,
         city: city || null,
         state: state || null,
@@ -557,6 +561,10 @@ const handleNuPaySubmit = async (forcePixOnly: boolean = false) => {
                     <div>
                       <label className={labelClass}>CEP</label>
                       <input value={zipCode} onChange={(e) => setZipCode(e.target.value)} className={inputClass} placeholder="00000-000" />
+                    </div>
+                    <div>
+                      <label className={labelClass}>CPF / CNPJ (opcional)</label>
+                      <input value={cpfCnpj} onChange={(e) => setCpfCnpj(e.target.value)} className={inputClass} placeholder="000.000.000-00 ou 00.000.000/0000-00" />
                     </div>
                   </div>
                 </div>
