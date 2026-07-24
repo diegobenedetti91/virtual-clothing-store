@@ -62,13 +62,13 @@ export async function POST(req: NextRequest) {
         }));
         await decrementOrderStock(itemsForStock).catch(console.error);
 
-        // Create shipment automatically
-        try {
-          console.log("[MP WEBHOOK] Creating automatic shipment");
-          await createAutomaticShipment(updatedOrder.id);
-        } catch (err) {
-          console.error("[MP WEBHOOK] Failed to create shipment:", err);
-        }
+        // Create shipment automatically (commented for now - endpoint needs to be verified)
+        // try {
+        //   console.log("[MP WEBHOOK] Creating automatic shipment");
+        //   await createAutomaticShipment(updatedOrder.id);
+        // } catch (err) {
+        //   console.error("[MP WEBHOOK] Failed to create shipment:", err);
+        // }
 
         // Track order completion
         try {
