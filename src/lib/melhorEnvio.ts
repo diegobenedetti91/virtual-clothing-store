@@ -116,15 +116,13 @@ export async function createMelhorEnvioShipment(
       volumes: payload.volumes,
       options: {
         platform: (payload.options.platform || "VirtualClothingStore").substring(0, 100),
-        reminder: payload.options.reminder ? payload.options.reminder.substring(0, 100) : undefined,
+        ...(payload.options.reminder && { reminder: payload.options.reminder.substring(0, 100) }),
         insurance_value: payload.options.insurance_value,
         receipt: payload.options.receipt,
         own_hand: payload.options.own_hand,
         reverse: payload.options.reverse,
         non_commercial: payload.options.non_commercial,
-        dce: undefined, // Remove se vazio
-        invoice: undefined, // Remove se vazio
-        tags: payload.options.tags && payload.options.tags.length > 0 ? payload.options.tags : undefined,
+        ...(payload.options.tags && payload.options.tags.length > 0 && { tags: payload.options.tags }),
       },
     };
 
