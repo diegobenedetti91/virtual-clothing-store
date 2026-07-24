@@ -2,6 +2,60 @@ import { prisma } from "@/lib/prisma";
 import { createMelhorEnvioShipment, MelhorEnvioShipmentPayload } from "@/lib/melhorEnvio";
 import { sendShippingConfirmationEmail } from "@/lib/email";
 
+// Parse address like "Rua Tancredo de Luna, 780 - Vila Residencial Treviso, Limeira - SP"
+function parseAddress(fullAddress: string) {
+  const parts = fullAddress.split(",").map((p) => p.trim());
+
+  let street = "";
+  let number = "";
+  let district = "";
+  let city = "";
+  let state = "";
+
+  if (parts.length >= 1) {
+    // Extract street and number from first part: "Rua X 123" or "Rua X, 123"
+    const streetParts = parts[0].split(/\s+(?=\d)/).map((p) => p.trim());
+    if (streetParts.length >= 2) {
+      street = streetParts[0];
+      number = streetParts[1];
+    } else {
+      street = parts[0];
+      number = "S/N";
+    }
+  }
+
+  if (parts.length >= 2) {
+    // Second part might be: "123 - Bairro" or just "123"
+    const secondPart = parts[1];
+    const dashIndex = secondPart.indexOf("-");
+    if (dashIndex > 0) {
+      district = secondPart.substring(dashIndex + 1).trim();
+      const numPart = secondPart.substring(0, dashIndex).trim();
+      if (!number || number === "S/N") {
+        number = numPart;
+      }
+    } else {
+      number = secondPart;
+    }
+  }
+
+  if (parts.length >= 3) {
+    // Third part is city and state: "Limeira - SP" or "Limeira SP"
+    const cityStatePart = parts[2];
+    const dashIndex = cityStatePart.indexOf("-");
+    if (dashIndex > 0) {
+      city = cityStatePart.substring(0, dashIndex).trim();
+      state = cityStatePart.substring(dashIndex + 1).trim();
+    } else {
+      const cityStateParts = cityStatePart.split(/\s+/);
+      city = cityStateParts[0];
+      state = cityStateParts[1] || "SP";
+    }
+  }
+
+  return { street, number, district: district || "Centro", city, state };
+}
+
 export async function createAutomaticShipment(orderId: string) {
   try {
     const order = await prisma.order.findUnique({
@@ -32,25 +86,37 @@ export async function createAutomaticShipment(orderId: string) {
       return;
     }
 
-    // Get sender (store) info from settings
-    if (!settings?.freteLocalCidade || !settings?.freteLocalUF) {
-      console.warn(`Order ${order.orderNumber} missing sender city/state info`);
-      return;
+    // Get sender (store) info from settings - parse address if available
+    let senderInfo = {
+      street: "Avenida Paulista",
+      number: "1000",
+      district: "Bela Vista",
+      city: "São Paulo",
+      state: "SP",
+    };
+
+    if (settings?.address) {
+      senderInfo = parseAddress(settings.address);
+    } else if (settings?.freteLocalCidade && settings?.freteLocalUF) {
+      senderInfo.city = settings.freteLocalCidade;
+      senderInfo.state = settings.freteLocalUF;
     }
+
+    const senderCEP = settings?.freteCEPOrigem || "01310100";
 
     // Formatar payload para Melhor Envio
     const payload: MelhorEnvioShipmentPayload = {
       service: parseInt(order.shippingMethod),
       from: {
         name: settings.name || "Loja",
-        phone: settings.whatsapp?.replace(/\D/g, "") || "0000000000",
+        phone: settings.whatsapp?.replace(/\D/g, "") || "1133334444",
         email: process.env.SMTP_USER || "noreply@store.com",
-        address: settings.address || "Endereço não informado",
-        number: "S/N",
-        district: "Centro",
-        city: settings.freteLocalCidade,
-        postal_code: settings.freteCEPOrigem?.replace(/\D/g, "") || "00000000",
-        state_abbr: settings.freteLocalUF,
+        address: senderInfo.street,
+        number: senderInfo.number,
+        district: senderInfo.district,
+        city: senderInfo.city,
+        postal_code: senderCEP.replace(/\D/g, ""),
+        state_abbr: senderInfo.state,
       },
       to: {
         name: order.customerName,
