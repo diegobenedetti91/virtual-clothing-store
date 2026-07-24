@@ -95,23 +95,36 @@ export async function createMelhorEnvioShipment(
   try {
     // Step 1: Add to cart
     console.log("[ME API] Adding shipment to cart...");
+
+    // Ensure address has minimum length
+    const toAddress = (payload.to.address || "").trim();
+    if (toAddress.length === 0) {
+      throw new Error("Recipient address is required");
+    }
+
     const cartPayload = {
-      service: payload.service,
-      from: payload.from,
-      to: payload.to,
+      service: parseInt(String(payload.service)),
+      from: {
+        ...payload.from,
+        name: (payload.from.name || "Loja").substring(0, 100),
+      },
+      to: {
+        ...payload.to,
+        address: toAddress.substring(0, 100),
+      },
       products: payload.products,
       volumes: payload.volumes,
       options: {
-        platform: payload.options.platform || "VirtualClothingStore",
-        reminder: payload.options.reminder,
+        platform: (payload.options.platform || "VirtualClothingStore").substring(0, 100),
+        reminder: payload.options.reminder ? payload.options.reminder.substring(0, 100) : undefined,
         insurance_value: payload.options.insurance_value,
         receipt: payload.options.receipt,
         own_hand: payload.options.own_hand,
         reverse: payload.options.reverse,
         non_commercial: payload.options.non_commercial,
-        dce: payload.options.dce || { key: "" },
-        invoice: payload.options.invoice || { key: "" },
-        tags: payload.options.tags || [],
+        dce: undefined, // Remove se vazio
+        invoice: undefined, // Remove se vazio
+        tags: payload.options.tags && payload.options.tags.length > 0 ? payload.options.tags : undefined,
       },
     };
 

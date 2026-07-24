@@ -81,7 +81,7 @@ export async function createAutomaticShipment(orderId: string) {
       return;
     }
 
-    console.log("[SHIPMENT] API Token found:", settings.melhorEnvioToken.substring(0, 20) + "...");
+    console.log("[SHIPMENT] API Token found:", settings.melhorEnvioApiToken.substring(0, 20) + "...");
 
     // Validar dados necessários
     if (!order.shippingMethod || !order.address || !order.city || !order.state || !order.zipCode) {
