@@ -16,7 +16,78 @@ export async function POST(req: NextRequest) {
     console.log("[MP WEBHOOK] Data:", data);
     console.log("========================================");
 
-    if (type !== "payment" || !data?.id) {
+    // Handle merchant_order webhook (order closed/updated)
+    if (type === "topic_merchant_order_wh") {
+      const merchantOrderId = body.id;
+      if (!merchantOrderId) {
+        console.log("[MP WEBHOOK] No merchant order ID");
+        return NextResponse.json({ ok: true });
+      }
+
+      const settings = await prisma.companySettings.findFirst({ orderBy: { updatedAt: "desc" } });
+      const accessToken = settings?.mercadoPagoAccessToken;
+      if (!accessToken) {
+        console.error("[MP WEBHOOK] MP Access token not configured");
+        return NextResponse.json({ ok: true });
+      }
+
+      // Fetch merchant order to get payment info
+      try {
+        const orderRes = await fetch(`https://api.mercadopago.com/v1/merchant_orders/${merchantOrderId}`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+
+        if (!orderRes.ok) {
+          console.error("[MP WEBHOOK] Failed to fetch merchant order from MP");
+          return NextResponse.json({ ok: true });
+        }
+
+        const merchantOrder = await orderRes.json();
+        console.log("[MP WEBHOOK] Merchant Order Status:", { status: merchantOrder.status, orderNumber: merchantOrder.external_reference });
+
+        // Only process if order is closed (payment confirmed)
+        if (merchantOrder.status !== "closed") {
+          console.log("[MP WEBHOOK] Merchant order not closed yet, ignoring");
+          return NextResponse.json({ ok: true });
+        }
+
+        // Get first payment from merchant order
+        const payment = merchantOrder.payments?.[0];
+        if (!payment) {
+          console.error("[MP WEBHOOK] No payment found in merchant order");
+          return NextResponse.json({ ok: true });
+        }
+
+        // Fetch payment details
+        const paymentRes = await fetch(`https://api.mercadopago.com/v1/payments/${payment.id}`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+
+        if (!paymentRes.ok) {
+          console.error("[MP WEBHOOK] Failed to fetch payment");
+          return NextResponse.json({ ok: true });
+        }
+
+        const paymentData = await paymentRes.json();
+        const orderNumber = merchantOrder.external_reference;
+
+        console.log("[MP WEBHOOK] Processing payment:", { orderId: orderNumber, paymentStatus: paymentData.status });
+
+        if (!orderNumber) {
+          console.error("[MP WEBHOOK] No external_reference in merchant order");
+          return NextResponse.json({ ok: true });
+        }
+
+        // Continue with payment processing using paymentData
+        body.type = "payment";
+        body.data = { id: paymentData.id };
+      } catch (err) {
+        console.error("[MP WEBHOOK] Error processing merchant order:", err);
+        return NextResponse.json({ ok: true });
+      }
+    }
+
+    if (type !== "payment" || !body.data?.id) {
       console.log("[MP WEBHOOK] Ignoring non-payment webhook");
       return NextResponse.json({ ok: true });
     }
@@ -28,7 +99,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
-    const paymentRes = await fetch(`https://api.mercadopago.com/v1/payments/${data.id}`, {
+    const paymentRes = await fetch(`https://api.mercadopago.com/v1/payments/${body.data.id}`, {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
 
