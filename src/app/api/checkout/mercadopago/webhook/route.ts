@@ -38,7 +38,12 @@ export async function POST(req: NextRequest) {
         });
 
         if (!orderRes.ok) {
-          console.error("[MP WEBHOOK] Failed to fetch merchant order from MP");
+          const errText = await orderRes.text();
+          console.error("[MP WEBHOOK] Failed to fetch merchant order from MP:", {
+            status: orderRes.status,
+            statusText: orderRes.statusText,
+            error: errText
+          });
           return NextResponse.json({ ok: true });
         }
 
