@@ -64,13 +64,8 @@ export async function POST(req: NextRequest) {
         }));
         await decrementOrderStock(itemsForStock).catch(console.error);
 
-        // Create shipment automatically (commented for now - endpoint needs to be verified)
-        // try {
-        //   console.log("[MP WEBHOOK] Creating automatic shipment");
-        //   await createAutomaticShipment(updatedOrder.id);
-        // } catch (err) {
-        //   console.error("[MP WEBHOOK] Failed to create shipment:", err);
-        // }
+        // Shipment creation disabled - Melhor Envio endpoint needs to be corrected
+        // TODO: Update createAutomaticShipment to use correct Melhor Envio API endpoint
 
         // Track order completion
         try {
