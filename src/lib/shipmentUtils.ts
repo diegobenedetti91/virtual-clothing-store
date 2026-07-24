@@ -32,30 +32,64 @@ export async function createAutomaticShipment(orderId: string) {
       return;
     }
 
+    // Get sender (store) info from settings
+    if (!settings?.freteLocalCidade || !settings?.freteLocalUF) {
+      console.warn(`Order ${order.orderNumber} missing sender city/state info`);
+      return;
+    }
+
     // Formatar payload para Melhor Envio
     const payload: MelhorEnvioShipmentPayload = {
       service: parseInt(order.shippingMethod),
-      recipient: {
+      from: {
+        name: settings.name || "Loja",
+        phone: settings.whatsapp?.replace(/\D/g, "") || "0000000000",
+        email: process.env.SMTP_USER || "noreply@store.com",
+        address: settings.address || "Endereço não informado",
+        number: "S/N",
+        district: "Centro",
+        city: settings.freteLocalCidade,
+        postal_code: settings.freteCEPOrigem?.replace(/\D/g, "") || "00000000",
+        state_abbr: settings.freteLocalUF,
+      },
+      to: {
         name: order.customerName,
         phone: order.customerPhone.replace(/\D/g, ""),
         email: order.customerEmail || "noreply@store.com",
-        address: order.address,
+        address: order.address || "Endereço não informado",
         number: "S/N",
+        district: "Centro",
         city: order.city,
-        state: order.state,
         postal_code: order.zipCode.replace(/\D/g, ""),
+        state_abbr: order.state,
+        country_id: "BR",
       },
-      items: order.items.map((item) => ({
+      products: order.items.map((item) => ({
         name: item.product.name.substring(0, 100),
         quantity: item.quantity,
         unitary_value: item.price,
       })),
-      insurance_value: order.subtotal,
-      value: order.shippingCost,
+      volumes: [
+        {
+          height: settings.fretePacoteAltura || 5,
+          width: settings.fretePacoteLargura || 12,
+          length: settings.fretePacoteComprimento || 17,
+          weight: (order.items.reduce((sum, item) => sum + (item.product.pesoGramas || 500) * item.quantity, 0) / 1000) || 1,
+        },
+      ],
+      options: {
+        insurance_value: order.subtotal,
+        receipt: false,
+        own_hand: false,
+        reverse: false,
+      },
     };
 
+    // Sender info for API
+    const senderInfo = payload.from;
+
     // Criar shipment no Melhor Envio
-    const shipment = await createMelhorEnvioShipment(settings.melhorEnvioToken, payload);
+    const shipment = await createMelhorEnvioShipment(settings.melhorEnvioToken, payload, senderInfo);
 
     // Armazenar dados no banco
     await prisma.order.update({
