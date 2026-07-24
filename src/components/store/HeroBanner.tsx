@@ -79,18 +79,7 @@ export default function HeroBanner({ settings }: HeroBannerProps) {
         </div>
       ))}
 
-      <div className="relative z-10 flex flex-col items-start justify-center h-full text-white px-8 sm:px-16 max-w-3xl">
-        {settings?.heroBadge && (
-          <p className="text-xs font-bold tracking-widest text-white/60 uppercase mb-3">{settings.heroBadge}</p>
-        )}
-        {title && (
-          <h1 className="text-5xl sm:text-6xl font-black tracking-tight mb-6 drop-shadow-lg leading-tight">
-            {title}
-          </h1>
-        )}
-        {settings?.description && (
-          <p className="text-white/80 text-lg mb-8 max-w-sm">{settings.description}</p>
-        )}
+      <div className="relative z-10 flex flex-col items-center justify-center h-full text-white px-8 sm:px-16">
         <div className="flex flex-wrap gap-3">
           <Link
             href="/produtos"
@@ -98,6 +87,7 @@ export default function HeroBanner({ settings }: HeroBannerProps) {
           >
             {primaryBtn} <ArrowRight size={18} />
           </Link>
+        </div>
         </div>
       </div>
 
