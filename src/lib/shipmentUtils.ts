@@ -173,7 +173,7 @@ export async function createAutomaticShipment(orderId: string) {
     };
 
     // Criar shipment no Melhor Envio
-    const shipment = await createMelhorEnvioShipment(settings.melhorEnvioToken, payload, payload.from);
+    const shipment = await createMelhorEnvioShipment(settings.melhorEnvioApiToken, payload, payload.from);
 
     // Armazenar dados no banco
     await prisma.order.update({
