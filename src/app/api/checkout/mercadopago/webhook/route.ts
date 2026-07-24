@@ -5,6 +5,9 @@ import { decrementOrderStock } from "@/lib/stockUtils";
 import { createAutomaticShipment } from "@/lib/shipmentUtils";
 import { track } from "@/lib/analytics";
 
+// Exempt from all protections - webhook from external service
+export const dynamic = "force-dynamic";
+
 export async function POST(req: NextRequest) {
   console.log("[MP WEBHOOK] ========== RECEIVED WEBHOOK ==========");
   try {
