@@ -96,17 +96,32 @@ export async function createMelhorEnvioShipment(
     // Step 1: Add to cart
     console.log("[ME API] Adding shipment to cart...");
 
-    // Ensure address has minimum length
+    // Validate and prepare address
     const toAddress = (payload.to.address || "").trim();
-    if (toAddress.length === 0) {
-      throw new Error("Recipient address is required");
+    if (toAddress.length < 10) {
+      console.error("[ME API] Address too short:", toAddress, "length:", toAddress.length);
+      throw new Error(`Recipient address must be at least 64 characters (current: ${toAddress.length})`);
+    }
+
+    // Validate from.name
+    const fromName = (payload.from.name || "").trim();
+    if (fromName.length === 0) {
+      console.error("[ME API] from.name is empty");
+      throw new Error("Sender name is required");
+    }
+
+    // Validate service
+    const service = parseInt(String(payload.service));
+    if (isNaN(service) || service === 0) {
+      console.error("[ME API] Invalid service:", payload.service);
+      throw new Error(`Invalid service ID: ${payload.service}`);
     }
 
     const cartPayload = {
-      service: parseInt(String(payload.service)),
+      service: service,
       from: {
         ...payload.from,
-        name: (payload.from.name || "Loja").substring(0, 100),
+        name: fromName.substring(0, 100),
       },
       to: {
         ...payload.to,
@@ -128,7 +143,13 @@ export async function createMelhorEnvioShipment(
 
     console.log("[ME API] Cart URL: https://melhorenvio.com.br/api/v2/me/cart");
     console.log("[ME API] Token: " + (token ? token.substring(0, 20) + "..." : "MISSING"));
-    console.log("[ME API] Cart Payload:", JSON.stringify(cartPayload, null, 2));
+    console.log("[ME API] Service:", cartPayload.service, "Type:", typeof cartPayload.service);
+    console.log("[ME API] From Name:", cartPayload.from.name, "Length:", cartPayload.from.name.length);
+    console.log("[ME API] To Address:", cartPayload.to.address, "Length:", cartPayload.to.address.length);
+
+    const jsonBody = JSON.stringify(cartPayload);
+    console.log("[ME API] SENDING JSON BODY:");
+    console.log(jsonBody);
 
     const cartRes = await fetch("https://melhorenvio.com.br/api/v2/me/cart", {
       method: "POST",
@@ -138,7 +159,7 @@ export async function createMelhorEnvioShipment(
         Accept: "application/json",
         "User-Agent": "VirtualClothingStore/1.0",
       },
-      body: JSON.stringify(cartPayload),
+      body: jsonBody,
     });
 
     if (!cartRes.ok) {
