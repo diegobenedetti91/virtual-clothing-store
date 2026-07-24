@@ -76,9 +76,13 @@ export async function createAutomaticShipment(orderId: string) {
     const settings = await prisma.companySettings.findFirst();
 
     if (!settings?.melhorEnvioApiToken) {
-      console.warn("Melhor Envio API token not configured - shipment creation skipped");
+      console.warn("[SHIPMENT] Melhor Envio API token not configured - shipment creation skipped");
+      console.warn("[SHIPMENT] Settings ID:", settings?.id);
+      console.warn("[SHIPMENT] Settings keys:", Object.keys(settings || {}));
       return;
     }
+
+    console.log("[SHIPMENT] API Token found:", settings.melhorEnvioApiToken.substring(0, 20) + "...");
 
     // Validar dados necessários
     if (!order.shippingMethod || !order.address || !order.city || !order.state || !order.zipCode) {

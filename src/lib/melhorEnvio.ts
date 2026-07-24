@@ -89,6 +89,10 @@ export async function createMelhorEnvioShipment(
       options: payload.options || {},
     };
 
+    console.log("[ME API] Cart URL: https://api.melhorenvio.com.br/api/v2/me/cart");
+    console.log("[ME API] Token: " + (token ? token.substring(0, 20) + "..." : "MISSING"));
+    console.log("[ME API] Cart Payload:", JSON.stringify(cartPayload, null, 2));
+
     const cartRes = await fetch("https://api.melhorenvio.com.br/api/v2/me/cart", {
       method: "POST",
       headers: {
@@ -102,7 +106,8 @@ export async function createMelhorEnvioShipment(
 
     if (!cartRes.ok) {
       const error = await cartRes.text();
-      console.error("[ME API] Cart error:", error);
+      console.error("[ME API] Cart error status:", cartRes.status);
+      console.error("[ME API] Cart error body:", error);
       throw new Error(`Melhor Envio cart error: ${cartRes.status}`);
     }
 
