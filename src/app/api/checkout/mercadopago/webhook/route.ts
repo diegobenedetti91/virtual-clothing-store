@@ -10,7 +10,11 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => ({}));
     const { type, data } = body;
 
-    console.log("[MP WEBHOOK] Received webhook:", { type, paymentId: data?.id });
+    console.log("[MP WEBHOOK] ========== RECEIVED WEBHOOK ==========");
+    console.log("[MP WEBHOOK] Full body:", JSON.stringify(body, null, 2));
+    console.log("[MP WEBHOOK] Type:", type);
+    console.log("[MP WEBHOOK] Data:", data);
+    console.log("========================================");
 
     if (type !== "payment" || !data?.id) {
       console.log("[MP WEBHOOK] Ignoring non-payment webhook");
