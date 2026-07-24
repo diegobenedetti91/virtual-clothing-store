@@ -138,6 +138,7 @@ export interface CompanySettings {
   freteCEPOrigem?: string | null;
   fretePesoDefaultGramas: number;
   melhorEnvioToken?: string | null;
+  melhorEnvioApiToken?: string | null;
   fretePacoteAltura: number;
   fretePacoteLargura: number;
   fretePacoteComprimento: number;
