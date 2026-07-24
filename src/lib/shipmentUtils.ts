@@ -87,7 +87,7 @@ export async function createAutomaticShipment(orderId: string) {
     }
 
     // Get sender (store) info from settings - parse address if available
-    let senderInfo = {
+    let senderAddressInfo = {
       street: "Avenida Paulista",
       number: "1000",
       district: "Bela Vista",
@@ -96,10 +96,10 @@ export async function createAutomaticShipment(orderId: string) {
     };
 
     if (settings?.address) {
-      senderInfo = parseAddress(settings.address);
+      senderAddressInfo = parseAddress(settings.address);
     } else if (settings?.freteLocalCidade && settings?.freteLocalUF) {
-      senderInfo.city = settings.freteLocalCidade;
-      senderInfo.state = settings.freteLocalUF;
+      senderAddressInfo.city = settings.freteLocalCidade;
+      senderAddressInfo.state = settings.freteLocalUF;
     }
 
     const senderCEP = settings?.freteCEPOrigem || "01310100";
@@ -111,12 +111,12 @@ export async function createAutomaticShipment(orderId: string) {
         name: settings.name || "Loja",
         phone: settings.whatsapp?.replace(/\D/g, "") || "1133334444",
         email: process.env.SMTP_USER || "noreply@store.com",
-        address: senderInfo.street,
-        number: senderInfo.number,
-        district: senderInfo.district,
-        city: senderInfo.city,
+        address: senderAddressInfo.street,
+        number: senderAddressInfo.number,
+        district: senderAddressInfo.district,
+        city: senderAddressInfo.city,
         postal_code: senderCEP.replace(/\D/g, ""),
-        state_abbr: senderInfo.state,
+        state_abbr: senderAddressInfo.state,
       },
       to: {
         name: order.customerName,
@@ -151,11 +151,8 @@ export async function createAutomaticShipment(orderId: string) {
       },
     };
 
-    // Sender info for API
-    const senderInfo = payload.from;
-
     // Criar shipment no Melhor Envio
-    const shipment = await createMelhorEnvioShipment(settings.melhorEnvioToken, payload, senderInfo);
+    const shipment = await createMelhorEnvioShipment(settings.melhorEnvioToken, payload, payload.from);
 
     // Armazenar dados no banco
     await prisma.order.update({
