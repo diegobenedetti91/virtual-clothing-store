@@ -22,6 +22,7 @@ export default function SettingsForm({ initialSettings }: Props) {
   const [whatsapp, setWhatsapp] = useState(initialSettings?.whatsapp || "");
   const [instagram, setInstagram] = useState(initialSettings?.instagram || "");
   const [address, setAddress] = useState(initialSettings?.address || "");
+  const [cnpj, setCnpj] = useState(initialSettings?.cnpj || "");
   const [description, setDescription] = useState(initialSettings?.description || "");
   const [primaryColor, setPrimaryColor] = useState(initialSettings?.primaryColor || "#ec4899");
   const [buttonColor, setButtonColor] = useState(initialSettings?.buttonColor || initialSettings?.primaryColor || "#ec4899");
@@ -89,7 +90,7 @@ export default function SettingsForm({ initialSettings }: Props) {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name, logo, phone, whatsapp, instagram, address, description,
+          name, logo, phone, whatsapp, instagram, address, cnpj, description,
           primaryColor, buttonColor, menuColor, bannerImages, checkoutType, checkoutCollectEmail, checkoutCollectAddress,
           checkoutMessage, mercadoPagoPublicKey: mpPublicKey || null, mercadoPagoAccessToken: mpAccessToken || null,
           mercadoPagoAtivo, nuPayClientId: nuPayClientId || null, nuPayClientSecret: nuPayClientSecret || null, nuPayAtivo,
@@ -181,6 +182,10 @@ export default function SettingsForm({ initialSettings }: Props) {
               <div>
                 <label className={labelClass}>Endereço da loja física</label>
                 <input value={address} onChange={(e) => setAddress(e.target.value)} className={inputClass} placeholder="Rua, número - Cidade/UF" />
+              </div>
+              <div>
+                <label className={labelClass}>CNPJ (para API Melhor Envio)</label>
+                <input value={cnpj} onChange={(e) => setCnpj(e.target.value)} className={inputClass} placeholder="12.345.678/0001-00" />
               </div>
             </div>
           </div>

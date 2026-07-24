@@ -115,7 +115,11 @@ export async function createAutomaticShipment(orderId: string) {
         name: settings.name || "Loja",
         phone: settings.whatsapp?.replace(/\D/g, "") || "1133334444",
         email: process.env.SMTP_USER || "noreply@store.com",
+        company_document: settings.cnpj?.replace(/\D/g, "") || "",
+        state_register: "",
+        economic_activity_code: "",
         address: senderAddressInfo.street,
+        complement: "",
         number: senderAddressInfo.number,
         district: senderAddressInfo.district,
         city: senderAddressInfo.city,
@@ -126,9 +130,12 @@ export async function createAutomaticShipment(orderId: string) {
         name: order.customerName,
         phone: order.customerPhone.replace(/\D/g, ""),
         email: order.customerEmail || "noreply@store.com",
+        document: order.cpfCnpj?.replace(/\D/g, "") || "",
+        state_register: "ISENTO",
         address: order.address || "Endereço não informado",
-        number: "S/N",
-        district: "Centro",
+        complement: "",
+        number: order.streetNumber || "S/N",
+        district: order.neighborhood || "Centro",
         city: order.city,
         postal_code: order.zipCode.replace(/\D/g, ""),
         state_abbr: order.state,
@@ -136,8 +143,8 @@ export async function createAutomaticShipment(orderId: string) {
       },
       products: order.items.map((item) => ({
         name: item.product.name.substring(0, 100),
-        quantity: item.quantity,
-        unitary_value: item.price,
+        quantity: String(item.quantity),
+        unitary_value: String(item.price),
       })),
       volumes: [
         {
@@ -148,10 +155,21 @@ export async function createAutomaticShipment(orderId: string) {
         },
       ],
       options: {
+        platform: "VirtualClothingStore",
+        reminder: `Pedido ${order.orderNumber}`,
         insurance_value: order.subtotal,
         receipt: false,
         own_hand: false,
         reverse: false,
+        non_commercial: true,
+        dce: { key: "" },
+        invoice: { key: "" },
+        tags: [
+          {
+            tag: order.orderNumber,
+            url: null,
+          },
+        ],
       },
     };
 

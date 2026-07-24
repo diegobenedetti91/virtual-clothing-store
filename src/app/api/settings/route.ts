@@ -12,12 +12,12 @@ export async function GET() {
 export async function PUT(req: NextRequest) {
   const body = await req.json();
   const {
-    name, logo, phone, whatsapp, instagram, address, description,
+    name, logo, phone, whatsapp, instagram, address, cnpj, description,
     primaryColor, buttonColor, menuColor, bannerImages, checkoutType, checkoutCollectEmail, checkoutCollectAddress,
     checkoutMessage, mercadoPagoPublicKey, mercadoPagoAccessToken, nuPayClientId, nuPayClientSecret,
     heroBadge, heroTitle, heroButtonText, heroButtonSecondaryText,
     freteAtivo, freteTipo, freteValorFixo, freteCEPOrigem, fretePesoDefaultGramas,
-    melhorEnvioToken, fretePacoteAltura, fretePacoteLargura, fretePacoteComprimento,
+    melhorEnvioToken, melhorEnvioApiToken, fretePacoteAltura, fretePacoteLargura, fretePacoteComprimento,
     freteLocalCidade, freteLocalUF, freteLocalRetirada, mercadoPagoAtivo, nuPayAtivo,
     infinityPayAtivo, infinityPayHandle, infinityPayApiKey,
     pixDiscountEnabled, pixDiscountPercent, whatsappAtivo,
@@ -31,6 +31,7 @@ export async function PUT(req: NextRequest) {
     whatsapp: whatsapp || null,
     instagram: instagram || null,
     address: address || null,
+    cnpj: cnpj || null,
     description: description || null,
     primaryColor: primaryColor || "#ec4899",
     buttonColor: buttonColor || primaryColor || "#ec4899",
@@ -54,6 +55,7 @@ export async function PUT(req: NextRequest) {
     freteCEPOrigem: freteCEPOrigem || null,
     fretePesoDefaultGramas: typeof fretePesoDefaultGramas === "number" ? fretePesoDefaultGramas : 500,
     melhorEnvioToken: melhorEnvioToken || null,
+    melhorEnvioApiToken: melhorEnvioApiToken || null,
     fretePacoteAltura: typeof fretePacoteAltura === "number" ? fretePacoteAltura : 5,
     fretePacoteLargura: typeof fretePacoteLargura === "number" ? fretePacoteLargura : 12,
     fretePacoteComprimento: typeof fretePacoteComprimento === "number" ? fretePacoteComprimento : 17,

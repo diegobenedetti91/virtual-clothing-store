@@ -81,9 +81,12 @@ export interface Order {
   customerEmail: string;
   customerPhone: string;
   address: string;
+  streetNumber?: string | null;
+  neighborhood?: string | null;
   city: string;
   state: string;
   zipCode: string;
+  cpfCnpj?: string | null;
   items: OrderItem[];
   subtotal: number;
   shippingCost: number;
@@ -115,6 +118,7 @@ export interface CompanySettings {
   whatsapp?: string | null;
   instagram?: string | null;
   address?: string | null;
+  cnpj?: string | null;
   description?: string | null;
   primaryColor: string;
   buttonColor: string;

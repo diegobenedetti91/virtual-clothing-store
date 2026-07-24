@@ -4,7 +4,12 @@ export interface MelhorEnvioShipmentPayload {
     name: string;
     phone: string;
     email: string;
+    document?: string;
+    company_document?: string;
+    state_register?: string;
+    economic_activity_code?: string;
     address: string;
+    complement?: string;
     number: string;
     district: string;
     city: string;
@@ -15,7 +20,11 @@ export interface MelhorEnvioShipmentPayload {
     name: string;
     phone: string;
     email: string;
+    document?: string;
+    company_document?: string;
+    state_register?: string;
     address: string;
+    complement?: string;
     number: string;
     district: string;
     city: string;
@@ -25,8 +34,8 @@ export interface MelhorEnvioShipmentPayload {
   };
   products: Array<{
     name: string;
-    quantity: number;
-    unitary_value: number;
+    quantity: string | number;
+    unitary_value: string | number;
   }>;
   volumes: Array<{
     height: number;
@@ -34,11 +43,17 @@ export interface MelhorEnvioShipmentPayload {
     length: number;
     weight: number;
   }>;
-  options?: {
-    insurance_value?: number;
-    receipt?: boolean;
-    own_hand?: boolean;
-    reverse?: boolean;
+  options: {
+    platform?: string;
+    reminder?: string;
+    insurance_value: number;
+    receipt: boolean;
+    own_hand: boolean;
+    reverse: boolean;
+    non_commercial?: boolean;
+    dce?: { key?: string };
+    invoice?: { key?: string; xml_content?: string };
+    tags?: Array<{ tag: string; url?: string | null }>;
   };
 }
 
@@ -82,18 +97,29 @@ export async function createMelhorEnvioShipment(
     console.log("[ME API] Adding shipment to cart...");
     const cartPayload = {
       service: payload.service,
-      from: senderInfo,
+      from: payload.from,
       to: payload.to,
       products: payload.products,
       volumes: payload.volumes,
-      options: payload.options || {},
+      options: {
+        platform: payload.options.platform || "VirtualClothingStore",
+        reminder: payload.options.reminder,
+        insurance_value: payload.options.insurance_value,
+        receipt: payload.options.receipt,
+        own_hand: payload.options.own_hand,
+        reverse: payload.options.reverse,
+        non_commercial: payload.options.non_commercial,
+        dce: payload.options.dce || { key: "" },
+        invoice: payload.options.invoice || { key: "" },
+        tags: payload.options.tags || [],
+      },
     };
 
-    console.log("[ME API] Cart URL: https://api.melhorenvio.com.br/api/v2/me/cart");
+    console.log("[ME API] Cart URL: https://melhorenvio.com.br/api/v2/me/cart");
     console.log("[ME API] Token: " + (token ? token.substring(0, 20) + "..." : "MISSING"));
     console.log("[ME API] Cart Payload:", JSON.stringify(cartPayload, null, 2));
 
-    const cartRes = await fetch("https://api.melhorenvio.com.br/api/v2/me/cart", {
+    const cartRes = await fetch("https://melhorenvio.com.br/api/v2/me/cart", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -122,7 +148,7 @@ export async function createMelhorEnvioShipment(
 
     // Step 2: Checkout
     console.log("[ME API] Processing checkout for shipment ID:", shipmentId);
-    const checkoutRes = await fetch("https://api.melhorenvio.com.br/api/v2/me/shipment/checkout", {
+    const checkoutRes = await fetch("https://melhorenvio.com.br/api/v2/me/shipment/checkout", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,

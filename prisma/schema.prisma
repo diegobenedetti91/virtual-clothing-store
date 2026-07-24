@@ -108,9 +108,12 @@ model Order {
   customerEmail    String?
   customerPhone    String
   address          String?
+  streetNumber     String?
+  neighborhood     String?
   city             String?
   state            String?
   zipCode          String?
+  cpfCnpj          String?
   items            OrderItem[]
   subtotal         Float
   shippingCost     Float         @default(0)
@@ -174,6 +177,7 @@ model CompanySettings {
   whatsapp               String?
   instagram              String?
   address                String?
+  cnpj                   String?
   description            String?  @db.Text
   primaryColor           String   @default("#ec4899")
   buttonColor            String   @default("#ec4899")
