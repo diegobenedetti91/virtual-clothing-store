@@ -15,92 +15,10 @@ export async function POST(req: NextRequest) {
     console.log("[MP WEBHOOK] Type:", type);
     console.log("[MP WEBHOOK] Data:", data);
 
-    // Handle merchant_order webhook (order closed/updated)
+    // Ignore merchant_order webhooks - we only process payment webhooks
     if (type === "topic_merchant_order_wh") {
-      // Only process when order is closed (payment confirmed)
-      if (data?.status !== "closed") {
-        console.log("[MP WEBHOOK] Merchant order not closed yet, ignoring");
-        return NextResponse.json({ ok: true });
-      }
-
-      console.log("[MP WEBHOOK] Processing merchant order closure");
-
-      // Find the most recent PENDING order (which should be the one just paid)
-      try {
-        const merchantOrderId = body.id;
-        const pendingOrder = await prisma.order.findFirst({
-          where: { status: "PENDING" },
-          orderBy: { createdAt: "desc" },
-        });
-
-        if (!pendingOrder) {
-          console.log("[MP WEBHOOK] No pending order found");
-          return NextResponse.json({ ok: true });
-        }
-
-        console.log("[MP WEBHOOK] Found pending order:", pendingOrder.orderNumber);
-
-        // Update order to CONFIRMED (payment received)
-        const updatedOrder = await prisma.order.update({
-          where: { id: pendingOrder.id },
-          data: {
-            status: "CONFIRMED",
-            paymentGateway: "mercadopago",
-            paymentId: String(merchantOrderId),
-            paymentMethod: "Mercado Pago",
-          },
-          include: { items: { include: { product: true } }, customer: true },
-        });
-
-        console.log("[MP WEBHOOK] Order confirmed:", updatedOrder.orderNumber);
-
-        // Decrement stock
-        const itemsForStock = updatedOrder.items.map((item) => ({
-          productId: item.productId,
-          quantity: item.quantity,
-          size: item.size,
-          color: item.color,
-          selectedAttributes: item.selectedAttributes,
-        }));
-        await decrementOrderStock(itemsForStock).catch(console.error);
-
-        // Shipment creation disabled - Melhor Envio endpoint needs to be corrected
-        // TODO: Update createAutomaticShipment to use correct Melhor Envio API endpoint
-
-        // Track order completion
-        try {
-          await track("ORDER_COMPLETE", {
-            orderId: updatedOrder.id,
-            customerId: updatedOrder.customerId,
-            value: updatedOrder.total,
-          });
-        } catch (err) {
-          console.error("[MP WEBHOOK] Failed to track order:", err);
-        }
-
-        // Send confirmation email
-        const settings = await prisma.companySettings.findFirst({ orderBy: { updatedAt: "desc" } });
-        const storeName = settings?.name || "Minha Loja";
-        const emailTarget = updatedOrder.customer?.email || updatedOrder.customerEmail;
-
-        if (emailTarget) {
-          sendOrderConfirmationEmail({
-            to: emailTarget,
-            customerName: updatedOrder.customerName,
-            orderNumber: updatedOrder.orderNumber,
-            storeName,
-            items: updatedOrder.items.map((i) => ({ name: i.product.name, quantity: i.quantity, price: i.price })),
-            total: updatedOrder.total,
-            isGateway: true,
-          }).catch((err) => console.error("[MP WEBHOOK] Failed to send email:", err));
-        }
-
-        console.log("[MP WEBHOOK] Order processing complete");
-        return NextResponse.json({ ok: true });
-      } catch (err) {
-        console.error("[MP WEBHOOK] Error processing merchant order:", err);
-        return NextResponse.json({ ok: true });
-      }
+      console.log("[MP WEBHOOK] Ignoring merchant_order webhook - only processing payment webhooks");
+      return NextResponse.json({ ok: true });
     }
 
     if (type !== "payment" || !body.data?.id) {
