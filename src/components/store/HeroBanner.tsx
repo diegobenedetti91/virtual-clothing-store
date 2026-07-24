@@ -79,7 +79,7 @@ export default function HeroBanner({ settings }: HeroBannerProps) {
         </div>
       ))}
 
-      <div className="relative z-10 flex flex-col items-center justify-center h-full text-white px-8 sm:px-16">
+      <div className="absolute bottom-8 left-8 sm:left-16 z-20">
         <Link
           href="/produtos"
           className="inline-flex items-center gap-2 bg-white text-gray-900 px-8 py-4 rounded-2xl font-bold hover:bg-brand hover:text-white transition-all shadow-xl active:scale-[0.97]"
