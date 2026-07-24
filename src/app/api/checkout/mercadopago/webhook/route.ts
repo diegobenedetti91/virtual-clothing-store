@@ -27,6 +27,7 @@ export async function POST(req: NextRequest) {
 
       // Find the most recent PENDING order (which should be the one just paid)
       try {
+        const merchantOrderId = body.id;
         const pendingOrder = await prisma.order.findFirst({
           where: { status: "PENDING" },
           orderBy: { createdAt: "desc" },
@@ -45,6 +46,7 @@ export async function POST(req: NextRequest) {
           data: {
             status: "CONFIRMED",
             paymentGateway: "mercadopago",
+            paymentId: String(merchantOrderId),
             paymentMethod: "Mercado Pago",
           },
           include: { items: { include: { product: true } }, customer: true },
