@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { signToken, buildCookieHeader } from "@/lib/customerAuth";
+import { sincronizarClienteComBling } from "@/lib/blingSync";
 
 export async function POST(req: NextRequest) {
   try {
@@ -44,6 +45,10 @@ export async function POST(req: NextRequest) {
         state,
         zipCode,
       },
+    });
+
+    sincronizarClienteComBling(customer.id).catch((err) => {
+      console.error("[Bling] Erro ao sincronizar cliente novo:", err);
     });
 
     const token = signToken({ id: customer.id, email: customer.email, name: customer.name });

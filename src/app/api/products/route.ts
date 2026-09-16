@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { slugify } from "@/lib/utils";
+import { sincronizarProdutoComBling } from "@/lib/blingSync";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -65,6 +66,10 @@ export async function POST(req: NextRequest) {
       navItems: navItemIds?.length ? { connect: navItemIds.map((id: string) => ({ id })) } : undefined,
     },
     include: { category: true, navItems: { select: { id: true, label: true } } },
+  });
+
+  sincronizarProdutoComBling(product.id).catch((err) => {
+    console.error("[Bling] Erro ao sincronizar produto novo:", err);
   });
 
   return NextResponse.json(product, { status: 201 });
