@@ -226,6 +226,7 @@ model CompanySettings {
   blingClientId          String?  @db.Text
   blingClientSecret      String?  @db.Text
   blingAccessToken       String?  @db.Text
+  blingRefreshToken      String?  @db.Text
   blingTokenExpiresAt    DateTime?
   updatedAt              DateTime @updatedAt
 }

@@ -49,12 +49,13 @@ export async function GET(req: NextRequest) {
     const tokenData = await tokenResponse.json();
     console.log("[Bling Callback] Token obtido com sucesso");
 
-    // Salvar token no banco
+    // Salvar tokens no banco
     const expiresAt = new Date(Date.now() + (tokenData.expires_in - 60) * 1000);
     await prisma.companySettings.update({
       where: { id: settings.id },
       data: {
         blingAccessToken: tokenData.access_token,
+        blingRefreshToken: tokenData.refresh_token,
         blingTokenExpiresAt: expiresAt,
       },
     });

@@ -30,6 +30,55 @@ interface BlingPedidoV3 {
   };
 }
 
+async function renovarTokenComRefreshToken(settings: any): Promise<boolean> {
+  if (!settings?.blingRefreshToken || !settings?.blingClientId || !settings?.blingClientSecret) {
+    return false;
+  }
+
+  try {
+    console.log("[Bling] Renovando token usando refresh_token...");
+
+    const basicAuth = Buffer.from(`${settings.blingClientId}:${settings.blingClientSecret}`).toString("base64");
+
+    const response = await fetch("https://api.bling.com.br/Api/v3/oauth/token", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Accept": "1.0",
+        "Authorization": `Basic ${basicAuth}`,
+      },
+      body: new URLSearchParams({
+        grant_type: "refresh_token",
+        refresh_token: settings.blingRefreshToken,
+      }).toString(),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      console.error("[Bling] Erro ao renovar token:", error);
+      return false;
+    }
+
+    const tokenData = await response.json();
+    console.log("[Bling] Token renovado com sucesso");
+
+    const expiresAt = new Date(Date.now() + (tokenData.expires_in - 60) * 1000);
+    await prisma.companySettings.update({
+      where: { id: settings.id },
+      data: {
+        blingAccessToken: tokenData.access_token,
+        blingRefreshToken: tokenData.refresh_token,
+        blingTokenExpiresAt: expiresAt,
+      },
+    });
+
+    return true;
+  } catch (error) {
+    console.error("[Bling] Exceção ao renovar token:", error);
+    return false;
+  }
+}
+
 async function obterTokenAtualizado(): Promise<string | null> {
   try {
     const settings = await prisma.companySettings.findFirst({ orderBy: { updatedAt: "desc" } });
@@ -43,11 +92,20 @@ async function obterTokenAtualizado(): Promise<string | null> {
       return settings.blingAccessToken;
     }
 
-    // Token expirou, precisa ser renovado no painel do Bling
-    console.warn("[Bling] Token expirou. Usuário precisa autorizar novamente no painel de configurações.");
+    // Token expirou, tenta renovar com refresh_token
+    console.log("[Bling] Access token expirado, tentando renovar com refresh_token...");
+    const renovado = await renovarTokenComRefreshToken(settings);
+
+    if (renovado) {
+      const updated = await prisma.companySettings.findFirst({ orderBy: { updatedAt: "desc" } });
+      return updated?.blingAccessToken || null;
+    }
+
+    // Refresh token também expirou, precisa re-autorizar
+    console.warn("[Bling] Refresh token expirou. Usuário precisa autorizar novamente.");
     return null;
   } catch (error) {
-    console.error("[Bling] Erro ao verificar token:", error);
+    console.error("[Bling] Erro ao obter token atualizado:", error);
     return null;
   }
 }

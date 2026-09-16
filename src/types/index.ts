@@ -166,6 +166,7 @@ export interface CompanySettings {
   blingClientId?: string | null;
   blingClientSecret?: string | null;
   blingAccessToken?: string | null;
+  blingRefreshToken?: string | null;
   blingTokenExpiresAt?: Date | null;
 }
 
