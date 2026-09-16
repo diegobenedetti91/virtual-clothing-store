@@ -1,32 +1,36 @@
 import { prisma } from "./prisma";
 
-export interface BlingPedidoData {
+interface BlingPedidoV3 {
   numero: string;
-  serie: number;
-  cliente: {
-    nome: string;
-    telefone?: string;
-    email?: string;
+  data: string;
+  desconto?: {
+    valor: number;
+    unidade: "REAL" | "PERCENTUAL";
   };
-  endereco: {
-    endereco: string;
-    numero: string;
-    complemento?: string;
-    bairro: string;
-    municipio: string;
-    uf: string;
-    cep: string;
-  };
+  observacoes?: string;
   itens: Array<{
+    codigo?: string;
     descricao: string;
     quantidade: number;
-    valorunitario: number;
+    valor: number;
+    unidade?: string;
   }>;
-  valor: number;
-  observacoes?: string;
+  transporte?: {
+    frete: number;
+    etiqueta?: {
+      nome: string;
+      endereco: string;
+      numero: string;
+      complemento?: string;
+      municipio: string;
+      uf: string;
+      cep: string;
+      bairro: string;
+    };
+  };
 }
 
-export async function integrarPedidoBling(orderId: string, apiKey: string): Promise<{ success: boolean; error?: string }> {
+export async function integrarPedidoBling(orderId: string, apiKey: string): Promise<{ success: boolean; error?: string; blingId?: string }> {
   if (!apiKey) {
     return { success: false, error: "API Key de Bling não configurada" };
   }
@@ -42,71 +46,79 @@ export async function integrarPedidoBling(orderId: string, apiKey: string): Prom
     }
 
     if (order.blingIntegrationStatus === "success") {
-      return { success: true };
+      return { success: true, blingId: order.blingPedidoId || undefined };
     }
 
-    const blingData: BlingPedidoData = {
+    const blingData: BlingPedidoV3 = {
       numero: order.orderNumber,
-      serie: 1,
-      cliente: {
-        nome: order.customerName,
-        telefone: order.customerPhone,
-        email: order.customerEmail || undefined,
-      },
-      endereco: {
-        endereco: order.address || "Não informado",
-        numero: order.streetNumber || "0",
-        complemento: undefined,
-        bairro: order.neighborhood || "Não informado",
-        municipio: order.city || "Não informado",
-        uf: order.state || "SP",
-        cep: order.zipCode?.replace(/\D/g, "") || "00000000",
-      },
+      data: order.createdAt.toISOString().split("T")[0],
+      observacoes: order.notes || `Pedido ${order.orderNumber} - Cliente: ${order.customerName}`,
       itens: order.items.map((item) => ({
         descricao: item.product.name,
         quantidade: item.quantity,
-        valorunitario: item.price,
+        valor: item.price,
+        unidade: "UN",
       })),
-      valor: order.total,
-      observacoes: order.notes || undefined,
     };
 
-    const response = await fetch("https://bling.com.br/Api/v2/pedido/json", {
+    if (order.shippingCost && order.shippingCost > 0) {
+      blingData.transporte = {
+        frete: order.shippingCost,
+        etiqueta: {
+          nome: order.customerName,
+          endereco: order.address || "Não informado",
+          numero: order.streetNumber || "0",
+          complemento: undefined,
+          municipio: order.city || "Não informado",
+          uf: order.state || "SP",
+          cep: order.zipCode?.replace(/\D/g, "") || "00000000",
+          bairro: order.neighborhood || "Não informado",
+        },
+      };
+    }
+
+    console.log("[Bling] Enviando pedido para API v3:", JSON.stringify(blingData, null, 2));
+
+    const response = await fetch("https://api.bling.com.br/Api/v3/pedidos/vendas", {
       method: "POST",
       headers: {
+        "Accept": "application/json",
         "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`,
       },
-      body: JSON.stringify({
-        pedido: blingData,
-        apikey: apiKey,
-      }),
+      body: JSON.stringify(blingData),
     });
 
     if (!response.ok) {
       const error = await response.text();
-      console.error("Erro ao integrar com Bling:", error);
-      return { success: false, error: `HTTP ${response.status}` };
+      console.error("[Bling] Erro ao integrar:", error);
+      return { success: false, error: `HTTP ${response.status}: ${error}` };
     }
 
     const result = await response.json();
+    console.log("[Bling] Resposta da API:", JSON.stringify(result, null, 2));
 
-    if (result.retorno?.pedidos?.[0]?.pedido) {
-      const blingPedido = result.retorno.pedidos[0].pedido;
+    if (result.data?.id) {
+      const blingPedidoId = String(result.data.id);
       await prisma.order.update({
         where: { id: orderId },
         data: {
-          blingPedidoId: String(blingPedido.id),
+          blingPedidoId,
           blingIntegrationStatus: "success",
           blingIntegratedAt: new Date(),
         },
       });
-      return { success: true };
-    } else {
-      const erros = result.retorno?.erros?.map((e: any) => e.erro?.mensagem).join("; ") || "Erro desconhecido";
+      console.log("[Bling] Pedido integrado com sucesso:", blingPedidoId);
+      return { success: true, blingId: blingPedidoId };
+    } else if (result.errors) {
+      const erros = Array.isArray(result.errors) ? result.errors.join("; ") : JSON.stringify(result.errors);
+      console.error("[Bling] Erros na resposta:", erros);
       return { success: false, error: erros };
+    } else {
+      return { success: false, error: "Resposta inválida da API Bling" };
     }
   } catch (error) {
-    console.error("Erro ao integrar pedido com Bling:", error);
+    console.error("[Bling] Exceção ao integrar pedido:", error);
     return { success: false, error: error instanceof Error ? error.message : "Erro desconhecido" };
   }
 }
