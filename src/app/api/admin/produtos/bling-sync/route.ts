@@ -79,6 +79,9 @@ export async function POST(req: NextRequest) {
       try {
         const imagens = JSON.parse(product.images || "[]") as string[];
 
+        const pesoGramas = product.pesoGramas || 0;
+        const pesoKg = pesoGramas / 1000;
+
         const blingProduct = {
           nome: product.name,
           codigo: product.slug,
@@ -88,6 +91,11 @@ export async function POST(req: NextRequest) {
           formato: "S",
           descricaoCurta: product.description || product.name,
           unidade: "UN",
+          pesoLiquido: pesoKg || undefined,
+          pesoBruto: pesoKg || undefined,
+          estoque: {
+            maximo: product.stock || 0,
+          },
           categoria: {
             id: product.categoryId,
           },
