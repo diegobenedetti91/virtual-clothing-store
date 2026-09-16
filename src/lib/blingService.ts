@@ -138,7 +138,7 @@ export async function integrarPedidoBling(orderId: string): Promise<{ success: b
       numero: order.orderNumber,
       data: order.createdAt.toISOString().split("T")[0],
       contato: {
-        id: order.customer?.blingContatoId || undefined,
+        id: order.customer?.id || order.customerId || undefined,
         nome: order.customerName,
         email: order.customer?.email || order.customerEmail || undefined,
         telefone: order.customer?.phone || order.customerPhone || undefined,
