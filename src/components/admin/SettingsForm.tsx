@@ -418,8 +418,8 @@ export default function SettingsForm({ initialSettings }: Props) {
               {blingAtivo && (
                 <div className="space-y-4 pt-1">
                   <div className="bg-orange-50 border border-orange-100 rounded-xl p-4 text-sm text-orange-800">
-                    <p className="font-semibold mb-1">🔐 OAuth2 do Bling</p>
-                    <p className="text-xs mb-2">Quando ativado, os pedidos aprovados serão automaticamente integrados no seu sistema Bling via OAuth2.</p>
+                    <p className="font-semibold mb-1">🔐 Integração Automática Bling</p>
+                    <p className="text-xs mb-2">Quando ativado, os pedidos aprovados serão automaticamente integrados no seu sistema Bling.</p>
                     <p className="text-xs">
                       Obtenha suas credenciais em <strong>Bling → Integrações → Minhas Aplicações</strong> (crie uma aplicação para sua loja).
                     </p>
@@ -427,7 +427,7 @@ export default function SettingsForm({ initialSettings }: Props) {
                   <div>
                     <label className={labelClass}>Client ID</label>
                     <input value={blingClientId} onChange={(e) => setBlingClientId(e.target.value)} className={inputClass} placeholder="Client ID da sua aplicação Bling" />
-                    <p className="text-xs text-gray-400 mt-1">ID público da sua aplicação OAuth2.</p>
+                    <p className="text-xs text-gray-400 mt-1">ID público da sua aplicação.</p>
                   </div>
                   <div>
                     <label className={labelClass}>Client Secret</label>
@@ -439,17 +439,7 @@ export default function SettingsForm({ initialSettings }: Props) {
                     </div>
                     <p className="text-xs text-gray-400 mt-1">Chave secreta usada no servidor. Nunca compartilhe.</p>
                   </div>
-                  {blingClientId && blingClientSecret && (
-                    <div>
-                      <p className="text-xs text-gray-600 mb-2">Clique no botão para autorizar a integração com Bling:</p>
-                      <a
-                        href="/api/settings/bling/authorize"
-                        className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-white text-sm bg-orange-500 hover:bg-orange-600 transition-colors"
-                      >
-                        🔐 Autorizar com Bling
-                      </a>
-                    </div>
-                  )}
+                  <p className="text-xs text-green-700 bg-green-50 p-3 rounded-lg">✅ Integração automática: ao aprovar um pagamento, o pedido é enviado direto ao Bling!</p>
                 </div>
               )}
             </div>
