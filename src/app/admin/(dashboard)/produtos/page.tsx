@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import ProductsTable from "@/components/admin/ProductsTable";
+import BlingProductSyncButton from "@/components/admin/BlingProductSyncButton";
 
 export default async function AdminProductsPage() {
   const products = await prisma.product.findMany({
@@ -16,9 +17,12 @@ export default async function AdminProductsPage() {
           <h1 className="text-2xl font-bold text-gray-900">Produtos</h1>
           <p className="text-gray-500 text-sm mt-1">{products.length} produto{products.length !== 1 ? "s" : ""} cadastrado{products.length !== 1 ? "s" : ""}</p>
         </div>
-        <Link href="/admin/produtos/novo" className="flex items-center gap-2 bg-brand text-white px-4 py-2 rounded-xl text-sm font-medium hover:opacity-90 transition-colors">
-          <Plus size={16} /> Novo produto
-        </Link>
+        <div className="flex gap-2">
+          <BlingProductSyncButton />
+          <Link href="/admin/produtos/novo" className="flex items-center gap-2 bg-brand text-white px-4 py-2 rounded-xl text-sm font-medium hover:opacity-90 transition-colors">
+            <Plus size={16} /> Novo produto
+          </Link>
+        </div>
       </div>
 
       {products.length === 0 ? (
