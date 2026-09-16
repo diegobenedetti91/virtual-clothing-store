@@ -166,7 +166,7 @@ export interface CompanySettings {
   blingClientId?: string | null;
   blingClientSecret?: string | null;
   blingAccessToken?: string | null;
-  blingTokenExpiresAt?: string | null;
+  blingTokenExpiresAt?: Date | null;
 }
 
 export interface CartItem {
