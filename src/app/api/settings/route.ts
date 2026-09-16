@@ -18,9 +18,10 @@ export async function PUT(req: NextRequest) {
     heroBadge, heroTitle, heroButtonText, heroButtonSecondaryText,
     freteAtivo, freteTipo, freteValorFixo, freteCEPOrigem, fretePesoDefaultGramas,
     melhorEnvioToken, melhorEnvioApiToken, fretePacoteAltura, fretePacoteLargura, fretePacoteComprimento,
-    freteLocalCidade, freteLocalUF, freteLocalRetirada, mercadoPagoAtivo, nuPayAtivo,
+    freteLocalCidade, freteLocalUF, freteLocalRegioes, freteLocalRetirada, mercadoPagoAtivo, nuPayAtivo,
     infinityPayAtivo, infinityPayHandle, infinityPayApiKey,
     pixDiscountEnabled, pixDiscountPercent, whatsappAtivo,
+    blingAtivo, blingApiKey,
   } = body;
 
   let settings = await prisma.companySettings.findFirst(ORDER);
@@ -61,6 +62,7 @@ export async function PUT(req: NextRequest) {
     fretePacoteComprimento: typeof fretePacoteComprimento === "number" ? fretePacoteComprimento : 17,
     freteLocalCidade: freteLocalCidade || null,
     freteLocalUF: freteLocalUF || null,
+    freteLocalRegioes: freteLocalRegioes || null,
     freteLocalRetirada: !!freteLocalRetirada,
     mercadoPagoAtivo: !!mercadoPagoAtivo,
     nuPayAtivo: !!nuPayAtivo,
@@ -70,6 +72,8 @@ export async function PUT(req: NextRequest) {
     whatsappAtivo: !!whatsappAtivo,
     pixDiscountEnabled: !!pixDiscountEnabled,
     pixDiscountPercent: typeof pixDiscountPercent === "number" ? pixDiscountPercent : 0,
+    blingAtivo: !!blingAtivo,
+    blingApiKey: blingApiKey || null,
   };
 
   if (settings) {
