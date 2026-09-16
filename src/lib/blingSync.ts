@@ -69,6 +69,7 @@ export async function sincronizarProdutoComBling(productId: string): Promise<boo
     const pesoKg = pesoGramas / 1000;
 
     const blingProduct = {
+      id: product.id,
       nome: product.name,
       codigo: product.slug,
       preco: product.price,
@@ -143,6 +144,7 @@ export async function sincronizarClienteComBling(customerId: string): Promise<bo
       } : undefined,
       tiposContato: [
         {
+          id: customer.id,
           descricao: "Cliente",
         },
       ],

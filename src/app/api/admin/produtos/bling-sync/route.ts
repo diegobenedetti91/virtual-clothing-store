@@ -83,6 +83,7 @@ export async function POST(req: NextRequest) {
         const pesoKg = pesoGramas / 1000;
 
         const blingProduct = {
+          id: product.id,
           nome: product.name,
           codigo: product.slug,
           preco: product.price,

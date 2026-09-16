@@ -96,6 +96,7 @@ export async function POST(req: NextRequest) {
           } : undefined,
           tiposContato: [
             {
+              id: customer.id,
               descricao: "Cliente",
             },
           ],
