@@ -22,6 +22,9 @@ interface BlingPedidoV3 {
     quantidade: number;
     valor: number;
     unidade?: string;
+    produto?: {
+      id: string;
+    };
   }>;
   transporte?: {
     frete: number;
@@ -144,10 +147,14 @@ export async function integrarPedidoBling(orderId: string): Promise<{ success: b
       },
       observacoes: order.notes || `Pedido ${order.orderNumber} - Cliente: ${order.customerName}`,
       itens: order.items.map((item) => ({
+        codigo: item.product.id,
         descricao: item.product.name,
         quantidade: item.quantity,
         valor: item.price,
         unidade: "UN",
+        produto: {
+          id: item.product.id,
+        },
       })),
     };
 
