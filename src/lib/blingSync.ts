@@ -102,8 +102,22 @@ export async function sincronizarProdutoComBling(productId: string): Promise<boo
       body: JSON.stringify(blingProduct),
     });
 
-    console.log(`[Bling] Produto ${product.name} sincronizado:`, response.ok);
-    return response.ok;
+    if (response.ok) {
+      const data = await response.json();
+      const blingId = data.data?.id;
+      if (blingId) {
+        await prisma.product.update({
+          where: { id: productId },
+          data: { blingProdutoId: String(blingId) },
+        });
+        console.log(`[Bling] Produto ${product.name} sincronizado com ID: ${blingId}`);
+      }
+      return true;
+    }
+
+    const error = await response.text();
+    console.error(`[Bling] Erro ao sincronizar produto ${product.name}:`, error);
+    return false;
   } catch (error) {
     console.error("[Bling] Erro ao sincronizar produto:", error);
     return false;
@@ -161,9 +175,8 @@ export async function sincronizarClienteComBling(customerId: string): Promise<bo
 
     if (response.ok) {
       const data = await response.json();
-      console.log("[Bling] Resposta do cadastro de cliente:", JSON.stringify(data, null, 2));
+      const blingId = data.data?.id;
 
-      const blingId = data.data?.id || data.data?.contato?.id || data.id || data.contato?.id;
       if (blingId) {
         await prisma.customerUser.update({
           where: { id: customerId },
@@ -171,13 +184,13 @@ export async function sincronizarClienteComBling(customerId: string): Promise<bo
         });
         console.log(`[Bling] Cliente ${customer.name} sincronizado com ID: ${blingId}`);
       } else {
-        console.warn("[Bling] Nenhum ID de contato encontrado na resposta");
+        console.warn("[Bling] Nenhum ID de contato encontrado na resposta:", JSON.stringify(data));
       }
       return true;
     }
 
     const error = await response.text();
-    console.log(`[Bling] Erro ao sincronizar cliente ${customer.name}:`, error);
+    console.error(`[Bling] Erro ao sincronizar cliente ${customer.name}:`, error);
     return false;
   } catch (error) {
     console.error("[Bling] Erro ao sincronizar cliente:", error);

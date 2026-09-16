@@ -118,7 +118,17 @@ export async function POST(req: NextRequest) {
 
         if (response.ok) {
           sincronizados++;
-          console.log(`[Bling] Produto sincronizado: ${product.name}`);
+          const data = await response.json();
+          const blingId = data.data?.id;
+
+          if (blingId) {
+            await prisma.product.update({
+              where: { id: product.id },
+              data: { blingProdutoId: String(blingId) },
+            });
+          }
+
+          console.log(`[Bling] Produto sincronizado: ${product.name}${blingId ? ` (ID: ${blingId})` : ""}`);
         } else {
           erros++;
           const error = await response.text();

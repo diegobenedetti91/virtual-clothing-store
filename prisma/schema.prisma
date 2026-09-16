@@ -78,6 +78,7 @@ model Product {
   pesoGramas   Int?
   embalagemId  String?
   embalagem    PackagePreset?  @relation(fields: [embalagemId], references: [id])
+  blingProdutoId String?
   active       Boolean         @default(true)
   featured     Boolean         @default(false)
   slug         String          @unique

@@ -113,7 +113,17 @@ export async function POST(req: NextRequest) {
 
         if (response.ok) {
           sincronizados++;
-          console.log(`[Bling] Cliente sincronizado: ${customer.name}`);
+          const data = await response.json();
+          const blingId = data.data?.id;
+
+          if (blingId) {
+            await prisma.customerUser.update({
+              where: { id: customer.id },
+              data: { blingContatoId: String(blingId) },
+            });
+          }
+
+          console.log(`[Bling] Cliente sincronizado: ${customer.name}${blingId ? ` (ID: ${blingId})` : ""}`);
         } else {
           erros++;
           const error = await response.text();
