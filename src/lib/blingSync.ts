@@ -157,8 +157,20 @@ export async function sincronizarClienteComBling(customerId: string): Promise<bo
       body: JSON.stringify(blingContato),
     });
 
-    console.log(`[Bling] Cliente ${customer.name} sincronizado:`, response.ok);
-    return response.ok;
+    if (response.ok) {
+      const data = await response.json();
+      if (data.data?.id) {
+        await prisma.customerUser.update({
+          where: { id: customerId },
+          data: { blingContatoId: String(data.data.id) },
+        });
+        console.log(`[Bling] Cliente ${customer.name} sincronizado com ID: ${data.data.id}`);
+      }
+      return true;
+    }
+
+    console.log(`[Bling] Erro ao sincronizar cliente ${customer.name}`);
+    return false;
   } catch (error) {
     console.error("[Bling] Erro ao sincronizar cliente:", error);
     return false;

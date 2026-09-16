@@ -116,7 +116,7 @@ export async function integrarPedidoBling(orderId: string): Promise<{ success: b
         items: { include: { product: true } },
         customer: true,
       },
-    });
+    }) as any;
 
     if (!order) {
       return { success: false, error: "Pedido não encontrado" };
@@ -138,7 +138,7 @@ export async function integrarPedidoBling(orderId: string): Promise<{ success: b
       numero: order.orderNumber,
       data: order.createdAt.toISOString().split("T")[0],
       contato: {
-        id: order.customer?.id || order.customerId || undefined,
+        id: order.customer?.blingContatoId || undefined,
         nome: order.customerName,
         email: order.customer?.email || order.customerEmail || undefined,
         telefone: order.customer?.phone || order.customerPhone || undefined,
@@ -146,7 +146,7 @@ export async function integrarPedidoBling(orderId: string): Promise<{ success: b
         numeroDocumento: order.customer?.cpfCnpj || cpfCnpj || undefined,
       },
       observacoes: order.notes || `Pedido ${order.orderNumber} - Cliente: ${order.customerName}`,
-      itens: order.items.map((item) => ({
+      itens: order.items.map((item: any) => ({
         codigo: item.product.id,
         descricao: item.product.name,
         quantidade: item.quantity,

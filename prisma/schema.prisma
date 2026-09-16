@@ -29,6 +29,7 @@ model CustomerUser {
   city         String?
   state        String?
   zipCode      String?
+  blingContatoId String?
   orders       Order[]
   wishlist     WishlistItem[]
   reviews      ProductReview[]
