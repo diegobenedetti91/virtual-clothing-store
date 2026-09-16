@@ -27,16 +27,19 @@ export async function GET(req: NextRequest) {
   // Trocar code por token
   try {
     console.log("[Bling Callback] Trocando code por token...");
-    const tokenResponse = await fetch("https://bling.com.br/Api/v3/oauth/token", {
+
+    const basicAuth = Buffer.from(`${settings.blingClientId}:${settings.blingClientSecret}`).toString("base64");
+
+    const tokenResponse = await fetch("https://api.bling.com.br/Api/v3/oauth/token", {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
+        "Accept": "1.0",
+        "Authorization": `Basic ${basicAuth}`,
       },
       body: new URLSearchParams({
         grant_type: "authorization_code",
         code,
-        client_id: settings.blingClientId,
-        client_secret: settings.blingClientSecret,
       }).toString(),
     });
 
