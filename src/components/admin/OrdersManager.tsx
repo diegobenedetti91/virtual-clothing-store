@@ -3,7 +3,7 @@
 import { useState, useMemo, useRef } from "react";
 import { Order } from "@/types";
 import { formatCurrency, formatDate, ORDER_STATUS } from "@/lib/utils";
-import { Search, ChevronDown, ChevronUp, X, AlertCircle, User, Truck, Upload, Package } from "lucide-react";
+import { Search, ChevronDown, ChevronUp, X, AlertCircle, User, Truck, Upload, Package, Zap } from "lucide-react";
 
 const ALLOWED_TRANSITIONS: Record<string, string[]> = {
   PENDING:                    ["CONFIRMED", "CANCELLED"],
@@ -68,6 +68,8 @@ export default function OrdersManager({ initialOrders }: Props) {
   const [shippingProofFile, setShippingProofFile] = useState<File | null>(null);
   const [shippingProofUrl, setShippingProofUrl] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [retryingBling, setRetryingBling] = useState<string | null>(null);
+  const [blingRetryMessage, setBlingRetryMessage] = useState<{ orderId: string; type: "success" | "error"; text: string } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const filtered = useMemo(() => {
@@ -181,6 +183,53 @@ export default function OrdersManager({ initialOrders }: Props) {
       trackingCode: trackingCode.trim() || undefined,
       shippingProof: proofUrl || undefined,
     });
+  };
+
+  const retryBlingIntegration = async (orderId: string) => {
+    setRetryingBling(orderId);
+    setBlingRetryMessage(null);
+    try {
+      const res = await fetch("/api/admin/pedidos/bling-retry", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setBlingRetryMessage({
+          orderId,
+          type: "success",
+          text: `✓ Integrado com sucesso (ID: ${data.blingId})`,
+        });
+        setOrders((prev) =>
+          prev.map((o) =>
+            o.id === orderId
+              ? {
+                  ...o,
+                  blingIntegrationStatus: "success",
+                  blingIntegratedAt: new Date().toISOString(),
+                  blingPedidoId: data.blingId,
+                }
+              : o
+          )
+        );
+        setTimeout(() => setBlingRetryMessage(null), 3000);
+      } else {
+        setBlingRetryMessage({
+          orderId,
+          type: "error",
+          text: data.error || "Erro ao integrar com Bling",
+        });
+      }
+    } catch (err) {
+      setBlingRetryMessage({
+        orderId,
+        type: "error",
+        text: "Erro ao chamar API",
+      });
+    } finally {
+      setRetryingBling(null);
+    }
   };
 
   const clearFilters = () => { setSearch(""); setStatusFilter(""); setDateFrom(""); setDateTo(""); };
@@ -459,6 +508,47 @@ export default function OrdersManager({ initialOrders }: Props) {
                       <div>
                         <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Observações</h4>
                         <p className="text-sm text-gray-600 bg-gray-50 rounded-xl p-3">{order.notes}</p>
+                      </div>
+                    )}
+
+                    {order.blingIntegrationStatus && (
+                      <div>
+                        <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Integração Bling</h4>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {order.blingIntegrationStatus === "success" && order.blingPedidoId && (
+                            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-green-50 border border-green-200">
+                              <Zap size={14} className="text-green-600" />
+                              <span className="text-xs text-green-700 font-semibold">Integrado ({order.blingPedidoId})</span>
+                            </div>
+                          )}
+                          {order.blingIntegrationStatus !== "success" && (
+                            <>
+                              <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-yellow-50 border border-yellow-200">
+                                <AlertCircle size={14} className="text-yellow-600" />
+                                <span className="text-xs text-yellow-700 font-semibold">Erro na integração</span>
+                              </div>
+                              <button
+                                onClick={() => retryBlingIntegration(order.id)}
+                                disabled={retryingBling === order.id}
+                                className="px-3 py-2 rounded-xl bg-orange-50 border border-orange-200 text-xs text-orange-700 font-semibold hover:bg-orange-100 transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-1"
+                              >
+                                <Zap size={12} />
+                                {retryingBling === order.id ? "Reintegrando..." : "Reintegrar agora"}
+                              </button>
+                            </>
+                          )}
+                          {blingRetryMessage?.orderId === order.id && (
+                            <div
+                              className={`text-xs font-semibold px-3 py-2 rounded-xl ${
+                                blingRetryMessage.type === "success"
+                                  ? "bg-green-50 text-green-700"
+                                  : "bg-red-50 text-red-700"
+                              }`}
+                            >
+                              {blingRetryMessage.text}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     )}
 
