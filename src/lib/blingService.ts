@@ -41,6 +41,37 @@ interface BlingPedidoV3 {
   };
 }
 
+async function obterContatoBlingPorCPFCNPJ(token: string, cpfCnpj: string): Promise<string | null> {
+  try {
+    if (!cpfCnpj) return null;
+
+    const cpfCnpjLimpo = cpfCnpj.replace(/\D/g, "");
+    const response = await fetch(
+      `https://api.bling.com.br/Api/v3/contatos?numeroDocumento=${cpfCnpjLimpo}`,
+      {
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    if (!response.ok) return null;
+
+    const data = await response.json();
+    if (data.data?.length > 0) {
+      const contatoId = data.data[0].id;
+      console.log(`[Bling] Contato encontrado: ${cpfCnpjLimpo} -> ID: ${contatoId}`);
+      return String(contatoId);
+    }
+
+    return null;
+  } catch (error) {
+    console.error("[Bling] Erro ao buscar contato:", error);
+    return null;
+  }
+}
+
 async function obterTokenAutomatico(settings: { blingClientId: string | null; blingClientSecret: string | null; blingAccessToken?: string | null; blingRefreshToken?: string | null; blingTokenExpiresAt?: Date | null }): Promise<string | null> {
   try {
     if (!settings.blingAccessToken) {
@@ -132,18 +163,30 @@ export async function integrarPedidoBling(orderId: string): Promise<{ success: b
     }
 
     const cpfCnpj = order.cpfCnpj ? order.cpfCnpj.replace(/\D/g, "") : "";
+    const customerCpfCnpj = order.customer?.cpfCnpj || cpfCnpj;
     const tipoPessoa = cpfCnpj.length === 14 ? "J" : "F";
+
+    let contatoId: string | undefined;
+    if (customerCpfCnpj) {
+      const blingContatoId = await obterContatoBlingPorCPFCNPJ(accessToken, customerCpfCnpj);
+      if (blingContatoId) {
+        contatoId = blingContatoId;
+      } else {
+        console.warn("[Bling] Contato não encontrado no Bling, usando customer ID do banco");
+        contatoId = order.customer?.id || order.customerId;
+      }
+    }
 
     const blingData: BlingPedidoV3 = {
       numero: order.orderNumber,
       data: order.createdAt.toISOString().split("T")[0],
       contato: {
-        id: order.customer?.id || order.customerId || undefined,
+        id: contatoId || undefined,
         nome: order.customerName,
         email: order.customer?.email || order.customerEmail || undefined,
         telefone: order.customer?.phone || order.customerPhone || undefined,
         tipoPessoa: cpfCnpj ? tipoPessoa : undefined,
-        numeroDocumento: order.customer?.cpfCnpj || cpfCnpj || undefined,
+        numeroDocumento: customerCpfCnpj || undefined,
       },
       observacoes: order.notes || `Pedido ${order.orderNumber} - Cliente: ${order.customerName}`,
       itens: order.items.map((item: any) => ({
