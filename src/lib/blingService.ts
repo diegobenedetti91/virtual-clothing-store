@@ -4,9 +4,9 @@ interface BlingPedidoV3 {
   numero: string;
   data: string;
   contato: {
-    nome: string;
-    email?: string;
-    telefone?: string;
+    nome?: string;
+    tipoPessoa?: "F" | "J";
+    numeroDocumento?: string;
   };
   desconto?: {
     valor: number;
@@ -122,13 +122,16 @@ export async function integrarPedidoBling(orderId: string): Promise<{ success: b
       return { success: false, error: "Não foi possível obter token do Bling. Autorize via configurações primeiro." };
     }
 
+    const cpfCnpj = order.cpfCnpj ? order.cpfCnpj.replace(/\D/g, "") : "";
+    const tipoPessoa = cpfCnpj.length === 14 ? "J" : "F";
+
     const blingData: BlingPedidoV3 = {
       numero: order.orderNumber,
       data: order.createdAt.toISOString().split("T")[0],
       contato: {
         nome: order.customerName,
-        email: order.customerEmail || undefined,
-        telefone: order.customerPhone || undefined,
+        tipoPessoa: cpfCnpj ? tipoPessoa : undefined,
+        numeroDocumento: cpfCnpj || undefined,
       },
       observacoes: order.notes || `Pedido ${order.orderNumber} - Cliente: ${order.customerName}`,
       itens: order.items.map((item) => ({
