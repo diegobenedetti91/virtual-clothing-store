@@ -4,6 +4,7 @@ import { sendOrderStatusEmail, sendOrderConfirmationEmail, sendNewOrderNotificat
 import { decrementOrderStock } from "@/lib/stockUtils";
 import { createAutomaticShipment } from "@/lib/shipmentUtils";
 import { track } from "@/lib/analytics";
+import { integrarPedidoBling } from "@/lib/blingService";
 
 // Exempt from all protections - webhook from external service
 export const dynamic = "force-dynamic";
@@ -120,6 +121,21 @@ export async function POST(req: NextRequest) {
         selectedAttributes: item.selectedAttributes,
       }));
       await decrementOrderStock(itemsForStock).catch(console.error);
+
+      // Integrate with Bling if enabled
+      if (settings?.blingAtivo && settings?.blingApiKey) {
+        try {
+          console.log("[MP WEBHOOK] Integrating order with Bling:", orderNumber);
+          const result = await integrarPedidoBling(order.id, settings.blingApiKey);
+          if (result.success) {
+            console.log("[MP WEBHOOK] Order successfully integrated with Bling");
+          } else {
+            console.error("[MP WEBHOOK] Failed to integrate with Bling:", result.error);
+          }
+        } catch (err) {
+          console.error("[MP WEBHOOK] Error integrating with Bling:", err);
+        }
+      }
 
       // Create shipment automatically on Melhor Envio
       try {

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Save, MessageCircle, CreditCard, Eye, EyeOff, Truck } from "lucide-react";
 import { CompanySettings } from "@/types";
 import { formatCurrency } from "@/lib/utils";
+import { BRAZILIAN_REGIONS } from "@/lib/regions";
 import ImageUpload from "./ImageUpload";
 import ImageListInput from "./ImageListInput";
 
@@ -61,11 +62,17 @@ export default function SettingsForm({ initialSettings }: Props) {
   const [whatsappAtivo, setWhatsappAtivo] = useState(initialSettings?.whatsappAtivo ?? true);
   const [pixDiscountEnabled, setPixDiscountEnabled] = useState(initialSettings?.pixDiscountEnabled ?? false);
   const [pixDiscountPercent, setPixDiscountPercent] = useState((initialSettings?.pixDiscountPercent ?? 0).toString());
+  const [blingAtivo, setBlingAtivo] = useState(initialSettings?.blingAtivo ?? false);
+  const [blingApiKey, setBlingApiKey] = useState(initialSettings?.blingApiKey || "");
+  const [showBlingKey, setShowBlingKey] = useState(false);
 
   const [freteAtivo, setFreteAtivo] = useState(initialSettings?.freteAtivo || false);
   const [freteTipo, setFreteTipo] = useState(initialSettings?.freteTipo || "fixo");
   const [freteLocalCidade, setFreteLocalCidade] = useState(initialSettings?.freteLocalCidade || "");
   const [freteLocalUF, setFreteLocalUF] = useState(initialSettings?.freteLocalUF || "");
+  const [freteLocalRegioes, setFreteLocalRegioes] = useState<string[]>(
+    initialSettings?.freteLocalRegioes ? initialSettings.freteLocalRegioes.split("|") : []
+  );
   const [freteLocalRetirada, setFreteLocalRetirada] = useState(initialSettings?.freteLocalRetirada || false);
   const [freteValorFixo, setFreteValorFixo] = useState(initialSettings?.freteValorFixo?.toString() || "0");
   const [freteCEPOrigem, setFreteCEPOrigem] = useState(initialSettings?.freteCEPOrigem || "");
@@ -98,7 +105,8 @@ export default function SettingsForm({ initialSettings }: Props) {
           whatsappAtivo,
           heroBadge, heroTitle, heroButtonText, heroButtonSecondaryText,
           pixDiscountEnabled, pixDiscountPercent: parseFloat(pixDiscountPercent) || 0,
-          freteAtivo, freteTipo, freteLocalCidade: freteLocalCidade || null, freteLocalUF: freteLocalUF || null, freteLocalRetirada,
+          blingAtivo, blingApiKey: blingApiKey || null,
+          freteAtivo, freteTipo, freteLocalCidade: freteLocalCidade || null, freteLocalUF: freteLocalUF || null, freteLocalRegioes: freteLocalRegioes.length > 0 ? freteLocalRegioes.join("|") : null, freteLocalRetirada,
           freteValorFixo: parseFloat(freteValorFixo) || 0,
           freteCEPOrigem: freteCEPOrigem || null,
           fretePesoDefaultGramas: parseInt(fretePesoDefault) || 500,
@@ -388,6 +396,46 @@ export default function SettingsForm({ initialSettings }: Props) {
                 </div>
               )}
             </div>
+
+            {/* Bling */}
+            <div className="border border-gray-100 rounded-xl p-4 space-y-4">
+              <label className="flex items-center justify-between cursor-pointer">
+                <div className="flex items-center gap-3">
+                  <span className="text-xl">📦</span>
+                  <div>
+                    <p className="font-semibold text-sm text-gray-900">Bling</p>
+                    <p className="text-xs text-gray-500 mt-0.5">Integração automática de pedidos ao sistema Bling quando o pagamento for aprovado.</p>
+                  </div>
+                </div>
+                <div
+                  className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${blingAtivo ? "bg-orange-500" : "bg-gray-200"}`}
+                  onClick={() => setBlingAtivo(!blingAtivo)}
+                >
+                  <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${blingAtivo ? "translate-x-5" : ""}`} />
+                </div>
+              </label>
+              {blingAtivo && (
+                <div className="space-y-4 pt-1">
+                  <div className="bg-orange-50 border border-orange-100 rounded-xl p-4 text-sm text-orange-800">
+                    <p className="font-semibold mb-1">🔗 Integração Bling</p>
+                    <p className="text-xs mb-2">Quando ativado, os pedidos aprovados serão automaticamente integrados no seu sistema Bling.</p>
+                    <p className="text-xs">
+                      Obtenha sua API Key em <strong>Bling → Integrações → API REST</strong>.
+                    </p>
+                  </div>
+                  <div>
+                    <label className={labelClass}>API Key</label>
+                    <div className="relative">
+                      <input type={showBlingKey ? "text" : "password"} value={blingApiKey} onChange={(e) => setBlingApiKey(e.target.value)} className={`${inputClass} pr-10`} placeholder="Sua API Key do Bling" />
+                      <button type="button" onClick={() => setShowBlingKey(!showBlingKey)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                        {showBlingKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1">Chave secreta usada no servidor. Nunca compartilhe.</p>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* WhatsApp */}
@@ -535,6 +583,30 @@ export default function SettingsForm({ initialSettings }: Props) {
                       </div>
                     </div>
                     <p className="text-xs text-gray-400 -mt-2">Cidade e estado usados para validar o CEP do cliente via ViaCEP. Evita conflito com cidades homônimas em outros estados.</p>
+
+                    <div>
+                      <label className={labelClass}>Ou selecione regiões do Brasil</label>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        {Object.entries(BRAZILIAN_REGIONS).map(([key, region]) => (
+                          <label key={key} className="flex items-center gap-2 cursor-pointer p-3 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition">
+                            <input
+                              type="checkbox"
+                              checked={freteLocalRegioes.includes(key)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setFreteLocalRegioes([...freteLocalRegioes, key]);
+                                } else {
+                                  setFreteLocalRegioes(freteLocalRegioes.filter((r) => r !== key));
+                                }
+                              }}
+                              className="w-4 h-4 rounded border-gray-300 cursor-pointer"
+                            />
+                            <span className="text-sm font-medium text-gray-900">{region.label}</span>
+                          </label>
+                        ))}
+                      </div>
+                      <p className="text-xs text-gray-400 mt-2">Selecione uma ou mais regiões. Se selecionadas, entregas para clientes nessas regiões serão permitidas.</p>
+                    </div>
                     <div>
                       <label className={labelClass}>CEP da loja (origem)</label>
                       <input value={freteCEPOrigem} onChange={(e) => setFreteCEPOrigem(e.target.value)} className={inputClass} placeholder="00000-000" maxLength={9} />

@@ -4,6 +4,7 @@ import { sendOrderStatusEmail, sendOrderConfirmationEmail, sendNewOrderNotificat
 import { decrementOrderStock } from "@/lib/stockUtils";
 import { createAutomaticShipment } from "@/lib/shipmentUtils";
 import { track } from "@/lib/analytics";
+import { integrarPedidoBling } from "@/lib/blingService";
 
 // Exempt from all protections - webhook from external service
 export const dynamic = "force-dynamic";
@@ -75,6 +76,24 @@ export async function POST(req: NextRequest) {
       }));
       await decrementOrderStock(itemsForStock).catch(console.error);
 
+      // Get settings for Bling integration
+      const settings = await prisma.companySettings.findFirst({ orderBy: { updatedAt: "desc" } });
+
+      // Integrate with Bling if enabled
+      if (settings?.blingAtivo && settings?.blingApiKey) {
+        try {
+          console.log("[IP WEBHOOK] Integrating order with Bling:", order_nsu);
+          const result = await integrarPedidoBling(order.id, settings.blingApiKey);
+          if (result.success) {
+            console.log("[IP WEBHOOK] Order successfully integrated with Bling");
+          } else {
+            console.error("[IP WEBHOOK] Failed to integrate with Bling:", result.error);
+          }
+        } catch (err) {
+          console.error("[IP WEBHOOK] Error integrating with Bling:", err);
+        }
+      }
+
       // Create shipment automatically on Melhor Envio
       try {
         console.log("[IP WEBHOOK] Creating automatic shipment for order:", order_nsu);
@@ -96,7 +115,6 @@ export async function POST(req: NextRequest) {
       }
 
       // Send emails
-      const settings = await prisma.companySettings.findFirst({ orderBy: { updatedAt: "desc" } });
       const storeName = settings?.name || "Minha Loja";
       const emailTarget = order.customerEmail;
 

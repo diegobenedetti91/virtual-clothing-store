@@ -142,6 +142,11 @@ model Order {
   etiquetaUrl              String?
   trackingEvents           TrackingEvent[]
 
+  // Bling integration
+  blingPedidoId            String?
+  blingIntegrationStatus   String?       @default("pending")
+  blingIntegratedAt        DateTime?
+
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
 }
@@ -207,6 +212,7 @@ model CompanySettings {
   fretePacoteComprimento Int      @default(17)
   freteLocalCidade       String?
   freteLocalUF           String?
+  freteLocalRegioes      String?
   freteLocalRetirada     Boolean  @default(false)
   mercadoPagoAtivo       Boolean  @default(false)
   nuPayAtivo             Boolean  @default(false)
@@ -216,6 +222,8 @@ model CompanySettings {
   whatsappAtivo          Boolean  @default(false)
   pixDiscountEnabled     Boolean  @default(false)
   pixDiscountPercent     Float    @default(0)
+  blingAtivo             Boolean  @default(false)
+  blingApiKey            String?  @db.Text
   updatedAt              DateTime @updatedAt
 }
 

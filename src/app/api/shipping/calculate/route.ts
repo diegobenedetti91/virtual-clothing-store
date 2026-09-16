@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getRegionsArray, getRegionForState } from "@/lib/regions";
 
 interface ShippingOption {
   servico: string;
@@ -141,25 +142,29 @@ export async function POST(req: NextRequest) {
   let largura = settings.fretePacoteLargura || 12;
   let comprimento = settings.fretePacoteComprimento || 17;
 
-  // Modo entrega local: valida cidade e UF pelo CEP via ViaCEP
+  // Modo entrega local: valida cidade e/ou região pelo CEP via ViaCEP
   if (freteTipo === "local") {
     const s = settings as Record<string, unknown>;
     const cidadeConfigurada = s.freteLocalCidade as string | null;
     const ufConfigurada = s.freteLocalUF as string | null;
+    const regioesConfiguradas = getRegionsArray(s.freteLocalRegioes as string | null);
     const retiradaAtiva = !!(s.freteLocalRetirada as boolean);
 
     let podeEntregarLocal = true;
     let foraArea: { cidade: string; uf: string } | null = null;
 
-    if (cidadeConfigurada) {
+    if (cidadeConfigurada || regioesConfiguradas.length > 0) {
       try {
         const viacepRes = await fetch(`https://viacep.com.br/ws/${cepDestinoClean}/json/`, { signal: AbortSignal.timeout(5000) });
         if (viacepRes.ok) {
           const viacep = await viacepRes.json();
           if (!viacep.erro) {
-            const cidadeOk = normalizeCity(viacep.localidade) === normalizeCity(cidadeConfigurada);
-            const ufOk = !ufConfigurada || viacep.uf?.toUpperCase() === ufConfigurada.toUpperCase();
-            if (!cidadeOk || !ufOk) {
+            const cidadeOk = !cidadeConfigurada || (normalizeCity(viacep.localidade) === normalizeCity(cidadeConfigurada) && (!ufConfigurada || viacep.uf?.toUpperCase() === ufConfigurada.toUpperCase()));
+            const regiaoClienteState = viacep.uf?.toUpperCase();
+            const regiaoDo = regiaoClienteState ? getRegionForState(regiaoClienteState) : null;
+            const regiao = regioesConfiguradas.length > 0 && regiaoDo ? regioesConfiguradas.includes(regiaoDo) : !regioesConfiguradas.length;
+
+            if (!cidadeOk && !regiao) {
               podeEntregarLocal = false;
               foraArea = { cidade: viacep.localidade, uf: viacep.uf };
             }
