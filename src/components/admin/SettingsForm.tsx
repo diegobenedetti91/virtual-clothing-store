@@ -441,11 +441,9 @@ export default function SettingsForm({ initialSettings }: Props) {
                   </div>
                   {blingClientId && blingClientSecret && (
                     <div>
-                      <p className="text-xs text-gray-600 mb-2">Após salvar as credenciais, clique no botão abaixo para autorizar a integração:</p>
+                      <p className="text-xs text-gray-600 mb-2">Clique no botão para autorizar a integração com Bling:</p>
                       <a
-                        href={`https://bling.com.br/Api/v3/oauth/authorize?response_type=code&client_id=${encodeURIComponent(blingClientId)}&state=${Math.random().toString(36).substring(7)}&redirect_uri=${encodeURIComponent(typeof window !== "undefined" ? `${window.location.origin}/api/settings/bling/callback` : "")}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                        href="/api/settings/bling/authorize"
                         className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-white text-sm bg-orange-500 hover:bg-orange-600 transition-colors"
                       >
                         🔐 Autorizar com Bling
