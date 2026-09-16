@@ -5,10 +5,13 @@ import ProductsTable from "@/components/admin/ProductsTable";
 import BlingProductSyncButton from "@/components/admin/BlingProductSyncButton";
 
 export default async function AdminProductsPage() {
-  const products = await prisma.product.findMany({
-    include: { category: true },
-    orderBy: { createdAt: "desc" },
-  });
+  const [products, settings] = await Promise.all([
+    prisma.product.findMany({
+      include: { category: true },
+      orderBy: { createdAt: "desc" },
+    }),
+    prisma.companySettings.findFirst(),
+  ]);
 
   return (
     <div>
@@ -18,7 +21,7 @@ export default async function AdminProductsPage() {
           <p className="text-gray-500 text-sm mt-1">{products.length} produto{products.length !== 1 ? "s" : ""} cadastrado{products.length !== 1 ? "s" : ""}</p>
         </div>
         <div className="flex gap-2">
-          <BlingProductSyncButton />
+          {settings?.blingAtivo && <BlingProductSyncButton />}
           <Link href="/admin/produtos/novo" className="flex items-center gap-2 bg-brand text-white px-4 py-2 rounded-xl text-sm font-medium hover:opacity-90 transition-colors">
             <Plus size={16} /> Novo produto
           </Link>
