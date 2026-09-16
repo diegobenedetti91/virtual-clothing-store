@@ -4,7 +4,10 @@ interface BlingPedidoV3 {
   numero: string;
   data: string;
   contato: {
+    id?: string | number;
     nome?: string;
+    email?: string;
+    telefone?: string;
     tipoPessoa?: "F" | "J";
     numeroDocumento?: string;
   };
@@ -106,7 +109,10 @@ export async function integrarPedidoBling(orderId: string): Promise<{ success: b
 
     const order = await prisma.order.findUnique({
       where: { id: orderId },
-      include: { items: { include: { product: true } } },
+      include: {
+        items: { include: { product: true } },
+        customer: true,
+      },
     });
 
     if (!order) {
@@ -129,9 +135,12 @@ export async function integrarPedidoBling(orderId: string): Promise<{ success: b
       numero: order.orderNumber,
       data: order.createdAt.toISOString().split("T")[0],
       contato: {
+        id: order.customer?.id || order.customerId || undefined,
         nome: order.customerName,
+        email: order.customer?.email || order.customerEmail || undefined,
+        telefone: order.customer?.phone || order.customerPhone || undefined,
         tipoPessoa: cpfCnpj ? tipoPessoa : undefined,
-        numeroDocumento: cpfCnpj || undefined,
+        numeroDocumento: order.customer?.cpfCnpj || cpfCnpj || undefined,
       },
       observacoes: order.notes || `Pedido ${order.orderNumber} - Cliente: ${order.customerName}`,
       itens: order.items.map((item) => ({
