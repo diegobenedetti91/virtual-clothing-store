@@ -439,6 +439,19 @@ export default function SettingsForm({ initialSettings }: Props) {
                     </div>
                     <p className="text-xs text-gray-400 mt-1">Chave secreta usada no servidor. Nunca compartilhe.</p>
                   </div>
+                  {blingClientId && blingClientSecret && (
+                    <div>
+                      <p className="text-xs text-gray-600 mb-2">Após salvar as credenciais, clique no botão abaixo para autorizar a integração:</p>
+                      <a
+                        href={`https://www.bling.com.br/Api/v3/oauth/authorize?response_type=code&client_id=${encodeURIComponent(blingClientId)}&state=${Math.random().toString(36).substring(7)}&redirect_uri=${encodeURIComponent(typeof window !== "undefined" ? `${window.location.origin}/api/settings/bling/callback` : "")}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-white text-sm bg-orange-500 hover:bg-orange-600 transition-colors"
+                      >
+                        🔐 Autorizar com Bling
+                      </a>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

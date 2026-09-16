@@ -30,68 +30,24 @@ interface BlingPedidoV3 {
   };
 }
 
-async function obterTokenBling(clientId: string, clientSecret: string): Promise<{ access_token: string; expires_in: number } | null> {
-  try {
-    console.log("[Bling] Solicitando novo token OAuth2...");
-    const response = await fetch("https://bling.com.br/Api/v3/oauth/token", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: new URLSearchParams({
-        grant_type: "client_credentials",
-        client_id: clientId,
-        client_secret: clientSecret,
-      }).toString(),
-    });
-
-    if (!response.ok) {
-      const error = await response.text();
-      console.error("[Bling] Erro ao obter token:", error);
-      return null;
-    }
-
-    const data = await response.json();
-    console.log("[Bling] Token obtido com sucesso, expira em", data.expires_in, "segundos");
-    return data;
-  } catch (error) {
-    console.error("[Bling] Exceção ao obter token:", error);
-    return null;
-  }
-}
-
 async function obterTokenAtualizado(): Promise<string | null> {
   try {
     const settings = await prisma.companySettings.findFirst({ orderBy: { updatedAt: "desc" } });
 
-    if (!settings?.blingClientId || !settings?.blingClientSecret) {
+    if (!settings?.blingAccessToken) {
       return null;
     }
 
     // Se token existe e ainda não expirou, retorna
-    if (settings.blingAccessToken && settings.blingTokenExpiresAt && new Date() < settings.blingTokenExpiresAt) {
+    if (settings.blingTokenExpiresAt && new Date() < settings.blingTokenExpiresAt) {
       return settings.blingAccessToken;
     }
 
-    // Caso contrário, obter novo token
-    const tokenData = await obterTokenBling(settings.blingClientId, settings.blingClientSecret);
-    if (!tokenData) {
-      return null;
-    }
-
-    // Salvar token no banco
-    const expiresAt = new Date(Date.now() + (tokenData.expires_in - 60) * 1000); // Renovar 60s antes de expirar
-    await prisma.companySettings.update({
-      where: { id: settings.id },
-      data: {
-        blingAccessToken: tokenData.access_token,
-        blingTokenExpiresAt: expiresAt,
-      },
-    });
-
-    return tokenData.access_token;
+    // Token expirou, precisa ser renovado no painel do Bling
+    console.warn("[Bling] Token expirou. Usuário precisa autorizar novamente no painel de configurações.");
+    return null;
   } catch (error) {
-    console.error("[Bling] Erro ao obter token atualizado:", error);
+    console.error("[Bling] Erro ao verificar token:", error);
     return null;
   }
 }
@@ -113,7 +69,7 @@ export async function integrarPedidoBling(orderId: string): Promise<{ success: b
 
     const accessToken = await obterTokenAtualizado();
     if (!accessToken) {
-      return { success: false, error: "Não foi possível obter token do Bling. Verifique as credenciais OAuth2." };
+      return { success: false, error: "Token do Bling não configurado ou expirado. Autorize novamente nas configurações." };
     }
 
     const blingData: BlingPedidoV3 = {
