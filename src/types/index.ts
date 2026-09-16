@@ -106,6 +106,10 @@ export interface Order {
   shipmentStatus?: string | null;
   lastTrackingUpdate?: string | null;
   etiquetaUrl?: string | null;
+  // Bling integration
+  blingPedidoId?: string | null;
+  blingIntegrationStatus?: string | null;
+  blingIntegratedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -148,6 +152,7 @@ export interface CompanySettings {
   fretePacoteComprimento: number;
   freteLocalCidade?: string | null;
   freteLocalUF?: string | null;
+  freteLocalRegioes?: string | null;
   freteLocalRetirada?: boolean;
   mercadoPagoAtivo?: boolean;
   nuPayAtivo?: boolean;
@@ -157,6 +162,8 @@ export interface CompanySettings {
   whatsappAtivo?: boolean;
   pixDiscountEnabled?: boolean;
   pixDiscountPercent?: number;
+  blingAtivo?: boolean;
+  blingApiKey?: string | null;
 }
 
 export interface CartItem {
