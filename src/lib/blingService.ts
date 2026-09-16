@@ -3,6 +3,11 @@ import { prisma } from "./prisma";
 interface BlingPedidoV3 {
   numero: string;
   data: string;
+  contato: {
+    nome: string;
+    email?: string;
+    telefone?: string;
+  };
   desconto?: {
     valor: number;
     unidade: "REAL" | "PERCENTUAL";
@@ -120,6 +125,11 @@ export async function integrarPedidoBling(orderId: string): Promise<{ success: b
     const blingData: BlingPedidoV3 = {
       numero: order.orderNumber,
       data: order.createdAt.toISOString().split("T")[0],
+      contato: {
+        nome: order.customerName,
+        email: order.customerEmail || undefined,
+        telefone: order.customerPhone || undefined,
+      },
       observacoes: order.notes || `Pedido ${order.orderNumber} - Cliente: ${order.customerName}`,
       itens: order.items.map((item) => ({
         descricao: item.product.name,
