@@ -439,6 +439,15 @@ export default function SettingsForm({ initialSettings }: Props) {
                     </div>
                     <p className="text-xs text-gray-400 mt-1">Chave secreta usada no servidor. Nunca compartilhe.</p>
                   </div>
+                  {blingClientId && blingClientSecret && (
+                    <button
+                      type="button"
+                      onClick={() => window.location.href = "/api/settings/bling/authorize"}
+                      className="w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-2.5 rounded-xl transition-colors"
+                    >
+                      🔓 Autorizar com Bling
+                    </button>
+                  )}
                   <p className="text-xs text-green-700 bg-green-50 p-3 rounded-lg">✅ Integração automática: ao aprovar um pagamento, o pedido é enviado direto ao Bling!</p>
                 </div>
               )}
