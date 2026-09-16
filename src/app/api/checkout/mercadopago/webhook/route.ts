@@ -123,10 +123,10 @@ export async function POST(req: NextRequest) {
       await decrementOrderStock(itemsForStock).catch(console.error);
 
       // Integrate with Bling if enabled
-      if (settings?.blingAtivo && settings?.blingApiKey) {
+      if (settings?.blingAtivo) {
         try {
           console.log("[MP WEBHOOK] Integrating order with Bling:", orderNumber);
-          const result = await integrarPedidoBling(order.id, settings.blingApiKey);
+          const result = await integrarPedidoBling(order.id);
           if (result.success) {
             console.log("[MP WEBHOOK] Order successfully integrated with Bling");
           } else {

@@ -163,7 +163,10 @@ export interface CompanySettings {
   pixDiscountEnabled?: boolean;
   pixDiscountPercent?: number;
   blingAtivo?: boolean;
-  blingApiKey?: string | null;
+  blingClientId?: string | null;
+  blingClientSecret?: string | null;
+  blingAccessToken?: string | null;
+  blingTokenExpiresAt?: string | null;
 }
 
 export interface CartItem {

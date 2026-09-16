@@ -223,7 +223,10 @@ model CompanySettings {
   pixDiscountEnabled     Boolean  @default(false)
   pixDiscountPercent     Float    @default(0)
   blingAtivo             Boolean  @default(false)
-  blingApiKey            String?  @db.Text
+  blingClientId          String?  @db.Text
+  blingClientSecret      String?  @db.Text
+  blingAccessToken       String?  @db.Text
+  blingTokenExpiresAt    DateTime?
   updatedAt              DateTime @updatedAt
 }
 

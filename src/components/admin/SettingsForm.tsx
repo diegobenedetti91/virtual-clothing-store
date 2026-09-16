@@ -63,8 +63,9 @@ export default function SettingsForm({ initialSettings }: Props) {
   const [pixDiscountEnabled, setPixDiscountEnabled] = useState(initialSettings?.pixDiscountEnabled ?? false);
   const [pixDiscountPercent, setPixDiscountPercent] = useState((initialSettings?.pixDiscountPercent ?? 0).toString());
   const [blingAtivo, setBlingAtivo] = useState(initialSettings?.blingAtivo ?? false);
-  const [blingApiKey, setBlingApiKey] = useState(initialSettings?.blingApiKey || "");
-  const [showBlingKey, setShowBlingKey] = useState(false);
+  const [blingClientId, setBlingClientId] = useState(initialSettings?.blingClientId || "");
+  const [blingClientSecret, setBlingClientSecret] = useState(initialSettings?.blingClientSecret || "");
+  const [showBlingSecret, setShowBlingSecret] = useState(false);
 
   const [freteAtivo, setFreteAtivo] = useState(initialSettings?.freteAtivo || false);
   const [freteTipo, setFreteTipo] = useState(initialSettings?.freteTipo || "fixo");
@@ -105,7 +106,7 @@ export default function SettingsForm({ initialSettings }: Props) {
           whatsappAtivo,
           heroBadge, heroTitle, heroButtonText, heroButtonSecondaryText,
           pixDiscountEnabled, pixDiscountPercent: parseFloat(pixDiscountPercent) || 0,
-          blingAtivo, blingApiKey: blingApiKey || null,
+          blingAtivo, blingClientId: blingClientId || null, blingClientSecret: blingClientSecret || null,
           freteAtivo, freteTipo, freteLocalCidade: freteLocalCidade || null, freteLocalUF: freteLocalUF || null, freteLocalRegioes: freteLocalRegioes.length > 0 ? freteLocalRegioes.join("|") : null, freteLocalRetirada,
           freteValorFixo: parseFloat(freteValorFixo) || 0,
           freteCEPOrigem: freteCEPOrigem || null,
@@ -417,18 +418,23 @@ export default function SettingsForm({ initialSettings }: Props) {
               {blingAtivo && (
                 <div className="space-y-4 pt-1">
                   <div className="bg-orange-50 border border-orange-100 rounded-xl p-4 text-sm text-orange-800">
-                    <p className="font-semibold mb-1">🔗 Integração Bling</p>
-                    <p className="text-xs mb-2">Quando ativado, os pedidos aprovados serão automaticamente integrados no seu sistema Bling.</p>
+                    <p className="font-semibold mb-1">🔐 OAuth2 do Bling</p>
+                    <p className="text-xs mb-2">Quando ativado, os pedidos aprovados serão automaticamente integrados no seu sistema Bling via OAuth2.</p>
                     <p className="text-xs">
-                      Obtenha sua API Key em <strong>Bling → Integrações → API REST</strong>.
+                      Obtenha suas credenciais em <strong>Bling → Integrações → Minhas Aplicações</strong> (crie uma aplicação para sua loja).
                     </p>
                   </div>
                   <div>
-                    <label className={labelClass}>API Key</label>
+                    <label className={labelClass}>Client ID</label>
+                    <input value={blingClientId} onChange={(e) => setBlingClientId(e.target.value)} className={inputClass} placeholder="Client ID da sua aplicação Bling" />
+                    <p className="text-xs text-gray-400 mt-1">ID público da sua aplicação OAuth2.</p>
+                  </div>
+                  <div>
+                    <label className={labelClass}>Client Secret</label>
                     <div className="relative">
-                      <input type={showBlingKey ? "text" : "password"} value={blingApiKey} onChange={(e) => setBlingApiKey(e.target.value)} className={`${inputClass} pr-10`} placeholder="Sua API Key do Bling" />
-                      <button type="button" onClick={() => setShowBlingKey(!showBlingKey)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                        {showBlingKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                      <input type={showBlingSecret ? "text" : "password"} value={blingClientSecret} onChange={(e) => setBlingClientSecret(e.target.value)} className={`${inputClass} pr-10`} placeholder="Client Secret da sua aplicação Bling" />
+                      <button type="button" onClick={() => setShowBlingSecret(!showBlingSecret)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                        {showBlingSecret ? <EyeOff size={16} /> : <Eye size={16} />}
                       </button>
                     </div>
                     <p className="text-xs text-gray-400 mt-1">Chave secreta usada no servidor. Nunca compartilhe.</p>

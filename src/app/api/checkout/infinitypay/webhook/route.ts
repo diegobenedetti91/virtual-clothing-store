@@ -80,10 +80,10 @@ export async function POST(req: NextRequest) {
       const settings = await prisma.companySettings.findFirst({ orderBy: { updatedAt: "desc" } });
 
       // Integrate with Bling if enabled
-      if (settings?.blingAtivo && settings?.blingApiKey) {
+      if (settings?.blingAtivo) {
         try {
           console.log("[IP WEBHOOK] Integrating order with Bling:", order_nsu);
-          const result = await integrarPedidoBling(order.id, settings.blingApiKey);
+          const result = await integrarPedidoBling(order.id);
           if (result.success) {
             console.log("[IP WEBHOOK] Order successfully integrated with Bling");
           } else {
