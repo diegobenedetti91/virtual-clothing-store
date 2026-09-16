@@ -538,6 +538,31 @@ export default function SettingsForm({ initialSettings }: Props) {
             {freteAtivo && (
               <>
                 <div>
+                  <label className={labelClass}>Restrição por região</label>
+                  <p className="text-xs text-gray-500 mb-3">Selecione as regiões onde você faz entregas. Clientes fora dessas regiões não conseguirão finalizar a compra.</p>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {Object.entries(BRAZILIAN_REGIONS).map(([key, region]) => (
+                      <label key={key} className="flex items-center gap-2 cursor-pointer p-3 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition">
+                        <input
+                          type="checkbox"
+                          checked={freteLocalRegioes.includes(key)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setFreteLocalRegioes([...freteLocalRegioes, key]);
+                            } else {
+                              setFreteLocalRegioes(freteLocalRegioes.filter((r) => r !== key));
+                            }
+                          }}
+                          className="w-4 h-4 rounded border-gray-300 cursor-pointer"
+                        />
+                        <span className="text-sm font-medium text-gray-900">{region.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <p className="text-xs text-gray-400 mt-2">Deixe em branco para aceitar vendas em todo o Brasil.</p>
+                </div>
+
+                <div>
                   <label className={labelClass}>Tipo de cálculo</label>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     {[
@@ -583,30 +608,6 @@ export default function SettingsForm({ initialSettings }: Props) {
                       </div>
                     </div>
                     <p className="text-xs text-gray-400 -mt-2">Cidade e estado usados para validar o CEP do cliente via ViaCEP. Evita conflito com cidades homônimas em outros estados.</p>
-
-                    <div>
-                      <label className={labelClass}>Ou selecione regiões do Brasil</label>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                        {Object.entries(BRAZILIAN_REGIONS).map(([key, region]) => (
-                          <label key={key} className="flex items-center gap-2 cursor-pointer p-3 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition">
-                            <input
-                              type="checkbox"
-                              checked={freteLocalRegioes.includes(key)}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  setFreteLocalRegioes([...freteLocalRegioes, key]);
-                                } else {
-                                  setFreteLocalRegioes(freteLocalRegioes.filter((r) => r !== key));
-                                }
-                              }}
-                              className="w-4 h-4 rounded border-gray-300 cursor-pointer"
-                            />
-                            <span className="text-sm font-medium text-gray-900">{region.label}</span>
-                          </label>
-                        ))}
-                      </div>
-                      <p className="text-xs text-gray-400 mt-2">Selecione uma ou mais regiões. Se selecionadas, entregas para clientes nessas regiões serão permitidas.</p>
-                    </div>
                     <div>
                       <label className={labelClass}>CEP da loja (origem)</label>
                       <input value={freteCEPOrigem} onChange={(e) => setFreteCEPOrigem(e.target.value)} className={inputClass} placeholder="00000-000" maxLength={9} />

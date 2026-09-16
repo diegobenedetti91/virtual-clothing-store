@@ -134,37 +134,58 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Frete não configurado" }, { status: 400 });
   }
 
+  // Validação de região (funciona em qualquer tipo de frete)
+  const cepDestinoClean = cepDestino.replace(/\D/g, "");
+  const regioesConfiguradas = getRegionsArray(settings.freteLocalRegioes);
+
+  if (regioesConfiguradas.length > 0) {
+    try {
+      const viacepRes = await fetch(`https://viacep.com.br/ws/${cepDestinoClean}/json/`, { signal: AbortSignal.timeout(5000) });
+      if (viacepRes.ok) {
+        const viacep = await viacepRes.json();
+        if (!viacep.erro) {
+          const regiaoClienteState = viacep.uf?.toUpperCase();
+          const regiaoDo = regiaoClienteState ? getRegionForState(regiaoClienteState) : null;
+
+          if (!regiaoDo || !regioesConfiguradas.includes(regiaoDo)) {
+            return NextResponse.json(
+              { error: "fora_da_area", cidade: viacep.localidade, uf: viacep.uf },
+              { status: 422 }
+            );
+          }
+        }
+      }
+    } catch {
+      // Se ViaCEP falhar, permite continuar sem bloquear
+    }
+  }
+
   const freteTipo = settings.freteTipo || "fixo";
   const cepOrigem = settings.freteCEPOrigem?.replace(/\D/g, "") || "";
-  const cepDestinoClean = cepDestino.replace(/\D/g, "");
   const pesoDefault = settings.fretePesoDefaultGramas || 500;
   let altura = settings.fretePacoteAltura || 5;
   let largura = settings.fretePacoteLargura || 12;
   let comprimento = settings.fretePacoteComprimento || 17;
 
-  // Modo entrega local: valida cidade e/ou região pelo CEP via ViaCEP
+  // Modo entrega local: valida cidade pelo CEP via ViaCEP
   if (freteTipo === "local") {
     const s = settings as Record<string, unknown>;
     const cidadeConfigurada = s.freteLocalCidade as string | null;
     const ufConfigurada = s.freteLocalUF as string | null;
-    const regioesConfiguradas = getRegionsArray(s.freteLocalRegioes as string | null);
     const retiradaAtiva = !!(s.freteLocalRetirada as boolean);
 
     let podeEntregarLocal = true;
     let foraArea: { cidade: string; uf: string } | null = null;
 
-    if (cidadeConfigurada || regioesConfiguradas.length > 0) {
+    if (cidadeConfigurada) {
       try {
         const viacepRes = await fetch(`https://viacep.com.br/ws/${cepDestinoClean}/json/`, { signal: AbortSignal.timeout(5000) });
         if (viacepRes.ok) {
           const viacep = await viacepRes.json();
           if (!viacep.erro) {
-            const cidadeOk = !cidadeConfigurada || (normalizeCity(viacep.localidade) === normalizeCity(cidadeConfigurada) && (!ufConfigurada || viacep.uf?.toUpperCase() === ufConfigurada.toUpperCase()));
-            const regiaoClienteState = viacep.uf?.toUpperCase();
-            const regiaoDo = regiaoClienteState ? getRegionForState(regiaoClienteState) : null;
-            const regiao = regioesConfiguradas.length > 0 && regiaoDo ? regioesConfiguradas.includes(regiaoDo) : !regioesConfiguradas.length;
-
-            if (!cidadeOk && !regiao) {
+            const cidadeOk = normalizeCity(viacep.localidade) === normalizeCity(cidadeConfigurada);
+            const ufOk = !ufConfigurada || viacep.uf?.toUpperCase() === ufConfigurada.toUpperCase();
+            if (!cidadeOk || !ufOk) {
               podeEntregarLocal = false;
               foraArea = { cidade: viacep.localidade, uf: viacep.uf };
             }
