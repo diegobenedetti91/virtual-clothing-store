@@ -35,7 +35,10 @@ const CANCEL_REASONS = [
   "Outro",
 ];
 
-interface Props { initialOrders: Order[] }
+interface Props {
+  initialOrders: Order[];
+  blingEnabled?: boolean;
+}
 
 interface ConfirmState {
   orderId: string;
@@ -52,7 +55,7 @@ interface ShippingState {
   customerName: string;
 }
 
-export default function OrdersManager({ initialOrders }: Props) {
+export default function OrdersManager({ initialOrders, blingEnabled = false }: Props) {
   const [orders, setOrders] = useState(initialOrders);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -511,7 +514,7 @@ export default function OrdersManager({ initialOrders }: Props) {
                       </div>
                     )}
 
-                    {order.blingIntegrationStatus && (
+                    {blingEnabled && order.blingIntegrationStatus && (
                       <div>
                         <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Integração Bling</h4>
                         <div className="flex items-center gap-2 flex-wrap">
