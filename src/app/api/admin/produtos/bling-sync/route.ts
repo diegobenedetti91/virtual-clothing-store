@@ -78,11 +78,10 @@ export async function POST(req: NextRequest) {
     for (const product of products) {
       try {
         const imagens = JSON.parse(product.images || "[]") as string[];
-
         const pesoGramas = product.pesoGramas || 0;
         const pesoKg = pesoGramas / 1000;
 
-        const blingProduct = {
+        const blingProductPayload = {
           id: product.id,
           nome: product.name,
           codigo: product.slug,
@@ -107,28 +106,64 @@ export async function POST(req: NextRequest) {
           } : undefined,
         };
 
-        const response = await fetch("https://api.bling.com.br/Api/v3/produtos", {
-          method: "POST",
+        let blingId = product.blingProdutoId;
+        let isUpdate = false;
+
+        if (!blingId) {
+          const searchResponse = await fetch(
+            `https://api.bling.com.br/Api/v3/produtos?codigos%5B%5D=${encodeURIComponent(product.slug)}`,
+            {
+              headers: {
+                "Authorization": `Bearer ${token}`,
+                "Content-Type": "application/json",
+              },
+            }
+          );
+
+          if (searchResponse.ok) {
+            const searchData = await searchResponse.json();
+            if (searchData.data?.length > 0) {
+              blingId = String(searchData.data[0].id);
+              isUpdate = true;
+              console.log(`[Bling] Produto encontrado no Bling: ${product.name} (ID: ${blingId})`);
+
+              await prisma.product.update({
+                where: { id: product.id },
+                data: { blingProdutoId: blingId },
+              });
+            }
+          }
+        } else {
+          isUpdate = true;
+        }
+
+        const method = isUpdate ? "PUT" : "POST";
+        const url = isUpdate
+          ? `https://api.bling.com.br/Api/v3/produtos/${blingId}`
+          : "https://api.bling.com.br/Api/v3/produtos";
+
+        const response = await fetch(url, {
+          method,
           headers: {
             "Authorization": `Bearer ${token}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify(blingProduct),
+          body: JSON.stringify(blingProductPayload),
         });
 
         if (response.ok) {
           sincronizados++;
           const data = await response.json();
-          const blingId = data.data?.id;
+          const returnedBlingId = data.data?.id || blingId;
 
-          if (blingId) {
+          if (returnedBlingId && !product.blingProdutoId) {
             await prisma.product.update({
               where: { id: product.id },
-              data: { blingProdutoId: String(blingId) },
+              data: { blingProdutoId: String(returnedBlingId) },
             });
           }
 
-          console.log(`[Bling] Produto sincronizado: ${product.name}${blingId ? ` (ID: ${blingId})` : ""}`);
+          console.log(`[Bling] Produto ${isUpdate ? "atualizado" : "criado"}: ${product.name} (ID: ${returnedBlingId})`);
         } else {
           erros++;
           const error = await response.text();

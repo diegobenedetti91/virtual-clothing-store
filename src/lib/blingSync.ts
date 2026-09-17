@@ -93,8 +93,44 @@ export async function sincronizarProdutoComBling(productId: string): Promise<boo
       } : undefined,
     };
 
-    const response = await fetch("https://api.bling.com.br/Api/v3/produtos", {
-      method: "POST",
+    let blingId = product.blingProdutoId;
+    let isUpdate = false;
+
+    if (!blingId) {
+      const searchResponse = await fetch(
+        `https://api.bling.com.br/Api/v3/produtos?codigos%5B%5D=${encodeURIComponent(product.slug)}`,
+        {
+          headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (searchResponse.ok) {
+        const searchData = await searchResponse.json();
+        if (searchData.data?.length > 0) {
+          blingId = String(searchData.data[0].id);
+          isUpdate = true;
+          console.log(`[Bling] Produto encontrado: ${product.name} (ID: ${blingId})`);
+
+          await prisma.product.update({
+            where: { id: productId },
+            data: { blingProdutoId: blingId },
+          });
+        }
+      }
+    } else {
+      isUpdate = true;
+    }
+
+    const method = isUpdate ? "PUT" : "POST";
+    const url = isUpdate
+      ? `https://api.bling.com.br/Api/v3/produtos/${blingId}`
+      : "https://api.bling.com.br/Api/v3/produtos";
+
+    const response = await fetch(url, {
+      method,
       headers: {
         "Authorization": `Bearer ${token}`,
         "Content-Type": "application/json",
@@ -104,14 +140,14 @@ export async function sincronizarProdutoComBling(productId: string): Promise<boo
 
     if (response.ok) {
       const data = await response.json();
-      const blingId = data.data?.id;
-      if (blingId) {
+      const returnedBlingId = data.data?.id || blingId;
+      if (returnedBlingId && !product.blingProdutoId) {
         await prisma.product.update({
           where: { id: productId },
-          data: { blingProdutoId: String(blingId) },
+          data: { blingProdutoId: String(returnedBlingId) },
         });
-        console.log(`[Bling] Produto ${product.name} sincronizado com ID: ${blingId}`);
       }
+      console.log(`[Bling] Produto ${isUpdate ? "atualizado" : "criado"}: ${product.name} (ID: ${returnedBlingId})`);
       return true;
     }
 
