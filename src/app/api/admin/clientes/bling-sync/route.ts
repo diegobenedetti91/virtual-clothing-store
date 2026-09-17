@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
 
     let sincronizados = 0;
     let erros = 0;
-    const delayMs = 400; // 400ms = ~2.5 req/s (respeitando limite de 3 req/s do Bling)
+    const delayMs = 800; // 800ms = ~1.25 req/s (limite 3 req/s, mas cada cliente faz 1 requisição)
 
     for (let i = 0; i < customers.length; i++) {
       const customer = customers[i];
