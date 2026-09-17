@@ -74,8 +74,16 @@ export async function POST(req: NextRequest) {
 
     let sincronizados = 0;
     let erros = 0;
+    const delayMs = 400; // 400ms = ~2.5 req/s (respeitando limite de 3 req/s do Bling)
 
-    for (const product of products) {
+    for (let i = 0; i < products.length; i++) {
+      const product = products[i];
+
+      // Adiciona delay entre requisições (exceto na primeira)
+      if (i > 0) {
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+      }
+
       try {
         const imagens = JSON.parse(product.images || "[]") as string[];
         const pesoGramas = product.pesoGramas || 0;

@@ -70,8 +70,16 @@ export async function POST(req: NextRequest) {
 
     let sincronizados = 0;
     let erros = 0;
+    const delayMs = 400; // 400ms = ~2.5 req/s (respeitando limite de 3 req/s do Bling)
 
-    for (const customer of customers) {
+    for (let i = 0; i < customers.length; i++) {
+      const customer = customers[i];
+
+      // Adiciona delay entre requisições (exceto na primeira)
+      if (i > 0) {
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+      }
+
       try {
         const cpfCnpj = customer.cpfCnpj ? customer.cpfCnpj.replace(/\D/g, "") : "";
         const tipo = cpfCnpj.length === 14 ? "J" : "F";
