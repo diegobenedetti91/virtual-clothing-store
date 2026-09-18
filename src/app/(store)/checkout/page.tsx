@@ -10,6 +10,7 @@ import { attributesLabel } from "@/lib/variantUtils";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CompanySettings } from "@/types";
+import { isValidCPFOrCNPJ } from "@/lib/utils";
 
 interface ShippingOption {
   servico: string;
@@ -75,6 +76,7 @@ export default function CheckoutPage() {
       if (p.city) setCity((prev) => prev || p.city);
       if (p.state) setState((prev) => prev || p.state);
       if (p.zipCode) setZipCode((prev) => prev || p.zipCode);
+      if (p.cpfCnpj) setCpfCnpj((prev) => prev || p.cpfCnpj);
     });
   }, [customer]);
 
@@ -314,6 +316,7 @@ const handleNuPaySubmit = async (forcePixOnly: boolean = false) => {
 
     // If collecting address, validate CPF/CNPJ
     if (!cpfCnpj?.trim()) throw new Error("CPF/CNPJ é obrigatório");
+    if (!isValidCPFOrCNPJ(cpfCnpj)) throw new Error("CPF/CNPJ inválido");
 
     // If collecting address, validate all address fields
     if (settings?.checkoutCollectAddress || (settings?.freteAtivo && settings?.freteTipo === "local")) {

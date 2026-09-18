@@ -65,25 +65,25 @@ export async function POST(req: NextRequest) {
     const storeName = settings?.name || "Loja";
     const adminEmail = process.env.SMTP_USER;
 
-    // Enviar emails
+    // Enviar emails (non-blocking)
     if (adminEmail) {
-      await sendReturnRequestNotificationEmail({
+      sendReturnRequestNotificationEmail({
         to: adminEmail,
         customerName: order.customerName,
         customerEmail: order.customerEmail,
         orderNumber: order.orderNumber,
         reason,
         storeName,
-      });
+      }).catch(console.error);
     }
 
     if (order.customerEmail) {
-      await sendReturnRequestConfirmationEmail({
+      sendReturnRequestConfirmationEmail({
         to: order.customerEmail,
         customerName: order.customerName,
         orderNumber: order.orderNumber,
         storeName,
-      });
+      }).catch(console.error);
     }
 
     return NextResponse.json(newReturn);

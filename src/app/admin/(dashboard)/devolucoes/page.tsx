@@ -32,6 +32,7 @@ export default function DevolucoesPage() {
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [images, setImages] = useState<File[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>("PENDING");
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchReturns();
@@ -63,6 +64,7 @@ export default function DevolucoesPage() {
     if (!selectedReturn) return;
 
     setProcessingId(selectedReturn.id);
+    setError(null);
     try {
       const imagesData = await Promise.all(
         images.map(async (file) => {
@@ -83,14 +85,21 @@ export default function DevolucoesPage() {
         }),
       });
 
-      if (res.ok) {
-        setSelectedReturn(null);
-        setAdminNotes("");
-        setImages([]);
-        fetchReturns();
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || "Erro ao processar devolução");
+        return;
       }
-    } catch (error) {
-      console.error("Erro ao processar devolução:", error);
+
+      setSelectedReturn(null);
+      setAdminNotes("");
+      setImages([]);
+      setError(null);
+      fetchReturns();
+    } catch (err) {
+      console.error("Erro ao processar devolução:", err);
+      setError(err instanceof Error ? err.message : "Erro ao processar devolução");
     } finally {
       setProcessingId(null);
     }
@@ -205,6 +214,12 @@ export default function DevolucoesPage() {
               <p className="text-xs text-gray-600 mb-2">Motivo da Devolução:</p>
               <p className="text-gray-900">{selectedReturn.reason}</p>
             </div>
+
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+                <p className="text-sm text-red-700">{error}</p>
+              </div>
+            )}
 
             {selectedReturn.status === "PENDING" && (
               <div className="space-y-4">
