@@ -37,6 +37,20 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ error: "Transição de status não permitida" }, { status: 400 });
   }
 
+  // Verificar se há devoluções aprovadas quando tentando cancelar
+  if (status === "CANCELLED") {
+    const approvedReturns = await prisma.return.findMany({
+      where: { orderId: id, status: "APPROVED" },
+    });
+
+    if (approvedReturns.length > 0) {
+      return NextResponse.json(
+        { error: "Pedido com devolução aprovada não pode ser cancelado. Verifique o status das devoluções." },
+        { status: 400 }
+      );
+    }
+  }
+
   const updateData: Record<string, unknown> = { status };
   if (cancelReason !== undefined) updateData.cancelReason = cancelReason;
   if (trackingCode !== undefined) updateData.trackingCode = trackingCode;
