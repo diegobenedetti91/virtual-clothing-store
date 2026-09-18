@@ -63,16 +63,37 @@ export default function EsteirPage() {
 
   const updateOrderStatus = async (orderId: string, newStatus: OrderStatus) => {
     try {
-      await fetch(`/api/orders/${orderId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus }),
-      });
+      let response;
+
+      // Se for cancelamento, usar endpoint específico
+      if (newStatus === "CANCELLED") {
+        const order = orders.find((o) => o.id === orderId);
+        response = await fetch("/api/orders/cancel", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ orderNumber: order?.orderNumber }),
+        });
+      } else {
+        response = await fetch(`/api/orders/${orderId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: newStatus }),
+        });
+      }
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(`Erro: ${data.error || "Não foi possível atualizar o pedido"}`);
+        return;
+      }
+
       setOrders((prev) =>
         prev.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o))
       );
     } catch (err) {
       console.error("Erro ao atualizar pedido:", err);
+      alert("Erro ao atualizar pedido");
     }
   };
 
