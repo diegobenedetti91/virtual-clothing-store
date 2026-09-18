@@ -182,37 +182,40 @@ export default function DevolucoesPage() {
       )}
 
       {selectedReturn && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-96 overflow-y-auto p-6 shadow-lg">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-2xl font-bold text-gray-900">Análise de Devolução</h2>
-              <button onClick={() => setSelectedReturn(null)} className="text-gray-400 hover:text-gray-600">
-                <X size={24} />
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-y-auto p-8 shadow-2xl">
+            <div className="flex justify-between items-center mb-8">
+              <div>
+                <h2 className="text-3xl font-bold text-gray-900">Análise de Devolução</h2>
+                <p className="text-gray-500 mt-1">Pedido {selectedReturn.order.orderNumber}</p>
+              </div>
+              <button onClick={() => setSelectedReturn(null)} className="text-gray-400 hover:text-gray-600 transition">
+                <X size={28} />
               </button>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 mb-6">
-              <div>
-                <p className="text-xs text-gray-500">Pedido</p>
-                <p className="font-bold">{selectedReturn.order.orderNumber}</p>
+            <div className="grid grid-cols-4 gap-6 mb-8">
+              <div className="bg-gradient-to-br from-pink-50 to-pink-100 rounded-xl p-4 border border-pink-200">
+                <p className="text-xs font-semibold text-pink-600 uppercase tracking-wide">Pedido</p>
+                <p className="font-bold text-lg text-pink-900 mt-2">{selectedReturn.order.orderNumber}</p>
               </div>
-              <div>
-                <p className="text-xs text-gray-500">Cliente</p>
-                <p className="font-bold">{selectedReturn.customer.name}</p>
+              <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4 border border-blue-200">
+                <p className="text-xs font-semibold text-blue-600 uppercase tracking-wide">Cliente</p>
+                <p className="font-bold text-lg text-blue-900 mt-2">{selectedReturn.customer.name}</p>
               </div>
-              <div>
-                <p className="text-xs text-gray-500">Email</p>
-                <p className="text-sm">{selectedReturn.customer.email}</p>
+              <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-4 border border-purple-200">
+                <p className="text-xs font-semibold text-purple-600 uppercase tracking-wide">Email</p>
+                <p className="text-sm text-purple-900 mt-2 truncate">{selectedReturn.customer.email}</p>
               </div>
-              <div>
-                <p className="text-xs text-gray-500">Status</p>
-                {statusBadge(selectedReturn.status)}
+              <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-4 border border-gray-200">
+                <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Status</p>
+                <div className="mt-2">{statusBadge(selectedReturn.status)}</div>
               </div>
             </div>
 
-            <div className="bg-gray-50 rounded-lg p-4 mb-6">
-              <p className="text-xs text-gray-600 mb-2">Motivo da Devolução:</p>
-              <p className="text-gray-900">{selectedReturn.reason}</p>
+            <div className="bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl p-6 mb-8 border border-orange-200">
+              <p className="text-sm font-semibold text-orange-700 uppercase tracking-wide mb-2">📋 Motivo da Devolução</p>
+              <p className="text-gray-900 leading-relaxed">{selectedReturn.reason}</p>
             </div>
 
             {error && (
@@ -222,23 +225,26 @@ export default function DevolucoesPage() {
             )}
 
             {selectedReturn.status !== "PENDING" && (
-              <div className="space-y-4">
+              <div className="space-y-8">
                 {selectedReturn.adminNotes && (
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Análise do Produto</label>
-                    <div className="bg-gray-100 rounded-lg p-3">
-                      <p className="text-sm text-gray-900">{selectedReturn.adminNotes}</p>
-                    </div>
+                  <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-6 border border-green-200">
+                    <p className="text-sm font-semibold text-green-700 uppercase tracking-wide mb-3">✓ Análise do Produto</p>
+                    <p className="text-gray-900 leading-relaxed whitespace-pre-wrap">{selectedReturn.adminNotes}</p>
                   </div>
                 )}
 
                 {selectedReturn.images && JSON.parse(selectedReturn.images).length > 0 && (
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Imagens do Produto</label>
-                    <div className="grid grid-cols-2 gap-3">
+                    <p className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-4">📸 Imagens do Produto</p>
+                    <div className="grid grid-cols-3 gap-4">
                       {JSON.parse(selectedReturn.images).map((img: any, idx: number) => (
-                        <a key={idx} href={img.url} target="_blank" rel="noopener noreferrer">
-                          <img src={img.url} alt={`Imagem ${idx + 1}`} className="w-full h-32 object-cover rounded-lg hover:opacity-80 cursor-pointer" />
+                        <a key={idx} href={img.url} target="_blank" rel="noopener noreferrer" className="group">
+                          <div className="relative overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all">
+                            <img src={img.url} alt={`Imagem ${idx + 1}`} className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300" />
+                            <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all flex items-center justify-center">
+                              <span className="text-white text-sm font-semibold opacity-0 group-hover:opacity-100 transition-opacity">Ampliar</span>
+                            </div>
+                          </div>
                         </a>
                       ))}
                     </div>
@@ -248,55 +254,95 @@ export default function DevolucoesPage() {
             )}
 
             {selectedReturn.status === "PENDING" && (
-              <div className="space-y-4">
+              <div className="space-y-6">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Análise do Produto</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-3">📝 Análise do Produto *</label>
                   <textarea
                     value={adminNotes}
                     onChange={(e) => setAdminNotes(e.target.value)}
-                    placeholder="Descreva a análise realizada no produto..."
-                    rows={3}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+                    placeholder="Descreva detalhadamente a análise realizada no produto..."
+                    rows={5}
+                    className="w-full border-2 border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent resize-none"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                    <Upload size={16} />
+                  <label className="block text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                    <Upload size={18} />
                     Imagens do Produto
                   </label>
-                  <input
-                    type="file"
-                    multiple
-                    accept="image/*"
-                    onChange={(e) => setImages(Array.from(e.target.files || []))}
-                    className="w-full"
-                  />
-                  {images.length > 0 && <p className="text-xs text-gray-600 mt-1">{images.length} arquivo(s) selecionado(s)</p>}
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-brand hover:bg-pink-50 transition-all cursor-pointer">
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/*"
+                      onChange={(e) => setImages(Array.from(e.target.files || []))}
+                      className="hidden"
+                      id="image-upload"
+                    />
+                    <label htmlFor="image-upload" className="cursor-pointer block">
+                      <p className="text-gray-600 font-medium">Clique para adicionar imagens</p>
+                      <p className="text-xs text-gray-500 mt-1">ou arraste arquivos</p>
+                    </label>
+                  </div>
+                  {images.length > 0 && (
+                    <div className="mt-4 grid grid-cols-4 gap-3">
+                      {Array.from(images).map((img, idx) => (
+                        <div key={idx} className="relative">
+                          <img src={URL.createObjectURL(img)} alt={`Preview ${idx + 1}`} className="w-full h-24 object-cover rounded-lg" />
+                          <span className="absolute top-1 right-1 bg-pink-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">{idx + 1}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {images.length > 0 && <p className="text-sm text-green-600 mt-3 font-semibold">✓ {images.length} arquivo(s) selecionado(s)</p>}
                 </div>
 
-                <div className="flex gap-3">
+                <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                  <p className="text-xs text-gray-600 font-semibold">💡 Dica:</p>
+                  <p className="text-xs text-gray-600 mt-1">Adicione imagens e notas de análise. Ao recusar, as imagens serão enviadas por email ao cliente.</p>
+                </div>
+
+                <div className="flex gap-3 pt-4">
                   <button
                     onClick={() => setSelectedReturn(null)}
-                    className="flex-1 py-2 border border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50"
+                    className="flex-1 py-3 border-2 border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 transition-colors"
                   >
                     Fechar
                   </button>
                   <button
                     onClick={handleReject}
                     disabled={processingId === selectedReturn.id}
-                    className="flex-1 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 disabled:opacity-60 flex items-center justify-center gap-2"
+                    className="flex-1 py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 disabled:opacity-60 flex items-center justify-center gap-2 transition-colors"
                   >
-                    {processingId === selectedReturn.id ? <Loader2 size={16} className="animate-spin" /> : <X size={16} />}
-                    Recusar
+                    {processingId === selectedReturn.id ? (
+                      <>
+                        <Loader2 size={18} className="animate-spin" />
+                        Recusando...
+                      </>
+                    ) : (
+                      <>
+                        <X size={18} />
+                        Recusar Devolução
+                      </>
+                    )}
                   </button>
                   <button
                     onClick={handleApprove}
                     disabled={processingId === selectedReturn.id}
-                    className="flex-1 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 disabled:opacity-60 flex items-center justify-center gap-2"
+                    className="flex-1 py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 disabled:opacity-60 flex items-center justify-center gap-2 transition-colors"
                   >
-                    {processingId === selectedReturn.id ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
-                    Aprovar
+                    {processingId === selectedReturn.id ? (
+                      <>
+                        <Loader2 size={18} className="animate-spin" />
+                        Aprovando...
+                      </>
+                    ) : (
+                      <>
+                        <Check size={18} />
+                        Aprovar Devolução
+                      </>
+                    )}
                   </button>
                 </div>
               </div>
