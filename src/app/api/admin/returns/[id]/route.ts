@@ -69,24 +69,36 @@ export async function PATCH(
       },
     });
 
-    // Se aprovar, fazer estorno de pagamento e restaurar estoque
-    if (status === "APPROVED" && updated.refundAmount > 0) {
-      const refundResult = await refundPartialPayment(returnData.order.orderNumber, updated.refundAmount);
+    // Se aprovar, restaurar estoque e fazer estorno de pagamento
+    if (status === "APPROVED") {
+      // Restaurar estoque dos itens devolvidos
+      const returnedItemIds = Array.isArray(updated.returnedItems) ? updated.returnedItems : 
+                              (typeof updated.returnedItems === 'string' ? JSON.parse(updated.returnedItems) : []);
       
-      if (refundResult.success) {
-        // Restaurar estoque dos itens devolvidos
-        const returnedItemIds = Array.isArray(updated.returnedItems) ? updated.returnedItems : 
-                                (typeof updated.returnedItems === 'string' ? JSON.parse(updated.returnedItems) : []);
+      const itemsToRestore = returnData.order.items.filter((item: any) => 
+        returnedItemIds.some((ri: any) => ri.itemId === item.id)
+      );
+      
+      if (itemsToRestore.length > 0) {
+        await restoreOrderStock(itemsToRestore).catch(console.error);
+      }
+      
+      // Fazer estorno de pagamento se houver valor e gateway configurado
+      if (updated.refundAmount > 0 && returnData.order.paymentGateway && 
+          (returnData.order.paymentGateway === "mercadopago" || returnData.order.paymentGateway === "nupay")) {
+        const refundResult = await refundPartialPayment(returnData.order.orderNumber, updated.refundAmount);
         
-        const itemsToRestore = returnData.order.items.filter((item: any) => 
-          returnedItemIds.some((ri: any) => ri.itemId === item.id)
-        );
-        
-        if (itemsToRestore.length > 0) {
-          await restoreOrderStock(itemsToRestore).catch(console.error);
+        if (refundResult.success) {
+          // Atualizar com data de reembolso
+          await prisma.return.update({
+            where: { id },
+            data: { refundedAt: new Date() }
+          }).catch(console.error);
+        } else {
+          console.warn("[admin/returns] Refund failed:", refundResult.message);
         }
-        
-        // Atualizar com data de reembolso
+      } else if (updated.refundAmount > 0 && (!returnData.order.paymentGateway || returnData.order.paymentGateway === "whatsapp")) {
+        // Para WhatsApp ou sem gateway, apenas marcar como refundado (refund é manual)
         await prisma.return.update({
           where: { id },
           data: { refundedAt: new Date() }
