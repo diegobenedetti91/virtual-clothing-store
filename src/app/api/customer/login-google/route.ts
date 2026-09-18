@@ -38,6 +38,7 @@ export async function POST(req: NextRequest) {
     }
 
     let customer = await prisma.customerUser.findUnique({ where: { email } });
+    let isFirstLogin = false;
 
     if (!customer) {
       if (action !== "register") {
@@ -63,6 +64,7 @@ export async function POST(req: NextRequest) {
           zipCode: "",
         },
       });
+      isFirstLogin = true;
     }
 
     const token = signToken({ id: customer.id, email: customer.email, name: customer.name });
@@ -70,6 +72,7 @@ export async function POST(req: NextRequest) {
       id: customer.id,
       email: customer.email,
       name: customer.name,
+      isFirstLogin, // Flag para indicar se é primeiro login
     });
     res.headers.set("Set-Cookie", buildCookieHeader(token));
     return res;

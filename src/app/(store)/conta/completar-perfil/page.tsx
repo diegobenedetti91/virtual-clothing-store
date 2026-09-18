@@ -1,26 +1,18 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useCustomer } from "@/hooks/useCustomer";
+import Link from "next/link";
 
-declare global {
-  interface Window {
-    google: any;
-  }
-}
-
-export default function RegisterPage() {
+export default function CompletarPerfilPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const { login } = useCustomer();
+  const customer = useCustomer((s) => s.customer);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const [formData, setFormData] = useState({
     name: "",
-    email: "",
-    password: "",
-    confirm: "",
     phone: "",
     cpfCnpj: "",
     street: "",
@@ -31,77 +23,17 @@ export default function RegisterPage() {
     zipCode: "",
   });
 
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-
   useEffect(() => {
-    const script = document.createElement("script");
-    script.src = "https://accounts.google.com/gsi/client";
-    script.async = true;
-    script.defer = true;
-    
-    script.onload = () => {
-      if (window.google && window.google.accounts && window.google.accounts.id) {
-        window.google.accounts.id.initialize({
-          client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "",
-          callback: handleGoogleSignUp,
-        });
-        
-        setTimeout(() => {
-          window.google.accounts.id.renderButton(
-            document.getElementById("google_signup_button"),
-            { 
-              theme: "outline", 
-              size: "large",
-              width: "320"
-            }
-          );
-        }, 100);
-      }
-    };
-    
-    document.head.appendChild(script);
-
-    return () => {
-      if (document.head.contains(script)) {
-        document.head.removeChild(script);
-      }
-    };
-  }, []);
+    if (!customer) {
+      router.push("/conta/login");
+      return;
+    }
+    setFormData((prev) => ({ ...prev, name: customer.name }));
+  }, [customer, router]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleGoogleSignUp = async (response: any) => {
-    setError("");
-    setLoading(true);
-    try {
-      const res = await fetch("/api/customer/login-google", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token: response.credential, action: "register" }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error || "Erro ao criar conta com Google");
-        return;
-      }
-      login(data);
-      
-      // Se é primeiro login, redirecionar para completar perfil
-      if (data.isFirstLogin) {
-        router.push("/conta/completar-perfil");
-      } else {
-        const redirect = searchParams.get("redirect");
-        router.push(redirect || "/conta");
-      }
-    } catch {
-      setError("Erro ao conectar com Google. Tente novamente.");
-    } finally {
-      setLoading(false);
-    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -112,12 +44,8 @@ export default function RegisterPage() {
       setError("Nome completo é obrigatório");
       return;
     }
-    if (!formData.email.trim()) {
-      setError("E-mail é obrigatório");
-      return;
-    }
     if (!formData.phone.trim()) {
-      setError("Telefone/WhatsApp é obrigatório");
+      setError("Telefone é obrigatório");
       return;
     }
     if (!formData.cpfCnpj.trim()) {
@@ -125,7 +53,7 @@ export default function RegisterPage() {
       return;
     }
     if (!formData.street.trim()) {
-      setError("Rua/Avenida é obrigatória");
+      setError("Rua é obrigatória");
       return;
     }
     if (!formData.number.trim()) {
@@ -148,32 +76,24 @@ export default function RegisterPage() {
       setError("CEP é obrigatório");
       return;
     }
-    if (formData.password !== formData.confirm) {
-      setError("As senhas não coincidem");
-      return;
-    }
-    if (formData.password.length < 6) {
-      setError("A senha deve ter pelo menos 6 caracteres");
-      return;
-    }
 
     setLoading(true);
     try {
-      const res = await fetch("/api/customer/register", {
-        method: "POST",
+      const res = await fetch("/api/customer/profile", {
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
       });
-      const data = await res.json();
+
       if (!res.ok) {
-        setError(data.error || "Erro ao criar conta");
+        const data = await res.json();
+        setError(data.error || "Erro ao atualizar perfil");
         return;
       }
-      login(data);
-      const redirect = searchParams.get("redirect");
-      router.push(redirect || "/conta");
+
+      router.push("/conta");
     } catch {
-      setError("Erro ao conectar. Tente novamente.");
+      setError("Erro ao atualizar perfil. Tente novamente.");
     } finally {
       setLoading(false);
     }
@@ -186,26 +106,13 @@ export default function RegisterPage() {
     <div className="min-h-screen bg-gray-50 px-4 py-16">
       <div className="w-full max-w-2xl mx-auto">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-black text-gray-900 mb-2">Criar conta</h1>
+          <h1 className="text-3xl font-black text-gray-900 mb-2">Completar Perfil</h1>
           <p className="text-gray-500 text-sm">Preencha seus dados para começar a comprar</p>
         </div>
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
-          {/* Google Sign-Up Button */}
-          <div className="mb-6">
-            <div id="google_signup_button" className="flex justify-center" />
-            <div className="relative my-4">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-200" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-white px-2 text-gray-500">Ou continue preenchendo</span>
-              </div>
-            </div>
-          </div>
-
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Seção: Informações Pessoais */}
+            {/* Informações Pessoais */}
             <div>
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Informações Pessoais</h3>
               <div className="space-y-4">
@@ -219,19 +126,6 @@ export default function RegisterPage() {
                     onChange={handleChange}
                     className={inputClass}
                     placeholder="Seu nome completo"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">E-mail *</label>
-                  <input
-                    type="email"
-                    name="email"
-                    required
-                    value={formData.email}
-                    onChange={handleChange}
-                    className={inputClass}
-                    placeholder="seu@email.com"
                   />
                 </div>
 
@@ -263,7 +157,7 @@ export default function RegisterPage() {
               </div>
             </div>
 
-            {/* Seção: Endereço de Entrega */}
+            {/* Endereço de Entrega */}
             <div>
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Endereço de Entrega</h3>
               <div className="space-y-4">
@@ -369,38 +263,6 @@ export default function RegisterPage() {
               </div>
             </div>
 
-            {/* Seção: Segurança */}
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Segurança</h3>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Senha *</label>
-                  <input
-                    type="password"
-                    name="password"
-                    required
-                    value={formData.password}
-                    onChange={handleChange}
-                    className={inputClass}
-                    placeholder="Mínimo 6 caracteres"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Confirmar senha *</label>
-                  <input
-                    type="password"
-                    name="confirm"
-                    required
-                    value={formData.confirm}
-                    onChange={handleChange}
-                    className={inputClass}
-                    placeholder="Repita a senha"
-                  />
-                </div>
-              </div>
-            </div>
-
             {error && (
               <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl px-4 py-2.5">{error}</p>
             )}
@@ -408,21 +270,11 @@ export default function RegisterPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-brand text-white py-3.5 rounded-xl font-bold hover:opacity-90 transition-colors disabled:opacity-60 mt-2"
+              className="w-full bg-brand text-white py-3.5 rounded-xl font-bold hover:opacity-90 transition-colors disabled:opacity-60"
             >
-              {loading ? "Criando conta..." : "Criar conta"}
+              {loading ? "Salvando..." : "Continuar para Minha Conta"}
             </button>
           </form>
-
-          <p className="text-center text-sm text-gray-500 mt-6">
-            Já tem conta?{" "}
-            <Link
-              href={searchParams.get("redirect") ? `/conta/login?redirect=${searchParams.get("redirect")}` : "/conta/login"}
-              className="text-brand font-semibold hover:underline"
-            >
-              Entrar
-            </Link>
-          </p>
         </div>
 
         <p className="text-center mt-4">

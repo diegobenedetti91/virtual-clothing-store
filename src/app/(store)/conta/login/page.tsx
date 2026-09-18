@@ -97,8 +97,14 @@ export default function LoginPage() {
         return;
       }
       login(data);
-      const redirect = searchParams.get("redirect");
-      router.push(redirect || "/conta");
+      
+      // Se é primeiro login, redirecionar para completar perfil
+      if (data.isFirstLogin) {
+        router.push("/conta/completar-perfil");
+      } else {
+        const redirect = searchParams.get("redirect");
+        router.push(redirect || "/conta");
+      }
     } catch {
       setError("Erro ao conectar com Google. Tente novamente.");
     } finally {

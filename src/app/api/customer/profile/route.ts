@@ -10,7 +10,7 @@ export async function GET() {
     where: { id: payload.id },
     select: {
       id: true, email: true, name: true,
-      phone: true, street: true, number: true,
+      phone: true, cpfCnpj: true, street: true, number: true,
       neighborhood: true, city: true, state: true, zipCode: true,
     },
   });
@@ -22,13 +22,14 @@ export async function PATCH(req: NextRequest) {
   if (!payload) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
 
   const body = await req.json();
-  const { name, phone, street, number, neighborhood, city, state, zipCode } = body;
+  const { name, phone, cpfCnpj, street, number, neighborhood, city, state, zipCode } = body;
 
   const customer = await prisma.customerUser.update({
     where: { id: payload.id },
     data: {
       name: name || undefined,
       phone: phone || null,
+      cpfCnpj: cpfCnpj || null,
       street: street || null,
       number: number || null,
       neighborhood: neighborhood || null,
@@ -38,7 +39,7 @@ export async function PATCH(req: NextRequest) {
     },
     select: {
       id: true, email: true, name: true,
-      phone: true, street: true, number: true,
+      phone: true, cpfCnpj: true, street: true, number: true,
       neighborhood: true, city: true, state: true, zipCode: true,
     },
   });
