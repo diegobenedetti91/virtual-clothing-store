@@ -95,7 +95,7 @@ export default function ReturnRequestModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           orderId,
-          returnedItems: selectedItemsArray,
+          itemIds: selectedItemsArray,
           reason,
           returnAmount: totalRefund,
         }),
