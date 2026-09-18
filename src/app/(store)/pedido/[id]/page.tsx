@@ -214,6 +214,7 @@ const daysSinceOrder = Math.floor((Date.now() - new Date(order.createdAt).getTim
       <ReturnRequestModal
         orderId={order.id}
         orderNumber={order.orderNumber}
+        items={order.items}
         isOpen={returnModalOpen}
         onClose={() => setReturnModalOpen(false)}
         onSuccess={() => setReturnRequested(true)}

@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
 
-    const { orderId, reason } = await req.json();
+    const { orderId, reason, itemIds, returnAmount } = await req.json();
 
     if (!orderId || !reason) {
       return NextResponse.json({ error: "Dados incompletos" }, { status: 400 });
@@ -57,6 +57,8 @@ export async function POST(req: NextRequest) {
         customerId: customer.id,
         reason,
         status: "PENDING",
+        returnedItems: itemIds || [],
+        refundAmount: returnAmount || 0,
       },
     });
 
