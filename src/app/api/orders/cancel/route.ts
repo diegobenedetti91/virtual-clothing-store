@@ -23,6 +23,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Pedido não encontrado" }, { status: 404 });
     }
 
+    // Verificar se há devoluções aprovadas
+    const approvedReturns = await prisma.return.findMany({
+      where: { orderId: order.id, status: "APPROVED" },
+    });
+
+    if (approvedReturns.length > 0) {
+      return NextResponse.json(
+        {
+          error: "Pedido com devolução aprovada não pode ser cancelado. Verifique o status das devoluções.",
+          hasApprovedReturns: true
+        },
+        { status: 400 }
+      );
+    }
+
     // Verify authorization (admin via NextAuth session or customer owner)
     const isAdmin = !!session?.user?.email; // NextAuth session = admin
     const isOwner = session?.user?.id === order.customerId;
