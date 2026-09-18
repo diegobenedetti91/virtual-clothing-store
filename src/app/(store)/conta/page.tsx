@@ -23,6 +23,7 @@ interface Order {
   id: string;
   orderNumber: string;
   status: string;
+  returnStatus?: string;
   total: number;
   createdAt: string;
   items: OrderItem[];
@@ -359,10 +360,21 @@ export default function AccountPage() {
                         </p>
                       </div>
                       <div className="flex flex-col items-end gap-2 shrink-0">
-                        <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full ${s.badge}`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
-                          {s.label}
-                        </span>
+                        <div className="flex flex-col gap-1 items-end">
+                          <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full ${s.badge}`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
+                            {s.label}
+                          </span>
+                          {order.returnStatus && (
+                            <span className={`inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-full ${
+                              order.returnStatus === "FULL_RETURN" 
+                                ? "bg-red-100 text-red-700 border border-red-200" 
+                                : "bg-orange-100 text-orange-700 border border-orange-200"
+                            }`}>
+                              {order.returnStatus === "FULL_RETURN" ? "🔄 Devolvido Total" : "🔄 Devolvido Parcial"}
+                            </span>
+                          )}
+                        </div>
                         <span className="font-black text-gray-900">{formatCurrency(order.total)}</span>
                       </div>
                     </div>

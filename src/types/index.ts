@@ -93,6 +93,7 @@ export interface Order {
   shippingMethod?: string | null;
   total: number;
   status: string;
+  returnStatus?: string | null;
   notes?: string | null;
   paymentGateway?: string | null;
   paymentId?: string | null;
