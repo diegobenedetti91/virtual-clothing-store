@@ -38,6 +38,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Verificar se há devolução PENDING (em aberto)
+    const pendingReturn = await prisma.return.findFirst({
+      where: { orderId, status: "PENDING" },
+    });
+
+    if (pendingReturn) {
+      return NextResponse.json(
+        { error: "Você já tem uma solicitação de devolução em análise. Aguarde a resposta antes de fazer uma nova solicitação." },
+        { status: 400 }
+      );
+    }
+
     // Validar que não está tentando devolver mais do que já foi devolvido
     const returnedItems: Record<string, number> = {};
     const approvedReturns = await prisma.return.findMany({
