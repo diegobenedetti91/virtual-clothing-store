@@ -64,19 +64,20 @@ export async function PATCH(
       },
     });
 
-    // Enviar email ao cliente
+    // Enviar email ao cliente (non-blocking)
     const settings = await prisma.companySettings.findFirst();
     const storeName = settings?.name || "Loja";
 
     if (returnData.customer.email) {
-      await sendReturnDecisionEmail({
+      sendReturnDecisionEmail({
         to: returnData.customer.email,
         customerName: returnData.customer.name,
         orderNumber: returnData.order.orderNumber,
         approved: status === "APPROVED",
         storeName,
         adminNotes,
-      });
+        images: images && images.length > 0 ? images : undefined,
+      }).catch(console.error);
     }
 
     return NextResponse.json(updated);

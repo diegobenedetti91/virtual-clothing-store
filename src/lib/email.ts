@@ -367,9 +367,9 @@ export async function sendReturnRequestConfirmationEmail({
 }
 
 export async function sendReturnDecisionEmail({
-  to, customerName, orderNumber, approved, storeName, adminNotes,
+  to, customerName, orderNumber, approved, storeName, adminNotes, images,
 }: {
-  to: string; customerName: string; orderNumber: string; approved: boolean; storeName: string; adminNotes?: string;
+  to: string; customerName: string; orderNumber: string; approved: boolean; storeName: string; adminNotes?: string; images?: Array<{ url: string }>;
 }) {
   if (!process.env.SMTP_USER) return;
 
@@ -403,10 +403,19 @@ export async function sendReturnDecisionEmail({
     `}
   `, storeName);
 
-  await transporter.sendMail({
+  const mailOptions: any = {
     from: `"${storeName}" <${process.env.SMTP_USER}>`,
     to,
     subject: `Sua devolução foi ${approved ? "aprovada" : "analisada"} — Pedido ${orderNumber}`,
     html,
-  });
+  };
+
+  if (images && images.length > 0) {
+    mailOptions.attachments = images.map((img: any, idx: number) => ({
+      filename: `imagem-produto-${idx + 1}.jpg`,
+      path: img.url,
+    }));
+  }
+
+  await transporter.sendMail(mailOptions);
 }

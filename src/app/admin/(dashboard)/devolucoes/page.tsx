@@ -221,6 +221,32 @@ export default function DevolucoesPage() {
               </div>
             )}
 
+            {selectedReturn.status !== "PENDING" && (
+              <div className="space-y-4">
+                {selectedReturn.adminNotes && (
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Análise do Produto</label>
+                    <div className="bg-gray-100 rounded-lg p-3">
+                      <p className="text-sm text-gray-900">{selectedReturn.adminNotes}</p>
+                    </div>
+                  </div>
+                )}
+
+                {selectedReturn.images && JSON.parse(selectedReturn.images).length > 0 && (
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Imagens do Produto</label>
+                    <div className="grid grid-cols-2 gap-3">
+                      {JSON.parse(selectedReturn.images).map((img: any, idx: number) => (
+                        <a key={idx} href={img.url} target="_blank" rel="noopener noreferrer">
+                          <img src={img.url} alt={`Imagem ${idx + 1}`} className="w-full h-32 object-cover rounded-lg hover:opacity-80 cursor-pointer" />
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {selectedReturn.status === "PENDING" && (
               <div className="space-y-4">
                 <div>
