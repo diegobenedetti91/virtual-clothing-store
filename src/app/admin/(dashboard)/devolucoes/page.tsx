@@ -42,9 +42,17 @@ export default function DevolucoesPage() {
     try {
       const res = await fetch(`/api/admin/returns?status=${statusFilter}`);
       const data = await res.json();
-      setReturns(data);
+      if (!res.ok) {
+        setError(data.error || "Erro ao buscar devoluções");
+        setReturns([]);
+      } else {
+        setReturns(Array.isArray(data) ? data : []);
+        setError(null);
+      }
     } catch (error) {
       console.error("Erro ao buscar devoluções:", error);
+      setError("Erro ao buscar devoluções");
+      setReturns([]);
     } finally {
       setLoading(false);
     }
