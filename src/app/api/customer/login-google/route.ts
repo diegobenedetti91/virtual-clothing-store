@@ -6,7 +6,7 @@ import { OAuth2Client } from "google-auth-library";
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 
 export async function POST(req: NextRequest) {
-  const { token: idToken, action } = await req.json();
+  const { token: idToken } = await req.json();
 
   if (!idToken) {
     return NextResponse.json({ error: "Token inválido" }, { status: 400 });
@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Token inválido" }, { status: 401 });
     }
 
-    const { email, name, picture } = payload;
+    const { email, name } = payload;
 
     if (!email) {
       return NextResponse.json({ error: "E-mail não encontrado" }, { status: 400 });
@@ -41,19 +41,12 @@ export async function POST(req: NextRequest) {
     let isFirstLogin = false;
 
     if (!customer) {
-      if (action !== "register") {
-        return NextResponse.json(
-          { error: "Conta não encontrada. Crie uma nova conta." },
-          { status: 404 }
-        );
-      }
-
-      // Create new customer from Google signup
+      // Auto-criar conta ao fazer login com Google (não é erro mais)
       customer = await prisma.customerUser.create({
         data: {
           email,
           name: name || email.split("@")[0],
-          password: "", // OAuth users don't have password
+          password: "",
           phone: "",
           cpfCnpj: "",
           street: "",
@@ -72,7 +65,7 @@ export async function POST(req: NextRequest) {
       id: customer.id,
       email: customer.email,
       name: customer.name,
-      isFirstLogin, // Flag para indicar se é primeiro login
+      isFirstLogin,
     });
     res.headers.set("Set-Cookie", buildCookieHeader(token));
     return res;
