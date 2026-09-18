@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { decrementOrderStock } from "@/lib/stockUtils";
 import { generateOrderNumber } from "@/lib/utils";
 
 export async function POST(req: NextRequest) {

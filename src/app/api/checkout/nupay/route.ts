@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { decrementOrderStock } from "@/lib/stockUtils";
 import { generateOrderNumber } from "@/lib/utils";
 
 // NuPay for Business API base URL
@@ -169,5 +170,19 @@ export async function POST(req: NextRequest) {
     },
   });
 
+  // Decrement stock
+  try {
+    const itemsForStock = items.map((item: any) => ({
+      productId: item.productId,
+      quantity: item.quantity,
+      size: item.size,
+      color: item.color,
+      selectedAttributes: item.selectedAttributes ? JSON.stringify(item.selectedAttributes) : null,
+    }));
+    await decrementOrderStock(itemsForStock);
+  } catch (err) {
+    console.error("Error decrementing stock:", err);
+  }
+  
   return NextResponse.json({ paymentUrl, orderNumber });
 }
