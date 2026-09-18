@@ -196,7 +196,7 @@ export async function integrarPedidoBling(orderId: string): Promise<{ success: b
         valor: item.price,
         unidade: "UN",
         produto: {
-          id: item.product.id,
+          id: item.blingProdutoId || item.product.id,
         },
       })),
     };

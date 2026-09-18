@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
     for (const item of items as OrderItemInput[]) {
       const product = await tx.product.findUnique({
         where: { id: item.productId },
-        select: { variantStock: true },
+        select: { variantStock: true, blingProdutoId: true },
       });
       const raw = JSON.parse(product?.variantStock || "[]");
       const variants = normalizeVariantStock(raw);
@@ -121,15 +121,22 @@ export async function POST(req: NextRequest) {
         notes: notes || null,
         customerId: customerId || null,
         items: {
-          create: (items as OrderItemInput[]).map((item) => ({
-            productId: item.productId,
-            quantity: item.quantity,
-            price: item.price,
-            size: item.size || null,
-            color: item.color || null,
-            selectedAttributes: item.selectedAttributes
-              ? JSON.stringify(item.selectedAttributes)
-              : null,
+          create: await Promise.all((items as OrderItemInput[]).map(async (item) => {
+            const prod = await tx.product.findUnique({
+              where: { id: item.productId },
+              select: { blingProdutoId: true },
+            });
+            return {
+              productId: item.productId,
+              quantity: item.quantity,
+              price: item.price,
+              size: item.size || null,
+              color: item.color || null,
+              selectedAttributes: item.selectedAttributes
+                ? JSON.stringify(item.selectedAttributes)
+                : null,
+              blingProdutoId: prod?.blingProdutoId || null,
+            };
           })),
         },
       },

@@ -166,6 +166,7 @@ model OrderItem {
   size               String?
   color              String?
   selectedAttributes String? @db.Text
+  blingProdutoId     String?
 }
 
 model NavItem {
