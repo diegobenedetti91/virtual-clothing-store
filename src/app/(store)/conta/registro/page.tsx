@@ -1,9 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCustomer } from "@/hooks/useCustomer";
+
+declare global {
+  interface Window {
+    google: any;
+  }
+}
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -28,16 +34,60 @@ export default function RegisterPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    const script = document.createElement("script");
+    script.src = "https://accounts.google.com/gsi/client";
+    script.async = true;
+    script.defer = true;
+    document.head.appendChild(script);
+
+    script.onload = () => {
+      if (window.google) {
+        window.google.accounts.id.initialize({
+          client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID,
+          callback: handleGoogleSignUp,
+        });
+      }
+    };
+
+    return () => {
+      document.head.removeChild(script);
+    };
+  }, []);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleGoogleSignUp = async (response: any) => {
+    setError("");
+    setLoading(true);
+    try {
+      const res = await fetch("/api/customer/login-google", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: response.credential, action: "register" }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Erro ao criar conta com Google");
+        return;
+      }
+      login(data);
+      const redirect = searchParams.get("redirect");
+      router.push(redirect || "/conta");
+    } catch {
+      setError("Erro ao conectar com Google. Tente novamente.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
-    // Validações
     if (!formData.name.trim()) {
       setError("Nome completo é obrigatório");
       return;
@@ -121,6 +171,25 @@ export default function RegisterPage() {
         </div>
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
+          {/* Google Sign-Up Button */}
+          <div className="mb-6">
+            <div
+              id="google_signup_button"
+              className="flex justify-center"
+              style={{
+                "--google_logo_width": "40px",
+              } as React.CSSProperties}
+            />
+            <div className="relative my-4">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-200" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-white px-2 text-gray-500">Ou continue preenchendo</span>
+              </div>
+            </div>
+          </div>
+
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Seção: Informações Pessoais */}
             <div>
@@ -348,6 +417,19 @@ export default function RegisterPage() {
           </Link>
         </p>
       </div>
+
+      <script
+        dangerouslySetInnerHTML={{
+          __html: `
+            if (window.google) {
+              window.google.accounts.id.renderButton(
+                document.getElementById("google_signup_button"),
+                { theme: "outline", size: "large", width: "100%" }
+              );
+            }
+          `,
+        }}
+      />
     </div>
   );
 }

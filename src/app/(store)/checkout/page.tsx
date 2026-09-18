@@ -29,7 +29,6 @@ export default function CheckoutPage() {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
-  const [notes, setNotes] = useState("");
 
   const [shippingOptions, setShippingOptions] = useState<ShippingOption[]>([]);
   const [shippingLoading, setShippingLoading] = useState(false);
@@ -220,7 +219,6 @@ export default function CheckoutPage() {
       `💰 *Subtotal:* ${formatCurrency(total())}`,
       `🚚 *Frete:* ${freteTexto}`,
       `💳 *Total:* ${formatCurrency(total() + (selectedShipping?.valor || 0))}`,
-      ...(notes ? [``, `📝 *Observações:* ${notes}`] : []),
       ``,
       `_Pedido gerado em ${new Date().toLocaleString("pt-BR")}_`,
     ];
@@ -241,7 +239,6 @@ export default function CheckoutPage() {
         city: city || null,
         state: state || null,
         zipCode: zipCode || null,
-        notes: notes || null,
         customerId: customer?.id || null,
         shippingCost: selectedShipping?.valor || 0,
         shippingMethod: selectedShipping?.codigo || null,
@@ -285,7 +282,6 @@ const handleNuPaySubmit = async (forcePixOnly: boolean = false) => {
         city: city || null,
         state: state || null,
         zipCode: zipCode || null,
-        notes: notes || null,
         customerId: customer?.id || null,
         shippingCost: selectedShipping?.valor || 0,
         shippingMethod: selectedShipping?.codigo || null,
@@ -315,6 +311,9 @@ const handleNuPaySubmit = async (forcePixOnly: boolean = false) => {
     // Name and phone always required
     if (!name?.trim()) throw new Error("Nome é obrigatório");
     if (!phone?.trim()) throw new Error("Telefone é obrigatório");
+
+    // If collecting address, validate CPF/CNPJ
+    if (!cpfCnpj?.trim()) throw new Error("CPF/CNPJ é obrigatório");
 
     // If collecting address, validate all address fields
     if (settings?.checkoutCollectAddress || (settings?.freteAtivo && settings?.freteTipo === "local")) {
@@ -357,7 +356,6 @@ const handleNuPaySubmit = async (forcePixOnly: boolean = false) => {
         city: city || null,
         state: state || null,
         zipCode: zipCode || null,
-        notes: notes || null,
         customerId: customer?.id || null,
         shippingCost: selectedShipping?.valor || 0,
         shippingMethod: selectedShipping?.codigo || null,
@@ -402,7 +400,6 @@ const handleNuPaySubmit = async (forcePixOnly: boolean = false) => {
         city: city || null,
         state: state || null,
         zipCode: zipCode || null,
-        notes: notes || null,
         customerId: customer?.id || null,
         shippingCost: selectedShipping?.valor || 0,
         shippingMethod: selectedShipping?.codigo || null,
@@ -563,8 +560,8 @@ const handleNuPaySubmit = async (forcePixOnly: boolean = false) => {
                       <input value={zipCode} onChange={(e) => setZipCode(e.target.value)} className={inputClass} placeholder="00000-000" />
                     </div>
                     <div>
-                      <label className={labelClass}>CPF / CNPJ (opcional)</label>
-                      <input value={cpfCnpj} onChange={(e) => setCpfCnpj(e.target.value)} className={inputClass} placeholder="000.000.000-00 ou 00.000.000/0000-00" />
+                      <label className={labelClass}>CPF / CNPJ *</label>
+                      <input value={cpfCnpj} onChange={(e) => setCpfCnpj(e.target.value)} className={inputClass} required placeholder="000.000.000-00 ou 00.000.000/0000-00" />
                     </div>
                   </div>
                 </div>
@@ -595,18 +592,6 @@ const handleNuPaySubmit = async (forcePixOnly: boolean = false) => {
                 </div>
               )}
 
-              {/* Notes */}
-              <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
-                <label className={labelClass}>Observações (opcional)</label>
-                <textarea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  rows={3}
-                  className={inputClass}
-                  placeholder="Alguma preferência, dúvida ou observação..."
-                />
-              </div>
-            </div>
 
             {/* Sidebar direita - Resumo do pedido + Forma de pagamento */}
             <div className="lg:col-span-1">

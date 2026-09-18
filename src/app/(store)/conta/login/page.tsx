@@ -1,9 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCustomer } from "@/hooks/useCustomer";
+
+declare global {
+  interface Window {
+    google: any;
+  }
+}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -13,6 +19,27 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const script = document.createElement("script");
+    script.src = "https://accounts.google.com/gsi/client";
+    script.async = true;
+    script.defer = true;
+    document.head.appendChild(script);
+
+    script.onload = () => {
+      if (window.google) {
+        window.google.accounts.id.initialize({
+          client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID,
+          callback: handleGoogleSignIn,
+        });
+      }
+    };
+
+    return () => {
+      document.head.removeChild(script);
+    };
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,6 +61,30 @@ export default function LoginPage() {
       router.push(redirect || "/conta");
     } catch {
       setError("Erro ao conectar. Tente novamente.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async (response: any) => {
+    setError("");
+    setLoading(true);
+    try {
+      const res = await fetch("/api/customer/login-google", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: response.credential, action: "login" }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Erro ao fazer login com Google");
+        return;
+      }
+      login(data);
+      const redirect = searchParams.get("redirect");
+      router.push(redirect || "/conta");
+    } catch {
+      setError("Erro ao conectar com Google. Tente novamente.");
     } finally {
       setLoading(false);
     }
@@ -89,6 +140,25 @@ export default function LoginPage() {
             </button>
           </form>
 
+          {/* Divider */}
+          <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-200" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-white px-2 text-gray-500">Ou continue com</span>
+            </div>
+          </div>
+
+          {/* Google Sign-In Button */}
+          <div
+            id="google_signin_button"
+            className="flex justify-center"
+            style={{
+              "--google_logo_width": "40px",
+            } as React.CSSProperties}
+          />
+
           <p className="text-center text-sm text-gray-500 mt-6">
             Não tem conta?{" "}
             <Link
@@ -106,6 +176,19 @@ export default function LoginPage() {
           </Link>
         </p>
       </div>
+
+      <script
+        dangerouslySetInnerHTML={{
+          __html: `
+            if (window.google) {
+              window.google.accounts.id.renderButton(
+                document.getElementById("google_signin_button"),
+                { theme: "outline", size: "large", width: "100%" }
+              );
+            }
+          `,
+        }}
+      />
     </div>
   );
 }
