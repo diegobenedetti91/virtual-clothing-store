@@ -71,13 +71,24 @@ export async function PATCH(
 
     // Se aprovar, restaurar estoque e fazer estorno de pagamento
     if (status === "APPROVED") {
-      // Restaurar estoque dos itens devolvidos
+      // Restaurar estoque dos itens devolvidos (com quantidade correta)
       const returnedItemIds = Array.isArray(updated.returnedItems) ? updated.returnedItems : 
                               (typeof updated.returnedItems === 'string' ? JSON.parse(updated.returnedItems) : []);
       
-      const itemsToRestore = returnData.order.items.filter((item: any) => 
-        returnedItemIds.some((ri: any) => ri.itemId === item.id)
-      );
+      // Mapear quantidade devolvida de cada item
+      const itemsToRestore = returnedItemIds
+        .map((returnedItem: any) => {
+          const orderItem = returnData.order.items.find((oi: any) => oi.id === returnedItem.itemId);
+          if (!orderItem) return null;
+          return {
+            productId: orderItem.productId,
+            quantity: returnedItem.quantity, // Quantidade devolvida, não total
+            size: orderItem.size,
+            color: orderItem.color,
+            selectedAttributes: orderItem.selectedAttributes,
+          };
+        })
+        .filter(Boolean);
       
       if (itemsToRestore.length > 0) {
         await restoreOrderStock(itemsToRestore).catch(console.error);
