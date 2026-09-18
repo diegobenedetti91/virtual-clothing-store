@@ -295,3 +295,118 @@ export async function sendShippingConfirmationEmail({
     html,
   });
 }
+
+export async function sendReturnRequestNotificationEmail({
+  to, customerName, customerEmail, orderNumber, reason, storeName,
+}: {
+  to: string; customerName: string; customerEmail?: string | null; orderNumber: string; reason: string; storeName: string;
+}) {
+  if (!process.env.SMTP_USER) return;
+
+  const html = baseWrapper(`
+    <h2 style="color:#ec4899;margin:0 0 4px;">📦 Nova solicitação de devolução</h2>
+    <p style="color:#555;margin:0 0 20px;">Um cliente acaba de solicitar devolução de um pedido.</p>
+
+    <div style="background:#fdf2f8;border-radius:10px;padding:16px 20px;margin-bottom:20px;">
+      <p style="margin:0 0 4px;font-size:12px;color:#888;">Número do pedido</p>
+      <p style="margin:0;font-weight:700;font-size:20px;color:#be185d;">${orderNumber}</p>
+    </div>
+
+    <div style="background:#f9fafb;border-radius:8px;padding:12px 16px;margin-bottom:20px;font-size:13px;">
+      <p style="margin:0 0 8px;"><strong>👤 Cliente:</strong> ${customerName}</p>
+      ${customerEmail ? `<p style="margin:0 0 8px;"><strong>📧 Email:</strong> ${customerEmail}</p>` : ""}
+    </div>
+
+    <div style="background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:12px 16px;margin-bottom:20px;color:#856404;font-size:13px;">
+      <p style="margin:0 0 4px;"><strong>📝 Motivo da devolução:</strong></p>
+      <p style="margin:0;">${reason}</p>
+    </div>
+
+    <div style="margin-top:20px;background:#e7f3ff;border:1px solid #b3d9ff;border-radius:8px;padding:12px 16px;color:#004085;font-size:13px;">
+      ℹ️ <strong>Ação necessária:</strong> Acesse o painel admin para análise e resposta ao cliente.
+    </div>
+  `, storeName);
+
+  await transporter.sendMail({
+    from: `"${storeName}" <${process.env.SMTP_USER}>`,
+    to,
+    subject: `📦 Nova solicitação de devolução — Pedido ${orderNumber}`,
+    html,
+  });
+}
+
+export async function sendReturnRequestConfirmationEmail({
+  to, customerName, orderNumber, storeName,
+}: {
+  to: string; customerName: string; orderNumber: string; storeName: string;
+}) {
+  if (!process.env.SMTP_USER) return;
+
+  const html = baseWrapper(`
+    <h2 style="color:#ec4899;margin:0 0 8px;">Sua solicitação foi recebida! ✅</h2>
+    <p style="color:#555;margin:0 0 20px;">Olá, <strong>${customerName}</strong>! Recebemos sua solicitação de devolução e estamos analisando.</p>
+
+    <div style="background:#fdf2f8;border-radius:10px;padding:16px 20px;margin-bottom:20px;text-align:center;">
+      <p style="margin:0 0 4px;font-size:12px;color:#888;">Pedido</p>
+      <p style="margin:0;font-weight:700;font-size:20px;color:#be185d;">${orderNumber}</p>
+    </div>
+
+    <div style="background:#d1fae5;border:1px solid #6ee7b7;border-radius:8px;padding:12px 16px;margin-bottom:20px;color:#065f46;font-size:13px;">
+      ✅ <strong>Status:</strong> Sua solicitação está sendo analisada pela nossa equipe. Você receberá um email em breve com a resposta.
+    </div>
+
+    <p style="color:#666;font-size:13px;margin:0;">Tempo estimado de resposta: até 3 dias úteis.</p>
+  `, storeName);
+
+  await transporter.sendMail({
+    from: `"${storeName}" <${process.env.SMTP_USER}>`,
+    to,
+    subject: `Sua solicitação de devolução foi recebida — Pedido ${orderNumber}`,
+    html,
+  });
+}
+
+export async function sendReturnDecisionEmail({
+  to, customerName, orderNumber, approved, storeName, adminNotes,
+}: {
+  to: string; customerName: string; orderNumber: string; approved: boolean; storeName: string; adminNotes?: string;
+}) {
+  if (!process.env.SMTP_USER) return;
+
+  const statusLabel = approved ? "✅ APROVADA" : "❌ RECUSADA";
+  const statusColor = approved ? "#065f46" : "#991b1b";
+  const statusBg = approved ? "#d1fae5" : "#fee2e2";
+  const statusBorder = approved ? "#6ee7b7" : "#fecaca";
+
+  const html = baseWrapper(`
+    <h2 style="color:#ec4899;margin:0 0 8px;">Sua devolução foi ${approved ? "aprovada" : "analisada"}!</h2>
+    <p style="color:#555;margin:0 0 20px;">Olá, <strong>${customerName}</strong>! Finalizamos a análise da sua solicitação de devolução.</p>
+
+    <div style="background:#fdf2f8;border-radius:10px;padding:16px 20px;margin-bottom:20px;text-align:center;">
+      <p style="margin:0 0 4px;font-size:12px;color:#888;">Pedido</p>
+      <p style="margin:0;font-weight:700;font-size:20px;color:#be185d;">${orderNumber}</p>
+    </div>
+
+    <div style="background:${statusBg};border:1px solid ${statusBorder};border-radius:8px;padding:16px;margin-bottom:20px;color:${statusColor};font-size:14px;">
+      <p style="margin:0 0 8px;font-weight:700;font-size:16px;">${statusLabel}</p>
+      ${adminNotes ? `<p style="margin:0;">${adminNotes}</p>` : ""}
+    </div>
+
+    ${approved ? `
+      <div style="background:#e7f3ff;border:1px solid #b3d9ff;border-radius:8px;padding:12px 16px;color:#004085;font-size:13px;margin-bottom:20px;">
+        📬 <strong>Próximos passos:</strong> Você receberá instruções de envio do produto em breve.
+      </div>
+    ` : `
+      <div style="background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:12px 16px;color:#856404;font-size:13px;margin-bottom:20px;">
+        ℹ️ Se tiver dúvidas, entre em contato com nossa equipe de atendimento.
+      </div>
+    `}
+  `, storeName);
+
+  await transporter.sendMail({
+    from: `"${storeName}" <${process.env.SMTP_USER}>`,
+    to,
+    subject: `Sua devolução foi ${approved ? "aprovada" : "analisada"} — Pedido ${orderNumber}`,
+    html,
+  });
+}

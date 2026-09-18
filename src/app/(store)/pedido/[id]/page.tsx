@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { CheckCircle, MessageCircle, Loader2, AlertCircle, X, Package } from "lucide-react";
+import { CheckCircle, MessageCircle, Loader2, AlertCircle, X, Package, Undo2 } from "lucide-react";
 import Link from "next/link";
 import { Order } from "@/types";
 import { formatCurrency, formatDate, ORDER_STATUS } from "@/lib/utils";
+import ReturnRequestModal from "@/components/ReturnRequestModal";
 
 export default function OrderConfirmationPage() {
   const params = useParams();
@@ -16,6 +17,8 @@ export default function OrderConfirmationPage() {
   const [cancelError, setCancelError] = useState<string | null>(null);
   const [cancelMessage, setCancelMessage] = useState<string | null>(null);
   const [orderCancelledLocally, setOrderCancelledLocally] = useState(false);
+  const [returnModalOpen, setReturnModalOpen] = useState(false);
+  const [returnRequested, setReturnRequested] = useState(false);
 
   useEffect(() => {
     fetch(`/api/orders/${id}`)
@@ -69,6 +72,9 @@ export default function OrderConfirmationPage() {
   const statusInfo = ORDER_STATUS[order.status] || ORDER_STATUS.PENDING;
   const canCancel = order.status === "CONFIRMED";
   const isAlreadyCancelled = order.status === "CANCELLED";
+  
+  const daysSinceOrder = Math.floor((Date.now() - new Date(order.createdAt).getTime()) / (1000 * 60 * 60 * 24));
+  const canRequestReturn = daysSinceOrder <= 7;
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-16 text-center">
@@ -270,11 +276,50 @@ export default function OrderConfirmationPage() {
             )}
           </div>
         )}
+
+        {!isAlreadyCancelled && (
+          <div className="border-t border-gray-100 mt-6 pt-6">
+            <div>
+              {canRequestReturn && !returnRequested ? (
+                <div>
+                  <p className="text-xs text-gray-500 mb-3">Tem 7 dias para solicitar devolução do produto.</p>
+                  <button
+                    onClick={() => setReturnModalOpen(true)}
+                    className="w-full bg-orange-600 text-white py-2 rounded-lg font-semibold hover:bg-orange-700 transition-colors flex items-center justify-center gap-2"
+                  >
+                    <Undo2 size={16} />
+                    Solicitar Devolução
+                  </button>
+                </div>
+              ) : returnRequested ? (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                  <p className="text-sm font-semibold text-blue-800">✅ Devolução solicitada</p>
+                  <p className="text-xs text-blue-700 mt-1">Você receberá um email com mais informações em breve.</p>
+                </div>
+              ) : (
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                  <p className="text-xs font-semibold text-gray-600 flex items-center gap-2">
+                    <AlertCircle size={14} />
+                    Prazo para devolução expirado (máximo 7 dias)
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       <Link href="/produtos" className="bg-brand text-white px-8 py-3 rounded-full font-semibold hover:opacity-90 transition-colors inline-block">
         Continuar comprando
       </Link>
+
+      <ReturnRequestModal
+        orderId={order.id}
+        orderNumber={order.orderNumber}
+        isOpen={returnModalOpen}
+        onClose={() => setReturnModalOpen(false)}
+        onSuccess={() => setReturnRequested(true)}
+      />
     </div>
   );
 }
