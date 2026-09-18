@@ -135,6 +135,7 @@ model Order {
   paymentMethod    String?
   paymentFee       Float         @default(0)
   refundedAt       DateTime?
+  returnStatus     String?       // PARTIAL_RETURN, FULL_RETURN
   reviewEmailSentAt DateTime?
   upsellEmailSentAt DateTime?
 

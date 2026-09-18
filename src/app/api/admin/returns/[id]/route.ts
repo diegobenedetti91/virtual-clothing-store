@@ -115,6 +115,34 @@ export async function PATCH(
           data: { refundedAt: new Date() }
         }).catch(console.error);
       }
+
+      // Calcular returnStatus baseado em devoluções aprovadas
+      const allReturns = await prisma.return.findMany({
+        where: { orderId: returnData.order.id, status: "APPROVED" },
+        include: { order: { select: { items: { select: { quantity: true } } } } }
+      });
+
+      const totalOrderQuantity = returnData.order.items.reduce((sum: number, item: any) => sum + item.quantity, 0);
+      let totalReturnedQuantity = 0;
+
+      for (const ret of allReturns) {
+        if (ret.returnedItems && Array.isArray(ret.returnedItems)) {
+          for (const item of ret.returnedItems as any[]) {
+            totalReturnedQuantity += item.quantity;
+          }
+        }
+      }
+
+      let returnStatus = null;
+      if (totalReturnedQuantity > 0) {
+        returnStatus = totalReturnedQuantity >= totalOrderQuantity ? "FULL_RETURN" : "PARTIAL_RETURN";
+      }
+
+      // Atualizar returnStatus do pedido
+      await prisma.order.update({
+        where: { id: returnData.order.id },
+        data: { returnStatus }
+      }).catch(console.error);
     }
 
     // Enviar email ao cliente (non-blocking)
