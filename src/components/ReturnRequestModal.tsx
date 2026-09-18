@@ -40,12 +40,26 @@ export default function ReturnRequestModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [returnedQuantities, setReturnedQuantities] = useState<Record<string, number>>({});
+
+  // Buscar histórico de devoluções ao abrir modal
+  React.useEffect(() => {
+    if (isOpen) {
+      fetch(`/api/orders/${orderId}/returned-items`)
+        .then((r) => r.json())
+        .then((data) => setReturnedQuantities(data))
+        .catch(console.error);
+    }
+  }, [isOpen, orderId]);
 
   const toggleItem = (itemId: string, maxQty: number) => {
+    const alreadyReturned = returnedQuantities[itemId] || 0;
+    const canReturn = maxQty - alreadyReturned;
+    
     setQuantities((prev) => {
       const current = prev[itemId] || 0;
       if (current === 0) {
-        return { ...prev, [itemId]: maxQty };
+        return { ...prev, [itemId]: canReturn };
       } else {
         const { [itemId]: _, ...rest } = prev;
         return rest;
@@ -54,12 +68,15 @@ export default function ReturnRequestModal({
   };
 
   const updateQuantity = (itemId: string, newQty: number, maxQty: number) => {
+    const alreadyReturned = returnedQuantities[itemId] || 0;
+    const canReturn = maxQty - alreadyReturned;
+    
     if (newQty <= 0) {
       setQuantities((prev) => {
         const { [itemId]: _, ...rest } = prev;
         return rest;
       });
-    } else if (newQty <= maxQty) {
+    } else if (newQty <= canReturn) {
       setQuantities((prev) => ({ ...prev, [itemId]: newQty }));
     }
   };
@@ -208,7 +225,7 @@ export default function ReturnRequestModal({
                           <button
                             type="button"
                             onClick={() => updateQuantity(item.id, selectedQty + 1, item.quantity)}
-                            disabled={selectedQty >= item.quantity}
+                            disabled={selectedQty >= (item.quantity - (returnedQuantities[item.id] || 0))}
                             className="p-1 hover:bg-gray-100 rounded disabled:opacity-50"
                           >
                             <Plus size={14} />

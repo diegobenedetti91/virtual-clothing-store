@@ -38,16 +38,43 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Verificar se já existe uma solicitação de devolução
-    const existingReturn = await prisma.return.findFirst({
-      where: { orderId, status: { in: ["PENDING", "APPROVED"] } },
+    // Validar que não está tentando devolver mais do que já foi devolvido
+    const returnedItems: Record<string, number> = {};
+    const approvedReturns = await prisma.return.findMany({
+      where: { orderId, status: "APPROVED" },
     });
 
-    if (existingReturn) {
-      return NextResponse.json(
-        { error: "Já existe uma solicitação de devolução para este pedido" },
-        { status: 400 }
-      );
+    for (const ret of approvedReturns) {
+      if (ret.returnedItems && typeof ret.returnedItems === "object") {
+        for (const item of ret.returnedItems as any[]) {
+          returnedItems[item.itemId] = (returnedItems[item.itemId] || 0) + item.quantity;
+        }
+      }
+    }
+
+    // Validar cada item sendo devolvido
+    const orderItems = await prisma.orderItem.findMany({
+      where: { orderId },
+    });
+
+    for (const selection of itemIds || []) {
+      const orderItem = orderItems.find((i) => i.id === selection.itemId);
+      if (!orderItem) {
+        return NextResponse.json(
+          { error: "Item não encontrado no pedido" },
+          { status: 400 }
+        );
+      }
+
+      const alreadyReturned = returnedItems[selection.itemId] || 0;
+      const canReturn = orderItem.quantity - alreadyReturned;
+
+      if (selection.quantity > canReturn) {
+        return NextResponse.json(
+          { error: `Não pode devolver mais de ${canReturn} unidade(s) desse item` },
+          { status: 400 }
+        );
+      }
     }
 
     // Criar solicitação de devolução
