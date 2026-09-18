@@ -591,7 +591,7 @@ const handleNuPaySubmit = async (forcePixOnly: boolean = false) => {
                   </div>
                 </div>
               )}
-
+            </div>
 
             {/* Sidebar direita - Resumo do pedido + Forma de pagamento */}
             <div className="lg:col-span-1">
