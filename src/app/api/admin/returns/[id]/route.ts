@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendReturnDecisionEmail } from "@/lib/email";
+import { refundPartialPayment } from "@/lib/refundUtils";
+import { restoreOrderStock } from "@/lib/stockUtils";
 
 export async function GET(
   req: NextRequest,
@@ -43,7 +45,10 @@ export async function PATCH(
 
     const returnData = await prisma.return.findUnique({
       where: { id },
-      include: { order: true, customer: true },
+      include: { 
+        order: { include: { items: true } }, 
+        customer: true 
+      },
     });
 
     if (!returnData) {
@@ -63,6 +68,31 @@ export async function PATCH(
         customer: true,
       },
     });
+
+    // Se aprovar, fazer estorno de pagamento e restaurar estoque
+    if (status === "APPROVED" && updated.refundAmount > 0) {
+      const refundResult = await refundPartialPayment(returnData.order.orderNumber, updated.refundAmount);
+      
+      if (refundResult.success) {
+        // Restaurar estoque dos itens devolvidos
+        const returnedItemIds = Array.isArray(updated.returnedItems) ? updated.returnedItems : 
+                                (typeof updated.returnedItems === 'string' ? JSON.parse(updated.returnedItems) : []);
+        
+        const itemsToRestore = returnData.order.items.filter((item: any) => 
+          returnedItemIds.some((ri: any) => ri.itemId === item.id)
+        );
+        
+        if (itemsToRestore.length > 0) {
+          await restoreOrderStock(itemsToRestore).catch(console.error);
+        }
+        
+        // Atualizar com data de reembolso
+        await prisma.return.update({
+          where: { id },
+          data: { refundedAt: new Date() }
+        }).catch(console.error);
+      }
+    }
 
     // Enviar email ao cliente (non-blocking)
     const settings = await prisma.companySettings.findFirst();
