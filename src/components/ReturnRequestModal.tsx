@@ -241,8 +241,11 @@ export default function ReturnRequestModal({
                           </div>
                         ) : (
                           <div>
-                            <p className="text-xs text-gray-600">Total: {item.quantity}x</p>
-                            <p className="text-sm text-gray-500">{formatCurrency(item.price * item.quantity)}</p>
+                            <p className="text-xs text-gray-600">Comprou: {item.quantity}x</p>
+                            {(returnedQuantities[item.id] || 0) > 0 && (
+                              <p className="text-xs text-orange-600">Devolveu: {returnedQuantities[item.id]}x</p>
+                            )}
+                            <p className="text-xs text-gray-500">Pode devolver: {item.quantity - (returnedQuantities[item.id] || 0)}x</p>
                           </div>
                         )}
                       </div>
