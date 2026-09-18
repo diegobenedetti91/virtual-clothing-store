@@ -55,7 +55,9 @@ export default function ReturnRequestModal({
   const toggleItem = (itemId: string, maxQty: number) => {
     const alreadyReturned = returnedQuantities[itemId] || 0;
     const canReturn = maxQty - alreadyReturned;
-    
+
+    if (canReturn <= 0) return;
+
     setQuantities((prev) => {
       const current = prev[itemId] || 0;
       if (current === 0) {
@@ -190,11 +192,12 @@ export default function ReturnRequestModal({
                       <button
                         type="button"
                         onClick={() => toggleItem(item.id, item.quantity)}
+                        disabled={(item.quantity - (returnedQuantities[item.id] || 0)) <= 0}
                         className={`w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all ${
                           selectedQty > 0
                             ? "bg-brand border-brand"
                             : "border-gray-300 bg-white"
-                        }`}
+                        } ${(item.quantity - (returnedQuantities[item.id] || 0)) <= 0 ? "opacity-50 cursor-not-allowed" : ""}`}
                       >
                         {selectedQty > 0 && <CheckCircle2 size={16} className="text-white" />}
                       </button>
