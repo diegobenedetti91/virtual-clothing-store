@@ -42,7 +42,7 @@ const links = [
   { href: "/admin/variacoes", label: "Variações", icon: Layers },
   { href: "/admin/embalagens", label: "Embalagens", icon: Box },
   { href: "/admin/envios", label: "Envios", icon: Truck },
-  { href: "/admin/devoluções", label: "Devoluções", icon: Undo2 },
+  { href: "/admin/devolucoes", label: "Devoluções", icon: Undo2 },
   { href: "/admin/relatorios", label: "Relatórios", icon: BarChart2 },
   { href: "/admin/configuracoes", label: "Configurações", icon: Settings },
 ];
