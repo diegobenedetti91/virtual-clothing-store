@@ -21,23 +21,39 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    // Load Google Sign-In library
     const script = document.createElement("script");
     script.src = "https://accounts.google.com/gsi/client";
     script.async = true;
     script.defer = true;
-    document.head.appendChild(script);
-
+    
     script.onload = () => {
-      if (window.google) {
+      if (window.google && window.google.accounts && window.google.accounts.id) {
         window.google.accounts.id.initialize({
-          client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID,
+          client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "",
           callback: handleGoogleSignIn,
         });
+        
+        // Render button after Google is initialized
+        setTimeout(() => {
+          window.google.accounts.id.renderButton(
+            document.getElementById("google_signin_button"),
+            { 
+              theme: "outline", 
+              size: "large",
+              width: "320"
+            }
+          );
+        }, 100);
       }
     };
+    
+    document.head.appendChild(script);
 
     return () => {
-      document.head.removeChild(script);
+      if (document.head.contains(script)) {
+        document.head.removeChild(script);
+      }
     };
   }, []);
 
@@ -151,15 +167,9 @@ export default function LoginPage() {
           </div>
 
           {/* Google Sign-In Button */}
-          <div
-            id="google_signin_button"
-            className="flex justify-center"
-            style={{
-              "--google_logo_width": "40px",
-            } as React.CSSProperties}
-          />
+          <div id="google_signin_button" className="flex justify-center mb-6" />
 
-          <p className="text-center text-sm text-gray-500 mt-6">
+          <p className="text-center text-sm text-gray-500">
             Não tem conta?{" "}
             <Link
               href={searchParams.get("redirect") ? `/conta/registro?redirect=${searchParams.get("redirect")}` : "/conta/registro"}
@@ -176,19 +186,6 @@ export default function LoginPage() {
           </Link>
         </p>
       </div>
-
-      <script
-        dangerouslySetInnerHTML={{
-          __html: `
-            if (window.google) {
-              window.google.accounts.id.renderButton(
-                document.getElementById("google_signin_button"),
-                { theme: "outline", size: "large", width: "100%" }
-              );
-            }
-          `,
-        }}
-      />
     </div>
   );
 }

@@ -39,19 +39,33 @@ export default function RegisterPage() {
     script.src = "https://accounts.google.com/gsi/client";
     script.async = true;
     script.defer = true;
-    document.head.appendChild(script);
-
+    
     script.onload = () => {
-      if (window.google) {
+      if (window.google && window.google.accounts && window.google.accounts.id) {
         window.google.accounts.id.initialize({
-          client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID,
+          client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "",
           callback: handleGoogleSignUp,
         });
+        
+        setTimeout(() => {
+          window.google.accounts.id.renderButton(
+            document.getElementById("google_signup_button"),
+            { 
+              theme: "outline", 
+              size: "large",
+              width: "320"
+            }
+          );
+        }, 100);
       }
     };
+    
+    document.head.appendChild(script);
 
     return () => {
-      document.head.removeChild(script);
+      if (document.head.contains(script)) {
+        document.head.removeChild(script);
+      }
     };
   }, []);
 
@@ -173,13 +187,7 @@ export default function RegisterPage() {
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
           {/* Google Sign-Up Button */}
           <div className="mb-6">
-            <div
-              id="google_signup_button"
-              className="flex justify-center"
-              style={{
-                "--google_logo_width": "40px",
-              } as React.CSSProperties}
-            />
+            <div id="google_signup_button" className="flex justify-center" />
             <div className="relative my-4">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-gray-200" />
@@ -310,32 +318,32 @@ export default function RegisterPage() {
                     <label className="block text-sm font-medium text-gray-700 mb-1.5">Estado *</label>
                     <select name="state" required value={formData.state} onChange={handleChange} className={inputClass}>
                       <option value="">Selecione...</option>
-                      <option value="SP">SP - São Paulo</option>
-                      <option value="RJ">RJ - Rio de Janeiro</option>
-                      <option value="MG">MG - Minas Gerais</option>
-                      <option value="BA">BA - Bahia</option>
-                      <option value="SC">SC - Santa Catarina</option>
-                      <option value="RS">RS - Rio Grande do Sul</option>
-                      <option value="PR">PR - Paraná</option>
-                      <option value="PE">PE - Pernambuco</option>
-                      <option value="CE">CE - Ceará</option>
-                      <option value="PA">PA - Pará</option>
-                      <option value="GO">GO - Goiás</option>
-                      <option value="PB">PB - Paraíba</option>
-                      <option value="MA">MA - Maranhão</option>
-                      <option value="ES">ES - Espírito Santo</option>
-                      <option value="PI">PI - Piauí</option>
-                      <option value="RN">RN - Rio Grande do Norte</option>
-                      <option value="AL">AL - Alagoas</option>
-                      <option value="MT">MT - Mato Grosso</option>
-                      <option value="MS">MS - Mato Grosso do Sul</option>
-                      <option value="DF">DF - Distrito Federal</option>
-                      <option value="TO">TO - Tocantins</option>
-                      <option value="RO">RO - Rondônia</option>
-                      <option value="AM">AM - Amazonas</option>
-                      <option value="RR">RR - Roraima</option>
-                      <option value="AC">AC - Acre</option>
-                      <option value="AP">AP - Amapá</option>
+                      <option value="SP">SP</option>
+                      <option value="RJ">RJ</option>
+                      <option value="MG">MG</option>
+                      <option value="BA">BA</option>
+                      <option value="SC">SC</option>
+                      <option value="RS">RS</option>
+                      <option value="PR">PR</option>
+                      <option value="PE">PE</option>
+                      <option value="CE">CE</option>
+                      <option value="PA">PA</option>
+                      <option value="GO">GO</option>
+                      <option value="PB">PB</option>
+                      <option value="MA">MA</option>
+                      <option value="ES">ES</option>
+                      <option value="PI">PI</option>
+                      <option value="RN">RN</option>
+                      <option value="AL">AL</option>
+                      <option value="MT">MT</option>
+                      <option value="MS">MS</option>
+                      <option value="DF">DF</option>
+                      <option value="TO">TO</option>
+                      <option value="RO">RO</option>
+                      <option value="AM">AM</option>
+                      <option value="RR">RR</option>
+                      <option value="AC">AC</option>
+                      <option value="AP">AP</option>
                     </select>
                   </div>
                 </div>
@@ -417,19 +425,6 @@ export default function RegisterPage() {
           </Link>
         </p>
       </div>
-
-      <script
-        dangerouslySetInnerHTML={{
-          __html: `
-            if (window.google) {
-              window.google.accounts.id.renderButton(
-                document.getElementById("google_signup_button"),
-                { theme: "outline", size: "large", width: "100%" }
-              );
-            }
-          `,
-        }}
-      />
     </div>
   );
 }
