@@ -229,6 +229,13 @@ export default function CheckoutPage() {
   };
 
   const handleWhatsAppSubmit = async () => {
+    try {
+      validateCheckout();
+    } catch (err) {
+      alert(String(err).replace("Error: ", ""));
+      return;
+    }
+
     const orderNumber = generateOrderNumber();
     await fetch("/api/orders", {
       method: "POST",
