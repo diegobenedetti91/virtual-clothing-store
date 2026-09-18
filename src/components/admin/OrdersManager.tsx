@@ -425,6 +425,15 @@ export default function OrdersManager({ initialOrders, blingEnabled = false }: P
                           <Package size={10} /> {ext.trackingCode}
                         </span>
                       )}
+                      {(order as unknown as { returnStatus?: string }).returnStatus && (
+                        <span className={`flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-semibold ${
+                          (order as unknown as { returnStatus?: string }).returnStatus === "FULL_RETURN"
+                            ? "text-red-700 bg-red-50"
+                            : "text-orange-700 bg-orange-50"
+                        }`}>
+                          🔄 {(order as unknown as { returnStatus?: string }).returnStatus === "FULL_RETURN" ? "Devolvido Total" : "Devolvido Parcial"}
+                        </span>
+                      )}
                     </div>
                     <p className="text-sm text-gray-700 mt-0.5">{order.customerName}</p>
                     <p className="text-xs text-gray-400">{formatDate(order.createdAt)}</p>
