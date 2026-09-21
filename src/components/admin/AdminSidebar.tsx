@@ -23,6 +23,7 @@ import {
   Box,
   Truck,
   Undo2,
+  MapPin,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
@@ -42,6 +43,7 @@ const links = [
   { href: "/admin/variacoes", label: "Variações", icon: Layers },
   { href: "/admin/embalagens", label: "Embalagens", icon: Box },
   { href: "/admin/envios", label: "Envios", icon: Truck },
+  { href: "/admin/rastreamento", label: "Rastreamento", icon: MapPin },
   { href: "/admin/devolucoes", label: "Devoluções", icon: Undo2 },
   { href: "/admin/relatorios", label: "Relatórios", icon: BarChart2 },
   { href: "/admin/configuracoes", label: "Configurações", icon: Settings },
