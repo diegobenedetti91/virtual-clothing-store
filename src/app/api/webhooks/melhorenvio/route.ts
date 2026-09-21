@@ -66,12 +66,21 @@ async function processWebhookEvent(event: MelhorEnvioWebhookPayload) {
       `[WEBHOOK] Status change detected for ${order.orderNumber}: ${order.shipmentStatus} → ${event.status}`
     );
 
+    // Mapear shipmentStatus para status principal do pedido
+    let newOrderStatus = undefined;
+    if (event.status === "in_transit") {
+      newOrderStatus = "SHIPPED";
+    } else if (event.status === "delivered") {
+      newOrderStatus = "DELIVERED";
+    }
+
     // Atualizar status
     await prisma.order.update({
       where: { id: order.id },
       data: {
         shipmentStatus: event.status,
         lastTrackingUpdate: new Date(),
+        ...(newOrderStatus && { status: newOrderStatus }),
       },
     });
 
