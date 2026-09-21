@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { name, description, price, comparePrice, costPrice, pesoGramas, embalagemId, images, categoryId, attributes, stock, variantStock, active, featured, navItemIds } = body;
+  const { name, description, price, comparePrice, costPrice, pesoGramas, embalagemId, blingProdutoId, images, categoryId, attributes, stock, variantStock, active, featured, navItemIds } = body;
 
   let slug = slugify(name);
   const existing = await prisma.product.findUnique({ where: { slug } });
@@ -53,6 +53,7 @@ export async function POST(req: NextRequest) {
       costPrice: costPrice ? parseFloat(costPrice) : null,
       pesoGramas: pesoGramas ? parseInt(pesoGramas) : null,
       embalagemId: embalagemId || null,
+      blingProdutoId: blingProdutoId || null,
       images: JSON.stringify(images || []),
       categoryId,
       sizes: "[]",

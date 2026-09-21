@@ -41,6 +41,7 @@ export default function ProductForm({ product, categories, navItems = [], variat
   const [costPrice, setCostPrice] = useState(product?.costPrice?.toString() || "");
   const [pesoGramas, setPesoGramas] = useState(product?.pesoGramas?.toString() || "");
   const [embalagemId, setEmbalagemId] = useState(product?.embalagemId || "");
+  const [blingProdutoId, setBlingProdutoId] = useState((product as any)?.blingProdutoId || "");
   const [categoryId, setCategoryId] = useState(product?.categoryId || "");
   const [stock, setStock] = useState(product?.stock?.toString() || "0");
   const [active, setActive] = useState(product?.active !== false);
@@ -168,6 +169,7 @@ export default function ProductForm({ product, categories, navItems = [], variat
           stock, variantStock, active, featured, images, attributes,
           pesoGramas: pesoGramas ? parseInt(pesoGramas) : null,
           embalagemId: embalagemId || null,
+          blingProdutoId: blingProdutoId || null,
           navItemIds: selectedNavIds,
         }),
       });
@@ -280,6 +282,17 @@ export default function ProductForm({ product, categories, navItems = [], variat
                 <p className="text-xs text-gray-400 mt-1">Dimensões usadas no cálculo de frete e sugestão de empacotamento</p>
               </div>
             )}
+            <div>
+              <label className={labelClass}>ID do produto no Bling</label>
+              <input
+                type="text"
+                value={blingProdutoId}
+                onChange={(e) => setBlingProdutoId(e.target.value)}
+                className={inputClass}
+                placeholder="Ex: 123456"
+              />
+              <p className="text-xs text-gray-400 mt-1">Identificador do produto no sistema Bling (opcional)</p>
+            </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className={labelClass}>Categoria *</label>
