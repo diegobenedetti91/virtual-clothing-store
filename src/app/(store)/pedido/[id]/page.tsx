@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { CheckCircle, MessageCircle, AlertCircle, Package, Undo2 } from "lucide-react";
+import { CheckCircle, MessageCircle, AlertCircle, Package, Undo2, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { Order } from "@/types";
 import { formatCurrency, formatDate, ORDER_STATUS } from "@/lib/utils";
@@ -31,14 +31,27 @@ const daysSinceOrder = Math.floor((Date.now() - new Date(order.createdAt).getTim
   const canRequestReturn = daysSinceOrder <= 7;
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-16 text-center">
-      <CheckCircle size={72} className="mx-auto text-green-500 mb-4" />
-      <h1 className="text-3xl font-bold text-gray-900 mb-2">Pedido enviado!</h1>
+    <div className="max-w-2xl mx-auto px-4 py-16">
+      {/* Botão voltar */}
+      <div className="mb-6">
+        <Link
+          href="/pedidos"
+          className="flex items-center gap-2 text-blue-600 hover:text-blue-700 font-medium transition-colors inline-flex"
+        >
+          <ArrowLeft size={20} />
+          Voltar aos Pedidos
+        </Link>
+      </div>
+
+      <div className="text-center">
+        <CheckCircle size={72} className="mx-auto text-green-500 mb-4" />
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">Pedido enviado!</h1>
       <p className="text-gray-500 mb-2">Obrigada por comprar conosco.</p>
-      <p className="text-gray-500 mb-8 flex items-center justify-center gap-2">
-        <MessageCircle size={16} className="text-green-500" />
-        Aguarde nosso contato pelo WhatsApp para combinar pagamento e entrega.
-      </p>
+        <p className="text-gray-500 mb-8 flex items-center justify-center gap-2">
+          <MessageCircle size={16} className="text-green-500" />
+          Aguarde nosso contato pelo WhatsApp para combinar pagamento e entrega.
+        </p>
+      </div>
 
       <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm text-left mb-6">
         <div className="flex justify-between items-center mb-4">

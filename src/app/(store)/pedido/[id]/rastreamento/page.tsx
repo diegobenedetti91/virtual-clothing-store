@@ -1,4 +1,6 @@
 import { Suspense } from "react";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import OrderTracking from "@/components/customer/OrderTracking";
 
 interface PageProps {
@@ -11,7 +13,18 @@ export default async function RastreamentoPage({ params }: PageProps) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 py-8 px-4">
       <div className="max-w-2xl mx-auto">
-        {/* Header */}
+        {/* Header com botão voltar */}
+        <div className="mb-8 flex items-center gap-3">
+          <Link
+            href={`/pedido/${id}`}
+            className="flex items-center gap-2 text-blue-600 hover:text-blue-700 font-medium transition-colors"
+          >
+            <ArrowLeft size={20} />
+            Voltar ao Pedido
+          </Link>
+        </div>
+
+        {/* Title */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Rastreamento do Pedido</h1>
           <p className="text-gray-600 mt-2">
