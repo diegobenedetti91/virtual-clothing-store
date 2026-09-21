@@ -35,7 +35,7 @@ const daysSinceOrder = Math.floor((Date.now() - new Date(order.createdAt).getTim
       {/* Botão voltar */}
       <div className="mb-6">
         <Link
-          href="/pedidos"
+          href="/conta"
           className="flex items-center gap-2 text-blue-600 hover:text-blue-700 font-medium transition-colors inline-flex"
         >
           <ArrowLeft size={20} />
