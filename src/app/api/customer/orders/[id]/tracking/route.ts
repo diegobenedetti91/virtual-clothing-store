@@ -1,16 +1,17 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCustomerFromCookie } from "@/lib/customerAuth";
 
 export async function GET(
-  req: any,
-  { params }: { params: { id: string } }
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const payload = await getCustomerFromCookie();
 
     const order = await prisma.order.findUnique({
-      where: { id: params.id },
+      where: { id },
       select: {
         id: true,
         orderNumber: true,
