@@ -237,22 +237,41 @@ export async function createAutomaticShipment(orderId: string) {
 
     return shipment;
   } catch (error) {
-    console.error(`Failed to create shipment for order ${orderId}:`, error);
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error(`Failed to create shipment for order ${orderId}:`, errorMsg);
 
-    // Tentar salvar erro na nota do pedido
+    // Detectar se é erro retentável (ex: saldo insuficiente)
+    const isRetryableError =
+      errorMsg.toLowerCase().includes("saldo") ||
+      errorMsg.toLowerCase().includes("balance") ||
+      errorMsg.toLowerCase().includes("insufficient") ||
+      errorMsg.toLowerCase().includes("insuficiente");
+
+    // Salvar erro no banco para poder tentar novamente depois
     try {
       const order = await prisma.order.findUnique({
         where: { id: orderId },
-        select: { id: true, notes: true },
+        select: { id: true, orderNumber: true, notes: true, shipmentAttempts: true },
       });
+
       if (order) {
-        const errorMsg = error instanceof Error ? error.message : String(error);
         await prisma.order.update({
           where: { id: orderId },
           data: {
             notes: (order.notes || "") + `\n[ERRO SHIPMENT] ${errorMsg}`,
+            shipmentAttempts: order.shipmentAttempts + 1,
+            lastShipmentAttempt: new Date(),
+            shipmentRetryError: errorMsg,
+            shipmentRetryableError: isRetryableError,
           },
         });
+
+        if (isRetryableError) {
+          console.log(
+            `[SHIPMENT] Retryable error for ${order.orderNumber}. ` +
+            `Attempt: ${order.shipmentAttempts + 1}. Will retry when balance is restored.`
+          );
+        }
       }
     } catch (e) {
       console.error("Failed to log shipment error:", e);

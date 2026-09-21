@@ -11,6 +11,7 @@ interface ShippingStats {
   exception: number;
   cancelled: number;
   pending: number;
+  shipmentErrors: number;
 }
 
 interface Order {
@@ -27,6 +28,7 @@ interface Order {
     timestamp: string;
     location: string | null;
   }>;
+  melhorEnvioShipmentId: string | null;
 }
 
 export default function TrackingDashboard() {
@@ -36,6 +38,7 @@ export default function TrackingDashboard() {
   const [loading, setLoading] = useState(true);
   const [selectedFilter, setSelectedFilter] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState("");
+  const [isRetrying, setIsRetrying] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -67,6 +70,8 @@ export default function TrackingDashboard() {
     if (selectedFilter !== "all") {
       if (selectedFilter === "labelInvalid") {
         filtered = filtered.filter((o) => o.labelValid === false);
+      } else if (selectedFilter === "shipmentError") {
+        filtered = filtered.filter((o) => o.labelError && !o.melhorEnvioShipmentId);
       } else {
         filtered = filtered.filter((o) => o.shipmentStatus === selectedFilter);
       }
@@ -82,6 +87,47 @@ export default function TrackingDashboard() {
     }
 
     setFilteredOrders(filtered);
+  };
+
+  const handleRetryShipment = async (orderId: string) => {
+    try {
+      setIsRetrying(true);
+      const response = await fetch("/api/admin/shipment-retry", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId }),
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        alert("✅ Etiqueta criada com sucesso!");
+        fetchData(); // Recarregar dados
+      } else {
+        alert(`❌ Erro: ${result.message}`);
+      }
+    } catch (error) {
+      alert("Erro ao retentar");
+    } finally {
+      setIsRetrying(false);
+    }
+  };
+
+  const handleRetryAll = async () => {
+    try {
+      setIsRetrying(true);
+      const response = await fetch("/api/admin/shipment-retry");
+      const result = await response.json();
+
+      alert(
+        `✅ Processados: ${result.successful} sucesso, ${result.failed} falha\n\n` +
+        result.results.map((r: any) => `${r.orderNumber}: ${r.status}`).join("\n")
+      );
+      fetchData(); // Recarregar dados
+    } catch (error) {
+      alert("Erro ao processar tentativas");
+    } finally {
+      setIsRetrying(false);
+    }
   };
 
   const getStatusIcon = (status: string | null) => {
@@ -152,7 +198,27 @@ export default function TrackingDashboard() {
   return (
     <div className="space-y-6">
       {/* Cards de Resumo */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        {/* Erro de Shipment */}
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-red-600 font-medium">Erro de Shipment</p>
+              <p className="text-2xl font-bold text-red-700 mt-1">{stats?.shipmentErrors || 0}</p>
+            </div>
+            <span className="text-3xl">🚫</span>
+          </div>
+          {(stats?.shipmentErrors || 0) > 0 && (
+            <button
+              onClick={handleRetryAll}
+              disabled={isRetrying}
+              className="mt-2 w-full bg-red-600 text-white text-xs py-1 rounded hover:bg-red-700 disabled:opacity-50"
+            >
+              {isRetrying ? "Processando..." : "Retentar"}
+            </button>
+          )}
+        </div>
+
         {/* Etiquetas Inválidas */}
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
           <div className="flex items-center justify-between">
@@ -224,12 +290,13 @@ export default function TrackingDashboard() {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="all">Todos</option>
-              <option value="labelInvalid">Etiquetas Inválidas</option>
-              <option value="posted">Aguardando Coleta</option>
-              <option value="in_transit">Em Trânsito</option>
-              <option value="delivered">Entregues</option>
-              <option value="exception">Exceções</option>
-              <option value="cancelled">Cancelados</option>
+              <option value="shipmentError">❌ Erro de Shipment</option>
+              <option value="labelInvalid">⚠️ Etiquetas Inválidas</option>
+              <option value="posted">📦 Aguardando Coleta</option>
+              <option value="in_transit">🚚 Em Trânsito</option>
+              <option value="delivered">✅ Entregues</option>
+              <option value="exception">⚠️ Exceções</option>
+              <option value="cancelled">❌ Cancelados</option>
             </select>
           </div>
         </div>
@@ -314,10 +381,19 @@ export default function TrackingDashboard() {
                           <span className="text-gray-500">-</span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-sm">
+                      <td className="px-4 py-3 text-sm space-y-2">
+                        {isInvalid && !order.melhorEnvioShipmentId && (
+                          <button
+                            onClick={() => handleRetryShipment(order.id)}
+                            disabled={isRetrying}
+                            className="block w-full bg-red-600 text-white text-xs py-1 rounded hover:bg-red-700 disabled:opacity-50"
+                          >
+                            {isRetrying ? "..." : "Retentar"}
+                          </button>
+                        )}
                         <Link
                           href={`/admin/pedidos/${order.id}`}
-                          className="text-blue-600 hover:underline font-medium"
+                          className="block text-blue-600 hover:underline font-medium text-center"
                         >
                           Ver Detalhes
                         </Link>

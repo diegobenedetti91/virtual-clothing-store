@@ -150,6 +150,12 @@ model Order {
   labelValid               Boolean?
   labelError               String?       @db.Text
 
+  // Shipment retry mechanism
+  shipmentAttempts         Int           @default(0)
+  lastShipmentAttempt      DateTime?
+  shipmentRetryError       String?       @db.Text
+  shipmentRetryableError   Boolean?      @default(false)
+
   // Bling integration
   blingPedidoId            String?
   blingIntegrationStatus   String?       @default("pending")

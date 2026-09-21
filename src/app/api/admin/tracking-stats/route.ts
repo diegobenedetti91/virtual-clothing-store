@@ -24,6 +24,7 @@ export async function GET() {
         labelValid: true,
         labelError: true,
         createdAt: true,
+        melhorEnvioShipmentId: true,
         trackingEvents: {
           orderBy: { timestamp: "desc" },
           take: 1,
@@ -37,6 +38,20 @@ export async function GET() {
       orderBy: { createdAt: "desc" },
     });
 
+    // Buscar também pedidos com erro de shipment
+    const ordersWithShipmentErrors = await prisma.order.findMany({
+      where: {
+        shipmentRetryableError: true,
+        melhorEnvioShipmentId: null,
+      },
+      select: {
+        id: true,
+        orderNumber: true,
+        customerName: true,
+        shipmentRetryError: true,
+      },
+    });
+
     // Calcular estatísticas
     const stats = {
       labelInvalid: orders.filter((o) => o.labelValid === false).length,
@@ -46,6 +61,7 @@ export async function GET() {
       exception: orders.filter((o) => o.shipmentStatus === "exception").length,
       cancelled: orders.filter((o) => o.shipmentStatus === "cancelled").length,
       pending: orders.filter((o) => !o.shipmentStatus).length,
+      shipmentErrors: ordersWithShipmentErrors.length,
     };
 
     return NextResponse.json({
@@ -60,6 +76,13 @@ export async function GET() {
         labelError: order.labelError,
         createdAt: order.createdAt,
         trackingEvents: order.trackingEvents,
+        melhorEnvioShipmentId: order.melhorEnvioShipmentId,
+      })),
+      shipmentErrors: ordersWithShipmentErrors.map((order) => ({
+        id: order.id,
+        orderNumber: order.orderNumber,
+        customerName: order.customerName,
+        error: order.shipmentRetryError,
       })),
     });
   } catch (error) {
