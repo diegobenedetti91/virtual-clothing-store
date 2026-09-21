@@ -1,0 +1,4 @@
+-- AlterTable
+ALTER TABLE `Order` ADD COLUMN `labelValidatedAt` DATETIME(3) NULL,
+ADD COLUMN `labelValid` BOOLEAN NULL,
+ADD COLUMN `labelError` LONGTEXT NULL;

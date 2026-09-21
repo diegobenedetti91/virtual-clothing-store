@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { createMelhorEnvioShipment, MelhorEnvioShipmentPayload } from "@/lib/melhorEnvio";
+import { createMelhorEnvioShipment, validateShipmentLabel, MelhorEnvioShipmentPayload } from "@/lib/melhorEnvio";
 import { sendShippingConfirmationEmail } from "@/lib/email";
 
 // Parse address like "Rua Tancredo de Luna, 780 - Vila Residencial Treviso, Limeira - SP"
@@ -190,25 +190,37 @@ export async function createAutomaticShipment(orderId: string) {
     // Criar shipment no Melhor Envio
     const shipment = await createMelhorEnvioShipment(settings.melhorEnvioApiToken, payload, payload.from);
 
-    // Armazenar dados no banco
+    // Validar etiqueta imediatamente
+    console.log(`[SHIPMENT] Validating label for order ${order.orderNumber}...`);
+    const validation = await validateShipmentLabel(
+      settings.melhorEnvioApiToken,
+      shipment.id
+    );
+
+    // Armazenar dados no banco com validação
+    const updateData = {
+      melhorEnvioShipmentId: shipment.id,
+      trackingCode: shipment.tracking,
+      trackingUrl: shipment.tracking_url,
+      etiquetaUrl: shipment.label_url,
+      shipmentStatus: validation.status,
+      lastTrackingUpdate: new Date(),
+      labelValidatedAt: new Date(),
+      labelValid: validation.valid,
+      labelError: validation.valid ? null : validation.message,
+    };
+
     await prisma.order.update({
       where: { id: orderId },
-      data: {
-        melhorEnvioShipmentId: shipment.id,
-        trackingCode: shipment.tracking,
-        trackingUrl: shipment.tracking_url,
-        etiquetaUrl: shipment.label_url,
-        shipmentStatus: "posted",
-        lastTrackingUpdate: new Date(),
-      },
+      data: updateData,
     });
 
     console.log(
-      `Shipment created for order ${order.orderNumber}: ${shipment.tracking}`
+      `Shipment created and validated for order ${order.orderNumber}: ${validation.message}`
     );
 
-    // Enviar email ao cliente com rastreamento
-    if (order.customerEmail) {
+    // SÓ enviar email se etiqueta for válida
+    if (validation.valid && order.customerEmail) {
       await sendShippingConfirmationEmail({
         to: order.customerEmail,
         customerName: order.customerName,
@@ -219,6 +231,8 @@ export async function createAutomaticShipment(orderId: string) {
       }).catch((err) => {
         console.error("Failed to send shipping confirmation email:", err);
       });
+    } else if (!validation.valid) {
+      console.error(`[SHIPMENT] Invalid label for order ${order.orderNumber}: ${validation.message}`);
     }
 
     return shipment;

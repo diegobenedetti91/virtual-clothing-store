@@ -235,3 +235,59 @@ export async function getMelhorEnvioTracking(
 
   return res.json();
 }
+
+export async function validateShipmentLabel(
+  token: string,
+  shipmentId: string
+): Promise<{
+  valid: boolean;
+  status: string;
+  message: string;
+  sentByCarrier: boolean;
+}> {
+  try {
+    const tracking = await getMelhorEnvioTracking(token, shipmentId);
+
+    const validStatuses = ["posted", "in_transit", "delivered"];
+    const errorStatuses = ["cancelled", "exception"];
+
+    const isValid = validStatuses.includes(tracking.status);
+    const sentByCarrier = tracking.status === "in_transit";
+
+    let message = "";
+    switch (tracking.status) {
+      case "posted":
+        message = "Etiqueta criada com sucesso. Aguardando coleta da transportadora.";
+        break;
+      case "in_transit":
+        message = "Pacote foi coletado pela transportadora e está em trânsito.";
+        break;
+      case "delivered":
+        message = "Pacote entregue com sucesso!";
+        break;
+      case "cancelled":
+        message = "Etiqueta foi cancelada. Contate o suporte.";
+        break;
+      case "exception":
+        message = "Houve um problema com a etiqueta. Contate o suporte.";
+        break;
+      default:
+        message = `Status desconhecido: ${tracking.status}`;
+    }
+
+    return {
+      valid: isValid,
+      status: tracking.status,
+      message,
+      sentByCarrier,
+    };
+  } catch (error) {
+    console.error("[ME API] Validation error:", error);
+    return {
+      valid: false,
+      status: "error",
+      message: "Erro ao validar etiqueta",
+      sentByCarrier: false,
+    };
+  }
+}

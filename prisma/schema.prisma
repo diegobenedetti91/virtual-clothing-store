@@ -146,6 +146,9 @@ model Order {
   lastTrackingUpdate       DateTime?
   etiquetaUrl              String?
   trackingEvents           TrackingEvent[]
+  labelValidatedAt         DateTime?
+  labelValid               Boolean?
+  labelError               String?       @db.Text
 
   // Bling integration
   blingPedidoId            String?

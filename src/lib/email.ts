@@ -419,3 +419,66 @@ export async function sendReturnDecisionEmail({
 
   await transporter.sendMail(mailOptions);
 }
+
+export async function sendEmailStatusChanged({
+  to,
+  customerName,
+  orderNumber,
+  newStatus,
+  message,
+  storeName,
+}: {
+  to: string;
+  customerName: string;
+  orderNumber: string;
+  newStatus: string;
+  message: string;
+  storeName: string;
+}) {
+  if (!process.env.SMTP_USER) return;
+
+  let emoji = "📦";
+  let statusLabel = "Atualização de Entrega";
+  let statusColor = "#3b82f6";
+
+  if (newStatus === "in_transit") {
+    emoji = "🚚";
+    statusLabel = "Seu pacote está em trânsito!";
+    statusColor = "#f59e0b";
+  } else if (newStatus === "delivered") {
+    emoji = "✅";
+    statusLabel = "Seu pacote foi entregue!";
+    statusColor = "#10b981";
+  }
+
+  const html = baseWrapper(`
+    <h2 style="color:${statusColor};margin:0 0 8px;">${emoji} ${statusLabel}</h2>
+    <p style="color:#555;margin:0 0 20px;">Olá, <strong>${customerName}</strong>!</p>
+
+    <div style="background:#f3f4f6;border-radius:10px;padding:16px 20px;margin-bottom:20px;text-align:center;">
+      <p style="margin:0 0 4px;font-size:12px;color:#888;">Pedido</p>
+      <p style="margin:0;font-weight:700;font-size:20px;color:#1f2937;">${orderNumber}</p>
+    </div>
+
+    <div style="background:#f0f9ff;border-left:4px solid ${statusColor};border-radius:4px;padding:16px;margin-bottom:20px;color:#1e3a8a;font-size:15px;">
+      <p style="margin:0;">${message}</p>
+    </div>
+
+    ${newStatus === "in_transit" ? `
+      <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:12px 16px;color:#92400e;font-size:13px;margin-bottom:20px;">
+        🔗 <strong>Rastrear pacote:</strong> Você pode acompanhar seu pedido em tempo real através do código de rastreamento.
+      </div>
+    ` : newStatus === "delivered" ? `
+      <div style="background:#d1fae5;border:1px solid #6ee7b7;border-radius:8px;padding:12px 16px;color:#065f46;font-size:13px;margin-bottom:20px;">
+        ✨ Obrigado por comprar conosco! Se tiver qualquer dúvida sobre o produto, nossa equipe está à disposição.
+      </div>
+    ` : ""}
+  `, storeName);
+
+  await transporter.sendMail({
+    from: `"${storeName}" <${process.env.SMTP_USER}>`,
+    to,
+    subject: `${emoji} ${statusLabel} - Pedido ${orderNumber}`,
+    html,
+  });
+}
