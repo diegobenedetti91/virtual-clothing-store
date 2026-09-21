@@ -208,14 +208,12 @@ const daysSinceOrder = Math.floor((Date.now() - new Date(order.createdAt).getTim
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3 justify-center">
-        {order.trackingCode && (
-          <Link
-            href={`/pedido/${id}/rastreamento`}
-            className="bg-blue-600 text-white px-8 py-3 rounded-full font-semibold hover:bg-blue-700 transition-colors inline-block"
-          >
-            📍 Ver Rastreamento Completo
-          </Link>
-        )}
+        <Link
+          href={`/pedido/${id}/rastreamento`}
+          className="bg-blue-600 text-white px-8 py-3 rounded-full font-semibold hover:bg-blue-700 transition-colors inline-block"
+        >
+          📍 {order.trackingCode ? 'Ver Rastreamento Completo' : 'Verificar Rastreamento'}
+        </Link>
         <Link href="/produtos" className="bg-brand text-white px-8 py-3 rounded-full font-semibold hover:opacity-90 transition-colors inline-block">
           Continuar comprando
         </Link>
