@@ -46,10 +46,7 @@ export function VariantBlingMapForm({
     }
   };
 
-  const handleAdd = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-
+  const handleAdd = async () => {
     if (!newSize || !newBlingId) {
       setError("Tamanho e Bling ID são obrigatórios");
       return;
@@ -136,7 +133,7 @@ export function VariantBlingMapForm({
         </div>
       )}
 
-      <form onSubmit={handleAdd} className="mb-6 p-4 bg-gray-50 rounded" noValidate>
+      <div className="mb-6 p-4 bg-gray-50 rounded">
         <div className="grid grid-cols-3 gap-4 mb-4">
           <div>
             <label className="block text-sm font-medium mb-1">Tamanho</label>
@@ -176,7 +173,7 @@ export function VariantBlingMapForm({
             </button>
           </div>
         </div>
-      </form>
+      </div>
 
       <div className="space-y-2">
         {mappings.length === 0 ? (
