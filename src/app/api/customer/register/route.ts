@@ -49,6 +49,10 @@ export async function POST(req: NextRequest) {
 
     sincronizarClienteComBling(customer.id).catch((err) => {
       console.error("[Bling] Erro ao sincronizar cliente novo:", err);
+    }).then((success) => {
+      if (success) {
+        console.log("[Bling] Cliente sincronizado automaticamente ao registrar");
+      }
     });
 
     const token = signToken({ id: customer.id, email: customer.email, name: customer.name });

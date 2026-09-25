@@ -219,10 +219,11 @@ export async function sincronizarClienteComBling(customerId: string): Promise<bo
           data: { blingContatoId: String(blingId) },
         });
         console.log(`[Bling] Cliente ${customer.name} sincronizado com ID: ${blingId}`);
+        return true;
       } else {
-        console.warn("[Bling] Nenhum ID de contato encontrado na resposta:", JSON.stringify(data));
+        console.error("[Bling] Nenhum ID de contato encontrado na resposta:", JSON.stringify(data));
+        return false;
       }
-      return true;
     }
 
     const error = await response.text();

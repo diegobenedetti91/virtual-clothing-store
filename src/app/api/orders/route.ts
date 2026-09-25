@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { generateOrderNumber } from "@/lib/utils";
 import { sendOrderConfirmationEmail } from "@/lib/email";
 import { normalizeVariantStock, matchesSelection } from "@/lib/variantUtils";
+import { integrarPedidoBling } from "@/lib/blingService";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -144,9 +145,10 @@ export async function POST(req: NextRequest) {
     });
   });
 
+  const settings = await prisma.companySettings.findFirst({ orderBy: { updatedAt: "desc" } });
+
   const emailTarget = customerEmail || null;
   if (emailTarget) {
-    const settings = await prisma.companySettings.findFirst({ orderBy: { updatedAt: "desc" }, select: { name: true } });
     sendOrderConfirmationEmail({
       to: emailTarget,
       customerName,
@@ -156,6 +158,19 @@ export async function POST(req: NextRequest) {
       total: subtotal + shipping,
       isGateway: false,
     }).catch(console.error);
+  }
+
+  if (settings?.blingAtivo) {
+    console.log("[Orders] Tentando integrar pedido com Bling:", orderNumber);
+    integrarPedidoBling(order.id).then((result) => {
+      if (result.success) {
+        console.log("[Orders] Pedido integrado com Bling:", result.blingId);
+      } else {
+        console.error("[Orders] Falha ao integrar com Bling:", result.error);
+      }
+    }).catch((err) => {
+      console.error("[Orders] Erro ao integrar com Bling:", err);
+    });
   }
 
   return NextResponse.json(order, { status: 201 });

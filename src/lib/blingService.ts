@@ -1,4 +1,5 @@
 import { prisma } from "./prisma";
+import { sincronizarClienteComBling } from "./blingSync";
 
 interface BlingPedidoV3 {
   numero: string;
@@ -167,13 +168,37 @@ export async function integrarPedidoBling(orderId: string): Promise<{ success: b
     const tipoPessoa = cpfCnpj.length === 14 ? "J" : "F";
 
     let contatoId: string | undefined;
+
     if (customerCpfCnpj) {
       const blingContatoId = await obterContatoBlingPorCPFCNPJ(accessToken, customerCpfCnpj);
       if (blingContatoId) {
         contatoId = blingContatoId;
-      } else {
-        console.warn("[Bling] Contato não encontrado no Bling, usando customer ID do banco");
-        contatoId = order.customer?.id || order.customerId;
+      } else if (order.customer?.blingContatoId) {
+        contatoId = order.customer.blingContatoId;
+      } else if (order.customer?.id) {
+        console.warn("[Bling] Cliente não encontrado no Bling, tentando sincronizar automaticamente");
+        const syncSuccess = await sincronizarClienteComBling(order.customer.id);
+
+        if (syncSuccess) {
+          const blingContatoIdRetry = await obterContatoBlingPorCPFCNPJ(accessToken, customerCpfCnpj);
+          if (blingContatoIdRetry) {
+            contatoId = blingContatoIdRetry;
+          } else {
+            const updatedCustomer = await prisma.customerUser.findUnique({
+              where: { id: order.customer.id },
+              select: { blingContatoId: true }
+            });
+            if (updatedCustomer?.blingContatoId) {
+              contatoId = updatedCustomer.blingContatoId;
+            } else {
+              console.error("[Bling] Falha ao sincronizar cliente. Abortar integração de pedido.");
+              return { success: false, error: "Falha ao sincronizar cliente com Bling. Tente novamente." };
+            }
+          }
+        } else {
+          console.error("[Bling] Cliente não pôde ser sincronizado no Bling. Abortar integração.");
+          return { success: false, error: "Cliente não pôde ser sincronizado no Bling. Sincronize manualmente." };
+        }
       }
     }
 
