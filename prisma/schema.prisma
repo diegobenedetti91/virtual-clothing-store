@@ -243,6 +243,7 @@ model CompanySettings {
   blingAccessToken       String?  @db.Text
   blingRefreshToken      String?  @db.Text
   blingTokenExpiresAt    DateTime?
+  diasUteisProduzao      Int      @default(2)
   updatedAt              DateTime @updatedAt
 }
 

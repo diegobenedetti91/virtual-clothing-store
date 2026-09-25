@@ -294,5 +294,16 @@ export async function POST(req: NextRequest) {
     opcoes = await calcularCorreios(cepOrigem, cepDestinoClean, pesoKg, altura, largura, comprimento);
   }
 
-  return NextResponse.json({ tipo: usarMelhorEnvio ? "melhorenvio" : "correios", opcoes });
+  // Somar dias de produção ao prazo de frete
+  const diasProduzao = settings.diasUteisProduzao || 2;
+  const opcoesComProduzao = opcoes.map((opcao) => ({
+    ...opcao,
+    prazo: opcao.prazo + diasProduzao,
+  }));
+
+  return NextResponse.json({
+    tipo: usarMelhorEnvio ? "melhorenvio" : "correios",
+    opcoes: opcoesComProduzao,
+    diasProduzao,
+  });
 }

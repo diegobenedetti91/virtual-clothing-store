@@ -21,7 +21,7 @@ export async function PUT(req: NextRequest) {
     freteLocalCidade, freteLocalUF, freteLocalRegioes, freteLocalRetirada, mercadoPagoAtivo, nuPayAtivo,
     infinityPayAtivo, infinityPayHandle, infinityPayApiKey,
     pixDiscountEnabled, pixDiscountPercent, whatsappAtivo,
-    blingAtivo, blingClientId, blingClientSecret,
+    blingAtivo, blingClientId, blingClientSecret, diasUteisProduzao,
   } = body;
 
   let settings = await prisma.companySettings.findFirst(ORDER);
@@ -75,6 +75,7 @@ export async function PUT(req: NextRequest) {
     blingAtivo: !!blingAtivo,
     blingClientId: blingClientId || null,
     blingClientSecret: blingClientSecret || null,
+    diasUteisProduzao: typeof diasUteisProduzao === "number" ? diasUteisProduzao : 2,
   };
 
   if (settings) {
