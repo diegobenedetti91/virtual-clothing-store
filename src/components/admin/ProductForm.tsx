@@ -454,9 +454,9 @@ export default function ProductForm({ product, categories, navItems = [], variat
             )}
 
             {/* Variant Bling Mapping */}
-            {combos.length > 0 && (
+            {combos.length > 0 && product?.id && (
               <VariantBlingMapForm
-                productId={product?.id || ""}
+                productId={product.id}
                 sizes={[...new Set(combos.map((c: any) => c.Tamanho || c.Size || "").filter(Boolean))]}
                 defaultBlingId={blingProdutoId}
               />
