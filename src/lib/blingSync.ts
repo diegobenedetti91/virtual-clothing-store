@@ -200,6 +200,26 @@ export async function sincronizarClienteComBling(customerId: string): Promise<bo
     const cpfCnpj = customer.cpfCnpj ? customer.cpfCnpj.replace(/\D/g, "") : "";
     const tipo = cpfCnpj.length === 14 ? "J" : "F";
 
+    // Montar endereço apenas se todos os campos essenciais forem preenchidos
+    // Bling valida cidades e pode rejeitar se não encontrar, então é mais seguro enviar sem
+    // endereço do que com dados incompletos
+    let endereco = undefined;
+    if (customer.street && customer.city && customer.state && customer.neighborhood) {
+      endereco = {
+        geral: {
+          endereco: customer.street.substring(0, 100) || "",
+          numero: (customer.number || "0").substring(0, 20),
+          bairro: customer.neighborhood.substring(0, 50) || "",
+          municipio: customer.city.substring(0, 50) || "",
+          uf: customer.state.substring(0, 2) || "",
+          cep: (customer.zipCode || "").replace(/\D/g, "").substring(0, 8) || "",
+        },
+      };
+      console.log("[Bling] Incluindo endereço:", endereco);
+    } else {
+      console.warn("[Bling] Campos de endereço incompletos, enviando contato sem endereço");
+    }
+
     const blingContato = {
       nome: customer.name,
       codigo: customer.id,
@@ -208,16 +228,7 @@ export async function sincronizarClienteComBling(customerId: string): Promise<bo
       numeroDocumento: cpfCnpj || undefined,
       telefone: customer.phone || undefined,
       email: customer.email || undefined,
-      endereco: customer.city || customer.neighborhood ? {
-        geral: {
-          endereco: customer.street || "",
-          numero: customer.number || "0",
-          bairro: customer.neighborhood || "",
-          municipio: customer.city || "",
-          uf: customer.state || "",
-          cep: customer.zipCode || "",
-        },
-      } : undefined,
+      ...(endereco ? { endereco } : {}),
       tiposContato: [
         {
           id: customer.id,
