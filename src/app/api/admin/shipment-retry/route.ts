@@ -105,7 +105,7 @@ export async function POST(req: Request) {
 
     const order = await prisma.order.findUnique({
       where: { id: orderId },
-      select: { id: true, orderNumber: true },
+      include: { items: { include: { product: true } } },
     });
 
     if (!order) {
@@ -114,6 +114,22 @@ export async function POST(req: Request) {
 
     try {
       console.log(`[SHIPMENT RETRY] Manual retry for ${order.orderNumber}`);
+
+      // Clear previous shipment data to allow retry
+      await prisma.order.update({
+        where: { id: orderId },
+        data: {
+          melhorEnvioShipmentId: null,
+          trackingCode: null,
+          trackingUrl: null,
+          etiquetaUrl: null,
+          shipmentStatus: null,
+          labelValidatedAt: null,
+          labelValid: null,
+          labelError: null,
+        },
+      });
+
       await createAutomaticShipment(order.id);
 
       // Limpar erros se sucesso
@@ -125,9 +141,19 @@ export async function POST(req: Request) {
         },
       });
 
+      // Fetch updated order with all details
+      const updatedOrder = await prisma.order.findUnique({
+        where: { id: orderId },
+        include: {
+          items: { include: { product: true } },
+          trackingEvents: { orderBy: { timestamp: "desc" } },
+        },
+      });
+
       return NextResponse.json({
         success: true,
         message: `Etiqueta criada com sucesso para ${order.orderNumber}`,
+        ...updatedOrder,
       });
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
@@ -144,14 +170,16 @@ export async function POST(req: Request) {
         {
           success: false,
           message: `Falha ao criar etiqueta: ${errorMsg}`,
+          error: errorMsg,
         },
         { status: 400 }
       );
     }
   } catch (error) {
     console.error("[SHIPMENT RETRY] Error:", error);
+    const errorMsg = error instanceof Error ? error.message : String(error);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: `Internal server error: ${errorMsg}` },
       { status: 500 }
     );
   }
