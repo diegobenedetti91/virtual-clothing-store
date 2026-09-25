@@ -1,4 +1,7 @@
--- CreateTable ProductVariantBlingMap
+-- Drop the old table with incorrect ID size
+DROP TABLE IF EXISTS `ProductVariantBlingMap`;
+
+-- Recreate with correct VARCHAR(100) for IDs
 CREATE TABLE `ProductVariantBlingMap` (
     `id` VARCHAR(100) NOT NULL,
     `productId` VARCHAR(100) NOT NULL,
