@@ -62,9 +62,10 @@ export async function POST(req: NextRequest) {
       mapping,
     });
   } catch (error) {
-    console.error("[VARIANT-BLING-MAP] POST Error:", error);
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error("[VARIANT-BLING-MAP] POST Error:", errorMsg);
     return NextResponse.json(
-      { error: "Erro ao salvar mapeamento" },
+      { error: `Erro ao salvar mapeamento: ${errorMsg}` },
       { status: 500 }
     );
   }
