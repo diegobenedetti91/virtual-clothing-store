@@ -51,17 +51,22 @@ export async function PATCH(req: NextRequest) {
   });
 
   console.log("[profile] ✓ Perfil atualizado. Sincronizando com Bling...");
-  sincronizarClienteComBling(payload.id)
+  console.log("[profile] Chamando sincronizarClienteComBling para ID:", payload.id);
+
+  const syncPromise = sincronizarClienteComBling(payload.id);
+
+  syncPromise
     .then((success) => {
       if (success) {
-        console.log("[profile] ✓ Cliente sincronizado com Bling");
+        console.log("[profile] ✓ Cliente sincronizado com Bling com sucesso!");
       } else {
-        console.warn("[profile] Falha ao sincronizar cliente com Bling");
+        console.warn("[profile] ⚠ Falha ao sincronizar cliente com Bling (retornou false)");
       }
     })
     .catch((err) => {
-      console.error("[profile] Erro ao sincronizar com Bling:", err);
+      console.error("[profile] ❌ Erro ao sincronizar com Bling:", err);
     });
 
+  console.log("[profile] Retornando resposta ao cliente (sync roda em background)");
   return NextResponse.json(customer);
 }
