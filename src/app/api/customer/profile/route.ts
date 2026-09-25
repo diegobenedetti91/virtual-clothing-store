@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCustomerFromCookie } from "@/lib/customerAuth";
+import { sincronizarClienteComBling } from "@/lib/blingSync";
 
 export async function GET() {
   const payload = await getCustomerFromCookie();
@@ -18,9 +19,14 @@ export async function GET() {
 }
 
 export async function PATCH(req: NextRequest) {
+  console.log("[profile] ========== PATCH CHAMADO ==========");
   const payload = await getCustomerFromCookie();
-  if (!payload) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+  if (!payload) {
+    console.warn("[profile] Usuário não autenticado");
+    return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+  }
 
+  console.log("[profile] Atualizando perfil do cliente:", payload.id);
   const body = await req.json();
   const { name, phone, cpfCnpj, street, number, neighborhood, city, state, zipCode } = body;
 
@@ -43,6 +49,19 @@ export async function PATCH(req: NextRequest) {
       neighborhood: true, city: true, state: true, zipCode: true,
     },
   });
+
+  console.log("[profile] ✓ Perfil atualizado. Sincronizando com Bling...");
+  sincronizarClienteComBling(payload.id)
+    .then((success) => {
+      if (success) {
+        console.log("[profile] ✓ Cliente sincronizado com Bling");
+      } else {
+        console.warn("[profile] Falha ao sincronizar cliente com Bling");
+      }
+    })
+    .catch((err) => {
+      console.error("[profile] Erro ao sincronizar com Bling:", err);
+    });
 
   return NextResponse.json(customer);
 }
