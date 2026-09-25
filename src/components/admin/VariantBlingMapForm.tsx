@@ -28,6 +28,12 @@ export function VariantBlingMapForm({
   const [success, setSuccess] = useState<string | null>(null);
 
   useEffect(() => {
+    console.log("[VariantBlingMapForm] productId:", productId);
+    if (!productId) {
+      setError("Produto ID não definido. Salve o produto primeiro.");
+      setLoading(false);
+      return;
+    }
     fetchMappings();
   }, [productId]);
 
