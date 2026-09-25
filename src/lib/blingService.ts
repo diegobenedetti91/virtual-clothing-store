@@ -1,5 +1,6 @@
 import { prisma } from "./prisma";
 import { sincronizarClienteComBling } from "./blingSync";
+import { getBlingProdutoIdForVariant } from "./blingVariantUtils";
 
 interface BlingPedidoV3 {
   numero: string;
@@ -214,15 +215,23 @@ export async function integrarPedidoBling(orderId: string): Promise<{ success: b
         numeroDocumento: customerCpfCnpj || undefined,
       },
       observacoes: order.notes || `Pedido ${order.orderNumber} - Cliente: ${order.customerName}`,
-      itens: order.items.map((item: any) => ({
-        codigo: item.product.id,
-        descricao: item.product.name,
-        quantidade: item.quantity,
-        valor: item.price,
-        unidade: "UN",
-        produto: {
-          id: item.blingProdutoId || item.product.id,
-        },
+      itens: await Promise.all(order.items.map(async (item: any) => {
+        // Buscar Bling ID da variação específica
+        const blingProdutoIdVariacao = await getBlingProdutoIdForVariant(
+          item.productId,
+          item.size || null
+        );
+
+        return {
+          codigo: item.product.id,
+          descricao: `${item.product.name}${item.size ? ` - ${item.size}` : ''}`,
+          quantidade: item.quantity,
+          valor: item.price,
+          unidade: "UN",
+          produto: {
+            id: blingProdutoIdVariacao || item.blingProdutoId || item.product.blingProdutoId || item.product.id,
+          },
+        };
       })),
     };
 

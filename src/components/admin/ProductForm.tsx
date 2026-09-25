@@ -7,6 +7,7 @@ import Link from "next/link";
 import { Category, PackagePreset, Product, ProductAttribute } from "@/types";
 import { NormalizedVariant, generateCombinations, getProductAttributes, normalizeVariantStock } from "@/lib/variantUtils";
 import ImageListInput from "./ImageListInput";
+import { VariantBlingMapForm } from "./VariantBlingMapForm";
 
 interface NavItemOption {
   id: string;
@@ -450,6 +451,15 @@ export default function ProductForm({ product, categories, navItems = [], variat
                   })}
                 </div>
               </div>
+            )}
+
+            {/* Variant Bling Mapping */}
+            {combos.length > 0 && (
+              <VariantBlingMapForm
+                productId={product?.id || ""}
+                sizes={[...new Set(combos.map((c: any) => c.Tamanho || c.Size || "").filter(Boolean))]}
+                defaultBlingId={blingProdutoId}
+              />
             )}
           </div>
         </div>

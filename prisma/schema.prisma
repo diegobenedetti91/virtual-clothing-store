@@ -91,6 +91,20 @@ model Product {
   reviews      ProductReview[]
   waitlist     WaitlistEntry[]
   flashSales   FlashSale[]
+  variantBlingMaps ProductVariantBlingMap[]
+}
+
+model ProductVariantBlingMap {
+  id              String   @id @default(cuid())
+  productId       String
+  product         Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  size            String   // "P", "M", "G", "GG", etc
+  blingProdutoId  String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([productId, size])
+  @@index([productId])
 }
 
 model WishlistItem {
