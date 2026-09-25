@@ -2,6 +2,30 @@ import { prisma } from "@/lib/prisma";
 import { createMelhorEnvioShipment, validateShipmentLabel, MelhorEnvioShipmentPayload } from "@/lib/melhorEnvio";
 import { sendShippingConfirmationEmail } from "@/lib/email";
 
+function formatPhoneForMelhorEnvio(phone: string): string {
+  if (!phone) return "1133334444";
+
+  // Remove all non-numeric characters
+  const cleaned = phone.replace(/\D/g, "");
+
+  // If starts with 55 (country code), remove it
+  if (cleaned.startsWith("55")) {
+    const withoutCountryCode = cleaned.substring(2);
+    // Ensure it has 11 digits (valid Brazilian format: DDD + 9 digits)
+    if (withoutCountryCode.length === 11) {
+      return withoutCountryCode;
+    }
+  }
+
+  // Return as-is if already in correct format
+  if (cleaned.length === 11) {
+    return cleaned;
+  }
+
+  // Fallback
+  return cleaned || "1133334444";
+}
+
 // Parse address like "Rua Tancredo de Luna, 780 - Vila Residencial Treviso, Limeira - SP"
 function parseAddress(fullAddress: string) {
   const parts = fullAddress.split(",").map((p) => p.trim());
@@ -127,7 +151,7 @@ export async function createAutomaticShipment(orderId: string) {
       service: parseInt(order.shippingMethod),
       from: {
         name: settings.name || "Loja",
-        phone: settings.whatsapp?.replace(/\D/g, "") || "1133334444",
+        phone: formatPhoneForMelhorEnvio(settings.whatsapp || "1133334444"),
         email: process.env.SMTP_USER || "noreply@store.com",
         company_document: settings.cnpj?.replace(/\D/g, "") || "",
         state_register: "",
@@ -142,7 +166,7 @@ export async function createAutomaticShipment(orderId: string) {
       },
       to: {
         name: order.customerName,
-        phone: order.customerPhone.replace(/\D/g, ""),
+        phone: formatPhoneForMelhorEnvio(order.customerPhone),
         email: order.customerEmail || "noreply@store.com",
         document: order.cpfCnpj?.replace(/\D/g, "") || "",
         state_register: "ISENTO",
