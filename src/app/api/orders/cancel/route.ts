@@ -3,7 +3,6 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { refundPayment } from "@/lib/refundUtils";
 import { sendOrderStatusEmail } from "@/lib/email";
-import { restoreOrderStock } from "@/lib/stockUtils";
 
 export async function POST(req: NextRequest) {
   try {
@@ -80,35 +79,8 @@ export async function POST(req: NextRequest) {
       cancelReason = "Cancelado pelo cliente";
     }
 
-    // Restore stock if order was confirmed/paid
-    if ((order.status === "CONFIRMED" || order.status === "PAID") && order.items?.length > 0) {
-      console.log("[CANCEL] Restoring stock for order:", orderNumber);
-      console.log("[CANCEL] Order status before restore:", order.status);
-      console.log("[CANCEL] Items to restore:", JSON.stringify(order.items.map(item => ({
-        productId: item.productId,
-        productName: item.product?.name,
-        quantity: item.quantity,
-      }))));
-
-      const itemsForStock = order.items.map((item) => ({
-        productId: item.productId,
-        quantity: item.quantity,
-        size: item.size,
-        color: item.color,
-        selectedAttributes: item.selectedAttributes,
-      }));
-
-      await restoreOrderStock(itemsForStock).catch((err) => {
-        console.error("[CANCEL] Error restoring stock:", err);
-        throw err;
-      });
-
-      console.log("[CANCEL] ✓ Stock restored successfully for order:", orderNumber);
-    } else if (!order.items?.length) {
-      console.warn("[CANCEL] Order has no items to restore");
-    } else {
-      console.warn("[CANCEL] Order status is", order.status, "- stock restore not applicable");
-    }
+    // NOTE: Stock restoration is handled by the PATCH [id]/route.ts endpoint
+    // to avoid double restoration when status is updated to CANCELLED
 
     // Update order status
     console.log("[CANCEL] Updating order status to CANCELLED:", { orderNumber, currentStatus: order.status });
