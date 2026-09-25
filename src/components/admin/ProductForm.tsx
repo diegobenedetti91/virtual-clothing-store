@@ -22,6 +22,7 @@ interface VariationTemplate {
 }
 
 interface ProductFormProps {
+  productId?: string;
   product?: Product;
   categories: Category[];
   navItems?: NavItemOption[];
@@ -29,7 +30,7 @@ interface ProductFormProps {
   packages?: PackagePreset[];
 }
 
-export default function ProductForm({ product, categories, navItems = [], variationTemplates = [], packages = [] }: ProductFormProps) {
+export default function ProductForm({ productId, product, categories, navItems = [], variationTemplates = [], packages = [] }: ProductFormProps) {
   const router = useRouter();
   const isEditing = !!product;
   const [loading, setLoading] = useState(false);
@@ -454,9 +455,9 @@ export default function ProductForm({ product, categories, navItems = [], variat
             )}
 
             {/* Variant Bling Mapping */}
-            {combos.length > 0 && product?.id && (
+            {combos.length > 0 && productId && (
               <VariantBlingMapForm
-                productId={product.id}
+                productId={productId}
                 sizes={[...new Set(combos.map((c: any) => c.Tamanho || c.Size || "").filter(Boolean))]}
                 defaultBlingId={blingProdutoId}
               />

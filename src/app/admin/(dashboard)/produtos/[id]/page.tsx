@@ -17,6 +17,7 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
 
   return (
     <ProductForm
+      productId={id}
       product={product as unknown as Product}
       categories={categories as unknown as Category[]}
       navItems={navItems}
