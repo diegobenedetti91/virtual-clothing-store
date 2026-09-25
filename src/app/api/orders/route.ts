@@ -64,42 +64,8 @@ export async function POST(req: NextRequest) {
   const orderNumber = generateOrderNumber();
 
   const order = await prisma.$transaction(async (tx) => {
-    for (const item of items as OrderItemInput[]) {
-      const product = await tx.product.findUnique({
-        where: { id: item.productId },
-        select: { variantStock: true, blingProdutoId: true },
-      });
-      const raw = JSON.parse(product?.variantStock || "[]");
-      const variants = normalizeVariantStock(raw);
-
-      // Build the selection from either new or legacy format
-      const selected: Record<string, string> = item.selectedAttributes
-        ? item.selectedAttributes
-        : {
-            ...(item.size ? { Tamanho: item.size } : {}),
-            ...(item.color ? { Cor: item.color } : {}),
-          };
-
-      const hasSelection = Object.keys(selected).length > 0;
-
-      if (variants.length > 0 && hasSelection) {
-        const updated = variants.map((v) =>
-          matchesSelection(v.attributes, selected)
-            ? { ...v, stock: Math.max(0, v.stock - item.quantity) }
-            : v
-        );
-        const newTotal = updated.reduce((sum, v) => sum + (v.stock || 0), 0);
-        await tx.product.update({
-          where: { id: item.productId },
-          data: { variantStock: JSON.stringify(updated), stock: newTotal },
-        });
-      } else {
-        await tx.product.update({
-          where: { id: item.productId },
-          data: { stock: { decrement: item.quantity } },
-        });
-      }
-    }
+    // NOTE: Stock is NOT decremented here. It will be decremented when payment is confirmed via webhook.
+    // This ensures stock is only reduced for paid orders.
 
     return tx.order.create({
       data: {
