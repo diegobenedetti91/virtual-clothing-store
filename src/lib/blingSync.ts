@@ -3,19 +3,33 @@ import { prisma } from "./prisma";
 async function obterTokenBling(): Promise<string | null> {
   const settings = await prisma.companySettings.findFirst();
 
-  if (!settings?.blingAccessToken || !settings?.blingAtivo) {
+  if (!settings) {
+    console.warn("[Bling] Nenhuma configuração de empresa encontrada");
+    return null;
+  }
+
+  if (!settings.blingAtivo) {
+    console.warn("[Bling] Bling não está ativado nas configurações");
+    return null;
+  }
+
+  if (!settings.blingAccessToken) {
+    console.warn("[Bling] Nenhum token de acesso configurado");
     return null;
   }
 
   if (settings.blingTokenExpiresAt && new Date() < settings.blingTokenExpiresAt) {
+    console.log("[Bling] Token válido, usando token armazenado");
     return settings.blingAccessToken;
   }
 
   if (!settings.blingRefreshToken) {
+    console.warn("[Bling] Token expirado mas sem refresh_token para renovar");
     return null;
   }
 
   try {
+    console.log("[Bling] Token expirado, renovando com refresh_token...");
     const basicAuth = Buffer.from(
       `${settings.blingClientId}:${settings.blingClientSecret}`
     ).toString("base64");
@@ -32,7 +46,10 @@ async function obterTokenBling(): Promise<string | null> {
       }).toString(),
     });
 
-    if (!response.ok) return null;
+    if (!response.ok) {
+      console.error("[Bling] Erro ao renovar token. Status:", response.status);
+      return null;
+    }
 
     const tokenData = await response.json();
     const expiresAt = new Date(Date.now() + (tokenData.expires_in || 3600) * 1000);
@@ -46,8 +63,10 @@ async function obterTokenBling(): Promise<string | null> {
       },
     });
 
+    console.log("[Bling] Token renovado com sucesso");
     return tokenData.access_token;
-  } catch {
+  } catch (err) {
+    console.error("[Bling] Erro ao obter token:", err);
     return null;
   }
 }
@@ -162,14 +181,21 @@ export async function sincronizarProdutoComBling(productId: string): Promise<boo
 
 export async function sincronizarClienteComBling(customerId: string): Promise<boolean> {
   try {
+    console.log("[Bling] Iniciando sincronização de cliente:", customerId);
     const token = await obterTokenBling();
-    if (!token) return false;
+    if (!token) {
+      console.warn("[Bling] Token não disponível. Bling pode não estar ativado ou configurado.");
+      return false;
+    }
 
     const customer = await prisma.customerUser.findUnique({
       where: { id: customerId },
     });
 
-    if (!customer) return false;
+    if (!customer) {
+      console.error("[Bling] Cliente não encontrado no banco:", customerId);
+      return false;
+    }
 
     const cpfCnpj = customer.cpfCnpj ? customer.cpfCnpj.replace(/\D/g, "") : "";
     const tipo = cpfCnpj.length === 14 ? "J" : "F";

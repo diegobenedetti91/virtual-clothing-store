@@ -47,13 +47,18 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    sincronizarClienteComBling(customer.id).catch((err) => {
-      console.error("[Bling] Erro ao sincronizar cliente novo:", err);
-    }).then((success) => {
-      if (success) {
-        console.log("[Bling] Cliente sincronizado automaticamente ao registrar");
-      }
-    });
+    console.log("[register] Cliente criado:", customer.id, "Iniciando sincronização com Bling...");
+    sincronizarClienteComBling(customer.id)
+      .then((success) => {
+        if (success) {
+          console.log("[Bling] Cliente sincronizado automaticamente ao registrar:", customer.id);
+        } else {
+          console.warn("[Bling] Falha ao sincronizar cliente novo:", customer.id);
+        }
+      })
+      .catch((err) => {
+        console.error("[Bling] Erro ao sincronizar cliente novo:", customer.id, err);
+      });
 
     const token = signToken({ id: customer.id, email: customer.email, name: customer.name });
     const res = NextResponse.json({ id: customer.id, email: customer.email, name: customer.name });
