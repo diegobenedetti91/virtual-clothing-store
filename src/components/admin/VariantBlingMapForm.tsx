@@ -46,8 +46,10 @@ export function VariantBlingMapForm({
     }
   };
 
-  const handleAdd = async (e: React.FormEvent) => {
+  const handleAdd = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    e.stopPropagation();
+
     if (!newSize || !newBlingId) {
       setError("Tamanho e Bling ID são obrigatórios");
       return;
@@ -68,7 +70,10 @@ export function VariantBlingMapForm({
         }),
       });
 
-      if (!res.ok) throw new Error("Erro ao salvar");
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || "Erro ao salvar");
+      }
 
       const data = await res.json();
       setMappings([...mappings, data.mapping]);
@@ -131,7 +136,7 @@ export function VariantBlingMapForm({
         </div>
       )}
 
-      <form onSubmit={handleAdd} className="mb-6 p-4 bg-gray-50 rounded">
+      <form onSubmit={handleAdd} className="mb-6 p-4 bg-gray-50 rounded" noValidate>
         <div className="grid grid-cols-3 gap-4 mb-4">
           <div>
             <label className="block text-sm font-medium mb-1">Tamanho</label>
@@ -139,6 +144,7 @@ export function VariantBlingMapForm({
               value={newSize}
               onChange={(e) => setNewSize(e.target.value)}
               className="w-full border rounded px-3 py-2"
+              disabled={saving}
             >
               <option value="">Selecionar tamanho</option>
               {sizes.map((s) => (
@@ -154,15 +160,17 @@ export function VariantBlingMapForm({
               type="text"
               value={newBlingId}
               onChange={(e) => setNewBlingId(e.target.value)}
-              placeholder="Ex: 12345"
+              placeholder="Ex: 16708696538"
               className="w-full border rounded px-3 py-2"
+              disabled={saving}
             />
           </div>
           <div className="flex items-end">
             <button
-              type="submit"
-              disabled={saving}
-              className="w-full bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
+              type="button"
+              onClick={handleAdd}
+              disabled={saving || !newSize || !newBlingId}
+              className="w-full bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
             >
               {saving ? "Salvando..." : "Adicionar"}
             </button>
