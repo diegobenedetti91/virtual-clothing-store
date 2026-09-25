@@ -43,10 +43,29 @@ export async function POST(req: NextRequest) {
 
     const { productId, size, blingProdutoId } = await req.json();
 
+    console.log("[VARIANT-BLING-MAP] POST Received:", { productId, size, blingProdutoId });
+
     if (!productId || !size || !blingProdutoId) {
       return NextResponse.json(
         { error: "productId, size e blingProdutoId são obrigatórios" },
         { status: 400 }
+      );
+    }
+
+    // Verificar se o produto existe
+    const { prisma } = await import("@/lib/prisma");
+    const productExists = await prisma.product.findUnique({
+      where: { id: productId },
+      select: { id: true },
+    });
+
+    console.log("[VARIANT-BLING-MAP] Product check:", { productId, found: !!productExists });
+
+    if (!productExists) {
+      console.error(`[VARIANT-BLING-MAP] Product not found: ${productId}`);
+      return NextResponse.json(
+        { error: `Produto com ID "${productId}" não encontrado no banco de dados` },
+        { status: 404 }
       );
     }
 
