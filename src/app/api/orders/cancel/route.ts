@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
 
     const order = await prisma.order.findUnique({
       where: { orderNumber },
-      include: { items: true },
+      include: { items: { include: { product: { select: { name: true } } } } },
     });
 
     if (!order) {
@@ -83,6 +83,13 @@ export async function POST(req: NextRequest) {
     // Restore stock if order was confirmed/paid
     if ((order.status === "CONFIRMED" || order.status === "PAID") && order.items?.length > 0) {
       console.log("[CANCEL] Restoring stock for order:", orderNumber);
+      console.log("[CANCEL] Order status before restore:", order.status);
+      console.log("[CANCEL] Items to restore:", JSON.stringify(order.items.map(item => ({
+        productId: item.productId,
+        productName: item.product?.name,
+        quantity: item.quantity,
+      }))));
+
       const itemsForStock = order.items.map((item) => ({
         productId: item.productId,
         quantity: item.quantity,
@@ -90,7 +97,17 @@ export async function POST(req: NextRequest) {
         color: item.color,
         selectedAttributes: item.selectedAttributes,
       }));
-      await restoreOrderStock(itemsForStock).catch(console.error);
+
+      await restoreOrderStock(itemsForStock).catch((err) => {
+        console.error("[CANCEL] Error restoring stock:", err);
+        throw err;
+      });
+
+      console.log("[CANCEL] ✓ Stock restored successfully for order:", orderNumber);
+    } else if (!order.items?.length) {
+      console.warn("[CANCEL] Order has no items to restore");
+    } else {
+      console.warn("[CANCEL] Order status is", order.status, "- stock restore not applicable");
     }
 
     // Update order status
