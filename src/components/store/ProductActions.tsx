@@ -116,6 +116,8 @@ export default function ProductActions({ productId, name, price, comparePrice, i
         name,
         price,
         image,
+        size: selected["Tamanho"] || selected["Size"] || undefined,
+        color: selected["Cor"] || selected["Color"] || undefined,
         selectedAttributes: Object.keys(selected).length > 0 ? selected : undefined,
         quantity,
         slug,
