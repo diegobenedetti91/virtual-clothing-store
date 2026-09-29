@@ -1,29 +1,61 @@
+import { createHmac, timingSafeEqual } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { sendEmailStatusChanged } from "@/lib/email";
+import { applyShipmentUpdate } from "@/lib/trackingSync";
 
-interface MelhorEnvioWebhookPayload {
-  id: string;
-  status: string;
-  tracking: string;
-  timeline?: Array<{
-    status: string;
-    location?: string;
-    date: string;
-    detail: string;
-  }>;
+type RawEvent = {
+  event?: string;
+  data?: Record<string, unknown>;
+  [key: string]: unknown;
+};
+
+// Melhor Envio sends { event: "order.posted", data: { id, status, tracking, ... } }; flat { id, status } kept for compatibility.
+function normalizeEvent(raw: RawEvent) {
+  const data = raw?.data && typeof raw.data === "object" ? raw.data : raw;
+  const statusFromEvent =
+    typeof raw?.event === "string" && raw.event.startsWith("order.") ? raw.event.slice("order.".length) : undefined;
+  return {
+    id: data?.id as string | undefined,
+    status: (data?.status as string | undefined) || statusFromEvent,
+    tracking: data?.tracking as string | undefined,
+    timeline: Array.isArray(data?.timeline)
+      ? (data.timeline as { status: string; location?: string; date: string; detail?: string }[])
+      : undefined,
+  };
+}
+
+// X-ME-Signature = base64(HMAC-SHA256(raw body, app client secret))
+function isValidSignature(rawBody: string, signature: string | null, secret: string) {
+  if (!signature) return false;
+  const expected = createHmac("sha256", secret).update(rawBody).digest("base64");
+  const a = Buffer.from(expected);
+  const b = Buffer.from(signature);
+  return a.length === b.length && timingSafeEqual(a, b);
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    const rawBody = await req.text();
+
+    const secret = process.env.MELHOR_ENVIO_WEBHOOK_SECRET;
+    if (secret) {
+      if (!isValidSignature(rawBody, req.headers.get("x-me-signature"), secret)) {
+        console.warn("[MELHOR ENVIO WEBHOOK] Invalid signature, rejecting request");
+        return NextResponse.json({ success: false, error: "Invalid signature" }, { status: 401 });
+      }
+    } else {
+      console.warn("[MELHOR ENVIO WEBHOOK] MELHOR_ENVIO_WEBHOOK_SECRET not set, skipping signature check");
+    }
+
+    const body = JSON.parse(rawBody);
     console.log("[MELHOR ENVIO WEBHOOK] Received:", JSON.stringify(body, null, 2));
 
-    // Melhor Envio envia um array de eventos
-    const events = Array.isArray(body) ? body : [body];
+    const events: RawEvent[] = Array.isArray(body) ? body : [body];
+    const settings = await prisma.companySettings.findFirst({ orderBy: { updatedAt: "desc" }, select: { name: true } });
+    const storeName = settings?.name || "Minha Loja";
 
-    for (const event of events) {
-      await processWebhookEvent(event);
+    for (const raw of events) {
+      await processWebhookEvent(raw, storeName);
     }
 
     return NextResponse.json({ success: true, processed: events.length });
@@ -33,20 +65,19 @@ export async function POST(req: NextRequest) {
   }
 }
 
-async function processWebhookEvent(event: MelhorEnvioWebhookPayload) {
+async function processWebhookEvent(raw: RawEvent, storeName: string) {
   try {
+    const event = normalizeEvent(raw);
+    if (!event.id || !event.status) {
+      console.warn("[WEBHOOK] Ignoring event without shipment id/status:", raw?.event);
+      return;
+    }
+
     console.log(`[WEBHOOK] Processing shipment ${event.id} with status ${event.status}`);
 
-    // Buscar pedido pelo shipment ID
     const order = await prisma.order.findFirst({
       where: { melhorEnvioShipmentId: event.id },
-      select: {
-        id: true,
-        orderNumber: true,
-        customerEmail: true,
-        customerName: true,
-        shipmentStatus: true,
-      },
+      select: { id: true, orderNumber: true },
     });
 
     if (!order) {
@@ -54,108 +85,19 @@ async function processWebhookEvent(event: MelhorEnvioWebhookPayload) {
       return;
     }
 
-    // Detectar mudança de status
-    const statusChanged = order.shipmentStatus !== event.status;
-
-    if (!statusChanged) {
-      console.log(`[WEBHOOK] Status unchanged for ${order.orderNumber}`);
-      return;
-    }
-
-    console.log(
-      `[WEBHOOK] Status change detected for ${order.orderNumber}: ${order.shipmentStatus} → ${event.status}`
+    const result = await applyShipmentUpdate(
+      order.id,
+      { shipmentStatus: event.status, trackingCode: event.tracking, timeline: event.timeline },
+      storeName
     );
 
-    // Mapear shipmentStatus para status principal do pedido
-    let newOrderStatus = undefined;
-    if (event.status === "in_transit") {
-      newOrderStatus = "SHIPPED";
-    } else if (event.status === "delivered") {
-      newOrderStatus = "DELIVERED";
-    }
-
-    // Atualizar status
-    await prisma.order.update({
-      where: { id: order.id },
-      data: {
-        shipmentStatus: event.status,
-        lastTrackingUpdate: new Date(),
-        ...(newOrderStatus && { status: newOrderStatus }),
-      },
-    });
-
-    // Adicionar eventos de rastreamento se houver timeline
-    if (event.timeline && Array.isArray(event.timeline)) {
-      for (const timelineEvent of event.timeline) {
-        const exists = await prisma.trackingEvent.findFirst({
-          where: {
-            orderId: order.id,
-            status: timelineEvent.status,
-            timestamp: new Date(timelineEvent.date),
-          },
-        });
-
-        if (!exists) {
-          await prisma.trackingEvent.create({
-            data: {
-              orderId: order.id,
-              status: timelineEvent.status,
-              location: timelineEvent.location || undefined,
-              timestamp: new Date(timelineEvent.date),
-              details: timelineEvent.detail || undefined,
-            },
-          });
-        }
-      }
-    }
-
-    // Notificar cliente se for status importante
-    if (order.customerEmail) {
-      try {
-        if (event.status === "in_transit") {
-          await sendEmailStatusChanged({
-            to: order.customerEmail,
-            customerName: order.customerName,
-            orderNumber: order.orderNumber,
-            newStatus: "in_transit",
-            message: "Seu pacote foi coletado pela transportadora e está a caminho!",
-            storeName: "Minha Loja",
-          });
-          console.log(`[WEBHOOK] Email sent to ${order.customerEmail} (in_transit)`);
-        } else if (event.status === "delivered") {
-          await sendEmailStatusChanged({
-            to: order.customerEmail,
-            customerName: order.customerName,
-            orderNumber: order.orderNumber,
-            newStatus: "delivered",
-            message: "Seu pacote foi entregue com sucesso!",
-            storeName: "Minha Loja",
-          });
-          console.log(`[WEBHOOK] Email sent to ${order.customerEmail} (delivered)`);
-        } else if (event.status === "exception") {
-          await sendEmailStatusChanged({
-            to: order.customerEmail,
-            customerName: order.customerName,
-            orderNumber: order.orderNumber,
-            newStatus: "exception",
-            message: "Ocorreu um problema na entrega. Nossa equipe está cuidando disso.",
-            storeName: "Minha Loja",
-          });
-          console.log(`[WEBHOOK] Email sent to ${order.customerEmail} (exception)`);
-        }
-      } catch (emailErr) {
-        console.error(`[WEBHOOK] Failed to send email:`, emailErr);
-      }
-    }
-
-    console.log(`[WEBHOOK] Successfully processed ${order.orderNumber}`);
+    console.log(`[WEBHOOK] Processed ${order.orderNumber}`, result);
   } catch (error) {
     console.error(`[WEBHOOK] Error processing event:`, error);
   }
 }
 
-// GET para testar se webhook está configurado
-export async function GET(req: NextRequest) {
+export async function GET() {
   return NextResponse.json({
     status: "ok",
     message: "Webhook do Melhor Envio está ativo",

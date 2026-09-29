@@ -69,6 +69,7 @@ export interface MelhorEnvioShipmentResponse {
 export interface MelhorEnvioTrackingResponse {
   id: string;
   status: string;
+  tracking?: string | null;
   timeline?: Array<{
     status: string;
     location: string;
@@ -257,23 +258,34 @@ export async function validateShipmentLabel(
   try {
     const tracking = await getMelhorEnvioTracking(token, shipmentId);
 
-    const validStatuses = ["posted", "in_transit", "delivered"];
-    const errorStatuses = ["cancelled", "exception"];
+    // After cart + checkout Melhor Envio returns "released" (paid); "generated" once the label is printed.
+    const validStatuses = ["released", "generated", "posted", "in_transit", "delivered"];
 
     const isValid = validStatuses.includes(tracking.status);
-    const sentByCarrier = tracking.status === "in_transit";
+    const sentByCarrier = ["posted", "in_transit", "delivered"].includes(tracking.status);
 
     let message = "";
     switch (tracking.status) {
-      case "posted":
-        message = "Etiqueta criada com sucesso. Aguardando coleta da transportadora.";
+      case "pending":
+        message = "Etiqueta no carrinho do Melhor Envio, ainda não paga.";
         break;
+      case "released":
+        message = "Etiqueta paga. Aguardando geração/impressão.";
+        break;
+      case "generated":
+        message = "Etiqueta gerada. Aguardando postagem na transportadora.";
+        break;
+      case "posted":
       case "in_transit":
-        message = "Pacote foi coletado pela transportadora e está em trânsito.";
+        message = "Pacote foi postado na transportadora e está em trânsito.";
+        break;
+      case "undelivered":
+        message = "Transportadora não conseguiu entregar o pacote.";
         break;
       case "delivered":
         message = "Pacote entregue com sucesso!";
         break;
+      case "canceled":
       case "cancelled":
         message = "Etiqueta foi cancelada. Contate o suporte.";
         break;
