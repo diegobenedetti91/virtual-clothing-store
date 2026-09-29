@@ -243,8 +243,8 @@ export async function createAutomaticShipment(orderId: string) {
       `Shipment created and validated for order ${order.orderNumber}: ${validation.message}`
     );
 
-    // SÓ enviar email se etiqueta for válida
-    if (validation.valid && order.customerEmail) {
+    // Tracking code is usually only assigned later; the "posted" email then goes out via trackingSync.
+    if (validation.valid && order.customerEmail && shipment.tracking) {
       await sendShippingConfirmationEmail({
         to: order.customerEmail,
         customerName: order.customerName,
