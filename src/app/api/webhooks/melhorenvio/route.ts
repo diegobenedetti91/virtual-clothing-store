@@ -17,7 +17,8 @@ function normalizeEvent(raw: RawEvent) {
   return {
     id: data?.id as string | undefined,
     status: (data?.status as string | undefined) || statusFromEvent,
-    tracking: data?.tracking as string | undefined,
+    // Some carriers (e.g. Loggi) only fill self_tracking
+    tracking: (data?.tracking || data?.self_tracking) as string | undefined,
     timeline: Array.isArray(data?.timeline)
       ? (data.timeline as { status: string; location?: string; date: string; detail?: string }[])
       : undefined,
