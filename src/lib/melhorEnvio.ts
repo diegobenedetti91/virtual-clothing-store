@@ -220,8 +220,9 @@ export async function getMelhorEnvioTracking(
   shipmentId: string
 ): Promise<MelhorEnvioTrackingResponse> {
   try {
+    // /me/shipment/{id} doesn't exist and falls through to the website (200 + HTML); order details live at /me/orders/{id}.
     const res = await fetch(
-      `https://melhorenvio.com.br/api/v2/me/shipment/${shipmentId}`,
+      `https://melhorenvio.com.br/api/v2/me/orders/${shipmentId}`,
       {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -231,15 +232,21 @@ export async function getMelhorEnvioTracking(
       }
     );
 
-    if (!res.ok) {
+    const contentType = res.headers.get("content-type") || "";
+    if (!res.ok || !contentType.includes("application/json")) {
       const errorText = await res.text();
-      console.error("[ME API] Error response status:", res.status);
+      console.error("[ME API] Error response status:", res.status, "content-type:", contentType);
       console.error("[ME API] Error response body:", errorText.substring(0, 200));
       throw new Error(`Failed to fetch tracking: ${res.status}`);
     }
 
     const data = await res.json();
-    return data;
+    return {
+      id: data.id,
+      status: data.status,
+      // Some carriers (e.g. Loggi) only fill self_tracking
+      tracking: data.tracking || data.self_tracking || null,
+    };
   } catch (error) {
     console.error("[ME API] getMelhorEnvioTracking error:", error);
     throw error;
