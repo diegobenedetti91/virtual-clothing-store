@@ -33,7 +33,6 @@ export async function GET(req: NextRequest) {
         id: true,
         orderNumber: true,
         melhorEnvioShipmentId: true,
-        lastTrackingUpdate: true,
       },
     });
 
@@ -45,13 +44,6 @@ export async function GET(req: NextRequest) {
     let statusChanged = 0;
 
     for (const order of orders) {
-      const lastUpdate = order.lastTrackingUpdate?.getTime() || 0;
-      const sixHoursAgo = Date.now() - 6 * 60 * 60 * 1000;
-      if (lastUpdate > sixHoursAgo) {
-        console.log(`[TRACKING CRON] Skipping ${order.orderNumber} - updated recently`);
-        continue;
-      }
-
       try {
         const tracking = await getMelhorEnvioTracking(token, order.melhorEnvioShipmentId!);
 
