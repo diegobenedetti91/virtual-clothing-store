@@ -31,6 +31,17 @@ interface Order {
   melhorEnvioShipmentId: string | null;
 }
 
+// Carrier is inferred from the tracking code format: Correios uses the UPU pattern (AA123456789BR), Loggi codes come as "LGI-..."
+function getCarrierTracking(code: string): { carrier: string | null; url: string } {
+  if (code.startsWith("LGI-")) {
+    return { carrier: "Loggi", url: `https://www.melhorrastreio.com.br/app/loggi/${code}` };
+  }
+  if (/^[A-Z]{2}\d{9}[A-Z]{2}$/.test(code)) {
+    return { carrier: "Correios", url: `https://www.melhorrastreio.com.br/app/correios/${code}` };
+  }
+  return { carrier: null, url: `https://www.melhorrastreio.com.br/rastreio/${code}` };
+}
+
 export default function TrackingDashboard() {
   const [stats, setStats] = useState<ShippingStats | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -357,18 +368,22 @@ export default function TrackingDashboard() {
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-700">
                         {order.trackingCode ? (
-                          <a
-                            href={
-                              order.trackingCode.startsWith("LGI-")
-                                ? `https://www.melhorrastreio.com.br/app/loggi/${order.trackingCode}`
-                                : `https://www.melhorrastreio.com.br/rastreio/${order.trackingCode}`
-                            }
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:underline font-mono"
-                          >
-                            {order.trackingCode}
-                          </a>
+                          (() => {
+                            const { carrier, url } = getCarrierTracking(order.trackingCode);
+                            return (
+                              <div>
+                                <a
+                                  href={url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-blue-600 hover:underline font-mono"
+                                >
+                                  {order.trackingCode}
+                                </a>
+                                {carrier && <p className="text-xs text-gray-500">{carrier}</p>}
+                              </div>
+                            );
+                          })()
                         ) : (
                           <span className="text-gray-500">-</span>
                         )}
