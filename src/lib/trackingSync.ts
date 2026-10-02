@@ -12,6 +12,7 @@ export type ShipmentUpdate = {
 // Melhor Envio uses "posted" once the carrier has the package; "in_transit" kept for legacy data.
 const SHIPPED_STATUSES = new Set(["posted", "in_transit"]);
 const PROBLEM_STATUSES = new Set(["undelivered", "exception"]);
+const VALID_LABEL_STATUSES = new Set(["released", "generated", "posted", "in_transit", "delivered"]);
 
 export function orderStatusForShipment(shipmentStatus: string, currentOrderStatus: string): string | null {
   if (shipmentStatus === "delivered" && (currentOrderStatus === "CONFIRMED" || currentOrderStatus === "SHIPPED")) {
@@ -46,6 +47,8 @@ export async function applyShipmentUpdate(orderId: string, update: ShipmentUpdat
       shipmentStatus: update.shipmentStatus,
       lastTrackingUpdate: new Date(),
       ...(update.trackingCode && !order.trackingCode && { trackingCode: update.trackingCode }),
+      // Clears a stale "invalid" flag left by a failed check at label creation
+      ...(VALID_LABEL_STATUSES.has(update.shipmentStatus) && { labelValid: true, labelError: null }),
     },
   });
 

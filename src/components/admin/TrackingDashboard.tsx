@@ -358,7 +358,11 @@ export default function TrackingDashboard() {
                       <td className="px-4 py-3 text-sm text-gray-700">
                         {order.trackingCode ? (
                           <a
-                            href={`https://rastreamento.correios.com.br/?q=${order.trackingCode}`}
+                            href={
+                              order.trackingCode.startsWith("LGI-")
+                                ? `https://www.melhorrastreio.com.br/app/loggi/${order.trackingCode}`
+                                : `https://www.melhorrastreio.com.br/rastreio/${order.trackingCode}`
+                            }
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-blue-600 hover:underline font-mono"
