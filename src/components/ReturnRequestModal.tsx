@@ -142,10 +142,10 @@ export default function ReturnRequestModal({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-8 shadow-2xl">
+      <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-5 sm:p-8 shadow-2xl">
         <div className="flex justify-between items-center mb-6">
           <div>
-            <h2 className="text-3xl font-bold text-gray-900">Solicitar Devolução</h2>
+            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">Solicitar Devolução</h2>
             <p className="text-gray-500 mt-1">Pedido {orderNumber}</p>
           </div>
           <button
@@ -168,7 +168,7 @@ export default function ReturnRequestModal({
         ) : (
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Seleção de itens */}
-            <div className="bg-gray-50 rounded-xl p-6 border-2 border-gray-200">
+            <div className="bg-gray-50 rounded-xl p-3 sm:p-6 border-2 border-gray-200">
               <label className="block text-sm font-semibold text-gray-700 mb-4">
                 📦 Itens a devolver *
               </label>
@@ -182,7 +182,7 @@ export default function ReturnRequestModal({
                   return (
                     <div
                       key={item.id}
-                      className={`flex items-center gap-4 p-4 rounded-lg border-2 transition-all ${
+                      className={`flex flex-wrap sm:flex-nowrap items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-lg border-2 transition-all ${
                         selectedQty > 0
                           ? "border-brand bg-pink-50"
                           : "border-gray-200 bg-white hover:border-gray-300"
@@ -192,7 +192,7 @@ export default function ReturnRequestModal({
                         type="button"
                         onClick={() => toggleItem(item.id, item.quantity)}
                         disabled={(item.quantity - (returnedQuantities[item.id] || 0)) <= 0}
-                        className={`w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all ${
+                        className={`w-6 h-6 shrink-0 rounded-md border-2 flex items-center justify-center transition-all ${
                           selectedQty > 0
                             ? "bg-brand border-brand"
                             : "border-gray-300 bg-white"
@@ -202,11 +202,11 @@ export default function ReturnRequestModal({
                       </button>
 
                       {image && (
-                        <img src={image} alt={item.product.name} className="w-16 h-16 object-cover rounded-lg" />
+                        <img src={image} alt={item.product.name} className="w-14 h-14 sm:w-16 sm:h-16 shrink-0 object-cover rounded-lg" />
                       )}
 
-                      <div className="flex-1">
-                        <p className="font-semibold text-gray-900">{item.product.name}</p>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-gray-900 text-sm sm:text-base">{item.product.name}</p>
                         <p className="text-xs text-gray-500 mt-1">
                           {item.size ? `Tamanho: ${item.size}` : ""}
                           {item.color && item.size ? " • " : ""}
@@ -214,42 +214,45 @@ export default function ReturnRequestModal({
                         </p>
                       </div>
 
-                      {selectedQty > 0 && (
-                        <div className="flex items-center gap-2 bg-white rounded-lg border border-gray-300 p-1">
-                          <button
-                            type="button"
-                            onClick={() => updateQuantity(item.id, selectedQty - 1, item.quantity)}
-                            className="p-1 hover:bg-gray-100 rounded"
-                          >
-                            <Minus size={14} />
-                          </button>
-                          <span className="w-6 text-center text-sm font-semibold">{selectedQty}</span>
-                          <button
-                            type="button"
-                            onClick={() => updateQuantity(item.id, selectedQty + 1, item.quantity)}
-                            disabled={selectedQty >= (item.quantity - (returnedQuantities[item.id] || 0))}
-                            className="p-1 hover:bg-gray-100 rounded disabled:opacity-50"
-                          >
-                            <Plus size={14} />
-                          </button>
-                        </div>
-                      )}
-
-                      <div className="text-right">
-                        {selectedQty > 0 ? (
-                          <div>
-                            <p className="text-xs text-gray-600">Devolver: {selectedQty}x</p>
-                            <p className="font-semibold text-brand">{formatCurrency(item.price * selectedQty)}</p>
-                          </div>
-                        ) : (
-                          <div>
-                            <p className="text-xs text-gray-600">Comprou: {item.quantity}x</p>
-                            {(returnedQuantities[item.id] || 0) > 0 && (
-                              <p className="text-xs text-orange-600">Devolveu: {returnedQuantities[item.id]}x</p>
-                            )}
-                            <p className="text-xs text-gray-500">Pode devolver: {item.quantity - (returnedQuantities[item.id] || 0)}x</p>
+                      {/* No celular, quantidade e valor descem para uma linha própria para não espremer a caixa de seleção */}
+                      <div className="w-full sm:w-auto flex items-center justify-between sm:justify-end gap-3 pl-9 sm:pl-0">
+                        {selectedQty > 0 && (
+                          <div className="flex items-center gap-2 bg-white rounded-lg border border-gray-300 p-1">
+                            <button
+                              type="button"
+                              onClick={() => updateQuantity(item.id, selectedQty - 1, item.quantity)}
+                              className="p-1 hover:bg-gray-100 rounded"
+                            >
+                              <Minus size={14} />
+                            </button>
+                            <span className="w-6 text-center text-sm font-semibold">{selectedQty}</span>
+                            <button
+                              type="button"
+                              onClick={() => updateQuantity(item.id, selectedQty + 1, item.quantity)}
+                              disabled={selectedQty >= (item.quantity - (returnedQuantities[item.id] || 0))}
+                              className="p-1 hover:bg-gray-100 rounded disabled:opacity-50"
+                            >
+                              <Plus size={14} />
+                            </button>
                           </div>
                         )}
+
+                        <div className="text-right ml-auto">
+                          {selectedQty > 0 ? (
+                            <div>
+                              <p className="text-xs text-gray-600">Devolver: {selectedQty}x</p>
+                              <p className="font-semibold text-brand">{formatCurrency(item.price * selectedQty)}</p>
+                            </div>
+                          ) : (
+                            <div>
+                              <p className="text-xs text-gray-600">Comprou: {item.quantity}x</p>
+                              {(returnedQuantities[item.id] || 0) > 0 && (
+                                <p className="text-xs text-orange-600">Devolveu: {returnedQuantities[item.id]}x</p>
+                              )}
+                              <p className="text-xs text-gray-500">Pode devolver: {item.quantity - (returnedQuantities[item.id] || 0)}x</p>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   );
