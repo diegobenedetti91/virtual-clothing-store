@@ -365,7 +365,10 @@ model Return {
   customer        CustomerUser @relation(fields: [customerId], references: [id], onDelete: Cascade)
   returnedItems   Json?
   reason          String   @db.Text
+  // PENDING → AWAITING_RETURN (código de postagem enviado ao cliente) → APPROVED | REJECTED
   status          String   @default("PENDING")
+  trackingCode    String?
+  labelSentAt     DateTime?
   adminNotes      String?  @db.Text
   images          String?  @db.Text
   refundAmount    Float    @default(0)

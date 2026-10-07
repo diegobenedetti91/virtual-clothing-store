@@ -352,7 +352,7 @@ export async function sendReturnRequestConfirmationEmail({
     </div>
 
     <div style="background:#d1fae5;border:1px solid #6ee7b7;border-radius:8px;padding:12px 16px;margin-bottom:20px;color:#065f46;font-size:13px;">
-      ✅ <strong>Status:</strong> Sua solicitação está sendo analisada pela nossa equipe. Você receberá um email em breve com a resposta.
+      ✅ <strong>Status:</strong> Sua solicitação está sendo analisada pela nossa equipe. Você receberá um email em breve com o código para postar a mercadoria.
     </div>
 
     <p style="color:#666;font-size:13px;margin:0;">Tempo estimado de resposta: até 3 dias úteis.</p>
@@ -366,10 +366,46 @@ export async function sendReturnRequestConfirmationEmail({
   });
 }
 
-export async function sendReturnDecisionEmail({
-  to, customerName, orderNumber, approved, storeName, adminNotes, images,
+export async function sendReturnLabelEmail({
+  to, customerName, orderNumber, trackingCode, trackingUrl, storeName,
 }: {
-  to: string; customerName: string; orderNumber: string; approved: boolean; storeName: string; adminNotes?: string; images?: Array<{ url: string }>;
+  to: string; customerName: string; orderNumber: string; trackingCode: string; trackingUrl: string; storeName: string;
+}) {
+  if (!process.env.SMTP_USER) return;
+
+  const html = baseWrapper(`
+    <h2 style="color:#ec4899;margin:0 0 8px;">Sua devolução foi autorizada para postagem 📦</h2>
+    <p style="color:#555;margin:0 0 20px;">Olá, <strong>${customerName}</strong>! Geramos a etiqueta de devolução do seu pedido. Use o código abaixo para postar a mercadoria.</p>
+
+    <div style="background:#fdf2f8;border-radius:10px;padding:16px 20px;margin-bottom:20px;text-align:center;">
+      <p style="margin:0 0 4px;font-size:12px;color:#888;">Pedido</p>
+      <p style="margin:0 0 12px;font-weight:700;font-size:20px;color:#be185d;">${orderNumber}</p>
+      <p style="margin:0 0 4px;font-size:12px;color:#888;">Código de postagem</p>
+      <p style="margin:0;font-weight:700;font-size:22px;letter-spacing:1px;color:#111;">${trackingCode}</p>
+    </div>
+
+    <div style="background:#e7f3ff;border:1px solid #b3d9ff;border-radius:8px;padding:12px 16px;color:#004085;font-size:13px;margin-bottom:20px;">
+      📬 <strong>Como postar:</strong> embale o(s) produto(s) com cuidado e leve até uma agência informando o código acima.
+      Após recebermos e analisarmos a mercadoria, você receberá um email com a resposta da devolução.
+    </div>
+
+    <div style="text-align:center;margin-bottom:20px;">
+      <a href="${trackingUrl}" style="display:inline-block;background:#ec4899;color:#fff;text-decoration:none;font-weight:600;padding:12px 24px;border-radius:8px;">Acompanhar postagem</a>
+    </div>
+  `, storeName);
+
+  await transporter.sendMail({
+    from: `"${storeName}" <${process.env.SMTP_USER}>`,
+    to,
+    subject: `Código de postagem da sua devolução — Pedido ${orderNumber}`,
+    html,
+  });
+}
+
+export async function sendReturnDecisionEmail({
+  to, customerName, orderNumber, approved, storeName, adminNotes, images, refundAmount,
+}: {
+  to: string; customerName: string; orderNumber: string; approved: boolean; storeName: string; adminNotes?: string; images?: Array<{ url: string }>; refundAmount?: number;
 }) {
   if (!process.env.SMTP_USER) return;
 
@@ -394,7 +430,7 @@ export async function sendReturnDecisionEmail({
 
     ${approved ? `
       <div style="background:#e7f3ff;border:1px solid #b3d9ff;border-radius:8px;padding:12px 16px;color:#004085;font-size:13px;margin-bottom:20px;">
-        📬 <strong>Próximos passos:</strong> Você receberá instruções de envio do produto em breve.
+        💰 <strong>Estorno:</strong> ${refundAmount && refundAmount > 0 ? `o valor de <strong>R$ ${refundAmount.toFixed(2).replace(".", ",")}</strong> será estornado` : "o estorno será processado"} pela mesma forma de pagamento utilizada na compra. O prazo para aparecer depende da sua instituição financeira.
       </div>
     ` : `
       <div style="background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:12px 16px;color:#856404;font-size:13px;margin-bottom:20px;">

@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
 
-    const { orderId, reason, itemIds, returnAmount } = await req.json();
+    const { orderId, reason, itemIds } = await req.json();
 
     if (!orderId || !reason) {
       return NextResponse.json({ error: "Dados incompletos" }, { status: 400 });
@@ -38,9 +38,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Verificar se há devolução PENDING (em aberto)
+    if (!Array.isArray(itemIds) || itemIds.length === 0) {
+      return NextResponse.json({ error: "Selecione pelo menos um item para devolver" }, { status: 400 });
+    }
+
+    // Verificar se há devolução em aberto (em análise ou aguardando a mercadoria)
     const pendingReturn = await prisma.return.findFirst({
-      where: { orderId, status: "PENDING" },
+      where: { orderId, status: { in: ["PENDING", "AWAITING_RETURN"] } },
     });
 
     if (pendingReturn) {
@@ -69,8 +73,14 @@ export async function POST(req: NextRequest) {
       where: { orderId },
     });
 
-    for (const selection of itemIds || []) {
+    // Valor do estorno calculado aqui a partir do preço pago, nunca do valor enviado pelo cliente
+    let refundAmount = 0;
+
+    for (const selection of itemIds) {
       const orderItem = orderItems.find((i) => i.id === selection.itemId);
+      if (!Number.isInteger(selection.quantity) || selection.quantity <= 0) {
+        return NextResponse.json({ error: "Quantidade inválida" }, { status: 400 });
+      }
       if (!orderItem) {
         return NextResponse.json(
           { error: "Item não encontrado no pedido" },
@@ -87,6 +97,8 @@ export async function POST(req: NextRequest) {
           { status: 400 }
         );
       }
+
+      refundAmount += orderItem.price * selection.quantity;
     }
 
     // Criar solicitação de devolução
@@ -96,8 +108,8 @@ export async function POST(req: NextRequest) {
         customerId: customer.id,
         reason,
         status: "PENDING",
-        returnedItems: itemIds || [],
-        refundAmount: returnAmount || 0,
+        returnedItems: itemIds.map((sel: { itemId: string; quantity: number }) => ({ itemId: sel.itemId, quantity: sel.quantity })),
+        refundAmount: Math.round(refundAmount * 100) / 100,
       },
     });
 

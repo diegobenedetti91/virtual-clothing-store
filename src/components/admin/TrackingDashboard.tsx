@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { getCarrierTracking } from "@/lib/carrierTracking";
 
 interface ShippingStats {
   labelInvalid: number;
@@ -29,17 +30,6 @@ interface Order {
     location: string | null;
   }>;
   melhorEnvioShipmentId: string | null;
-}
-
-// Carrier is inferred from the tracking code format: Correios uses the UPU pattern (AA123456789BR), Loggi codes come as "LGI-..."
-function getCarrierTracking(code: string): { carrier: string | null; url: string } {
-  if (code.startsWith("LGI-")) {
-    return { carrier: "Loggi", url: `https://www.melhorrastreio.com.br/app/loggi/${code}` };
-  }
-  if (/^[A-Z]{2}\d{9}[A-Z]{2}$/.test(code)) {
-    return { carrier: "Correios", url: `https://www.melhorrastreio.com.br/app/correios/${code}` };
-  }
-  return { carrier: null, url: `https://www.melhorrastreio.com.br/rastreio/${code}` };
 }
 
 export default function TrackingDashboard() {
