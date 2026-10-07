@@ -1,5 +1,6 @@
 import nodemailer from "nodemailer";
 import path from "path";
+import { prisma } from "@/lib/prisma";
 
 const port = Number(process.env.SMTP_PORT) || 587;
 const transporter = nodemailer.createTransport({
@@ -12,6 +13,50 @@ const transporter = nodemailer.createTransport({
   },
   tls: { rejectUnauthorized: false },
 });
+
+// Templates are written with the default pink palette; at send time those hex codes are swapped for the store's colors
+// from Configurações (primaryColor / buttonColor), so every email, including HTML built by callers of sendEmail, follows the brand.
+const DEFAULT_PRIMARY = "#ec4899";
+const DEFAULT_PRIMARY_DARK = "#be185d";
+const DEFAULT_PRIMARY_LIGHT = "#fdf2f8";
+
+function normalizeHex(color: string | null | undefined): string | null {
+  if (!color) return null;
+  const c = color.trim();
+  if (/^#[0-9a-f]{6}$/i.test(c)) return c.toLowerCase();
+  if (/^#[0-9a-f]{3}$/i.test(c)) return `#${c[1]}${c[1]}${c[2]}${c[2]}${c[3]}${c[3]}`.toLowerCase();
+  return null;
+}
+
+// amount > 0 mixes toward white, < 0 toward black
+function mixHex(hex: string, amount: number): string {
+  const target = amount > 0 ? 255 : 0;
+  const a = Math.abs(amount);
+  const channels = [1, 3, 5].map((i) => {
+    const v = parseInt(hex.slice(i, i + 2), 16);
+    return Math.round(v + (target - v) * a).toString(16).padStart(2, "0");
+  });
+  return `#${channels.join("")}`;
+}
+
+async function applyBrandColors(html: string): Promise<string> {
+  const settings = await prisma.companySettings
+    .findFirst({ orderBy: { updatedAt: "desc" }, select: { primaryColor: true, buttonColor: true } })
+    .catch(() => null);
+  const primary = normalizeHex(settings?.primaryColor) || DEFAULT_PRIMARY;
+  const button = normalizeHex(settings?.buttonColor) || primary;
+
+  return html
+    .replace(new RegExp(`background:\\s*${DEFAULT_PRIMARY}`, "gi"), `background:${button}`)
+    .replace(new RegExp(DEFAULT_PRIMARY, "gi"), primary)
+    .replace(new RegExp(DEFAULT_PRIMARY_DARK, "gi"), primary === DEFAULT_PRIMARY ? DEFAULT_PRIMARY_DARK : mixHex(primary, -0.2))
+    .replace(new RegExp(DEFAULT_PRIMARY_LIGHT, "gi"), primary === DEFAULT_PRIMARY ? DEFAULT_PRIMARY_LIGHT : mixHex(primary, 0.92));
+}
+
+async function sendMail(options: nodemailer.SendMailOptions) {
+  const html = typeof options.html === "string" ? await applyBrandColors(options.html) : options.html;
+  return transporter.sendMail({ ...options, html });
+}
 
 const STATUS_PT: Record<string, string> = {
   PENDING: "Aguardando confirmação",
@@ -39,7 +84,7 @@ export async function sendEmail({
   attachmentPath?: string; attachmentName?: string;
 }) {
   if (!process.env.SMTP_USER) return;
-  await transporter.sendMail({
+  await sendMail({
     from: `"${storeName}" <${process.env.SMTP_USER}>`,
     to,
     subject,
@@ -83,7 +128,7 @@ export async function sendOrderConfirmationEmail({
     <div style="margin-top:20px;">${nextStep}</div>
   `, storeName);
 
-  await transporter.sendMail({
+  await sendMail({
     from: `"${storeName}" <${process.env.SMTP_USER}>`,
     to,
     subject: `Pedido ${orderNumber} recebido — ${storeName}`,
@@ -126,7 +171,7 @@ export async function sendShippingEmail({
     }
   }
 
-  await transporter.sendMail({
+  await sendMail({
     from: `"${storeName}" <${process.env.SMTP_USER}>`,
     to,
     subject: `Pedido ${orderNumber} enviado${trackingCode ? ` — Rastreio: ${trackingCode}` : ""} — ${storeName}`,
@@ -167,7 +212,7 @@ export async function sendWaitlistNotificationEmail({
     </div>
   `, storeName);
 
-  await transporter.sendMail({
+  await sendMail({
     from: `"${storeName}" <${process.env.SMTP_USER}>`,
     to,
     subject: `${productName}${variantLabel ? ` (${variantLabel})` : ""} está disponível — ${storeName}`,
@@ -198,7 +243,7 @@ export async function sendOrderStatusEmail({
     ${cancelReason ? `<p style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:12px 16px;color:#991b1b;font-size:13px;margin:0;"><strong>Motivo do cancelamento:</strong> ${cancelReason}</p>` : ""}
   `, storeName);
 
-  await transporter.sendMail({
+  await sendMail({
     from: `"${storeName}" <${process.env.SMTP_USER}>`,
     to,
     subject: `Atualização do seu pedido ${orderNumber} — ${statusLabel}`,
@@ -244,7 +289,7 @@ export async function sendNewOrderNotificationEmail({
     </div>
   `, storeName);
 
-  await transporter.sendMail({
+  await sendMail({
     from: `"${storeName}" <${process.env.SMTP_USER}>`,
     to,
     subject: `🎉 Novo pedido ${orderNumber} — Pagamento confirmado`,
@@ -288,7 +333,7 @@ export async function sendShippingConfirmationEmail({
     </div>
   `, storeName);
 
-  await transporter.sendMail({
+  await sendMail({
     from: `"${storeName}" <${process.env.SMTP_USER}>`,
     to,
     subject: `📦 Seu pedido ${orderNumber} foi postado — Rastreio: ${trackingCode}`,
@@ -327,7 +372,7 @@ export async function sendReturnRequestNotificationEmail({
     </div>
   `, storeName);
 
-  await transporter.sendMail({
+  await sendMail({
     from: `"${storeName}" <${process.env.SMTP_USER}>`,
     to,
     subject: `📦 Nova solicitação de devolução — Pedido ${orderNumber}`,
@@ -358,7 +403,7 @@ export async function sendReturnRequestConfirmationEmail({
     <p style="color:#666;font-size:13px;margin:0;">Tempo estimado de resposta: até 3 dias úteis.</p>
   `, storeName);
 
-  await transporter.sendMail({
+  await sendMail({
     from: `"${storeName}" <${process.env.SMTP_USER}>`,
     to,
     subject: `Sua solicitação de devolução foi recebida — Pedido ${orderNumber}`,
@@ -394,7 +439,7 @@ export async function sendReturnLabelEmail({
     </div>
   `, storeName);
 
-  await transporter.sendMail({
+  await sendMail({
     from: `"${storeName}" <${process.env.SMTP_USER}>`,
     to,
     subject: `Código de postagem da sua devolução — Pedido ${orderNumber}`,
@@ -453,7 +498,7 @@ export async function sendReturnDecisionEmail({
     }));
   }
 
-  await transporter.sendMail(mailOptions);
+  await sendMail(mailOptions);
 }
 
 export async function sendEmailStatusChanged({
@@ -511,7 +556,7 @@ export async function sendEmailStatusChanged({
     ` : ""}
   `, storeName);
 
-  await transporter.sendMail({
+  await sendMail({
     from: `"${storeName}" <${process.env.SMTP_USER}>`,
     to,
     subject: `${emoji} ${statusLabel} - Pedido ${orderNumber}`,
