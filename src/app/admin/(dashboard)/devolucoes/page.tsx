@@ -201,24 +201,20 @@ export default function DevolucoesPage() {
     returnedLines(ret).reduce((sum, line) => sum + (line.item ? line.item.price * line.quantity : 0), 0);
 
   const statusBadge = (status: string) => {
-    switch (status) {
-      case "PENDING":
-        return <span className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-semibold">⏳ Nova</span>;
-      case "AWAITING_RETURN":
-        return <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-semibold">🚚 Aguardando mercadoria</span>;
-      case "APPROVED":
-        return <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs font-semibold">✅ Aprovada</span>;
-      case "REJECTED":
-        return <span className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-xs font-semibold">❌ Recusada</span>;
-      default:
-        return <span className="px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-xs font-semibold">{status}</span>;
-    }
+    const styles: Record<string, [string, string]> = {
+      PENDING: ["Nova", "bg-amber-50 text-amber-700 ring-amber-200"],
+      AWAITING_RETURN: ["Aguardando mercadoria", "bg-blue-50 text-blue-700 ring-blue-200"],
+      APPROVED: ["Aprovada", "bg-green-50 text-green-700 ring-green-200"],
+      REJECTED: ["Recusada", "bg-red-50 text-red-700 ring-red-200"],
+    };
+    const [label, cls] = styles[status] || [status, "bg-gray-50 text-gray-700 ring-gray-200"];
+    return <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-medium ring-1 ring-inset ${cls}`}>{label}</span>;
   };
 
   const trackingLink = (code: string) => {
     const { carrier, url } = getCarrierTracking(code);
     return (
-      <a href={url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 font-mono font-semibold text-blue-700 hover:underline" onClick={(e) => e.stopPropagation()}>
+      <a href={url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 font-mono text-sm font-semibold text-gray-900 hover:underline" onClick={(e) => e.stopPropagation()}>
         {code}
         {carrier && <span className="font-sans text-xs text-gray-500">({carrier})</span>}
         <ExternalLink size={14} />
@@ -307,191 +303,172 @@ export default function DevolucoesPage() {
       )}
 
       {selectedReturn && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-y-auto p-8 shadow-2xl">
-            <div className="flex justify-between items-center mb-8">
-              <div>
-                <h2 className="text-3xl font-bold text-gray-900">Análise de Devolução</h2>
-                <p className="text-gray-500 mt-1">Pedido {selectedReturn.order.orderNumber}</p>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={closeModal}>
+          <div className="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] flex flex-col shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-start gap-4 px-6 py-5 border-b border-gray-100">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-3">
+                  <h2 className="text-xl font-bold text-gray-900">Devolução {selectedReturn.order.orderNumber}</h2>
+                  {statusBadge(selectedReturn.status)}
+                </div>
+                <p className="text-sm text-gray-500 mt-1">Solicitada em {new Date(selectedReturn.createdAt).toLocaleDateString("pt-BR")}</p>
               </div>
-              <button onClick={closeModal} className="text-gray-400 hover:text-gray-600 transition">
-                <X size={28} />
+              <button onClick={closeModal} className="text-gray-400 hover:text-gray-600 transition shrink-0">
+                <X size={22} />
               </button>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8">
-              <div className="bg-gradient-to-br from-pink-50 to-pink-100 rounded-xl p-4 border border-pink-200">
-                <p className="text-xs font-semibold text-pink-600 uppercase tracking-wide">Pedido</p>
-                <p className="font-bold text-lg text-pink-900 mt-2">{selectedReturn.order.orderNumber}</p>
-              </div>
-              <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4 border border-blue-200">
-                <p className="text-xs font-semibold text-blue-600 uppercase tracking-wide">Cliente</p>
-                <p className="font-bold text-lg text-blue-900 mt-2">{selectedReturn.customer.name}</p>
-              </div>
-              <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-4 border border-purple-200">
-                <p className="text-xs font-semibold text-purple-600 uppercase tracking-wide">Email</p>
-                <p className="text-sm text-purple-900 mt-2 truncate">{selectedReturn.customer.email}</p>
-              </div>
-              <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-4 border border-gray-200">
-                <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Status</p>
-                <div className="mt-2">{statusBadge(selectedReturn.status)}</div>
-              </div>
-            </div>
-
-            <div className="bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl p-6 mb-6 border border-orange-200">
-              <p className="text-sm font-semibold text-orange-700 uppercase tracking-wide mb-2">📋 Motivo da Devolução</p>
-              <p className="text-gray-900 leading-relaxed">{selectedReturn.reason}</p>
-            </div>
-
-            <div className="rounded-xl border border-gray-200 mb-8 overflow-hidden">
-              <p className="text-sm font-semibold text-gray-700 uppercase tracking-wide px-6 pt-5 pb-3">📦 Itens a devolver</p>
-              <div className="divide-y divide-gray-100">
-                {returnedLines(selectedReturn).map((line) => (
-                  <div key={line.itemId} className="flex justify-between items-center px-6 py-3 text-sm">
-                    <div>
-                      <p className="font-medium text-gray-900">{line.item?.product.name ?? "Item não encontrado no pedido"}</p>
-                      {line.item && (line.item.size || line.item.color) && (
-                        <p className="text-xs text-gray-500">
-                          {[line.item.size && `Tamanho: ${line.item.size}`, line.item.color && `Cor: ${line.item.color}`].filter(Boolean).join(" • ")}
-                        </p>
-                      )}
-                    </div>
-                    <div className="text-right">
-                      <p className="text-gray-600">{line.quantity}x {line.item ? formatCurrency(line.item.price) : "-"}</p>
-                      {line.item && <p className="font-semibold text-gray-900">{formatCurrency(line.item.price * line.quantity)}</p>}
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="flex justify-between items-center px-6 py-4 bg-gray-50 border-t border-gray-200">
-                <span className="text-sm font-semibold text-gray-700">
-                  Valor a estornar {selectedReturn.status === "APPROVED" && (selectedReturn.refundedAt ? "(estornado)" : "(estorno pendente)")}
-                </span>
-                <span className="text-xl font-bold text-pink-600">
-                  {formatCurrency(selectedReturn.status === "APPROVED" ? selectedReturn.refundAmount : refundOf(selectedReturn))}
-                </span>
-              </div>
-            </div>
-
-            {error && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
-                <p className="text-sm text-red-700">{error}</p>
-              </div>
-            )}
-
-            {/* Etapa 1: admin gera a etiqueta no Melhor Envio e envia o código ao cliente */}
-            {(selectedReturn.status === "PENDING" || (selectedReturn.status === "AWAITING_RETURN" && editingTracking)) && (
-              <div className="bg-blue-50 border border-blue-200 rounded-xl p-6 mb-8 space-y-3">
-                <p className="text-sm font-semibold text-blue-800 uppercase tracking-wide flex items-center gap-2">
-                  <Truck size={18} /> Etiqueta de devolução
-                </p>
-                <p className="text-xs text-blue-700">
-                  Gere a etiqueta reversa no Melhor Envio e informe o código de rastreio. O cliente receberá o código por email para postar a mercadoria.
-                </p>
-                <div className="flex gap-3">
-                  <input
-                    value={trackingCode}
-                    onChange={(e) => setTrackingCode(e.target.value.toUpperCase())}
-                    placeholder="Ex: AD984698169BR"
-                    className="flex-1 border-2 border-gray-300 rounded-lg px-4 py-2 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
-                  />
-                  <button
-                    onClick={handleSendTracking}
-                    disabled={processingId === selectedReturn.id}
-                    className="px-5 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-60 flex items-center gap-2 transition-colors"
-                  >
-                    {processingId === selectedReturn.id ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
-                    Enviar ao cliente
-                  </button>
+            <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
+              <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <dt className="text-xs font-medium text-gray-500 uppercase tracking-wide">Cliente</dt>
+                  <dd className="text-sm font-medium text-gray-900 mt-1">{selectedReturn.customer.name}</dd>
                 </div>
-                {selectedReturn.status === "AWAITING_RETURN" && (
-                  <button onClick={() => { setEditingTracking(false); setTrackingCode(selectedReturn.trackingCode || ""); }} className="text-xs text-blue-700 hover:underline">
-                    Cancelar alteração
-                  </button>
-                )}
-              </div>
-            )}
+                <div className="min-w-0">
+                  <dt className="text-xs font-medium text-gray-500 uppercase tracking-wide">E-mail</dt>
+                  <dd className="text-sm text-gray-900 mt-1 break-all">
+                    <a href={`mailto:${selectedReturn.customer.email}`} className="hover:underline">{selectedReturn.customer.email}</a>
+                  </dd>
+                </div>
+              </dl>
 
-            {selectedReturn.trackingCode && !(selectedReturn.status === "AWAITING_RETURN" && editingTracking) && (
-              <div className="bg-blue-50 border border-blue-200 rounded-xl p-6 mb-8">
-                <p className="text-sm font-semibold text-blue-800 uppercase tracking-wide mb-2 flex items-center gap-2">
-                  <Truck size={18} /> Postagem da devolução
-                </p>
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    {trackingLink(selectedReturn.trackingCode)}
-                    {selectedReturn.labelSentAt && (
-                      <p className="text-xs text-blue-700 mt-1">Código enviado ao cliente em {new Date(selectedReturn.labelSentAt).toLocaleString("pt-BR")}</p>
-                    )}
+              <section>
+                <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Motivo</h3>
+                <p className="text-sm text-gray-900 leading-relaxed bg-gray-50 rounded-lg px-4 py-3">{selectedReturn.reason}</p>
+              </section>
+
+              <section>
+                <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Itens a devolver</h3>
+                <div className="border border-gray-200 rounded-lg divide-y divide-gray-100">
+                  {returnedLines(selectedReturn).map((line) => (
+                    <div key={line.itemId} className="flex justify-between items-start gap-4 px-4 py-3 text-sm">
+                      <div className="min-w-0">
+                        <p className="font-medium text-gray-900">{line.item?.product.name ?? "Item não encontrado no pedido"}</p>
+                        {line.item && (line.item.size || line.item.color) && (
+                          <p className="text-xs text-gray-500 mt-0.5">
+                            {[line.item.size && `Tamanho ${line.item.size}`, line.item.color && line.item.color].filter(Boolean).join(" · ")}
+                          </p>
+                        )}
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="font-medium text-gray-900">{line.item ? formatCurrency(line.item.price * line.quantity) : "-"}</p>
+                        {line.item && <p className="text-xs text-gray-500">{line.quantity} × {formatCurrency(line.item.price)}</p>}
+                      </div>
+                    </div>
+                  ))}
+                  <div className="flex justify-between items-center px-4 py-3 bg-gray-50 rounded-b-lg">
+                    <span className="text-sm text-gray-600">
+                      Valor a estornar{selectedReturn.status === "APPROVED" && (selectedReturn.refundedAt ? " · estornado" : " · estorno pendente")}
+                    </span>
+                    <span className="text-base font-bold text-gray-900">
+                      {formatCurrency(selectedReturn.status === "APPROVED" ? selectedReturn.refundAmount : refundOf(selectedReturn))}
+                    </span>
+                  </div>
+                </div>
+              </section>
+
+              {/* Etapa 1: admin gera a etiqueta no Melhor Envio e envia o código ao cliente */}
+              {(selectedReturn.status === "PENDING" || (selectedReturn.status === "AWAITING_RETURN" && editingTracking)) && (
+                <section>
+                  <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                    <Truck size={14} /> Código de postagem
+                  </h3>
+                  <p className="text-xs text-gray-500 mb-3">
+                    Gere a logística reversa no Melhor Envio e informe o código. O cliente recebe o código por e-mail para postar a mercadoria.
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <input
+                      value={trackingCode}
+                      onChange={(e) => setTrackingCode(e.target.value.toUpperCase())}
+                      placeholder="Ex: AD984698169BR"
+                      className="flex-1 border border-gray-300 rounded-lg px-3 py-2 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
+                    />
+                    <button
+                      onClick={handleSendTracking}
+                      disabled={processingId === selectedReturn.id}
+                      className="px-4 py-2 bg-brand text-white text-sm font-semibold rounded-lg hover:opacity-90 disabled:opacity-60 flex items-center justify-center gap-2 transition"
+                    >
+                      {processingId === selectedReturn.id ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                      Enviar ao cliente
+                    </button>
                   </div>
                   {selectedReturn.status === "AWAITING_RETURN" && (
-                    <button onClick={() => setEditingTracking(true)} className="text-sm text-blue-700 hover:underline">
-                      Alterar código
+                    <button onClick={() => { setEditingTracking(false); setTrackingCode(selectedReturn.trackingCode || ""); }} className="text-xs text-gray-500 hover:text-gray-700 hover:underline mt-2">
+                      Cancelar alteração
                     </button>
                   )}
-                </div>
-              </div>
-            )}
+                </section>
+              )}
 
-            {(selectedReturn.status === "APPROVED" || selectedReturn.status === "REJECTED") && (
-              <div className="space-y-8">
-                {selectedReturn.adminNotes && (
-                  <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-6 border border-green-200">
-                    <p className="text-sm font-semibold text-green-700 uppercase tracking-wide mb-3">✓ Análise do Produto</p>
-                    <p className="text-gray-900 leading-relaxed whitespace-pre-wrap">{selectedReturn.adminNotes}</p>
-                  </div>
-                )}
-
-                {selectedReturn.images && JSON.parse(selectedReturn.images).length > 0 && (
-                  <div>
-                    <p className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-4">📸 Imagens do Produto</p>
-                    <div className="grid grid-cols-3 gap-4">
-                      {JSON.parse(selectedReturn.images).map((img: any, idx: number) => (
-                        <a key={idx} href={img.url} target="_blank" rel="noopener noreferrer" className="group">
-                          <div className="relative overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all">
-                            <img src={img.url} alt={`Imagem ${idx + 1}`} className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300" />
-                            <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all flex items-center justify-center">
-                              <span className="text-white text-sm font-semibold opacity-0 group-hover:opacity-100 transition-opacity">Ampliar</span>
-                            </div>
-                          </div>
-                        </a>
-                      ))}
+              {selectedReturn.trackingCode && !(selectedReturn.status === "AWAITING_RETURN" && editingTracking) && (
+                <section>
+                  <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                    <Truck size={14} /> Postagem
+                  </h3>
+                  <div className="flex flex-wrap items-center justify-between gap-3 border border-gray-200 rounded-lg px-4 py-3">
+                    <div>
+                      {trackingLink(selectedReturn.trackingCode)}
+                      {selectedReturn.labelSentAt && (
+                        <p className="text-xs text-gray-500 mt-0.5">Enviado ao cliente em {new Date(selectedReturn.labelSentAt).toLocaleString("pt-BR")}</p>
+                      )}
                     </div>
+                    {selectedReturn.status === "AWAITING_RETURN" && (
+                      <button onClick={() => setEditingTracking(true)} className="text-sm text-gray-600 hover:text-gray-900 hover:underline">
+                        Alterar código
+                      </button>
+                    )}
                   </div>
-                )}
-              </div>
-            )}
+                </section>
+              )}
 
-            {(selectedReturn.status === "PENDING" || selectedReturn.status === "AWAITING_RETURN") && (
-              <div className="space-y-6">
-                {selectedReturn.status === "AWAITING_RETURN" && (
-                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                    <p className="text-sm text-amber-800">
-                      ⚠️ Aprove ou recuse somente com a mercadoria em mãos. Ao aprovar, os itens voltam ao estoque e o valor acima é estornado ao cliente.
+              {(selectedReturn.status === "APPROVED" || selectedReturn.status === "REJECTED") && (
+                <>
+                  {selectedReturn.adminNotes && (
+                    <section>
+                      <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Análise do produto</h3>
+                      <p className="text-sm text-gray-900 leading-relaxed whitespace-pre-wrap bg-gray-50 rounded-lg px-4 py-3">{selectedReturn.adminNotes}</p>
+                    </section>
+                  )}
+
+                  {selectedReturn.images && JSON.parse(selectedReturn.images).length > 0 && (
+                    <section>
+                      <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Imagens</h3>
+                      <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                        {JSON.parse(selectedReturn.images).map((img: any, idx: number) => (
+                          <a key={idx} href={img.url} target="_blank" rel="noopener noreferrer">
+                            <img src={img.url} alt={`Imagem ${idx + 1}`} className="w-full aspect-square object-cover rounded-lg border border-gray-200 hover:opacity-90 transition" />
+                          </a>
+                        ))}
+                      </div>
+                    </section>
+                  )}
+                </>
+              )}
+
+              {(selectedReturn.status === "PENDING" || selectedReturn.status === "AWAITING_RETURN") && (
+                <section className="space-y-4">
+                  {selectedReturn.status === "AWAITING_RETURN" && (
+                    <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3">
+                      Aprove ou recuse somente com a mercadoria em mãos. Ao aprovar, os itens voltam ao estoque e o valor é estornado ao cliente.
                     </p>
-                  </div>
-                )}
+                  )}
 
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-3">
-                    📝 {selectedReturn.status === "PENDING" ? "Motivo da recusa" : "Análise do Produto"} *
-                  </label>
-                  <textarea
-                    value={adminNotes}
-                    onChange={(e) => setAdminNotes(e.target.value)}
-                    placeholder={selectedReturn.status === "PENDING" ? "Preencha somente se for recusar a solicitação antes da postagem..." : "Descreva detalhadamente a análise realizada no produto..."}
-                    rows={selectedReturn.status === "PENDING" ? 3 : 5}
-                    className="w-full border-2 border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent resize-none"
-                  />
-                </div>
-
-                {selectedReturn.status === "AWAITING_RETURN" && (
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                      <Upload size={18} />
-                      Imagens do Produto
+                    <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+                      {selectedReturn.status === "PENDING" ? "Motivo da recusa" : "Análise do produto"} *
                     </label>
-                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-brand hover:bg-pink-50 transition-all cursor-pointer">
+                    <textarea
+                      value={adminNotes}
+                      onChange={(e) => setAdminNotes(e.target.value)}
+                      placeholder={selectedReturn.status === "PENDING" ? "Preencha somente se for recusar a solicitação antes da postagem..." : "Descreva a análise realizada no produto..."}
+                      rows={selectedReturn.status === "PENDING" ? 3 : 4}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent resize-none"
+                    />
+                  </div>
+
+                  {selectedReturn.status === "AWAITING_RETURN" && (
+                    <div>
+                      <span className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Imagens do produto</span>
                       <input
                         type="file"
                         multiple
@@ -500,54 +477,56 @@ export default function DevolucoesPage() {
                         className="hidden"
                         id="image-upload"
                       />
-                      <label htmlFor="image-upload" className="cursor-pointer block">
-                        <p className="text-gray-600 font-medium">Clique para adicionar imagens</p>
-                        <p className="text-xs text-gray-500 mt-1">ou arraste arquivos</p>
+                      <label htmlFor="image-upload" className="flex items-center justify-center gap-2 border border-dashed border-gray-300 rounded-lg px-4 py-4 text-sm text-gray-600 cursor-pointer hover:border-gray-400 hover:bg-gray-50 transition">
+                        <Upload size={16} />
+                        {images.length > 0 ? `${images.length} imagem(ns) selecionada(s) · trocar` : "Adicionar imagens"}
                       </label>
+                      {images.length > 0 && (
+                        <div className="mt-3 grid grid-cols-4 sm:grid-cols-6 gap-2">
+                          {images.map((img, idx) => (
+                            <img key={idx} src={URL.createObjectURL(img)} alt={`Preview ${idx + 1}`} className="w-full aspect-square object-cover rounded-lg border border-gray-200" />
+                          ))}
+                        </div>
+                      )}
+                      <p className="text-xs text-gray-500 mt-2">A análise e as imagens vão por e-mail ao cliente junto com a decisão.</p>
                     </div>
-                    {images.length > 0 && (
-                      <div className="mt-4 grid grid-cols-4 gap-3">
-                        {Array.from(images).map((img, idx) => (
-                          <div key={idx} className="relative">
-                            <img src={URL.createObjectURL(img)} alt={`Preview ${idx + 1}`} className="w-full h-24 object-cover rounded-lg" />
-                            <span className="absolute top-1 right-1 bg-pink-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">{idx + 1}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    {images.length > 0 && <p className="text-sm text-green-600 mt-3 font-semibold">✓ {images.length} arquivo(s) selecionado(s)</p>}
-                    <p className="text-xs text-gray-500 mt-2">As notas e imagens são enviadas por email ao cliente junto com a decisão.</p>
-                  </div>
-                )}
-
-                <div className="flex gap-3 pt-4">
-                  <button
-                    onClick={closeModal}
-                    className="flex-1 py-3 border-2 border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 transition-colors"
-                  >
-                    Fechar
-                  </button>
-                  <button
-                    onClick={() => handleDecision("REJECTED")}
-                    disabled={processingId === selectedReturn.id}
-                    className="flex-1 py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 disabled:opacity-60 flex items-center justify-center gap-2 transition-colors"
-                  >
-                    {processingId === selectedReturn.id ? <Loader2 size={18} className="animate-spin" /> : <X size={18} />}
-                    Recusar Devolução
-                  </button>
-                  {selectedReturn.status === "AWAITING_RETURN" && (
-                    <button
-                      onClick={() => handleDecision("APPROVED")}
-                      disabled={processingId === selectedReturn.id}
-                      className="flex-1 py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 disabled:opacity-60 flex items-center justify-center gap-2 transition-colors"
-                    >
-                      {processingId === selectedReturn.id ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} />}
-                      Aprovar e Estornar
-                    </button>
                   )}
-                </div>
-              </div>
-            )}
+                </section>
+              )}
+
+              {error && (
+                <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-4 py-3">{error}</p>
+              )}
+            </div>
+
+            <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 px-6 py-4 border-t border-gray-100">
+              <button
+                onClick={closeModal}
+                className="px-4 py-2 text-sm font-semibold text-gray-700 rounded-lg hover:bg-gray-100 transition"
+              >
+                Fechar
+              </button>
+              {(selectedReturn.status === "PENDING" || selectedReturn.status === "AWAITING_RETURN") && (
+                <button
+                  onClick={() => handleDecision("REJECTED")}
+                  disabled={processingId === selectedReturn.id}
+                  className="px-4 py-2 text-sm font-semibold text-red-700 border border-red-200 rounded-lg hover:bg-red-50 disabled:opacity-60 flex items-center justify-center gap-2 transition"
+                >
+                  {processingId === selectedReturn.id ? <Loader2 size={16} className="animate-spin" /> : <X size={16} />}
+                  Recusar
+                </button>
+              )}
+              {selectedReturn.status === "AWAITING_RETURN" && (
+                <button
+                  onClick={() => handleDecision("APPROVED")}
+                  disabled={processingId === selectedReturn.id}
+                  className="px-4 py-2 text-sm font-semibold text-white bg-brand rounded-lg hover:opacity-90 disabled:opacity-60 flex items-center justify-center gap-2 transition"
+                >
+                  {processingId === selectedReturn.id ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
+                  Aprovar e estornar
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}
