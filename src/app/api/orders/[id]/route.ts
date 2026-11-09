@@ -40,7 +40,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   // Verificar se há devoluções em andamento ou processadas quando tentando cancelar
   if (status === "CANCELLED") {
     const existingReturns = await prisma.return.findMany({
-      where: { orderId: id, status: { in: ["PENDING", "APPROVED", "REJECTED"] } },
+      where: { orderId: id, status: { in: ["PENDING", "AWAITING_RETURN", "APPROVED", "REJECTED"] } },
     });
 
     if (existingReturns.length > 0) {

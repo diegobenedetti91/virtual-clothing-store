@@ -22,15 +22,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Pedido não encontrado" }, { status: 404 });
     }
 
-    // Verificar se há devoluções aprovadas
+    // Verificar se há devoluções em andamento ou aprovadas (o cancelamento estornaria o pedido inteiro)
     const approvedReturns = await prisma.return.findMany({
-      where: { orderId: order.id, status: "APPROVED" },
+      where: { orderId: order.id, status: { in: ["PENDING", "AWAITING_RETURN", "APPROVED"] } },
     });
 
     if (approvedReturns.length > 0) {
       return NextResponse.json(
         {
-          error: "Pedido com devolução aprovada não pode ser cancelado. Verifique o status das devoluções.",
+          error: "Pedido com devolução em andamento ou aprovada não pode ser cancelado. Resolva a devolução primeiro.",
           hasApprovedReturns: true
         },
         { status: 400 }
