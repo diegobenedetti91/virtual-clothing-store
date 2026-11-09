@@ -64,7 +64,7 @@ async function applyBrandColors(html: string): Promise<string> {
     .replace(new RegExp(DEFAULT_PRIMARY_LIGHT, "gi"), primary === DEFAULT_PRIMARY ? DEFAULT_PRIMARY_LIGHT : mixHex(primary, 0.92));
 }
 
-async function sendMail(options: nodemailer.SendMailOptions) {
+async function sendMail(options: Parameters<typeof transporter.sendMail>[0]) {
   const html = typeof options.html === "string" ? await applyBrandColors(options.html) : options.html;
   return transporter.sendMail({ ...options, html });
 }
