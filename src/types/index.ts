@@ -148,6 +148,10 @@ export interface CompanySettings {
   fretePesoDefaultGramas: number;
   melhorEnvioToken?: string | null;
   melhorEnvioApiToken?: string | null;
+  melhorEnvioWebhookSecret?: string | null;
+  metaPixelId?: string | null;
+  metaCapiAccessToken?: string | null;
+  metaTestEventCode?: string | null;
   fretePacoteAltura: number;
   fretePacoteLargura: number;
   fretePacoteComprimento: number;
@@ -160,6 +164,7 @@ export interface CompanySettings {
   infinityPayAtivo?: boolean;
   infinityPayHandle?: string | null;
   infinityPayApiKey?: string | null;
+  infinityPayConfigured?: boolean;
   whatsappAtivo?: boolean;
   pixDiscountEnabled?: boolean;
   pixDiscountPercent?: number;

@@ -2,19 +2,28 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCustomerFromRequest } from "@/lib/customerAuth";
 
+// Abandoned-cart snapshot used by the reminder e-mail cron. Only the logged-in
+// customer's own cart is saved/cleared: accepting an arbitrary e-mail let anyone
+// make the store send attacker-written e-mails to any address, or wipe other carts.
+
+const MAX_ITEMS = 50;
+
 export async function POST(req: NextRequest) {
   const customer = getCustomerFromRequest(req);
-  const { email, cartItems } = await req.json();
+  if (!customer) return NextResponse.json({ ok: true });
 
-  const resolvedEmail = customer?.email || email?.trim();
-  if (!resolvedEmail || !cartItems?.length) {
+  const { cartItems } = await req.json().catch(() => ({}));
+  if (!Array.isArray(cartItems) || cartItems.length === 0 || cartItems.length > MAX_ITEMS) {
     return NextResponse.json({ ok: true });
   }
 
+  const serialized = JSON.stringify(cartItems);
+  if (serialized.length > 50_000) return NextResponse.json({ error: "Carrinho muito grande" }, { status: 400 });
+
   await prisma.abandonedCart.upsert({
-    where: { email: resolvedEmail },
-    update: { cartItems: JSON.stringify(cartItems), reminderSent: false, customerId: customer?.id || null },
-    create: { email: resolvedEmail, cartItems: JSON.stringify(cartItems), customerId: customer?.id || null },
+    where: { email: customer.email },
+    update: { cartItems: serialized, reminderSent: false, customerId: customer.id },
+    create: { email: customer.email, cartItems: serialized, customerId: customer.id },
   });
 
   return NextResponse.json({ ok: true });
@@ -22,10 +31,8 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   const customer = getCustomerFromRequest(req);
-  const { searchParams } = new URL(req.url);
-  const email = searchParams.get("email") || customer?.email;
-  if (!email) return NextResponse.json({ ok: true });
+  if (!customer) return NextResponse.json({ ok: true });
 
-  await prisma.abandonedCart.deleteMany({ where: { email } });
+  await prisma.abandonedCart.deleteMany({ where: { email: customer.email } });
   return NextResponse.json({ ok: true });
 }

@@ -8,9 +8,11 @@ import { formatCurrency } from "@/lib/utils";
 import { CompanySettings } from "@/types";
 import { useCart } from "@/hooks/useCart";
 import { useCustomer } from "@/hooks/useCustomer";
+import { metaTrack } from "@/lib/metaPixel";
 
 interface OrderItem {
   id: string;
+  productId: string;
   quantity: number;
   price: number;
   size?: string | null;
@@ -19,7 +21,9 @@ interface OrderItem {
 }
 
 interface Order {
+  id: string;
   orderNumber: string;
+  status: string;
   customerName: string;
   customerPhone: string;
   customerEmail?: string | null;
@@ -97,15 +101,37 @@ export default function CheckoutSucessoPage() {
   useEffect(() => {
     if (!orderNumber) { setLoading(false); return; }
     Promise.all([
-      fetch(`/api/orders?search=${encodeURIComponent(orderNumber)}`).then((r) => r.json()),
+      fetch(`/api/orders/by-number/${encodeURIComponent(orderNumber)}`).then((r) => (r.ok ? r.json() : null)),
       fetch("/api/settings").then((r) => r.json()),
-    ]).then(([ordersData, settingsData]) => {
-      const found = Array.isArray(ordersData) ? ordersData[0] : null;
-      setOrder(found || null);
+    ]).then(([orderData, settingsData]) => {
+      setOrder(orderData || null);
       setSettings(settingsData);
       setLoading(false);
     }).catch(() => setLoading(false));
   }, [orderNumber]);
+
+  // Meta Pixel Purchase. Same event_id as the Conversions API event sent by the
+  // payment webhook (purchase_<order.id>), so Meta counts it only once.
+  useEffect(() => {
+    if (!order || order.status === "CANCELLED") return;
+    const key = `meta_purchase_${order.id}`;
+    try {
+      if (localStorage.getItem(key)) return;
+      localStorage.setItem(key, "1");
+    } catch {}
+    metaTrack(
+      "Purchase",
+      {
+        value: order.total,
+        order_id: order.orderNumber,
+        content_type: "product",
+        content_ids: [...new Set(order.items.map((i) => i.productId))],
+        contents: order.items.map((i) => ({ id: i.productId, quantity: i.quantity, item_price: i.price })),
+        num_items: order.items.reduce((sum, i) => sum + i.quantity, 0),
+      },
+      { eventId: `purchase_${order.id}`, mirror: false }
+    );
+  }, [order]);
 
   useEffect(() => {
     if (!order || !settings || hasSent.current) return;

@@ -104,3 +104,41 @@ export async function restoreOrderStock(items: OrderItemLike[]): Promise<void> {
 
   console.log("[RESTORE] ✓ Stock restoration completed");
 }
+
+/**
+ * Stock lifecycle of an order. Stock is taken once, when the payment is confirmed
+ * (gateway webhook or admin confirming a WhatsApp order), and given back only if
+ * it was taken. `Order.stockDecrementedAt` is the flag, claimed atomically, so
+ * webhook retries, double clicks and cancel + refund paths can never apply twice.
+ */
+export async function commitOrderStock(orderId: string): Promise<void> {
+  const claimed = await prisma.order.updateMany({
+    where: { id: orderId, stockDecrementedAt: null },
+    data: { stockDecrementedAt: new Date() },
+  });
+  if (claimed.count === 0) return;
+
+  const items = await prisma.orderItem.findMany({ where: { orderId } });
+  try {
+    await decrementOrderStock(items);
+  } catch (err) {
+    await prisma.order.update({ where: { id: orderId }, data: { stockDecrementedAt: null } }).catch(() => {});
+    throw err;
+  }
+}
+
+export async function releaseOrderStock(orderId: string): Promise<void> {
+  const claimed = await prisma.order.updateMany({
+    where: { id: orderId, stockDecrementedAt: { not: null } },
+    data: { stockDecrementedAt: null },
+  });
+  if (claimed.count === 0) return;
+
+  const items = await prisma.orderItem.findMany({ where: { orderId } });
+  try {
+    await restoreOrderStock(items);
+  } catch (err) {
+    await prisma.order.update({ where: { id: orderId }, data: { stockDecrementedAt: new Date() } }).catch(() => {});
+    throw err;
+  }
+}

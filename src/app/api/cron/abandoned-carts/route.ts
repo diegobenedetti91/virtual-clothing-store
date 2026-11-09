@@ -4,6 +4,10 @@ import { sendEmail } from "@/lib/email";
 
 const CRON_SECRET = process.env.CRON_SECRET;
 
+function esc(value: unknown): string {
+  return String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
 export async function POST(req: NextRequest) {
   const auth = req.headers.get("authorization");
 
@@ -33,7 +37,7 @@ export async function POST(req: NextRequest) {
         const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
         const itemsHtml = items
-          .map((item) => `<li>${item.name} (x${item.quantity}) - R$ ${item.price.toFixed(2)}</li>`)
+          .map((item) => `<li>${esc(item.name)} (x${Number(item.quantity) || 0}) - R$ ${(Number(item.price) || 0).toFixed(2)}</li>`)
           .join("");
 
         const html = `
@@ -74,7 +78,6 @@ export async function POST(req: NextRequest) {
     console.error("[CRON] Abandoned carts cron error:", error);
     return NextResponse.json({
       error: "Failed to process abandoned carts",
-      details: String(error),
     }, { status: 500 });
   }
 }

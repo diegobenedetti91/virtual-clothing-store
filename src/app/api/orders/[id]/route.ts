@@ -1,20 +1,35 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendOrderStatusEmail, sendShippingEmail } from "@/lib/email";
-import { restoreOrderStock } from "@/lib/stockUtils";
+import { commitOrderStock, releaseOrderStock } from "@/lib/stockUtils";
 import { refundPayment } from "@/lib/refundUtils";
+import { auth } from "@/lib/auth";
+import { getCustomerFromRequest } from "@/lib/customerAuth";
 
-export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const order = await prisma.order.findUnique({
     where: { id },
     include: { items: { include: { product: true } } },
   });
   if (!order) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  // Admin, or the customer who placed the order
+  const customer = getCustomerFromRequest(req);
+  const isOwner =
+    !!customer &&
+    (order.customerId === customer.id ||
+      (!!order.customerEmail && order.customerEmail.toLowerCase() === customer.email.toLowerCase()));
+  if (!isOwner && !(await auth())) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
   return NextResponse.json(order);
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const session = await auth();
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const { id } = await params;
   const { status, cancelReason, trackingCode, shippingProof } = await req.json();
 
@@ -62,9 +77,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     include: { items: { include: { product: true } }, customer: true },
   });
 
+  // Admin confirming an order paid outside the gateways (e.g. WhatsApp): take stock now
+  if (status === "CONFIRMED") {
+    await commitOrderStock(id).catch(console.error);
+  }
+
   if (status === "CANCELLED" && current && current.status !== "CANCELLED") {
-    // Restore stock
-    await restoreOrderStock(current.items).catch(console.error);
+    // Restore stock (no-op if it was never taken)
+    await releaseOrderStock(id).catch(console.error);
 
     // Process refund if payment was confirmed (check current status before update)
     if (current.status === "CONFIRMED" && order.paymentGateway && order.paymentId) {

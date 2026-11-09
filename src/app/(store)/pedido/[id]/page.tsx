@@ -18,7 +18,7 @@ export default function OrderConfirmationPage() {
 
   useEffect(() => {
     fetch(`/api/orders/${id}`)
-      .then((r) => r.json())
+      .then((r) => (r.ok ? r.json() : null))
       .then((data) => setOrder(data))
       .finally(() => setLoading(false));
   }, [id]);

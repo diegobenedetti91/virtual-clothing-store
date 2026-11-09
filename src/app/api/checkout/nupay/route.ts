@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { decrementOrderStock } from "@/lib/stockUtils";
+import { webhookToken } from "@/lib/webhookToken";
+import { validateCheckout } from "@/lib/checkoutValidation";
+import { getMetaOrderContext } from "@/lib/metaCapi";
 import { generateOrderNumber } from "@/lib/utils";
 
 // NuPay for Business API base URL
@@ -27,11 +29,15 @@ async function getNuPayToken(clientId: string, clientSecret: string): Promise<st
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { customerName, customerEmail, customerPhone, address, city, state, zipCode, notes, customerId, items, shippingCost, shippingMethod, discountAmount = 0, pixOnly = false } = body;
+  const { customerName, customerEmail, customerPhone, address, city, state, zipCode, notes, items: rawItems, shippingMethod, pixOnly = false } = body;
 
-  if (!customerName || !customerPhone || !items?.length) {
+  if (!customerName || !customerPhone) {
     return NextResponse.json({ error: "Dados incompletos" }, { status: 400 });
   }
+
+  const checked = await validateCheckout(req, { items: rawItems, zipCode, shippingMethod, pixOnly });
+  if ("error" in checked) return NextResponse.json({ error: checked.error }, { status: 400 });
+  const { items, productMap, subtotal, shippingCost, discountAmount, customerId } = checked;
 
   const settings = await prisma.companySettings.findFirst({ orderBy: { updatedAt: "desc" } });
   const clientId = settings?.nuPayClientId;
@@ -41,10 +47,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "NuPay não configurado" }, { status: 400 });
   }
 
-  // Fetch product prices from DB (never trust client-side price)
-  const productIds = items.map((i: { productId: string }) => i.productId);
-  const products = await prisma.product.findMany({ where: { id: { in: productIds } } });
-  const productMap = new Map(products.map((p) => [p.id, p]));
 
   type CartItem = {
     productId: string;
@@ -66,11 +68,7 @@ export async function POST(req: NextRequest) {
     };
   });
 
-  const subtotal = orderItems.reduce(
-    (s: number, i: { unitPrice: number; quantity: number }) => s + i.unitPrice * i.quantity,
-    0
-  );
-  const total = subtotal + (shippingCost || 0) - (discountAmount || 0);
+  const total = subtotal + shippingCost - discountAmount;
   const orderNumber = generateOrderNumber();
   const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
 
@@ -100,7 +98,7 @@ export async function POST(req: NextRequest) {
     })),
     returnUrl: `${baseUrl}/checkout/sucesso?order=${orderNumber}`,
     cancelUrl: `${baseUrl}/checkout/falha?order=${orderNumber}`,
-    notificationUrl: `${baseUrl}/api/checkout/nupay/webhook`,
+    notificationUrl: `${baseUrl}/api/checkout/nupay/webhook?token=${webhookToken(orderNumber)}`,
     // Force PIX-only if discount was applied
     ...(pixOnly ? {
       paymentMethod: "pix",
@@ -155,6 +153,7 @@ export async function POST(req: NextRequest) {
       total,
       status: "PENDING",
       paymentMethod: "NuPay",
+      ...getMetaOrderContext(req),
       items: {
         create: (items as CartItem[]).map((item) => ({
           productId: item.productId,
@@ -170,19 +169,7 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  // Decrement stock
-  try {
-    const itemsForStock = items.map((item: any) => ({
-      productId: item.productId,
-      quantity: item.quantity,
-      size: item.size,
-      color: item.color,
-      selectedAttributes: item.selectedAttributes ? JSON.stringify(item.selectedAttributes) : null,
-    }));
-    await decrementOrderStock(itemsForStock);
-  } catch (err) {
-    console.error("Error decrementing stock:", err);
-  }
+  // Stock is taken only when the payment is confirmed (webhook -> commitOrderStock)
   
   return NextResponse.json({ paymentUrl, orderNumber });
 }

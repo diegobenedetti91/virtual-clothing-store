@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/adminAuth";
+import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { slugify } from "@/lib/utils";
 
@@ -9,10 +11,16 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
     include: { category: true, navItems: { select: { id: true, label: true } } },
   });
   if (!product) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  return NextResponse.json(product);
+  if ((await auth())?.user) return NextResponse.json(product);
+  if (!product.active) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const { costPrice: _cost, ...publicProduct } = product;
+  return NextResponse.json(publicProduct);
 }
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
   const { id } = await params;
   const body = await req.json();
   const { name, description, price, comparePrice, costPrice, pesoGramas, embalagemId, blingProdutoId, images, categoryId, attributes, stock, variantStock, active, featured, navItemIds } = body;
@@ -57,6 +65,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 }
 
 export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
   const { id } = await params;
   await prisma.product.delete({ where: { id } });
   return NextResponse.json({ success: true });

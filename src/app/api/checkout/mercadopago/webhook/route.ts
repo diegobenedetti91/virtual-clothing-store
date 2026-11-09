@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendOrderStatusEmail, sendOrderConfirmationEmail, sendNewOrderNotificationEmail } from "@/lib/email";
-import { decrementOrderStock } from "@/lib/stockUtils";
+import { commitOrderStock, releaseOrderStock } from "@/lib/stockUtils";
 import { createAutomaticShipment } from "@/lib/shipmentUtils";
-import { track } from "@/lib/analytics";
+import { trackServer } from "@/lib/analyticsServer";
+import { sendMetaPurchase } from "@/lib/metaCapi";
 import { integrarPedidoBling } from "@/lib/blingService";
 
 // Exempt from all protections - webhook from external service
@@ -15,7 +16,6 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => ({}));
     const { type, data } = body;
 
-    console.log("[MP WEBHOOK] Full body:", JSON.stringify(body, null, 2));
     console.log("[MP WEBHOOK] Type:", type);
     console.log("[MP WEBHOOK] Data:", data);
 
@@ -110,17 +110,15 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    // Payment cancelled/refunded: give back stock if it had been taken
+    if (newStatus === "CANCELLED") {
+      await releaseOrderStock(order.id).catch(console.error);
+    }
+
     // Decrement stock when payment is confirmed
     if (newStatus === "CONFIRMED") {
       console.log("[MP WEBHOOK] Decrementing stock for order:", orderNumber);
-      const itemsForStock = order.items.map((item) => ({
-        productId: item.productId,
-        quantity: item.quantity,
-        size: item.size,
-        color: item.color,
-        selectedAttributes: item.selectedAttributes,
-      }));
-      await decrementOrderStock(itemsForStock).catch(console.error);
+      await commitOrderStock(order.id).catch(console.error);
 
       // Integrate with Bling if enabled
       if (settings?.blingAtivo) {
@@ -148,7 +146,7 @@ export async function POST(req: NextRequest) {
 
       // Track order completion
       try {
-        await track("ORDER_COMPLETE", {
+        await trackServer("ORDER_COMPLETE", {
           orderId: order.id,
           customerId: order.customerId,
           value: order.total,
@@ -156,6 +154,9 @@ export async function POST(req: NextRequest) {
       } catch (err) {
         console.error("[MP WEBHOOK] Failed to track order:", err);
       }
+
+      // Meta Conversions API: Purchase (deduplicated with the browser pixel by event_id)
+      await sendMetaPurchase(order.id).catch((err) => console.error("[MP WEBHOOK] Meta purchase failed:", err));
     }
 
     const emailTarget = order.customerEmail;

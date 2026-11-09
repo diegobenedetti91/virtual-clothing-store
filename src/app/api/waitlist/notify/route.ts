@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/adminAuth";
 import { prisma } from "@/lib/prisma";
 import { getCompanySettings } from "@/lib/company";
 import { sendWaitlistNotificationEmail } from "@/lib/email";
 
 export async function POST(req: NextRequest) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
   const { productId, variantKey } = await req.json();
 
   if (!productId) {

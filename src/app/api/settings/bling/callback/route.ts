@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/adminAuth";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(req: NextRequest) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
   try {
     const { searchParams } = new URL(req.url);
     const code = searchParams.get("code");
@@ -10,6 +14,13 @@ export async function GET(req: NextRequest) {
     if (!code || !state) {
       return NextResponse.redirect(
         `${req.nextUrl.origin}/admin/menu?bling=error&reason=missing_params`
+      );
+    }
+
+    const expectedState = req.cookies.get("bling_oauth_state")?.value;
+    if (!expectedState || expectedState !== state) {
+      return NextResponse.redirect(
+        `${req.nextUrl.origin}/admin/menu?bling=error&reason=invalid_state`
       );
     }
 

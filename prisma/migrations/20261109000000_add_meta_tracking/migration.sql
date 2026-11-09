@@ -1,0 +1,7 @@
+-- AlterTable
+ALTER TABLE `Order` ADD COLUMN `metaConsent` BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN `metaFbp` VARCHAR(191) NULL,
+ADD COLUMN `metaFbc` TEXT NULL,
+ADD COLUMN `clientIp` VARCHAR(191) NULL,
+ADD COLUMN `clientUserAgent` TEXT NULL,
+ADD COLUMN `metaPurchaseSentAt` DATETIME(3) NULL;

@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/adminAuth";
+import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { slugify } from "@/lib/utils";
 import { sincronizarProdutoComBling } from "@/lib/blingSync";
@@ -8,7 +10,8 @@ export async function GET(req: NextRequest) {
   const categorySlug = searchParams.get("category");
   const featured = searchParams.get("featured");
   const search = searchParams.get("search");
-  const adminView = searchParams.get("admin");
+  const isAdmin = !!(await auth())?.user;
+  const adminView = isAdmin && searchParams.get("admin");
   const menuId = searchParams.get("menu");
 
   const where: Record<string, unknown> = {};
@@ -29,10 +32,14 @@ export async function GET(req: NextRequest) {
     orderBy: { createdAt: "desc" },
   });
 
-  return NextResponse.json(products);
+  // costPrice (purchase cost / margin) is admin-only information
+  return NextResponse.json(isAdmin ? products : products.map(({ costPrice: _cost, ...p }) => p));
 }
 
 export async function POST(req: NextRequest) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
   const body = await req.json();
   const { name, description, price, comparePrice, costPrice, pesoGramas, embalagemId, blingProdutoId, images, categoryId, attributes, stock, variantStock, active, featured, navItemIds } = body;
 

@@ -2,6 +2,17 @@ import nodemailer from "nodemailer";
 import path from "path";
 import { prisma } from "@/lib/prisma";
 
+// User-controlled text (names, reasons, notes) must never be injected as raw HTML
+// into e-mails sent from the store's own address.
+function esc(value: unknown): string {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 const port = Number(process.env.SMTP_PORT) || 587;
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || "smtp.gmail.com",
@@ -104,7 +115,7 @@ export async function sendOrderConfirmationEmail({
   if (!process.env.SMTP_USER) return;
 
   const itemsHtml = items
-    .map((i) => `<tr><td style="padding:6px 0;color:#444;">${i.name}</td><td style="padding:6px 0;color:#888;text-align:center;">${i.quantity}×</td><td style="padding:6px 0;font-weight:600;color:#111;text-align:right;">R$ ${(i.price * i.quantity).toFixed(2).replace(".", ",")}</td></tr>`)
+    .map((i) => `<tr><td style="padding:6px 0;color:#444;">${esc(i.name)}</td><td style="padding:6px 0;color:#888;text-align:center;">${i.quantity}×</td><td style="padding:6px 0;font-weight:600;color:#111;text-align:right;">R$ ${(i.price * i.quantity).toFixed(2).replace(".", ",")}</td></tr>`)
     .join("");
 
   const nextStep = isGateway
@@ -113,7 +124,7 @@ export async function sendOrderConfirmationEmail({
 
   const html = baseWrapper(`
     <h2 style="color:#ec4899;margin:0 0 4px;">Pedido realizado!</h2>
-    <p style="color:#555;margin:0 0 20px;">Olá, <strong>${customerName}</strong>! Recebemos seu pedido com sucesso.</p>
+    <p style="color:#555;margin:0 0 20px;">Olá, <strong>${esc(customerName)}</strong>! Recebemos seu pedido com sucesso.</p>
 
     <div style="background:#fdf2f8;border-radius:10px;padding:16px 20px;margin-bottom:20px;">
       <p style="margin:0 0 4px;font-size:12px;color:#888;">Número do pedido</p>
@@ -146,14 +157,14 @@ export async function sendShippingEmail({
 
   const html = baseWrapper(`
     <h2 style="color:#ec4899;margin:0 0 8px;">Seu pedido foi enviado!</h2>
-    <p style="color:#555;margin:0 0 20px;">Olá, <strong>${customerName}</strong>! Seu pedido foi despachado.</p>
+    <p style="color:#555;margin:0 0 20px;">Olá, <strong>${esc(customerName)}</strong>! Seu pedido foi despachado.</p>
 
     <div style="background:#fdf2f8;border-radius:10px;padding:16px 24px;margin-bottom:20px;text-align:center;">
       <p style="margin:0 0 4px;font-size:12px;color:#888;">Pedido</p>
       <p style="margin:0 0 12px;font-weight:700;font-size:18px;color:#be185d;">${orderNumber}</p>
       ${trackingCode ? `
         <p style="margin:0 0 4px;font-size:12px;color:#888;">Código de rastreio</p>
-        <p style="margin:0;font-weight:700;font-size:22px;color:#111;letter-spacing:2px;">${trackingCode}</p>
+        <p style="margin:0;font-weight:700;font-size:22px;color:#111;letter-spacing:2px;">${esc(trackingCode)}</p>
         <a href="https://www.correios.com.br/rastreamento/#/home" style="display:inline-block;margin-top:10px;font-size:12px;color:#ec4899;">Rastrear nos Correios →</a>
       ` : ""}
     </div>
@@ -194,14 +205,14 @@ export async function sendWaitlistNotificationEmail({
   const html = baseWrapper(`
     <h2 style="color:#ec4899;margin:0 0 8px;">Produto disponível!</h2>
     <p style="color:#555;margin:0 0 20px;">
-      ${customerName ? `Olá, <strong>${customerName}</strong>! ` : ""}
+      ${customerName ? `Olá, <strong>${esc(customerName)}</strong>! ` : ""}
       O produto que você estava aguardando voltou ao estoque.
     </p>
 
     <div style="background:#fdf2f8;border-radius:10px;padding:16px 20px;margin-bottom:20px;">
       <p style="margin:0 0 4px;font-size:12px;color:#888;">Produto</p>
-      <p style="margin:0;font-weight:700;font-size:18px;color:#be185d;">${productName}</p>
-      ${variantLabel ? `<p style="margin:6px 0 0;font-size:13px;color:#555;">Variação: <strong>${variantLabel}</strong></p>` : ""}
+      <p style="margin:0;font-weight:700;font-size:18px;color:#be185d;">${esc(productName)}</p>
+      ${variantLabel ? `<p style="margin:6px 0 0;font-size:13px;color:#555;">Variação: <strong>${esc(variantLabel)}</strong></p>` : ""}
     </div>
 
     <div style="text-align:center;margin-top:20px;">
@@ -231,7 +242,7 @@ export async function sendOrderStatusEmail({
 
   const html = baseWrapper(`
     <h2 style="color:#ec4899;margin:0 0 8px;">Atualização do pedido</h2>
-    <p style="color:#555;margin:0 0 24px;">Olá, <strong>${customerName}</strong>! Há uma novidade no seu pedido.</p>
+    <p style="color:#555;margin:0 0 24px;">Olá, <strong>${esc(customerName)}</strong>! Há uma novidade no seu pedido.</p>
 
     <div style="background:#fdf2f8;border-radius:10px;padding:20px 24px;margin-bottom:20px;text-align:center;">
       <p style="margin:0 0 4px;font-size:13px;color:#888;">Pedido</p>
@@ -240,7 +251,7 @@ export async function sendOrderStatusEmail({
       <p style="margin:0;font-weight:700;font-size:20px;color:#111;">${statusLabel}</p>
     </div>
 
-    ${cancelReason ? `<p style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:12px 16px;color:#991b1b;font-size:13px;margin:0;"><strong>Motivo do cancelamento:</strong> ${cancelReason}</p>` : ""}
+    ${cancelReason ? `<p style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:12px 16px;color:#991b1b;font-size:13px;margin:0;"><strong>Motivo do cancelamento:</strong> ${esc(cancelReason)}</p>` : ""}
   `, storeName);
 
   await sendMail({
@@ -261,7 +272,7 @@ export async function sendNewOrderNotificationEmail({
   if (!process.env.SMTP_USER) return;
 
   const itemsHtml = items
-    .map((i) => `<tr><td style="padding:6px 0;color:#444;">${i.name}</td><td style="padding:6px 0;color:#888;text-align:center;">${i.quantity}×</td><td style="padding:6px 0;font-weight:600;color:#111;text-align:right;">R$ ${(i.price * i.quantity).toFixed(2).replace(".", ",")}</td></tr>`)
+    .map((i) => `<tr><td style="padding:6px 0;color:#444;">${esc(i.name)}</td><td style="padding:6px 0;color:#888;text-align:center;">${i.quantity}×</td><td style="padding:6px 0;font-weight:600;color:#111;text-align:right;">R$ ${(i.price * i.quantity).toFixed(2).replace(".", ",")}</td></tr>`)
     .join("");
 
   const html = baseWrapper(`
@@ -274,9 +285,9 @@ export async function sendNewOrderNotificationEmail({
     </div>
 
     <div style="background:#f9fafb;border-radius:8px;padding:12px 16px;margin-bottom:20px;font-size:13px;">
-      <p style="margin:0 0 8px;"><strong>👤 Cliente:</strong> ${customerName}</p>
-      ${customerEmail ? `<p style="margin:0 0 8px;"><strong>📧 Email:</strong> ${customerEmail}</p>` : ""}
-      <p style="margin:0;"><strong>📱 Telefone:</strong> ${customerPhone}</p>
+      <p style="margin:0 0 8px;"><strong>👤 Cliente:</strong> ${esc(customerName)}</p>
+      ${customerEmail ? `<p style="margin:0 0 8px;"><strong>📧 Email:</strong> ${esc(customerEmail)}</p>` : ""}
+      <p style="margin:0;"><strong>📱 Telefone:</strong> ${esc(customerPhone)}</p>
     </div>
 
     <table style="width:100%;border-collapse:collapse;margin-bottom:12px;">${itemsHtml}</table>
@@ -307,11 +318,11 @@ export async function sendShippingConfirmationEmail({
 
   const html = baseWrapper(`
     <h2 style="color:#ec4899;margin:0 0 8px;">Seu pedido foi enviado! 📦</h2>
-    <p style="color:#555;margin:0 0 20px;">Olá, <strong>${customerName}</strong>! Seu pedido foi postado e já pode ser rastreado em tempo real.</p>
+    <p style="color:#555;margin:0 0 20px;">Olá, <strong>${esc(customerName)}</strong>! Seu pedido foi postado e já pode ser rastreado em tempo real.</p>
 
     <div style="background:#fdf2f8;border-radius:10px;padding:20px 24px;margin-bottom:20px;text-align:center;">
       <p style="margin:0 0 6px;font-size:12px;color:#888;text-transform:uppercase;">Código de Rastreamento</p>
-      <p style="margin:0 0 12px;font-weight:700;font-size:24px;color:#be185d;letter-spacing:1px;font-family:monospace;">${trackingCode}</p>
+      <p style="margin:0 0 12px;font-weight:700;font-size:24px;color:#be185d;letter-spacing:1px;font-family:monospace;">${esc(trackingCode)}</p>
       <p style="margin:0 0 4px;font-size:12px;color:#888;text-transform:uppercase;">Pedido</p>
       <p style="margin:0;font-weight:700;font-size:18px;color:#111;">${orderNumber}</p>
     </div>
@@ -358,13 +369,13 @@ export async function sendReturnRequestNotificationEmail({
     </div>
 
     <div style="background:#f9fafb;border-radius:8px;padding:12px 16px;margin-bottom:20px;font-size:13px;">
-      <p style="margin:0 0 8px;"><strong>👤 Cliente:</strong> ${customerName}</p>
-      ${customerEmail ? `<p style="margin:0 0 8px;"><strong>📧 Email:</strong> ${customerEmail}</p>` : ""}
+      <p style="margin:0 0 8px;"><strong>👤 Cliente:</strong> ${esc(customerName)}</p>
+      ${customerEmail ? `<p style="margin:0 0 8px;"><strong>📧 Email:</strong> ${esc(customerEmail)}</p>` : ""}
     </div>
 
     <div style="background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:12px 16px;margin-bottom:20px;color:#856404;font-size:13px;">
       <p style="margin:0 0 4px;"><strong>📝 Motivo da devolução:</strong></p>
-      <p style="margin:0;">${reason}</p>
+      <p style="margin:0;">${esc(reason)}</p>
     </div>
 
     <div style="margin-top:20px;background:#e7f3ff;border:1px solid #b3d9ff;border-radius:8px;padding:12px 16px;color:#004085;font-size:13px;">
@@ -389,7 +400,7 @@ export async function sendReturnRequestConfirmationEmail({
 
   const html = baseWrapper(`
     <h2 style="color:#ec4899;margin:0 0 8px;">Sua solicitação foi recebida! ✅</h2>
-    <p style="color:#555;margin:0 0 20px;">Olá, <strong>${customerName}</strong>! Recebemos sua solicitação de devolução e estamos analisando.</p>
+    <p style="color:#555;margin:0 0 20px;">Olá, <strong>${esc(customerName)}</strong>! Recebemos sua solicitação de devolução e estamos analisando.</p>
 
     <div style="background:#fdf2f8;border-radius:10px;padding:16px 20px;margin-bottom:20px;text-align:center;">
       <p style="margin:0 0 4px;font-size:12px;color:#888;">Pedido</p>
@@ -420,13 +431,13 @@ export async function sendReturnLabelEmail({
 
   const html = baseWrapper(`
     <h2 style="color:#ec4899;margin:0 0 8px;">Sua devolução foi autorizada para postagem 📦</h2>
-    <p style="color:#555;margin:0 0 20px;">Olá, <strong>${customerName}</strong>! Geramos a etiqueta de devolução do seu pedido. Use o código abaixo para postar a mercadoria.</p>
+    <p style="color:#555;margin:0 0 20px;">Olá, <strong>${esc(customerName)}</strong>! Geramos a etiqueta de devolução do seu pedido. Use o código abaixo para postar a mercadoria.</p>
 
     <div style="background:#fdf2f8;border-radius:10px;padding:16px 20px;margin-bottom:20px;text-align:center;">
       <p style="margin:0 0 4px;font-size:12px;color:#888;">Pedido</p>
       <p style="margin:0 0 12px;font-weight:700;font-size:20px;color:#be185d;">${orderNumber}</p>
       <p style="margin:0 0 4px;font-size:12px;color:#888;">Código de postagem</p>
-      <p style="margin:0;font-weight:700;font-size:22px;letter-spacing:1px;color:#111;">${trackingCode}</p>
+      <p style="margin:0;font-weight:700;font-size:22px;letter-spacing:1px;color:#111;">${esc(trackingCode)}</p>
     </div>
 
     <div style="background:#e7f3ff;border:1px solid #b3d9ff;border-radius:8px;padding:12px 16px;color:#004085;font-size:13px;margin-bottom:20px;">
@@ -461,7 +472,7 @@ export async function sendReturnDecisionEmail({
 
   const html = baseWrapper(`
     <h2 style="color:#ec4899;margin:0 0 8px;">Sua devolução foi ${approved ? "aprovada" : "analisada"}!</h2>
-    <p style="color:#555;margin:0 0 20px;">Olá, <strong>${customerName}</strong>! Finalizamos a análise da sua solicitação de devolução.</p>
+    <p style="color:#555;margin:0 0 20px;">Olá, <strong>${esc(customerName)}</strong>! Finalizamos a análise da sua solicitação de devolução.</p>
 
     <div style="background:#fdf2f8;border-radius:10px;padding:16px 20px;margin-bottom:20px;text-align:center;">
       <p style="margin:0 0 4px;font-size:12px;color:#888;">Pedido</p>
@@ -470,7 +481,7 @@ export async function sendReturnDecisionEmail({
 
     <div style="background:${statusBg};border:1px solid ${statusBorder};border-radius:8px;padding:16px;margin-bottom:20px;color:${statusColor};font-size:14px;">
       <p style="margin:0 0 8px;font-weight:700;font-size:16px;">${statusLabel}</p>
-      ${adminNotes ? `<p style="margin:0;">${adminNotes}</p>` : ""}
+      ${adminNotes ? `<p style="margin:0;">${esc(adminNotes)}</p>` : ""}
     </div>
 
     ${approved ? `
@@ -534,7 +545,7 @@ export async function sendEmailStatusChanged({
 
   const html = baseWrapper(`
     <h2 style="color:${statusColor};margin:0 0 8px;">${emoji} ${statusLabel}</h2>
-    <p style="color:#555;margin:0 0 20px;">Olá, <strong>${customerName}</strong>!</p>
+    <p style="color:#555;margin:0 0 20px;">Olá, <strong>${esc(customerName)}</strong>!</p>
 
     <div style="background:#f3f4f6;border-radius:10px;padding:16px 20px;margin-bottom:20px;text-align:center;">
       <p style="margin:0 0 4px;font-size:12px;color:#888;">Pedido</p>
@@ -542,7 +553,7 @@ export async function sendEmailStatusChanged({
     </div>
 
     <div style="background:#f0f9ff;border-left:4px solid ${statusColor};border-radius:4px;padding:16px;margin-bottom:20px;color:#1e3a8a;font-size:15px;">
-      <p style="margin:0;">${message}</p>
+      <p style="margin:0;">${esc(message)}</p>
     </div>
 
     ${newStatus === "in_transit" ? `

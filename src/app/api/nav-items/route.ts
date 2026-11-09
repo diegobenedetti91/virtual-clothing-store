@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/adminAuth";
 import { prisma } from "@/lib/prisma";
 
 export async function GET() {
@@ -10,6 +11,9 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
   const { label, href } = await req.json();
   if (!label) {
     return NextResponse.json({ error: "label obrigatório" }, { status: 400 });

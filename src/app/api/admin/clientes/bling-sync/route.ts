@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/adminAuth";
 import { prisma } from "@/lib/prisma";
 
 async function obterTokenBling(settings: any): Promise<string | null> {
@@ -48,6 +49,9 @@ async function obterTokenBling(settings: any): Promise<string | null> {
 }
 
 export async function POST(req: NextRequest) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
   try {
     const settings = await prisma.companySettings.findFirst();
 

@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { validateCheckout } from "@/lib/checkoutValidation";
+import { auth } from "@/lib/auth";
 import { generateOrderNumber } from "@/lib/utils";
 import { sendOrderConfirmationEmail } from "@/lib/email";
 import { normalizeVariantStock, matchesSelection } from "@/lib/variantUtils";
 
 export async function GET(req: NextRequest) {
+  const session = await auth();
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const { searchParams } = new URL(req.url);
   const status = searchParams.get("status");
   const dateFrom = searchParams.get("dateFrom");
@@ -42,24 +47,17 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { customerName, customerEmail, customerPhone, address, streetNumber, neighborhood, city, state, zipCode, cpfCnpj, items, notes, customerId, shippingCost, shippingMethod } = body;
+  const { customerName, customerEmail, customerPhone, address, streetNumber, neighborhood, city, state, zipCode, cpfCnpj, items: rawItems, notes, shippingMethod } = body;
 
-  type OrderItemInput = {
-    productId: string;
-    quantity: number;
-    price: number;
-    // Legacy
-    size?: string;
-    color?: string;
-    // New
-    selectedAttributes?: Record<string, string>;
-  };
-
-  let subtotal = 0;
-  for (const item of items as OrderItemInput[]) {
-    subtotal += item.price * item.quantity;
+  if (!customerName || !customerPhone) {
+    return NextResponse.json({ error: "Dados incompletos" }, { status: 400 });
   }
-  const shipping = typeof shippingCost === "number" ? shippingCost : 0;
+
+  // Prices, shipping and owner come from the server, never from the request body
+  const checked = await validateCheckout(req, { items: rawItems, zipCode, shippingMethod, pixOnly: false });
+  if ("error" in checked) return NextResponse.json({ error: checked.error }, { status: 400 });
+  const { items, productMap, subtotal, shippingCost: shipping, customerId } = checked;
+
 
   const orderNumber = generateOrderNumber();
 
@@ -87,7 +85,7 @@ export async function POST(req: NextRequest) {
         notes: notes || null,
         customerId: customerId || null,
         items: {
-          create: await Promise.all((items as OrderItemInput[]).map(async (item) => {
+          create: await Promise.all(items.map(async (item) => {
             const prod = await tx.product.findUnique({
               where: { id: item.productId },
               select: { blingProdutoId: true },
@@ -95,7 +93,7 @@ export async function POST(req: NextRequest) {
             return {
               productId: item.productId,
               quantity: item.quantity,
-              price: item.price,
+              price: productMap.get(item.productId)!.price,
               size: item.size || null,
               color: item.color || null,
               selectedAttributes: item.selectedAttributes

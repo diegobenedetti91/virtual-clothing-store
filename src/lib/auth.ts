@@ -3,6 +3,7 @@ import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "./prisma";
 import { authConfig } from "./auth.config";
+import { isRateLimited } from "./rateLimit";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
@@ -17,12 +18,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         try {
           if (!credentials?.email || !credentials?.password) return null;
 
+          // Brute-force protection on the admin login (per account)
+          const emailKey = String(credentials.email).toLowerCase();
+          if (isRateLimited(`admin-login:${emailKey}`, 10, 15 * 60 * 1000)) {
+            console.warn("[auth] too many login attempts");
+            return null;
+          }
+
           const user = await prisma.adminUser.findUnique({
             where: { email: credentials.email as string },
           });
 
           if (!user) {
-            console.error("[auth] user not found:", credentials.email);
+            console.error("[auth] user not found");
             return null;
           }
 
@@ -32,7 +40,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           );
 
           if (!isValid) {
-            console.error("[auth] wrong password for:", credentials.email);
+            console.error("[auth] wrong password");
             return null;
           }
 

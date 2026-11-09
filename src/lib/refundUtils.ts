@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { restoreOrderStock } from "@/lib/stockUtils";
+import { releaseOrderStock } from "@/lib/stockUtils";
 
 export async function refundPayment(orderNumber: string): Promise<{ success: boolean; message: string }> {
   const order = await prisma.order.findUnique({
@@ -34,7 +34,7 @@ export async function refundPayment(orderNumber: string): Promise<{ success: boo
       data: { refundedAt: new Date() },
     });
 
-    await restoreOrderStock(order.items).catch(console.error);
+    await releaseOrderStock(order.id).catch(console.error);
 
     return { success: true, message: "Reembolso processado com sucesso" };
   } catch (error) {

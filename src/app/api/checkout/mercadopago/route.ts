@@ -1,15 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { decrementOrderStock } from "@/lib/stockUtils";
+import { validateCheckout } from "@/lib/checkoutValidation";
+import { getMetaOrderContext } from "@/lib/metaCapi";
 import { generateOrderNumber } from "@/lib/utils";
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { customerName, customerEmail, customerPhone, address, streetNumber, neighborhood, city, state, zipCode, cpfCnpj, notes, customerId, items, shippingCost, shippingMethod, discountAmount = 0, pixOnly = false } = body;
+  const { customerName, customerEmail, customerPhone, address, streetNumber, neighborhood, city, state, zipCode, cpfCnpj, notes, items: rawItems, shippingMethod, pixOnly = false } = body;
 
-  if (!customerName || !customerPhone || !items?.length) {
+  if (!customerName || !customerPhone) {
     return NextResponse.json({ error: "Dados incompletos" }, { status: 400 });
   }
+
+  const checked = await validateCheckout(req, { items: rawItems, zipCode, shippingMethod, pixOnly });
+  if ("error" in checked) return NextResponse.json({ error: checked.error }, { status: 400 });
+  const { items, productMap, subtotal, shippingCost, discountAmount, customerId } = checked;
 
   const settings = await prisma.companySettings.findFirst({ orderBy: { updatedAt: "desc" } });
   const accessToken = settings?.mercadoPagoAccessToken;
@@ -18,10 +23,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Mercado Pago não configurado" }, { status: 400 });
   }
 
-  // Fetch product prices from DB (never trust client-side price)
-  const productIds = items.map((i: { productId: string }) => i.productId);
-  const products = await prisma.product.findMany({ where: { id: { in: productIds } } });
-  const productMap = new Map(products.map((p) => [p.id, p]));
 
   const mpItems = items.map((item: { productId: string; quantity: number; size?: string; color?: string }) => {
     const product = productMap.get(item.productId);
@@ -35,9 +36,7 @@ export async function POST(req: NextRequest) {
     };
   });
 
-  // Calculate subtotal from products only (before adding shipping)
-  const subtotal = mpItems.reduce((s: number, i: { unit_price: number; quantity: number }) => s + i.unit_price * i.quantity, 0);
-  const total = subtotal + (shippingCost || 0) - (discountAmount || 0);
+  const total = subtotal + shippingCost - discountAmount;
 
   // Add shipping as a separate item to display in MP checkout
   // Apply discount to shipping cost if available
@@ -141,9 +140,11 @@ export async function POST(req: NextRequest) {
     console.error("Preference sent:", JSON.stringify(preference, null, 2));
     try {
       const errJson = JSON.parse(err);
-      return NextResponse.json({ error: "Erro ao criar preferência MP", details: errJson }, { status: 500 });
+      console.error("[MP] Preference error:", errJson);
+      return NextResponse.json({ error: "Erro ao criar preferência MP" }, { status: 500 });
     } catch {
-      return NextResponse.json({ error: "Erro ao criar preferência MP", details: err }, { status: 500 });
+      console.error("[MP] Preference error:", err);
+      return NextResponse.json({ error: "Erro ao criar preferência MP" }, { status: 500 });
     }
   }
 
@@ -180,6 +181,7 @@ export async function POST(req: NextRequest) {
       total,
       status: "PENDING",
       paymentMethod: "Mercado Pago",
+      ...getMetaOrderContext(req),
       items: {
         create: (items as CartItem[]).map((item) => ({
           productId: item.productId,
@@ -195,19 +197,7 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  // Decrement stock
-  try {
-    const itemsForStock = items.map((item: any) => ({
-      productId: item.productId,
-      quantity: item.quantity,
-      size: item.size,
-      color: item.color,
-      selectedAttributes: item.selectedAttributes ? JSON.stringify(item.selectedAttributes) : null,
-    }));
-    await decrementOrderStock(itemsForStock);
-  } catch (err) {
-    console.error("Error decrementing stock:", err);
-  }
+  // Stock is taken only when the payment is confirmed (webhook -> commitOrderStock)
 
   return NextResponse.json({
     initPoint: mpData.init_point,

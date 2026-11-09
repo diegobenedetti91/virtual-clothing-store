@@ -41,8 +41,11 @@ export async function GET(
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
-    // Verificar se cliente tem permissão
-    if (payload && order.customerId !== payload.id && order.customerEmail !== payload.email) {
+    // Só o cliente dono do pedido (logado) pode ver o rastreio
+    if (!payload) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (order.customerId !== payload.id && order.customerEmail !== payload.email) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
@@ -63,9 +66,6 @@ export async function GET(
       shipmentStatus: order.shipmentStatus,
       trackingCode: order.trackingCode,
       trackingUrl: order.trackingUrl,
-      etiquetaUrl: order.etiquetaUrl,
-      labelValid: order.labelValid,
-      labelError: order.labelError,
       lastTrackingUpdate: order.lastTrackingUpdate,
       trackingEvents: order.trackingEvents,
       message: getStatusMessage(order.shipmentStatus),

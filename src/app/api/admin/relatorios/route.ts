@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/adminAuth";
 import { prisma } from "@/lib/prisma";
 
 async function calculateTotalRefunded(orderId: string): Promise<number> {
@@ -10,6 +11,9 @@ async function calculateTotalRefunded(orderId: string): Promise<number> {
 }
 
 export async function GET(req: NextRequest) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
   try {
     const { searchParams } = new URL(req.url);
     const dateFrom = searchParams.get("dateFrom");

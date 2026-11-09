@@ -5,6 +5,7 @@ import { persist } from "zustand/middleware";
 import { CartItem } from "@/types";
 import { variantKey } from "@/lib/variantUtils";
 import { track } from "@/lib/analytics";
+import { metaTrack } from "@/lib/metaPixel";
 
 function itemKey(item: Pick<CartItem, "productId" | "selectedAttributes" | "size" | "color">): string {
   if (item.selectedAttributes && Object.keys(item.selectedAttributes).length > 0) {
@@ -30,6 +31,13 @@ export const useCart = create<CartStore>()(
 
       addItem: (item) => {
         track("ADD_TO_CART", { productId: item.productId, value: item.price });
+        metaTrack("AddToCart", {
+          content_ids: [item.productId],
+          content_type: "product",
+          content_name: item.name,
+          contents: [{ id: item.productId, quantity: item.quantity, item_price: item.price }],
+          value: item.price * item.quantity,
+        });
         set((state) => {
           const key = itemKey(item);
           const existing = state.items.find((i) => itemKey(i) === key);

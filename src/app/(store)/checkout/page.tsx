@@ -5,6 +5,7 @@ import { useCart } from "@/hooks/useCart";
 import { useCustomer } from "@/hooks/useCustomer";
 import { formatCurrency, generateOrderNumber } from "@/lib/utils";
 import { track } from "@/lib/analytics";
+import { metaTrack } from "@/lib/metaPixel";
 import { MessageCircle, ShoppingBag, MapPin, CreditCard, Loader2, Truck } from "lucide-react";
 import { attributesLabel } from "@/lib/variantUtils";
 import Link from "next/link";
@@ -55,6 +56,13 @@ export default function CheckoutPage() {
   useEffect(() => {
     if (items.length > 0) {
       track("CHECKOUT_START", { path: "/checkout", value: total() });
+      metaTrack("InitiateCheckout", {
+        content_ids: [...new Set(items.map((i) => i.productId))],
+        content_type: "product",
+        contents: items.map((i) => ({ id: i.productId, quantity: i.quantity, item_price: i.price })),
+        num_items: items.reduce((sum, i) => sum + i.quantity, 0),
+        value: total(),
+      });
     }
   }, []);
 
@@ -138,7 +146,7 @@ export default function CheckoutPage() {
 
   const mpAvailable = !!(settings?.mercadoPagoAtivo && settings?.mercadoPagoPublicKey);
   const nuPayAvailable = !!(settings?.nuPayAtivo && settings?.nuPayClientId);
-  const infinityPayAvailable = !!(settings?.infinityPayAtivo && settings?.infinityPayHandle && settings?.infinityPayApiKey);
+  const infinityPayAvailable = !!(settings?.infinityPayAtivo && settings?.infinityPayHandle && settings?.infinityPayConfigured);
   const whatsappAvailable = settings?.whatsappAtivo;
   const pixDiscount = settings?.pixDiscountPercent ?? 0;
   const pixDiscountAvailable = settings?.pixDiscountEnabled && pixDiscount > 0;

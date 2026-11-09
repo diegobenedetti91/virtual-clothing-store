@@ -38,18 +38,25 @@ export async function POST(req: NextRequest) {
   try {
     const rawBody = await req.text();
 
-    const secret = process.env.MELHOR_ENVIO_WEBHOOK_SECRET;
+    // Secret configured in the admin settings (env var kept as fallback)
+    const meSettings = await prisma.companySettings.findFirst({
+      orderBy: { updatedAt: "desc" },
+      select: { melhorEnvioWebhookSecret: true },
+    });
+    const secret = meSettings?.melhorEnvioWebhookSecret || process.env.MELHOR_ENVIO_WEBHOOK_SECRET;
     if (secret) {
       if (!isValidSignature(rawBody, req.headers.get("x-me-signature"), secret)) {
         console.warn("[MELHOR ENVIO WEBHOOK] Invalid signature, rejecting request");
         return NextResponse.json({ success: false, error: "Invalid signature" }, { status: 401 });
       }
-    } else {
-      console.warn("[MELHOR ENVIO WEBHOOK] MELHOR_ENVIO_WEBHOOK_SECRET not set, skipping signature check");
+    } else if (process.env.NODE_ENV === "production") {
+      // Fail closed: without the secret anyone could fake tracking events
+      // (and trigger "shipped/delivered" e-mails). The update-tracking cron keeps polling meanwhile.
+      console.error("[MELHOR ENVIO WEBHOOK] Webhook secret not configured in admin settings, rejecting request");
+      return NextResponse.json({ success: false, error: "Webhook not configured" }, { status: 401 });
     }
 
     const body = JSON.parse(rawBody);
-    console.log("[MELHOR ENVIO WEBHOOK] Received:", JSON.stringify(body, null, 2));
 
     const events: RawEvent[] = Array.isArray(body) ? body : [body];
     const settings = await prisma.companySettings.findFirst({ orderBy: { updatedAt: "desc" }, select: { name: true } });
@@ -62,7 +69,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, processed: events.length });
   } catch (error) {
     console.error("[MELHOR ENVIO WEBHOOK] Error:", error);
-    return NextResponse.json({ success: false, error: String(error) }, { status: 500 });
+    return NextResponse.json({ success: false, error: "Erro ao processar webhook" }, { status: 500 });
   }
 }
 

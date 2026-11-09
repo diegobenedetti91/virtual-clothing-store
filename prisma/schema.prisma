@@ -151,6 +151,7 @@ model Order {
   refundedAt       DateTime?
   returnStatus     String?       // PARTIAL_RETURN, FULL_RETURN
   reviewEmailSentAt DateTime?
+  stockDecrementedAt DateTime?   // set when stock was taken for this order (see commitOrderStock)
   upsellEmailSentAt DateTime?
 
   // Melhor Envio integration
@@ -174,6 +175,15 @@ model Order {
   blingPedidoId            String?
   blingIntegrationStatus   String?       @default("pending")
   blingIntegratedAt        DateTime?
+
+  // Meta Ads (Pixel + Conversions API): browser context captured at checkout,
+  // only when the buyer accepted marketing cookies (LGPD)
+  metaConsent              Boolean       @default(false)
+  metaFbp                  String?
+  metaFbc                  String?       @db.Text
+  clientIp                 String?
+  clientUserAgent          String?       @db.Text
+  metaPurchaseSentAt       DateTime?
 
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
@@ -236,6 +246,10 @@ model CompanySettings {
   fretePesoDefaultGramas Int      @default(500)
   melhorEnvioToken       String?  @db.Text
   melhorEnvioApiToken    String?  @db.Text
+  melhorEnvioWebhookSecret String? @db.Text
+  metaPixelId            String?
+  metaCapiAccessToken    String?  @db.Text
+  metaTestEventCode      String?
   fretePacoteAltura      Int      @default(5)
   fretePacoteLargura     Int      @default(12)
   fretePacoteComprimento Int      @default(17)

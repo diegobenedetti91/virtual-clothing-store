@@ -1,0 +1,333 @@
+import { prisma } from "@/lib/prisma";
+import { getRegionsArray, getRegionForState } from "@/lib/regions";
+
+export interface ShippingOption {
+  servico: string;
+  codigo: string;
+  valor: number;
+  prazo: number;
+  erro: string;
+}
+
+interface MelhorEnvioResult {
+  id: number;
+  name: string;
+  price: string;
+  delivery_time: number;
+  company: { id: number; name: string };
+  error: string | null;
+}
+
+async function calcularMelhorEnvio(
+  token: string,
+  cepOrigem: string,
+  cepDestino: string,
+  pesoKg: number,
+  altura: number,
+  largura: number,
+  comprimento: number,
+  valorProdutos: number
+): Promise<ShippingOption[]> {
+  const body = {
+    from: { postal_code: cepOrigem },
+    to: { postal_code: cepDestino },
+    package: {
+      height: Math.max(altura, 2),
+      width: Math.max(largura, 11),
+      length: Math.max(comprimento, 16),
+      weight: Math.max(pesoKg, 0.1),
+    },
+    options: {
+      insurance_value: valorProdutos,
+      receipt: false,
+      own_hand: false,
+    },
+  };
+
+  try {
+    const res = await fetch("https://melhorenvio.com.br/api/v2/me/shipment/calculate", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        "User-Agent": "VirtualClothingStore (suporte@loja.com)",
+      },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(10000),
+    });
+
+    if (!res.ok) return [];
+
+    const data: MelhorEnvioResult[] = await res.json();
+
+    return data
+      .filter((item) => !item.error && item.price && parseFloat(item.price) > 0)
+      .map((item) => ({
+        servico: `${item.company.name} ${item.name}`,
+        codigo: String(item.id),
+        valor: parseFloat(item.price),
+        prazo: item.delivery_time,
+        erro: "0",
+      }))
+      .sort((a, b) => a.valor - b.valor);
+  } catch {
+    return [];
+  }
+}
+
+async function calcularCorreios(
+  cepOrigem: string,
+  cepDestino: string,
+  pesoKg: number,
+  altura: number,
+  largura: number,
+  comprimento: number
+): Promise<ShippingOption[]> {
+  const servicos = [
+    { codigo: "04669", nome: "PAC" },
+    { codigo: "04162", nome: "SEDEX" },
+  ];
+
+  const results: ShippingOption[] = [];
+
+  for (const servico of servicos) {
+    const url =
+      `http://ws.correios.com.br/calculador/CalcPrecoPrazo.aspx` +
+      `?nCdEmpresa=&sDsSenha=&nCdServico=${servico.codigo}` +
+      `&sCepOrigem=${cepOrigem}&sCepDestino=${cepDestino}` +
+      `&nVlPeso=${pesoKg.toFixed(3)}` +
+      `&nCdFormato=1&nVlComprimento=${comprimento}&nVlAltura=${altura}&nVlLargura=${largura}` +
+      `&nVlDiametro=0&sCdMaoPropria=N&nVlValorDeclarado=0&sCdAvisoRecebimento=N&StrRetorno=xml`;
+
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+      const xml = await res.text();
+      const erro = xml.match(/<Erro>(.*?)<\/Erro>/)?.[1] || "0";
+      const valorStr = xml.match(/<Valor>(.*?)<\/Valor>/)?.[1]?.replace(",", ".") || "0";
+      const prazo = parseInt(xml.match(/<PrazoEntrega>(.*?)<\/PrazoEntrega>/)?.[1] || "0", 10);
+      const valor = parseFloat(valorStr);
+      results.push({ servico: servico.nome, codigo: servico.codigo, valor: erro === "0" ? valor : 0, prazo: erro === "0" ? prazo : 0, erro });
+    } catch {
+      results.push({ servico: servico.nome, codigo: servico.codigo, valor: 0, prazo: 0, erro: "timeout" });
+    }
+  }
+
+  return results;
+}
+
+function normalizeCity(str: string) {
+  return str.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+}
+
+export interface ShippingResult {
+  status: number;
+  body: Record<string, unknown>;
+}
+
+/** Shipping quote for a destination CEP and cart. Shared by the quote API and the checkouts. */
+export async function calculateShipping(
+  cepDestino: string,
+  items: { productId: string; quantity: number }[] | undefined
+): Promise<ShippingResult> {
+
+  if (!cepDestino || typeof cepDestino !== "string" || cepDestino.replace(/\D/g, "").length !== 8) {
+    return { status: 400, body: { error: "CEP inválido" } };
+  }
+
+  const settings = await prisma.companySettings.findFirst({ orderBy: { updatedAt: "desc" } });
+
+  if (!settings?.freteAtivo) {
+    return { status: 400, body: { error: "Frete não configurado" } };
+  }
+
+  // Validação de região (funciona em qualquer tipo de frete)
+  const cepDestinoClean = cepDestino.replace(/\D/g, "");
+  const regioesConfiguradas = getRegionsArray(settings.freteLocalRegioes);
+
+  if (regioesConfiguradas.length > 0) {
+    try {
+      const viacepRes = await fetch(`https://viacep.com.br/ws/${cepDestinoClean}/json/`, { signal: AbortSignal.timeout(5000) });
+      if (viacepRes.ok) {
+        const viacep = await viacepRes.json();
+        if (!viacep.erro) {
+          const regiaoClienteState = viacep.uf?.toUpperCase();
+          const regiaoDo = regiaoClienteState ? getRegionForState(regiaoClienteState) : null;
+
+          if (!regiaoDo || !regioesConfiguradas.includes(regiaoDo)) {
+            return { status: 422, body: { error: "fora_da_area", cidade: viacep.localidade, uf: viacep.uf } };
+          }
+        }
+      }
+    } catch {
+      // Se ViaCEP falhar, permite continuar sem bloquear
+    }
+  }
+
+  const freteTipo = settings.freteTipo || "fixo";
+  const cepOrigem = settings.freteCEPOrigem?.replace(/\D/g, "") || "";
+  const pesoDefault = settings.fretePesoDefaultGramas || 500;
+  let altura = settings.fretePacoteAltura || 5;
+  let largura = settings.fretePacoteLargura || 12;
+  let comprimento = settings.fretePacoteComprimento || 17;
+
+  // Modo entrega local: valida cidade pelo CEP via ViaCEP
+  if (freteTipo === "local") {
+    const s = settings as Record<string, unknown>;
+    const cidadeConfigurada = s.freteLocalCidade as string | null;
+    const ufConfigurada = s.freteLocalUF as string | null;
+    const retiradaAtiva = !!(s.freteLocalRetirada as boolean);
+
+    let podeEntregarLocal = true;
+    let foraArea: { cidade: string; uf: string } | null = null;
+
+    if (cidadeConfigurada) {
+      try {
+        const viacepRes = await fetch(`https://viacep.com.br/ws/${cepDestinoClean}/json/`, { signal: AbortSignal.timeout(5000) });
+        if (viacepRes.ok) {
+          const viacep = await viacepRes.json();
+          if (!viacep.erro) {
+            const cidadeOk = normalizeCity(viacep.localidade) === normalizeCity(cidadeConfigurada);
+            const ufOk = !ufConfigurada || viacep.uf?.toUpperCase() === ufConfigurada.toUpperCase();
+            if (!cidadeOk || !ufOk) {
+              podeEntregarLocal = false;
+              foraArea = { cidade: viacep.localidade, uf: viacep.uf };
+            }
+          }
+        }
+      } catch {
+        // Se ViaCEP falhar, permite continuar sem bloquear
+      }
+    }
+
+    if (!podeEntregarLocal && !retiradaAtiva) {
+      return { status: 422, body: { error: "fora_da_area", ...foraArea } };
+    }
+
+    const opcoes = [];
+    if (podeEntregarLocal) {
+      opcoes.push({ servico: "Entrega local", codigo: "local", valor: settings.freteValorFixo, prazo: 0, erro: "0" });
+    }
+    if (retiradaAtiva) {
+      opcoes.push({ servico: "Retirada na loja", codigo: "retirada", valor: 0, prazo: 0, erro: "0" });
+    }
+    return { status: 200, body: { tipo: "local", opcoes } };
+  }
+
+  // Modo fixo
+  if (freteTipo === "fixo") {
+    return { status: 200, body: {
+      tipo: "fixo",
+      opcoes: [{ servico: "Frete fixo", codigo: "fixo", valor: settings.freteValorFixo, prazo: 0, erro: "0" }],
+    } };
+  }
+
+  // Modo híbrido: CEP local → frete fixo
+  if (freteTipo === "hibrido" && cepOrigem && cepDestinoClean.slice(0, 5) === cepOrigem.slice(0, 5)) {
+    return { status: 200, body: {
+      tipo: "fixo",
+      opcoes: [{ servico: "Entrega local", codigo: "local", valor: settings.freteValorFixo, prazo: 0, erro: "0" }],
+    } };
+  }
+
+  if (!cepOrigem) {
+    return { status: 400, body: { error: "CEP de origem não configurado" } };
+  }
+
+  // Calcular peso, volume e valor total dos itens
+  let pesoTotalGramas = 0;
+  let volumeTotalCm3 = 0;
+  let valorProdutos = 0;
+  const volDefault = altura * largura * comprimento;
+
+  if (Array.isArray(items) && items.length > 0) {
+    const productIds: string[] = items.map((i: { productId: string }) => i.productId);
+    const [products, presets] = await Promise.all([
+      prisma.product.findMany({
+        where: { id: { in: productIds } },
+        select: { id: true, pesoGramas: true, price: true, embalagem: true },
+      }),
+      prisma.packagePreset.findMany({ where: { active: true } }),
+    ]);
+    const prodMap = new Map(products.map((p) => [p.id, p]));
+
+    for (const item of items as { productId: string; quantity: number }[]) {
+      const prod = prodMap.get(item.productId);
+      const peso = prod?.pesoGramas ?? pesoDefault;
+      const volItem = prod?.embalagem
+        ? prod.embalagem.comprimento * prod.embalagem.largura * prod.embalagem.altura
+        : volDefault;
+      pesoTotalGramas += peso * item.quantity;
+      volumeTotalCm3 += volItem * item.quantity;
+      valorProdutos += (prod?.price ?? 0) * item.quantity;
+    }
+
+    // Determine box dimensions from presets if available
+    if (presets.length > 0) {
+      const sorted = [...presets].sort(
+        (a, b) => a.comprimento * a.largura * a.altura - b.comprimento * b.largura * b.altura
+      );
+      const FILL = 0.75;
+      const best = sorted.find((p) => volumeTotalCm3 <= p.comprimento * p.largura * p.altura * FILL)
+        ?? sorted[sorted.length - 1];
+      altura = best.altura;
+      largura = best.largura;
+      comprimento = best.comprimento;
+    }
+  } else {
+    pesoTotalGramas = pesoDefault;
+  }
+
+  const pesoKg = Math.max(pesoTotalGramas / 1000, 0.1);
+
+  // Usar Melhor Envio se token configurado e tipo for melhorenvio ou hibrido
+  const usarMelhorEnvio = (freteTipo === "melhorenvio" || freteTipo === "hibrido") && !!settings.melhorEnvioToken;
+
+  let opcoes: ShippingOption[];
+
+  if (usarMelhorEnvio) {
+    opcoes = await calcularMelhorEnvio(settings.melhorEnvioToken!, cepOrigem, cepDestinoClean, pesoKg, altura, largura, comprimento, valorProdutos);
+    // fallback para Correios se Melhor Envio não retornar nada
+    if (opcoes.length === 0) {
+      opcoes = await calcularCorreios(cepOrigem, cepDestinoClean, pesoKg, altura, largura, comprimento);
+    }
+  } else {
+    opcoes = await calcularCorreios(cepOrigem, cepDestinoClean, pesoKg, altura, largura, comprimento);
+  }
+
+  // Somar dias de produção ao prazo de frete
+  const diasProduzao = settings.diasUteisProduzao || 2;
+  const opcoesComProduzao = opcoes.map((opcao) => ({
+    ...opcao,
+    prazo: opcao.prazo + diasProduzao,
+  }));
+
+  return { status: 200, body: {
+    tipo: usarMelhorEnvio ? "melhorenvio" : "correios",
+    opcoes: opcoesComProduzao,
+    diasProduzao,
+  } };
+}
+
+/**
+ * Server-side shipping price for the option the customer picked (by `codigo`).
+ * Returns null when the option is not available for this CEP/cart, so the
+ * checkout can reject it instead of trusting a price sent by the browser.
+ */
+export async function resolveShippingCost(
+  cepDestino: string | null | undefined,
+  items: { productId: string; quantity: number }[],
+  codigo: string | null | undefined
+): Promise<number | null> {
+  const settings = await prisma.companySettings.findFirst({ orderBy: { updatedAt: "desc" } });
+  if (!settings?.freteAtivo) return 0;
+  if (!cepDestino) return codigo ? null : 0;
+
+  const result = await calculateShipping(cepDestino, items);
+  const opcoes = (result.status === 200 ? (result.body.opcoes as ShippingOption[]) : []) || [];
+  const valid = opcoes.filter((o) => o.erro === "0" && o.valor >= 0);
+
+  if (!codigo) return valid.length === 0 ? 0 : null;
+  const option = valid.find((o) => o.codigo === codigo);
+  return option ? option.valor : null;
+}

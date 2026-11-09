@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CookiePreferencesButton } from "@/components/store/CookieConsent";
 import { Phone, MapPin, MessageCircle } from "lucide-react";
 import { CompanySettings } from "@/types";
 import { StoreStats } from "./StoreStats";
@@ -34,6 +35,7 @@ export default function Footer({ settings }: FooterProps) {
             <ul className="space-y-2 text-sm">
               <li><Link href="/" className="hover:text-brand transition-colors">Início</Link></li>
               <li><Link href="/produtos" className="hover:text-brand transition-colors">Produtos</Link></li>
+              <li><CookiePreferencesButton className="hover:text-brand transition-colors" /></li>
             </ul>
           </div>
 

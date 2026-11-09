@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { restoreOrderStock } from "@/lib/stockUtils";
+import { releaseOrderStock } from "@/lib/stockUtils";
+import { auth } from "@/lib/auth";
 
 interface RefundPayload {
   amount?: number;
@@ -11,6 +12,9 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const session = await auth();
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   try {
     const { id } = await params;
     const body: RefundPayload = await req.json();
@@ -89,14 +93,7 @@ export async function POST(
     // Restore stock before updating status
     if (order.items?.length > 0 && (order.status === "CONFIRMED" || order.status === "PAID")) {
       console.log("[REFUND] Restoring stock for order:", order.orderNumber);
-      const itemsForStock = order.items.map((item) => ({
-        productId: item.productId,
-        quantity: item.quantity,
-        size: item.size,
-        color: item.color,
-        selectedAttributes: item.selectedAttributes,
-      }));
-      await restoreOrderStock(itemsForStock).catch(console.error);
+      await releaseOrderStock(order.id).catch(console.error);
     }
 
     // Update order status

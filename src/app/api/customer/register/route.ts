@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { signToken, buildCookieHeader } from "@/lib/customerAuth";
+import { clientIp, isRateLimited } from "@/lib/rateLimit";
 import { sincronizarClienteComBling } from "@/lib/blingSync";
 
 export async function POST(req: NextRequest) {
@@ -25,12 +26,9 @@ export async function POST(req: NextRequest) {
       zipCode,
     } = await req.json();
 
-    console.log("[register] Dados recebidos:", {
-      name,
-      email,
-      phone,
-      cpfCnpj,
-    });
+    if (isRateLimited(`register:ip:${clientIp(req.headers)}`, 5, 60 * 60 * 1000)) {
+      return NextResponse.json({ error: "Muitas tentativas. Tente novamente mais tarde." }, { status: 429 });
+    }
 
     // Validar campos obrigatórios
     console.log("[register] Validando campos...");
@@ -38,11 +36,14 @@ export async function POST(req: NextRequest) {
       console.error("[register] Campos obrigatórios faltando");
       return NextResponse.json({ error: "Todos os campos são obrigatórios" }, { status: 400 });
     }
+    if (typeof password !== "string" || password.length < 8) {
+      return NextResponse.json({ error: "A senha deve ter pelo menos 8 caracteres" }, { status: 400 });
+    }
 
     console.log("[register] Verificando e-mail duplicado...");
     const existing = await prisma.customerUser.findUnique({ where: { email } });
     if (existing) {
-      console.warn("[register] E-mail já cadastrado:", email);
+      console.warn("[register] E-mail já cadastrado");
       return NextResponse.json({ error: "E-mail já cadastrado" }, { status: 409 });
     }
 

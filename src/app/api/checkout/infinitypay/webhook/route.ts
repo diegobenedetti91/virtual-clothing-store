@@ -1,20 +1,48 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendOrderStatusEmail, sendOrderConfirmationEmail, sendNewOrderNotificationEmail } from "@/lib/email";
-import { decrementOrderStock } from "@/lib/stockUtils";
+import { commitOrderStock } from "@/lib/stockUtils";
 import { createAutomaticShipment } from "@/lib/shipmentUtils";
-import { track } from "@/lib/analytics";
+import { trackServer } from "@/lib/analyticsServer";
+import { sendMetaPurchase } from "@/lib/metaCapi";
 import { integrarPedidoBling } from "@/lib/blingService";
 
 // Exempt from all protections - webhook from external service
 export const dynamic = "force-dynamic";
 
+// InfinityPay webhooks are not signed. Their docs say to confirm every notice with
+// /payment_check, which only returns paid=true when order_nsu, transaction_nsu and
+// slug all belong to the same paid invoice.
+async function confirmWithInfinityPay(
+  handle: string,
+  orderNsu: string,
+  transactionNsu: unknown,
+  slug: unknown,
+  expectedCents: number
+): Promise<boolean> {
+  if (typeof transactionNsu !== "string" || typeof slug !== "string") return false;
+  try {
+    const res = await fetch("https://api.checkout.infinitepay.io/payment_check", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ handle, order_nsu: orderNsu, transaction_nsu: transactionNsu, slug }),
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) return false;
+    const check = await res.json();
+    const paidCents = Number(check?.paid_amount ?? check?.amount ?? 0);
+    return check?.success === true && check?.paid === true && paidCents >= expectedCents - 1;
+  } catch (err) {
+    console.error("[IP WEBHOOK] payment_check failed:", err);
+    return false;
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
 
-    console.log("\n📥 [Infinity Pay Webhook] Recebido:");
-    console.log(JSON.stringify(body, null, 2));
+    console.log("[IP WEBHOOK] Received for order_nsu:", body?.order_nsu);
 
     // Webhook payload from Infinity Pay documentation
     const { order_nsu, transaction_nsu, invoice_slug, capture_method, amount, paid_amount, installments, receipt_url } = body;
@@ -25,7 +53,6 @@ export async function POST(req: NextRequest) {
 
     if (!order_nsu) {
       console.warn("❌ Webhook inválido - order_nsu ausente");
-      console.warn("Body completo:", JSON.stringify(body, null, 2));
       return NextResponse.json({ success: false, message: "order_nsu ausente" }, { status: 400 });
     }
 
@@ -46,8 +73,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, message: null }, { status: 200 });
     }
 
-    // Se recebeu o webhook, significa que o pagamento foi aprovado
-    // Atualizar status para CONFIRMED
+    // Confirmar com a InfinityPay antes de marcar como pago (o webhook não é assinado)
+    if (order.status !== "CONFIRMED") {
+      const settings = await prisma.companySettings.findFirst({ orderBy: { updatedAt: "desc" } });
+      const handle = settings?.infinityPayHandle;
+      const paid =
+        !!handle &&
+        (await confirmWithInfinityPay(handle, order.orderNumber, transaction_nsu, invoice_slug, Math.round(order.total * 100)));
+      if (!paid) {
+        console.warn("[IP WEBHOOK] Payment not confirmed by payment_check for order", order.orderNumber);
+        return NextResponse.json({ success: false, message: "Pagamento não confirmado" }, { status: 400 });
+      }
+    }
+
+    // Pagamento confirmado pela InfinityPay: atualizar status para CONFIRMED
     if (order.status !== "CONFIRMED") {
       console.log("[IP WEBHOOK] Updating order status:", { orderNumber: order_nsu, from: order.status, to: "CONFIRMED" });
 
@@ -67,14 +106,7 @@ export async function POST(req: NextRequest) {
 
       // Decrement stock when payment is confirmed
       console.log("[IP WEBHOOK] Decrementing stock for order:", order_nsu);
-      const itemsForStock = order.items.map((item) => ({
-        productId: item.productId,
-        quantity: item.quantity,
-        size: item.size,
-        color: item.color,
-        selectedAttributes: item.selectedAttributes,
-      }));
-      await decrementOrderStock(itemsForStock).catch(console.error);
+      await commitOrderStock(order.id).catch(console.error);
 
       // Get settings for Bling integration
       const settings = await prisma.companySettings.findFirst({ orderBy: { updatedAt: "desc" } });
@@ -105,7 +137,7 @@ export async function POST(req: NextRequest) {
 
       // Track order completion
       try {
-        await track("ORDER_COMPLETE", {
+        await trackServer("ORDER_COMPLETE", {
           orderId: order.id,
           customerId: order.customerId,
           value: order.total,
@@ -113,6 +145,9 @@ export async function POST(req: NextRequest) {
       } catch (err) {
         console.error("[IP WEBHOOK] Failed to track order:", err);
       }
+
+      // Meta Conversions API: Purchase (deduplicated with the browser pixel by event_id)
+      await sendMetaPurchase(order.id).catch((err) => console.error("[IP WEBHOOK] Meta purchase failed:", err));
 
       // Send emails
       const storeName = settings?.name || "Minha Loja";
@@ -153,6 +188,6 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error("Infinity Pay webhook error:", error);
     // Return 400 Bad Request to trigger retry (Infinity Pay will retry)
-    return NextResponse.json({ success: false, message: String(error) }, { status: 400 });
+    return NextResponse.json({ success: false, message: "Erro ao processar webhook" }, { status: 400 });
   }
 }

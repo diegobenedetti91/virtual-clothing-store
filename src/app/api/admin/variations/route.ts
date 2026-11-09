@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/adminAuth";
 import { prisma } from "@/lib/prisma";
 
 export async function GET() {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
   const templates = await prisma.variationTemplate.findMany({
     orderBy: { name: "asc" },
   });
@@ -9,6 +13,9 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
   const { name, values } = await req.json();
   if (!name?.trim()) {
     return NextResponse.json({ error: "Nome obrigatório" }, { status: 400 });
@@ -27,6 +34,9 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
   const { id, name, values, active } = await req.json();
   if (!id) return NextResponse.json({ error: "ID obrigatório" }, { status: 400 });
   try {
@@ -45,6 +55,9 @@ export async function PUT(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
   if (!id) return NextResponse.json({ error: "ID obrigatório" }, { status: 400 });

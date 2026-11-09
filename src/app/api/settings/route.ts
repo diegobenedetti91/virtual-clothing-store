@@ -1,15 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
+import { toPublicSettings } from "@/lib/company";
 
 const ORDER = { orderBy: { updatedAt: "desc" } } as const;
 
 export async function GET() {
   const settings = await prisma.companySettings.findFirst(ORDER);
-  return NextResponse.json(settings ?? null);
+  // Credentials only go to a logged-in admin; the storefront gets the public subset.
+  const session = await auth();
+  return NextResponse.json(session ? settings ?? null : toPublicSettings(settings));
 }
 
 export async function PUT(req: NextRequest) {
+  const session = await auth();
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const body = await req.json();
   const {
     name, logo, phone, whatsapp, instagram, address, cnpj, description,
@@ -17,7 +24,7 @@ export async function PUT(req: NextRequest) {
     checkoutMessage, mercadoPagoPublicKey, mercadoPagoAccessToken, nuPayClientId, nuPayClientSecret,
     heroBadge, heroTitle, heroButtonText, heroButtonSecondaryText,
     freteAtivo, freteTipo, freteValorFixo, freteCEPOrigem, fretePesoDefaultGramas,
-    melhorEnvioToken, melhorEnvioApiToken, fretePacoteAltura, fretePacoteLargura, fretePacoteComprimento,
+    melhorEnvioToken, melhorEnvioApiToken, melhorEnvioWebhookSecret, metaPixelId, metaCapiAccessToken, metaTestEventCode, fretePacoteAltura, fretePacoteLargura, fretePacoteComprimento,
     freteLocalCidade, freteLocalUF, freteLocalRegioes, freteLocalRetirada, mercadoPagoAtivo, nuPayAtivo,
     infinityPayAtivo, infinityPayHandle, infinityPayApiKey,
     pixDiscountEnabled, pixDiscountPercent, whatsappAtivo,
@@ -57,6 +64,10 @@ export async function PUT(req: NextRequest) {
     fretePesoDefaultGramas: typeof fretePesoDefaultGramas === "number" ? fretePesoDefaultGramas : 500,
     melhorEnvioToken: melhorEnvioToken || null,
     melhorEnvioApiToken: melhorEnvioApiToken || null,
+    melhorEnvioWebhookSecret: melhorEnvioWebhookSecret || null,
+    metaPixelId: typeof metaPixelId === "string" && /^\d{5,25}$/.test(metaPixelId.trim()) ? metaPixelId.trim() : null,
+    metaCapiAccessToken: typeof metaCapiAccessToken === "string" && metaCapiAccessToken.trim() ? metaCapiAccessToken.trim() : null,
+    metaTestEventCode: typeof metaTestEventCode === "string" && metaTestEventCode.trim() ? metaTestEventCode.trim() : null,
     fretePacoteAltura: typeof fretePacoteAltura === "number" ? fretePacoteAltura : 5,
     fretePacoteLargura: typeof fretePacoteLargura === "number" ? fretePacoteLargura : 12,
     fretePacoteComprimento: typeof fretePacoteComprimento === "number" ? fretePacoteComprimento : 17,

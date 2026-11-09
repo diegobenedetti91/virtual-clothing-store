@@ -80,6 +80,12 @@ export default function SettingsForm({ initialSettings }: Props) {
   const [fretePesoDefault, setFretePesoDefault] = useState(initialSettings?.fretePesoDefaultGramas?.toString() || "500");
   const [melhorEnvioToken, setMelhorEnvioToken] = useState(initialSettings?.melhorEnvioToken || "");
   const [melhorEnvioApiToken, setMelhorEnvioApiToken] = useState(initialSettings?.melhorEnvioApiToken || "");
+  const [melhorEnvioWebhookSecret, setMelhorEnvioWebhookSecret] = useState(initialSettings?.melhorEnvioWebhookSecret || "");
+  const [showMEWebhookSecret, setShowMEWebhookSecret] = useState(false);
+  const [metaPixelId, setMetaPixelId] = useState(initialSettings?.metaPixelId || "");
+  const [metaCapiAccessToken, setMetaCapiAccessToken] = useState(initialSettings?.metaCapiAccessToken || "");
+  const [metaTestEventCode, setMetaTestEventCode] = useState(initialSettings?.metaTestEventCode || "");
+  const [showMetaToken, setShowMetaToken] = useState(false);
   const [showMEToken, setShowMEToken] = useState(false);
   const [showMEApiToken, setShowMEApiToken] = useState(false);
   const [pacoteAltura, setPacoteAltura] = useState(initialSettings?.fretePacoteAltura?.toString() || "5");
@@ -114,6 +120,10 @@ export default function SettingsForm({ initialSettings }: Props) {
           fretePesoDefaultGramas: parseInt(fretePesoDefault) || 500,
           melhorEnvioToken: melhorEnvioToken || null,
           melhorEnvioApiToken: melhorEnvioApiToken || null,
+          melhorEnvioWebhookSecret: melhorEnvioWebhookSecret || null,
+          metaPixelId: metaPixelId || null,
+          metaCapiAccessToken: metaCapiAccessToken || null,
+          metaTestEventCode: metaTestEventCode || null,
           fretePacoteAltura: parseInt(pacoteAltura) || 5,
           fretePacoteLargura: parseInt(pacoteLargura) || 12,
           fretePacoteComprimento: parseInt(pacoteComprimento) || 17,
@@ -197,6 +207,54 @@ export default function SettingsForm({ initialSettings }: Props) {
               <div>
                 <label className={labelClass}>CNPJ (para API Melhor Envio)</label>
                 <input value={cnpj} onChange={(e) => setCnpj(e.target.value)} className={inputClass} placeholder="12.345.678/0001-00" />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
+            <div>
+              <h2 className="font-semibold text-gray-900">Meta Ads (Facebook / Instagram)</h2>
+              <p className="text-xs text-gray-500 mt-1">
+                Pixel e API de Conversões para medir os anúncios. Os eventos só são enviados para visitantes que aceitarem os cookies de marketing.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className={labelClass}>ID do Pixel (conjunto de dados)</label>
+                <input
+                  value={metaPixelId}
+                  onChange={(e) => setMetaPixelId(e.target.value.replace(/\D/g, ""))}
+                  className={inputClass}
+                  inputMode="numeric"
+                  placeholder="123456789012345"
+                />
+                <p className="text-xs text-gray-400 mt-1">Gerenciador de Eventos → Fontes de dados → seu Pixel → ID.</p>
+              </div>
+              <div>
+                <label className={labelClass}>Código de teste (opcional)</label>
+                <input
+                  value={metaTestEventCode}
+                  onChange={(e) => setMetaTestEventCode(e.target.value)}
+                  className={inputClass}
+                  placeholder="TEST12345"
+                />
+                <p className="text-xs text-gray-400 mt-1">Use só durante a validação em &quot;Testar eventos&quot;. Apague depois.</p>
+              </div>
+              <div className="sm:col-span-2">
+                <label className={labelClass}>Token de acesso da API de Conversões</label>
+                <div className="relative">
+                  <input
+                    type={showMetaToken ? "text" : "password"}
+                    value={metaCapiAccessToken}
+                    onChange={(e) => setMetaCapiAccessToken(e.target.value)}
+                    className={`${inputClass} pr-10`}
+                    placeholder="EAAG..."
+                  />
+                  <button type="button" onClick={() => setShowMetaToken(!showMetaToken)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                    {showMetaToken ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+                <p className="text-xs text-gray-400 mt-1">Gerenciador de Eventos → Configurações do Pixel → API de Conversões → Gerar token de acesso.</p>
               </div>
             </div>
           </div>
@@ -722,6 +780,25 @@ export default function SettingsForm({ initialSettings }: Props) {
                       </div>
                       <p className="text-xs text-orange-700 mt-1">
                         Token para criar etiquetas e shipments automaticamente. Obtenha em <strong>melhorenvio.com.br → Integrações → Tokens</strong>. Selecione permissão <strong>Cotações + Envios</strong>.
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className={labelClass}>Secret do aplicativo (Webhook de rastreio)</label>
+                      <div className="relative">
+                        <input
+                          type={showMEWebhookSecret ? "text" : "password"}
+                          value={melhorEnvioWebhookSecret}
+                          onChange={(e) => setMelhorEnvioWebhookSecret(e.target.value)}
+                          className={`${inputClass} pr-10`}
+                          placeholder="Secret do aplicativo no Melhor Envio"
+                        />
+                        <button type="button" onClick={() => setShowMEWebhookSecret(!showMEWebhookSecret)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                          {showMEWebhookSecret ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
+                      </div>
+                      <p className="text-xs text-orange-700 mt-1">
+                        Usado para validar as notificações de rastreio enviadas pelo Melhor Envio. É o <strong>Secret</strong> do aplicativo cadastrado na área de desenvolvedor do Melhor Envio (par do Client ID). Sem ele, as notificações são recusadas e o rastreio é atualizado só pela rotina automática.
                       </p>
                     </div>
                   </div>

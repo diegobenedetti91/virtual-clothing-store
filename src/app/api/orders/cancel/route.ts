@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { refundPayment } from "@/lib/refundUtils";
+import { releaseOrderStock } from "@/lib/stockUtils";
 import { sendOrderStatusEmail } from "@/lib/email";
 
 export async function POST(req: NextRequest) {
@@ -79,8 +80,8 @@ export async function POST(req: NextRequest) {
       cancelReason = "Cancelado pelo cliente";
     }
 
-    // NOTE: Stock restoration is handled by the PATCH [id]/route.ts endpoint
-    // to avoid double restoration when status is updated to CANCELLED
+    // Give back stock if it was taken (idempotent: refundPayment may already have done it)
+    await releaseOrderStock(order.id).catch(console.error);
 
     // Update order status
     console.log("[CANCEL] Updating order status to CANCELLED:", { orderNumber, currentStatus: order.status });

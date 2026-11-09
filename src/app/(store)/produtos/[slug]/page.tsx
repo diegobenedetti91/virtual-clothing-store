@@ -7,6 +7,7 @@ import { getProductAttributes, normalizeVariantStock } from "@/lib/variantUtils"
 import ProductGallery from "@/components/store/ProductGallery";
 import ProductActions from "@/components/store/ProductActions";
 import ProductReviews from "@/components/store/ProductReviews";
+import { MetaViewContent } from "@/components/store/MetaPixel";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -106,6 +107,8 @@ export default async function ProductDetailPage({ params }: PageProps) {
 
             {/* Divider */}
             <div className="border-t border-gray-100" />
+
+            <MetaViewContent productId={product.id} name={product.name} price={product.price} />
 
             {/* Actions (price, size, color, add to cart) */}
             <ProductActions

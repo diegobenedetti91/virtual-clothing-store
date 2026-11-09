@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { prisma } from "@/lib/prisma";
-import { getCompanySettings } from "@/lib/company";
+import { getPublicCompanySettings } from "@/lib/company";
 import HeroBanner from "@/components/store/HeroBanner";
 import ProductCard from "@/components/store/ProductCard";
 import NewArrivalsSection from "@/components/store/NewArrivalsSection";
@@ -16,7 +16,7 @@ const CATEGORY_BG = ["#6366f1", "#ec4899", "#14b8a6", "#f59e0b", "#8b5cf6", "#ef
 export default async function HomePage({ searchParams }: { searchParams: Promise<Record<string, string | string[]>> }) {
   await searchParams;
   const [settings, featuredRaw, newArrivalsRaw, categoriesRaw] = await Promise.all([
-    getCompanySettings(),
+    getPublicCompanySettings(),
     prisma.product.findMany({
       where: { active: true, featured: true },
       include: { category: true },

@@ -1,15 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { decrementOrderStock } from "@/lib/stockUtils";
+import { webhookToken } from "@/lib/webhookToken";
+import { validateCheckout } from "@/lib/checkoutValidation";
+import { getMetaOrderContext } from "@/lib/metaCapi";
 import { generateOrderNumber } from "@/lib/utils";
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { customerName, customerEmail, customerPhone, address, city, state, zipCode, notes, customerId, items, shippingCost, shippingMethod, discountAmount = 0, pixOnly = false } = body;
+  const { customerName, customerEmail, customerPhone, address, city, state, zipCode, notes, items: rawItems, shippingMethod, pixOnly = false } = body;
 
-  if (!customerName || !customerPhone || !items?.length) {
+  if (!customerName || !customerPhone) {
     return NextResponse.json({ error: "Dados incompletos" }, { status: 400 });
   }
+
+  const checked = await validateCheckout(req, { items: rawItems, zipCode, shippingMethod, pixOnly });
+  if ("error" in checked) return NextResponse.json({ error: checked.error }, { status: 400 });
+  const { items, productMap, subtotal, shippingCost, discountAmount, customerId } = checked;
 
   const settings = await prisma.companySettings.findFirst({ orderBy: { updatedAt: "desc" } });
   const handle = settings?.infinityPayHandle;
@@ -19,10 +25,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Infinity Pay não configurado" }, { status: 400 });
   }
 
-  // Fetch product prices from DB (never trust client-side price)
-  const productIds = items.map((i: { productId: string }) => i.productId);
-  const products = await prisma.product.findMany({ where: { id: { in: productIds } } });
-  const productMap = new Map(products.map((p) => [p.id, p]));
 
   const ipItems = items.map((item: { productId: string; quantity: number; size?: string; color?: string }) => {
     const product = productMap.get(item.productId);
@@ -34,12 +36,7 @@ export async function POST(req: NextRequest) {
     };
   });
 
-  const subtotal = items.reduce((s: number, i: { productId: string; quantity: number }) => {
-    const product = productMap.get(i.productId);
-    return s + (product?.price || 0) * i.quantity;
-  }, 0);
-
-  const total = subtotal + (shippingCost || 0) - (discountAmount || 0);
+  const total = subtotal + shippingCost - discountAmount;
   const orderNumber = generateOrderNumber();
   const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
 
@@ -58,7 +55,7 @@ export async function POST(req: NextRequest) {
     items: ipItems,
     order_nsu: orderNumber,
     redirect_url: `${baseUrl}/checkout/sucesso?order=${orderNumber}`,
-    webhook_url: `${baseUrl}/api/checkout/infinitypay/webhook`,
+    webhook_url: `${baseUrl}/api/checkout/infinitypay/webhook?token=${webhookToken(orderNumber)}`,
     ...(customerName || customerEmail || customerPhone ? {
       customer: {
         ...(customerName && { name: customerName }),
@@ -150,6 +147,7 @@ export async function POST(req: NextRequest) {
         total,
         status: "PENDING",
         paymentMethod: "Infinity Pay",
+        ...getMetaOrderContext(req),
         items: {
           create: (items as CartItem[]).map((item) => ({
             productId: item.productId,
