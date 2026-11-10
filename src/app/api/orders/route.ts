@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getTrafficOrderContext } from "@/lib/trafficSourceServer";
 import { validateCheckout } from "@/lib/checkoutValidation";
 import { auth } from "@/lib/auth";
 import { generateOrderNumber } from "@/lib/utils";
@@ -84,6 +85,7 @@ export async function POST(req: NextRequest) {
         total: subtotal + shipping,
         notes: notes || null,
         customerId: customerId || null,
+        ...getTrafficOrderContext(req),
         items: {
           create: await Promise.all(items.map(async (item) => {
             const prod = await tx.product.findUnique({

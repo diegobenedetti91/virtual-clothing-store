@@ -6,6 +6,7 @@
 // to the Conversions API with the same event_id so Meta deduplicates the pair.
 
 import { getConsent } from "@/lib/cookieConsent";
+import { readTrafficSource, trafficParams } from "@/lib/trafficSource";
 
 // Set by <MetaPixelPageView pixelId=...> (store layout) from the admin settings.
 let PIXEL_ID: string | null = null;
@@ -31,6 +32,11 @@ export interface MetaCustomData {
   contents?: MetaContent[];
   num_items?: number;
   order_id?: string;
+  traffic_channel?: string;
+  utm_source?: string;
+  utm_medium?: string;
+  utm_campaign?: string;
+  utm_content?: string;
 }
 
 type Fbq = ((...args: unknown[]) => void) & {
@@ -103,7 +109,9 @@ export function metaTrack(
   if (!fbq) return;
 
   const eventId = options.eventId ?? newMetaEventId();
-  const data = { currency: "BRL", ...customData };
+  // Traffic source (channel + UTMs) as custom parameters: usable in Meta custom
+  // conversions and audiences, e.g. "Purchase where utm_source = instagram_bio".
+  const data = { currency: "BRL", ...trafficParams(readTrafficSource()), ...customData };
   fbq("track", eventName, data, { eventID: eventId });
 
   if (options.mirror === false) return;

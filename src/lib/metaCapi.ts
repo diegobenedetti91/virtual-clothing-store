@@ -236,6 +236,11 @@ export async function sendMetaPurchase(orderId: string): Promise<void> {
       content_ids: [...new Set(order.items.map((i) => i.productId))],
       contents: order.items.map((i) => ({ id: i.productId, quantity: i.quantity, item_price: i.price })),
       num_items: order.items.reduce((sum, i) => sum + i.quantity, 0),
+      traffic_channel: order.trafficChannel || "Direto",
+      ...(order.utmSource ? { utm_source: order.utmSource } : {}),
+      ...(order.utmMedium ? { utm_medium: order.utmMedium } : {}),
+      ...(order.utmCampaign ? { utm_campaign: order.utmCampaign } : {}),
+      ...(order.utmContent ? { utm_content: order.utmContent } : {}),
     },
   });
 

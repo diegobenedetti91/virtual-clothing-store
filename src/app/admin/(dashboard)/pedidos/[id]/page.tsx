@@ -20,6 +20,12 @@ interface OrderDetails {
   shipmentStatus?: string;
   labelValid?: boolean;
   labelError?: string;
+  trafficChannel?: string | null;
+  utmSource?: string | null;
+  utmMedium?: string | null;
+  utmCampaign?: string | null;
+  trafficReferrer?: string | null;
+  landingPage?: string | null;
 }
 
 export default function OrderDetailsPage() {
@@ -96,6 +102,22 @@ export default function OrderDetailsPage() {
             <p className="font-semibold text-lg">{order.status}</p>
             <p className="text-gray-600">Total: R$ {order.total.toFixed(2)}</p>
             <p className="text-sm text-gray-500">{new Date(order.createdAt).toLocaleDateString("pt-BR")}</p>
+          </div>
+          <div className="col-span-2">
+            <p className="text-gray-600">Origem do cliente</p>
+            <p className="font-semibold">{order.trafficChannel || "Não identificado"}</p>
+            {(order.utmSource || order.utmMedium || order.utmCampaign) && (
+              <p className="text-sm text-gray-500">
+                {[order.utmSource, order.utmMedium, order.utmCampaign].map((v) => v || "—").join(" / ")}
+              </p>
+            )}
+            {(order.trafficReferrer || order.landingPage) && (
+              <p className="text-sm text-gray-500">
+                {order.trafficReferrer ? `Veio de ${order.trafficReferrer}` : ""}
+                {order.trafficReferrer && order.landingPage ? " · " : ""}
+                {order.landingPage ? `Entrou por ${order.landingPage}` : ""}
+              </p>
+            )}
           </div>
         </div>
 

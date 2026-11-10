@@ -44,6 +44,11 @@ function sanitizeCustomData(raw: unknown) {
     content_name: str(d.content_name),
     contents,
     num_items: num(d.num_items),
+    traffic_channel: str(d.traffic_channel, 50),
+    utm_source: str(d.utm_source, 100),
+    utm_medium: str(d.utm_medium, 100),
+    utm_campaign: str(d.utm_campaign, 100),
+    utm_content: str(d.utm_content, 100),
   };
   return Object.fromEntries(Object.entries(data).filter(([, v]) => v !== undefined));
 }

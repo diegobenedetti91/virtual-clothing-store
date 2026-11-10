@@ -159,6 +159,67 @@ export async function GET(req: NextRequest) {
     };
   }).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
+  // Traffic source: visits (SESSION_START) vs orders/revenue per channel and campaign.
+  // Orders from before source tracking existed have no channel -> "Não identificado".
+  let periodStart: Date;
+  let periodEnd: Date;
+  if (dateFrom || dateTo) {
+    periodStart = dateFrom ? new Date(dateFrom) : new Date(0);
+    periodEnd = dateTo ? new Date(dateTo) : new Date();
+    periodEnd.setHours(23, 59, 59, 999);
+  } else {
+    periodStart = new Date(year, month > 0 ? month - 1 : 0, 1);
+    periodEnd = month > 0 ? new Date(year, month, 0, 23, 59, 59, 999) : new Date(year, 11, 31, 23, 59, 59, 999);
+  }
+
+  const [visitsByChannel, visitsByCampaign] = await Promise.all([
+    prisma.analyticsEvent.groupBy({
+      by: ["channel"],
+      where: { type: "SESSION_START", createdAt: { gte: periodStart, lte: periodEnd } },
+      _count: { _all: true },
+    }),
+    prisma.analyticsEvent.groupBy({
+      by: ["utmSource", "utmMedium", "utmCampaign"],
+      where: { type: "SESSION_START", createdAt: { gte: periodStart, lte: periodEnd }, utmCampaign: { not: null } },
+      _count: { _all: true },
+    }),
+  ]);
+
+  const sourceMap = new Map<string, { visits: number; orders: number; revenue: number }>();
+  for (const v of visitsByChannel) {
+    const key = v.channel || "Não identificado";
+    const cur = sourceMap.get(key) || { visits: 0, orders: 0, revenue: 0 };
+    sourceMap.set(key, { ...cur, visits: cur.visits + v._count._all });
+  }
+  for (const o of filteredOrders) {
+    const key = o.trafficChannel || "Não identificado";
+    const cur = sourceMap.get(key) || { visits: 0, orders: 0, revenue: 0 };
+    sourceMap.set(key, { ...cur, orders: cur.orders + 1, revenue: cur.revenue + o.total });
+  }
+  const bySource = Array.from(sourceMap.entries())
+    .map(([channel, d]) => ({ channel, ...d, conversion: d.visits > 0 ? (d.orders / d.visits) * 100 : null }))
+    .sort((a, b) => b.revenue - a.revenue || b.visits - a.visits);
+
+  const campaignKey = (s?: string | null, m?: string | null, c?: string | null) => `${s || "-"}|${m || "-"}|${c || "-"}`;
+  const campaignMap = new Map<string, { source: string; medium: string; campaign: string; visits: number; orders: number; revenue: number }>();
+  const ensureCampaign = (s?: string | null, m?: string | null, c?: string | null) => {
+    const key = campaignKey(s, m, c);
+    let cur = campaignMap.get(key);
+    if (!cur) {
+      cur = { source: s || "—", medium: m || "—", campaign: c || "—", visits: 0, orders: 0, revenue: 0 };
+      campaignMap.set(key, cur);
+    }
+    return cur;
+  };
+  for (const v of visitsByCampaign) ensureCampaign(v.utmSource, v.utmMedium, v.utmCampaign).visits += v._count._all;
+  for (const o of filteredOrders) {
+    if (!o.utmCampaign) continue;
+    const cur = ensureCampaign(o.utmSource, o.utmMedium, o.utmCampaign);
+    cur.orders += 1;
+    cur.revenue += o.total;
+  }
+  const byCampaign = Array.from(campaignMap.values()).sort((a, b) => b.revenue - a.revenue || b.visits - a.visits);
+
   // All-time years and states (unfiltered) for populating dropdowns
   const allOrders = await prisma.order.findMany({
     where: { status: { not: "CANCELLED" } },
@@ -170,7 +231,7 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     year, month, years, allStates, monthlyRevenue, byState, byCategory, byCancelReason,
-    byProduct, byOrder,
+    byProduct, byOrder, bySource, byCampaign,
     summary: { revenue: periodRevenue, orders: periodOrders, ticket: periodTicket, cancelled: filteredCancelled.length },
   });
 }

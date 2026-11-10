@@ -185,6 +185,16 @@ model Order {
   clientUserAgent          String?       @db.Text
   metaPurchaseSentAt       DateTime?
 
+  // Traffic source that brought the customer (last identified source, 30 days)
+  trafficChannel           String?
+  utmSource                String?
+  utmMedium                String?
+  utmCampaign              String?
+  utmContent               String?
+  utmTerm                  String?
+  trafficReferrer          String?
+  landingPage              String?       @db.Text
+
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
 }
@@ -351,6 +361,11 @@ model AnalyticsEvent {
   orderId    String?
   path       String?
   value      Float?
+  // Traffic source of the session (see src/lib/trafficSource.ts)
+  channel     String?
+  utmSource   String?
+  utmMedium   String?
+  utmCampaign String?
   createdAt  DateTime @default(now())
 
   @@index([type, createdAt])

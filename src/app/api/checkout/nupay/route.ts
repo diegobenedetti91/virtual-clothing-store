@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getTrafficOrderContext } from "@/lib/trafficSourceServer";
 import { webhookToken } from "@/lib/webhookToken";
 import { validateCheckout } from "@/lib/checkoutValidation";
 import { getMetaOrderContext } from "@/lib/metaCapi";
@@ -154,6 +155,7 @@ export async function POST(req: NextRequest) {
       status: "PENDING",
       paymentMethod: "NuPay",
       ...getMetaOrderContext(req),
+      ...getTrafficOrderContext(req),
       items: {
         create: (items as CartItem[]).map((item) => ({
           productId: item.productId,

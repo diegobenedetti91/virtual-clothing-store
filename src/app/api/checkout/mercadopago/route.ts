@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getTrafficOrderContext } from "@/lib/trafficSourceServer";
 import { validateCheckout } from "@/lib/checkoutValidation";
 import { getMetaOrderContext } from "@/lib/metaCapi";
 import { generateOrderNumber } from "@/lib/utils";
@@ -182,6 +183,7 @@ export async function POST(req: NextRequest) {
       status: "PENDING",
       paymentMethod: "Mercado Pago",
       ...getMetaOrderContext(req),
+      ...getTrafficOrderContext(req),
       items: {
         create: (items as CartItem[]).map((item) => ({
           productId: item.productId,

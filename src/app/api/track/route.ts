@@ -20,7 +20,9 @@ export async function POST(req: NextRequest) {
   bucket.count++;
   RATE_LIMIT.set(ip, bucket);
 
-  const { type, productId, sessionId, customerId, orderId, path, value } = await req.json();
+  const { type, productId, sessionId, customerId, orderId, path, value, channel, utmSource, utmMedium, utmCampaign } =
+    await req.json().catch(() => ({}));
+  const short = (v: unknown, max = 100) => (typeof v === "string" && v.trim() ? v.trim().slice(0, max) : null);
 
   if (!type) {
     return NextResponse.json({ error: "Missing type" }, { status: 400 });
@@ -36,6 +38,10 @@ export async function POST(req: NextRequest) {
         orderId: orderId || null,
         path: path || null,
         value: value || null,
+        channel: short(channel, 50),
+        utmSource: short(utmSource),
+        utmMedium: short(utmMedium),
+        utmCampaign: short(utmCampaign),
       },
     });
     return NextResponse.json(event);

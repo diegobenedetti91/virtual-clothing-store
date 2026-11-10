@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { TrendingUp, ShoppingCart, DollarSign, MapPin, Tag, ChevronDown, XCircle, Percent, Calendar, Filter } from "lucide-react";
+import { TrendingUp, ShoppingCart, DollarSign, MapPin, Tag, ChevronDown, XCircle, Percent, Calendar, Filter, Globe, Megaphone } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 
 interface MonthData { month: number; label: string; revenue: number; orders: number }
@@ -18,6 +18,9 @@ interface OrderMarginData {
   revenue: number; cost: number | null; profit: number | null; margin: number | null;
 }
 
+interface SourceData { channel: string; visits: number; orders: number; revenue: number; conversion: number | null }
+interface CampaignData { source: string; medium: string; campaign: string; visits: number; orders: number; revenue: number }
+
 interface AnalyticsData {
   year: number;
   month: number;
@@ -29,6 +32,8 @@ interface AnalyticsData {
   byCancelReason: CancelData[];
   byProduct: ProductMarginData[];
   byOrder: OrderMarginData[];
+  bySource: SourceData[];
+  byCampaign: CampaignData[];
   summary: Summary;
 }
 
@@ -322,6 +327,87 @@ export default function RelatoriosManager() {
               />
             </div>
           </div>
+
+          {/* Traffic source */}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+            <div className="flex items-center gap-2 mb-1">
+              <Globe size={16} className="text-sky-500" />
+              <h2 className="text-base font-bold text-gray-900">Origem do tráfego</h2>
+            </div>
+            <p className="text-xs text-gray-400 mb-5">
+              De onde vieram as visitas e os pedidos do período (última origem identificada nos 30 dias anteriores à compra).
+              Pedidos com o status selecionado no filtro.
+            </p>
+            {(data.bySource ?? []).length === 0 ? (
+              <p className="text-gray-400 text-sm text-center py-8">Sem dados no período.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-100 text-left">
+                      <th className="pb-2 px-2 font-semibold text-gray-500">Canal</th>
+                      <th className="pb-2 px-2 font-semibold text-gray-500 text-right">Visitas</th>
+                      <th className="pb-2 px-2 font-semibold text-gray-500 text-right">Pedidos</th>
+                      <th className="pb-2 px-2 font-semibold text-gray-500 text-right">Conversão</th>
+                      <th className="pb-2 px-2 font-semibold text-gray-500 text-right">Faturamento</th>
+                      <th className="pb-2 px-2 font-semibold text-gray-500 text-right">Ticket médio</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.bySource.map((row) => (
+                      <tr key={row.channel} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                        <td className="py-2.5 px-2 font-semibold text-gray-800">{row.channel}</td>
+                        <td className="py-2.5 px-2 text-gray-600 text-right">{row.visits}</td>
+                        <td className="py-2.5 px-2 text-gray-600 text-right">{row.orders}</td>
+                        <td className="py-2.5 px-2 text-gray-600 text-right">
+                          {row.conversion != null ? `${row.conversion.toFixed(1)}%` : <span className="text-gray-300">—</span>}
+                        </td>
+                        <td className="py-2.5 px-2 font-bold text-gray-900 text-right">{formatCurrency(row.revenue)}</td>
+                        <td className="py-2.5 px-2 text-gray-600 text-right">
+                          {row.orders > 0 ? formatCurrency(row.revenue / row.orders) : <span className="text-gray-300">—</span>}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* Campaigns (UTM) */}
+          {(data.byCampaign ?? []).length > 0 && (
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+              <div className="flex items-center gap-2 mb-1">
+                <Megaphone size={16} className="text-orange-500" />
+                <h2 className="text-base font-bold text-gray-900">Campanhas (UTM)</h2>
+              </div>
+              <p className="text-xs text-gray-400 mb-5">Links com utm_campaign, ex.: ?utm_source=instagram&amp;utm_medium=stories&amp;utm_campaign=black-friday</p>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-100 text-left">
+                      <th className="pb-2 px-2 font-semibold text-gray-500">Campanha</th>
+                      <th className="pb-2 px-2 font-semibold text-gray-500">Origem / Mídia</th>
+                      <th className="pb-2 px-2 font-semibold text-gray-500 text-right">Visitas</th>
+                      <th className="pb-2 px-2 font-semibold text-gray-500 text-right">Pedidos</th>
+                      <th className="pb-2 px-2 font-semibold text-gray-500 text-right">Faturamento</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.byCampaign.map((row) => (
+                      <tr key={`${row.source}|${row.medium}|${row.campaign}`} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                        <td className="py-2.5 px-2 font-semibold text-gray-800 max-w-[200px] truncate">{row.campaign}</td>
+                        <td className="py-2.5 px-2 text-gray-600">{row.source} / {row.medium}</td>
+                        <td className="py-2.5 px-2 text-gray-600 text-right">{row.visits}</td>
+                        <td className="py-2.5 px-2 text-gray-600 text-right">{row.orders}</td>
+                        <td className="py-2.5 px-2 font-bold text-gray-900 text-right">{formatCurrency(row.revenue)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
 
           {/* Cancellations by reason */}
           {data.byCancelReason.length > 0 && (
