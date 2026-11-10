@@ -12,6 +12,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CompanySettings } from "@/types";
 import { isValidCPFOrCNPJ } from "@/lib/utils";
+import MercadoPagoTransparentCheckout from "@/components/store/MercadoPagoTransparentCheckout";
 
 interface ShippingOption {
   servico: string;
@@ -145,6 +146,8 @@ export default function CheckoutPage() {
   const collectAddress = settings?.checkoutCollectAddress;
 
   const mpAvailable = !!(settings?.mercadoPagoAtivo && settings?.mercadoPagoPublicKey);
+  const mpTransparent = mpAvailable && !!settings?.mercadoPagoTransparente;
+  const [transparentCheckout, setTransparentCheckout] = useState<{ amount: number; pixOnly: boolean } | null>(null);
   const nuPayAvailable = !!(settings?.nuPayAtivo && settings?.nuPayClientId);
   const infinityPayAvailable = !!(settings?.infinityPayAtivo && settings?.infinityPayHandle && settings?.infinityPayConfigured);
   const whatsappAvailable = settings?.whatsappAtivo;
@@ -157,7 +160,12 @@ export default function CheckoutPage() {
 
   const paymentOptions: Array<{ id: PaymentMethod; label: string; desc: string; emoji: string }> = [
     ...(whatsappAvailable ? [{ id: "whatsapp" as PaymentMethod, label: "WhatsApp", desc: "Combinamos a forma de pagamento pela conversa", emoji: "💬" }] : []),
-    ...(mpAvailable ? [{ id: "mercadopago" as PaymentMethod, label: "Mercado Pago", desc: "Cartão de crédito, Pix ou boleto", emoji: "💳" }] : []),
+    ...(mpAvailable ? [{
+      id: "mercadopago" as PaymentMethod,
+      label: mpTransparent ? "Cartão ou Pix" : "Mercado Pago",
+      desc: mpTransparent ? "Pague aqui mesmo, com cartão de crédito em até 12x ou Pix" : "Cartão de crédito, Pix ou boleto",
+      emoji: "💳",
+    }] : []),
     ...(nuPayAvailable ? [{ id: "nupay" as PaymentMethod, label: "NuPay", desc: "Débito, crédito Nubank ou Pix em até 24×", emoji: "🟣" }] : []),
     ...(infinityPayAvailable ? [{ id: "infinitypay" as PaymentMethod, label: "Infinity Pay", desc: "Cartão de crédito, Pix ou boleto", emoji: "♾️" }] : []),
   ];
@@ -180,7 +188,9 @@ export default function CheckoutPage() {
     );
   }
 
-  if (items.length === 0) {
+  // While the in-site payment is open the cart may already be cleared (Pix generated):
+  // keep the page mounted so the Pix QR code stays on screen.
+  if (items.length === 0 && !transparentCheckout) {
     return (
       <div className="max-w-7xl mx-auto px-4 py-20 text-center">
         <ShoppingBag size={64} className="mx-auto text-gray-300 mb-4" />
@@ -399,6 +409,58 @@ const handleNuPaySubmit = async (forcePixOnly: boolean = false) => {
     window.location.href = data.initPoint;
   };
 
+  // Fields sent with the in-site Mercado Pago payment (prices/shipping are recomputed on the server)
+  const buildTransparentPayload = () => ({
+    customerName: name,
+    customerEmail: email || customer?.email || null,
+    customerPhone: phone,
+    streetNumber: number || null,
+    neighborhood: neighborhood || null,
+    cpfCnpj: cpfCnpj || null,
+    address: fullAddress || null,
+    city: city || null,
+    state: state || null,
+    zipCode: zipCode || null,
+    shippingMethod: selectedShipping?.codigo || null,
+    pixOnly: applyPixDiscount,
+    items: items.map((item) => ({
+      productId: item.productId,
+      quantity: item.quantity,
+      size: item.size,
+      color: item.color,
+      selectedAttributes: item.selectedAttributes,
+    })),
+  });
+
+  const openTransparentCheckout = async () => {
+    try {
+      validateCheckout();
+    } catch (err) {
+      alert(String(err).replace("Error: ", ""));
+      return;
+    }
+    const payload = buildTransparentPayload();
+    const res = await fetch("/api/checkout/quote", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ items: payload.items, zipCode: payload.zipCode, shippingMethod: payload.shippingMethod, pixOnly: payload.pixOnly }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      alert(data.error || "Não foi possível calcular o total do pedido.");
+      return;
+    }
+    setTransparentCheckout({ amount: data.total, pixOnly: applyPixDiscount });
+  };
+
+  const clearCartAfterOrder = () => {
+    clearCart();
+    if (email || customer?.email) {
+      const e = email || customer!.email;
+      fetch(`/api/cart/save?email=${encodeURIComponent(e)}`, { method: "DELETE" }).catch(() => {});
+    }
+  };
+
   const handleInfinityPaySubmit = async () => {
     try {
       validateCheckout();
@@ -478,7 +540,9 @@ const handleNuPaySubmit = async (forcePixOnly: boolean = false) => {
         alert(`Estoque insuficiente para alguns itens:\n\n${stockError}\n\nAtualize o carrinho antes de continuar.`);
         return;
       }
-      if (selectedPayment === "mercadopago" && mpAvailable) {
+      if (selectedPayment === "mercadopago" && mpTransparent) {
+        await openTransparentCheckout();
+      } else if (selectedPayment === "mercadopago" && mpAvailable) {
         await handleMercadoPagoSubmit(applyPixDiscount);
       } else if (selectedPayment === "nupay" && nuPayAvailable) {
         await handleNuPaySubmit(applyPixDiscount);
@@ -801,6 +865,18 @@ const handleNuPaySubmit = async (forcePixOnly: boolean = false) => {
           </div>
         </form>
       </div>
+
+      {transparentCheckout && settings?.mercadoPagoPublicKey && (
+        <MercadoPagoTransparentCheckout
+          publicKey={settings.mercadoPagoPublicKey}
+          amount={transparentCheckout.amount}
+          payerEmail={email || customer?.email || undefined}
+          pixOnly={transparentCheckout.pixOnly}
+          buildPayload={buildTransparentPayload}
+          onOrderCreated={clearCartAfterOrder}
+          onClose={() => setTransparentCheckout(null)}
+        />
+      )}
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { createAutomaticShipment } from "@/lib/shipmentUtils";
 import { trackServer } from "@/lib/analyticsServer";
 import { sendMetaPurchase } from "@/lib/metaCapi";
 import { integrarPedidoBling } from "@/lib/blingService";
+import { MP_TRANSPARENT_LABEL } from "@/lib/mercadoPagoTransparent";
 
 // Exempt from all protections - webhook from external service
 export const dynamic = "force-dynamic";
@@ -60,11 +61,20 @@ export async function POST(req: NextRequest) {
     approved: "CONFIRMED",
     pending: "PENDING",
     in_process: "PENDING",
+    authorized: "PENDING",
     rejected: "CANCELLED",
     cancelled: "CANCELLED",
+    // Full refund or chargeback (also when done directly in the Mercado Pago panel)
+    refunded: "CANCELLED",
+    charged_back: "CANCELLED",
   };
 
-  const newStatus = statusMap[payment.status] || "PENDING";
+  const newStatus = statusMap[payment.status];
+  if (!newStatus) {
+    // e.g. in_mediation (dispute opened): keep the order as it is
+    console.log("[MP WEBHOOK] Ignoring payment status:", payment.status);
+    return NextResponse.json({ ok: true });
+  }
 
   // Check if order exists
   let order = await prisma.order.findUnique({
@@ -78,6 +88,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true });
   }
 
+  // A paid/shipped order never goes back to PENDING
+  if (order && newStatus === "PENDING" && order.status !== "PENDING") {
+    console.log("[MP WEBHOOK] Ignoring PENDING for order in status", order.status);
+    return NextResponse.json({ ok: true });
+  }
+
+  // In-site card payments: a refused attempt is handled (and the order discarded)
+  // by /api/checkout/mercadopago/transparent, so the buyer can retry without
+  // receiving a "cancelled order" e-mail.
+  if (order && payment.status === "rejected" && order.status === "PENDING" && order.paymentMethod === MP_TRANSPARENT_LABEL) {
+    console.log("[MP WEBHOOK] Ignoring rejected in-site payment attempt for", orderNumber);
+    return NextResponse.json({ ok: true });
+  }
+
   // Order was already created with PENDING status, just update it
   if (order && order.status !== newStatus) {
     console.log("[MP WEBHOOK] Updating order status:", { orderNumber, from: order.status, to: newStatus });
@@ -88,7 +112,7 @@ export async function POST(req: NextRequest) {
         status: newStatus,
         paymentGateway: "mercadopago",
         paymentId: String(payment.id),
-        paymentMethod: "Mercado Pago",
+        paymentMethod: order.paymentMethod === MP_TRANSPARENT_LABEL ? MP_TRANSPARENT_LABEL : "Mercado Pago",
       };
 
       // Save fee and payment method when confirmed

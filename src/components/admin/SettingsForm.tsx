@@ -43,6 +43,7 @@ export default function SettingsForm({ initialSettings }: Props) {
   const [checkoutMessage, setCheckoutMessage] = useState(initialSettings?.checkoutMessage || "");
   const [mpPublicKey, setMpPublicKey] = useState(initialSettings?.mercadoPagoPublicKey || "");
   const [mpAccessToken, setMpAccessToken] = useState(initialSettings?.mercadoPagoAccessToken || "");
+  const [mercadoPagoTransparente, setMercadoPagoTransparente] = useState(!!initialSettings?.mercadoPagoTransparente);
   const [showToken, setShowToken] = useState(false);
   const [mercadoPagoAtivo, setMercadoPagoAtivo] = useState(
     initialSettings?.mercadoPagoAtivo ?? initialSettings?.checkoutType === "gateway"
@@ -108,7 +109,7 @@ export default function SettingsForm({ initialSettings }: Props) {
           name, logo, phone, whatsapp, instagram, address, cnpj, description,
           primaryColor, buttonColor, menuColor, bannerImages, checkoutType, checkoutCollectEmail, checkoutCollectAddress,
           checkoutMessage, mercadoPagoPublicKey: mpPublicKey || null, mercadoPagoAccessToken: mpAccessToken || null,
-          mercadoPagoAtivo, nuPayClientId: nuPayClientId || null, nuPayClientSecret: nuPayClientSecret || null, nuPayAtivo,
+          mercadoPagoAtivo, mercadoPagoTransparente, nuPayClientId: nuPayClientId || null, nuPayClientSecret: nuPayClientSecret || null, nuPayAtivo,
           infinityPayHandle: infinityPayHandle || null, infinityPayApiKey: infinityPayApiKey || null, infinityPayAtivo,
           whatsappAtivo,
           heroBadge, heroTitle, heroButtonText, heroButtonSecondaryText,
@@ -363,6 +364,21 @@ export default function SettingsForm({ initialSettings }: Props) {
                     </div>
                     <p className="text-xs text-gray-400 mt-1">Chave secreta usada no servidor. Nunca compartilhe.</p>
                   </div>
+                  <label className="flex items-start justify-between gap-4 cursor-pointer bg-gray-50 rounded-xl p-3">
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">Pagamento dentro do site (checkout transparente)</p>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        O cliente digita o cartão ou gera o Pix sem sair da loja. Desligado, o cliente é levado para a página do Mercado Pago.
+                        Requer credenciais de produção ativadas e chave Pix cadastrada na conta Mercado Pago.
+                      </p>
+                    </div>
+                    <div
+                      className={`relative w-11 h-6 rounded-full transition-colors shrink-0 mt-0.5 ${mercadoPagoTransparente ? "bg-blue-500" : "bg-gray-200"}`}
+                      onClick={() => setMercadoPagoTransparente(!mercadoPagoTransparente)}
+                    >
+                      <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${mercadoPagoTransparente ? "translate-x-5" : ""}`} />
+                    </div>
+                  </label>
                 </div>
               )}
             </div>

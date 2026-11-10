@@ -160,6 +160,7 @@ export interface CompanySettings {
   freteLocalRegioes?: string | null;
   freteLocalRetirada?: boolean;
   mercadoPagoAtivo?: boolean;
+  mercadoPagoTransparente?: boolean;
   nuPayAtivo?: boolean;
   infinityPayAtivo?: boolean;
   infinityPayHandle?: string | null;
