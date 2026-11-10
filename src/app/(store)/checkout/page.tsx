@@ -599,97 +599,6 @@ const handleNuPaySubmit = async () => {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <div className="lg:col-span-2 space-y-4">
 
-              {/* Personal data */}
-              <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm space-y-3">
-                <h2 className="text-base font-bold text-gray-900">Seus dados</h2>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="sm:col-span-2">
-                    <label className={labelClass}>Nome completo *</label>
-                    <input required value={name} onChange={(e) => setName(e.target.value)} className={inputClass} placeholder="Seu nome completo" />
-                  </div>
-                  <div>
-                    <label className={labelClass}>WhatsApp / Telefone *</label>
-                    <input required value={phone} onChange={(e) => setPhone(e.target.value)} className={inputClass} placeholder="(00) 00000-0000" />
-                  </div>
-                  {collectEmail && (
-                    <div>
-                      <label className={labelClass}>E-mail</label>
-                      <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className={inputClass} placeholder="email@exemplo.com" />
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Address */}
-              {collectAddress && (
-                <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm space-y-3">
-                  <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
-                    <MapPin size={16} className="text-brand" />
-                    Endereço de entrega
-                  </h2>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div className="sm:col-span-2">
-                      <label className={labelClass}>Rua / Avenida *</label>
-                      <input value={street} onChange={(e) => setStreet(e.target.value)} className={inputClass} placeholder="Ex: Rua das Flores" />
-                    </div>
-                    <div>
-                      <label className={labelClass}>Número *</label>
-                      <input value={number} onChange={(e) => setNumber(e.target.value)} className={inputClass} placeholder="Ex: 123" />
-                    </div>
-                    <div>
-                      <label className={labelClass}>Bairro</label>
-                      <input value={neighborhood} onChange={(e) => setNeighborhood(e.target.value)} className={inputClass} placeholder="Ex: Centro" />
-                    </div>
-                    <div>
-                      <label className={labelClass}>Cidade *</label>
-                      <input value={city} onChange={(e) => setCity(e.target.value)} className={inputClass} placeholder="Ex: São Paulo" />
-                    </div>
-                    <div>
-                      <label className={labelClass}>Estado</label>
-                      <select value={state} onChange={(e) => setState(e.target.value)} className={inputClass}>
-                        <option value="">Selecione</option>
-                        {UF_LIST.map((uf) => <option key={uf} value={uf}>{uf}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <label className={labelClass}>CEP</label>
-                      <input value={zipCode} onChange={(e) => setZipCode(e.target.value)} className={inputClass} placeholder="00000-000" />
-                    </div>
-                    <div>
-                      <label className={labelClass}>CPF / CNPJ *</label>
-                      <input value={cpfCnpj} onChange={(e) => setCpfCnpj(e.target.value)} className={inputClass} required placeholder="000.000.000-00 ou 00.000.000/0000-00" />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* CEP para entrega local quando coleta de endereço está desativada */}
-              {!collectAddress && settings?.freteAtivo && settings?.freteTipo === "local" && (
-                <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm space-y-3">
-                  <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
-                    <MapPin size={16} className="text-brand" />
-                    Verificar área de entrega
-                  </h2>
-                  <div>
-                    <label className={labelClass}>CEP</label>
-                    <input
-                      value={zipCode}
-                      onChange={(e) => setZipCode(e.target.value)}
-                      className={inputClass}
-                      placeholder="00000-000"
-                      maxLength={9}
-                    />
-                    {freteForaArea && (
-                      <p className="text-sm text-red-600 mt-2 font-medium">
-                        Entregamos apenas em {settings.freteLocalCidade || "nossa cidade"}{settings.freteLocalUF ? `/${settings.freteLocalUF}` : ""}. O CEP informado pertence a: <strong>{freteForaArea.cidade}{freteForaArea.uf ? `/${freteForaArea.uf}` : ""}</strong>.
-                      </p>
-                    )}
-                  </div>
-                </div>
-              )}
-
               {/* Items and delivery */}
               <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm space-y-4">
                 <h2 className="text-base font-bold text-gray-900">Itens e entrega</h2>
@@ -772,7 +681,7 @@ const handleNuPaySubmit = async () => {
                         <p className="text-xs text-gray-400">Não foi possível calcular. Será combinado.</p>
                       )}
                       {!shippingLoading && zipCode.replace(/\D/g, "").length < 8 && (
-                        <p className="text-xs text-gray-400">Informe o CEP para calcular.</p>
+                        <p className="text-xs text-gray-400">Informe o CEP no endereço de entrega, abaixo, para calcular o frete.</p>
                       )}
                     </div>
                   ) : (
@@ -784,6 +693,98 @@ const handleNuPaySubmit = async () => {
 
                 </div>
               </div>
+
+              {/* Personal data */}
+              <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm space-y-3">
+                <h2 className="text-base font-bold text-gray-900">Seus dados</h2>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="sm:col-span-2">
+                    <label className={labelClass}>Nome completo *</label>
+                    <input required value={name} onChange={(e) => setName(e.target.value)} className={inputClass} placeholder="Seu nome completo" />
+                  </div>
+                  <div>
+                    <label className={labelClass}>WhatsApp / Telefone *</label>
+                    <input required value={phone} onChange={(e) => setPhone(e.target.value)} className={inputClass} placeholder="(00) 00000-0000" />
+                  </div>
+                  {collectEmail && (
+                    <div>
+                      <label className={labelClass}>E-mail</label>
+                      <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className={inputClass} placeholder="email@exemplo.com" />
+                    </div>
+                  )}
+                </div>
+
+                {/* Address (same card) */}
+                {collectAddress && (
+                <div className="border-t border-gray-100 pt-4 space-y-3">
+                  <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
+                    <MapPin size={15} className="text-brand" />
+                    Endereço de entrega
+                  </h3>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="sm:col-span-2">
+                      <label className={labelClass}>Rua / Avenida *</label>
+                      <input value={street} onChange={(e) => setStreet(e.target.value)} className={inputClass} placeholder="Ex: Rua das Flores" />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Número *</label>
+                      <input value={number} onChange={(e) => setNumber(e.target.value)} className={inputClass} placeholder="Ex: 123" />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Bairro</label>
+                      <input value={neighborhood} onChange={(e) => setNeighborhood(e.target.value)} className={inputClass} placeholder="Ex: Centro" />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Cidade *</label>
+                      <input value={city} onChange={(e) => setCity(e.target.value)} className={inputClass} placeholder="Ex: São Paulo" />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Estado</label>
+                      <select value={state} onChange={(e) => setState(e.target.value)} className={inputClass}>
+                        <option value="">Selecione</option>
+                        {UF_LIST.map((uf) => <option key={uf} value={uf}>{uf}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className={labelClass}>CEP</label>
+                      <input value={zipCode} onChange={(e) => setZipCode(e.target.value)} className={inputClass} placeholder="00000-000" />
+                    </div>
+                    <div>
+                      <label className={labelClass}>CPF / CNPJ *</label>
+                      <input value={cpfCnpj} onChange={(e) => setCpfCnpj(e.target.value)} className={inputClass} required placeholder="000.000.000-00 ou 00.000.000/0000-00" />
+                    </div>
+                  </div>
+                </div>
+                )}
+              </div>
+
+              {/* CEP para entrega local quando coleta de endereço está desativada */}
+              {!collectAddress && settings?.freteAtivo && settings?.freteTipo === "local" && (
+                <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm space-y-3">
+                  <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
+                    <MapPin size={16} className="text-brand" />
+                    Verificar área de entrega
+                  </h2>
+                  <div>
+                    <label className={labelClass}>CEP</label>
+                    <input
+                      value={zipCode}
+                      onChange={(e) => setZipCode(e.target.value)}
+                      className={inputClass}
+                      placeholder="00000-000"
+                      maxLength={9}
+                    />
+                    {freteForaArea && (
+                      <p className="text-sm text-red-600 mt-2 font-medium">
+                        Entregamos apenas em {settings.freteLocalCidade || "nossa cidade"}{settings.freteLocalUF ? `/${settings.freteLocalUF}` : ""}. O CEP informado pertence a: <strong>{freteForaArea.cidade}{freteForaArea.uf ? `/${freteForaArea.uf}` : ""}</strong>.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
             </div>
 
             {/* Sidebar direita - Resumo + Forma de pagamento (fixa no desktop) */}
