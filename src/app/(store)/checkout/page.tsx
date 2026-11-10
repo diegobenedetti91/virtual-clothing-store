@@ -148,7 +148,7 @@ export default function CheckoutPage() {
   const mpAvailable = !!(settings?.mercadoPagoAtivo && settings?.mercadoPagoPublicKey);
   const mpTransparent = mpAvailable && !!settings?.mercadoPagoTransparente;
   const [transparentCheckout, setTransparentCheckout] = useState<{ amount: number; pixOnly: boolean } | null>(null);
-  const nuPayAvailable = !!(settings?.nuPayAtivo && settings?.nuPayClientId);
+  const nuPayAvailable = !!(settings?.nuPayAtivo && settings?.nuPayConfigured);
   const infinityPayAvailable = !!(settings?.infinityPayAtivo && settings?.infinityPayHandle && settings?.infinityPayConfigured);
   const whatsappAvailable = settings?.whatsappAtivo;
   const pixDiscount = settings?.pixDiscountPercent ?? 0;
@@ -166,14 +166,16 @@ export default function CheckoutPage() {
       desc: mpTransparent ? "Pague aqui mesmo, com cartão de crédito em até 12x ou Pix" : "Cartão de crédito, Pix ou boleto",
       emoji: "💳",
     }] : []),
-    ...(nuPayAvailable ? [{ id: "nupay" as PaymentMethod, label: "NuPay", desc: "Débito, crédito Nubank ou Pix em até 24×", emoji: "🟣" }] : []),
+    ...(nuPayAvailable ? [{ id: "nupay" as PaymentMethod, label: "NuPay", desc: "Pague pelo app do Nubank, no débito ou crédito parcelado", emoji: "🟣" }] : []),
     ...(infinityPayAvailable ? [{ id: "infinitypay" as PaymentMethod, label: "Infinity Pay", desc: "Cartão de crédito, Pix ou boleto", emoji: "♾️" }] : []),
   ];
 
   const defaultPayment: PaymentMethod = paymentOptions.length > 0 ? paymentOptions[0].id : "mercadopago";
   const [selectedPayment, setSelectedPayment] = useState<PaymentMethod>(defaultPayment);
 
-  const discountAmount = applyPixDiscount ? (total() * pixDiscount) / 100 : 0;
+  // NuPay has no Pix, so the Pix discount never applies to it
+  const pixDiscountApplies = applyPixDiscount && selectedPayment !== "nupay";
+  const discountAmount = pixDiscountApplies ? (total() * pixDiscount) / 100 : 0;
   const finalTotal = total() + (selectedShipping?.valor || 0) - discountAmount;
 
   const fullAddress = collectAddress && street
@@ -290,7 +292,7 @@ export default function CheckoutPage() {
     window.open(url, "_blank");
   };
 
-const handleNuPaySubmit = async (forcePixOnly: boolean = false) => {
+const handleNuPaySubmit = async () => {
     try {
       validateCheckout();
     } catch (err) {
@@ -306,14 +308,13 @@ const handleNuPaySubmit = async (forcePixOnly: boolean = false) => {
         customerEmail: email || null,
         customerPhone: phone,
         address: fullAddress || null,
+        streetNumber: number || null,
+        neighborhood: neighborhood || null,
+        cpfCnpj: cpfCnpj || null,
         city: city || null,
         state: state || null,
         zipCode: zipCode || null,
-        customerId: customer?.id || null,
-        shippingCost: selectedShipping?.valor || 0,
         shippingMethod: selectedShipping?.codigo || null,
-        discountAmount: discountAmount,
-        pixOnly: forcePixOnly,
         items: items.map((item) => ({
           productId: item.productId,
           quantity: item.quantity,
@@ -545,7 +546,7 @@ const handleNuPaySubmit = async (forcePixOnly: boolean = false) => {
       } else if (selectedPayment === "mercadopago" && mpAvailable) {
         await handleMercadoPagoSubmit(applyPixDiscount);
       } else if (selectedPayment === "nupay" && nuPayAvailable) {
-        await handleNuPaySubmit(applyPixDiscount);
+        await handleNuPaySubmit();
       } else if (selectedPayment === "infinitypay" && infinityPayAvailable) {
         await handleInfinityPaySubmit();
       } else if (selectedPayment === "whatsapp" && whatsappAvailable) {
@@ -773,7 +774,7 @@ const handleNuPaySubmit = async (forcePixOnly: boolean = false) => {
                 </div>
 
                 {/* PIX Discount Checkbox */}
-                {pixDiscountAvailable && (
+                {pixDiscountAvailable && selectedPayment !== "nupay" && (
                   <div className="bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-2xl p-4 shadow-sm">
                     <label className="flex items-center gap-3 cursor-pointer">
                       <input
@@ -835,7 +836,7 @@ const handleNuPaySubmit = async (forcePixOnly: boolean = false) => {
                 {selectedPayment === "nupay" && nuPayAvailable ? (
                   <button type="submit" disabled={loading || !!freteForaArea} className="w-full bg-purple-600 text-white py-3.5 rounded-xl font-bold hover:bg-purple-700 transition-colors disabled:opacity-60 flex items-center justify-center gap-2 shadow-lg shadow-purple-100">
                     {loading ? <Loader2 size={18} className="animate-spin" /> : <CreditCard size={18} />}
-                    {loading ? "Aguarde..." : `Pagar com NuPay${applyPixDiscount ? " (PIX)" : ""}`}
+                    {loading ? "Aguarde..." : "Pagar com NuPay"}
                   </button>
                 ) : selectedPayment === "mercadopago" && mpAvailable ? (
                   <button type="submit" disabled={loading || !!freteForaArea} className="w-full bg-blue-600 text-white py-3.5 rounded-xl font-bold hover:bg-blue-700 transition-colors disabled:opacity-60 flex items-center justify-center gap-2 shadow-lg shadow-blue-100">

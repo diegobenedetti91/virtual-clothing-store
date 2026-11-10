@@ -6,6 +6,7 @@ import { getPublicCompanySettings } from "@/lib/company";
 import Header from "@/components/store/Header";
 import Footer from "@/components/store/Footer";
 import WhatsAppFloat from "@/components/store/WhatsAppFloat";
+import AiChatWidget from "@/components/store/AiChatWidget";
 import CustomerInit from "@/components/store/CustomerInit";
 import CartSyncer from "@/components/store/CartSyncer";
 import { MetaPixelPageView } from "@/components/store/MetaPixel";
@@ -30,7 +31,11 @@ export default async function StoreLayout({ children }: { children: React.ReactN
       <Header settings={settings} navItems={navItems} />
       <main className="flex-1">{children}</main>
       <Footer settings={settings} />
-      {settings?.whatsapp && <WhatsAppFloat whatsapp={settings.whatsapp} />}
+      {settings?.aiAssistantAvailable ? (
+        <AiChatWidget storeName={settings.name || "Loja"} whatsapp={settings.whatsapp ?? null} />
+      ) : (
+        settings?.whatsapp && <WhatsAppFloat whatsapp={settings.whatsapp} />
+      )}
       <CookieConsentBanner />
     </div>
   );

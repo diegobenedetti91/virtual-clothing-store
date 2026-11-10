@@ -24,6 +24,7 @@ import {
   Truck,
   Undo2,
   MapPin,
+  Bot,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
@@ -46,6 +47,7 @@ const links = [
   { href: "/admin/rastreamento", label: "Rastreamento", icon: MapPin },
   { href: "/admin/devolucoes", label: "Devoluções", icon: Undo2 },
   { href: "/admin/relatorios", label: "Relatórios", icon: BarChart2 },
+  { href: "/admin/atendimento-ia", label: "Atendimento IA", icon: Bot },
   { href: "/admin/configuracoes", label: "Configurações", icon: Settings },
 ];
 

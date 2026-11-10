@@ -152,6 +152,12 @@ export interface CompanySettings {
   metaPixelId?: string | null;
   metaCapiAccessToken?: string | null;
   metaTestEventCode?: string | null;
+  aiAssistantEnabled?: boolean;
+  aiApiKey?: string | null;
+  aiModel?: string;
+  aiPolicies?: string | null;
+  aiDailyMessageLimit?: number;
+  aiAssistantAvailable?: boolean;
   fretePacoteAltura: number;
   fretePacoteLargura: number;
   fretePacoteComprimento: number;
@@ -162,6 +168,8 @@ export interface CompanySettings {
   mercadoPagoAtivo?: boolean;
   mercadoPagoTransparente?: boolean;
   nuPayAtivo?: boolean;
+  nuPaySandbox?: boolean;
+  nuPayConfigured?: boolean;
   infinityPayAtivo?: boolean;
   infinityPayHandle?: string | null;
   infinityPayApiKey?: string | null;

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { verifyWebhookToken } from "@/lib/webhookToken";
+import { getNuPayConfig, getNuPayPaymentStatus, mapNuPayStatus } from "@/lib/nupay";
 import { sendOrderStatusEmail, sendOrderConfirmationEmail, sendNewOrderNotificationEmail } from "@/lib/email";
 import { commitOrderStock, releaseOrderStock } from "@/lib/stockUtils";
 import { createAutomaticShipment } from "@/lib/shipmentUtils";
@@ -11,84 +11,73 @@ import { integrarPedidoBling } from "@/lib/blingService";
 // Exempt from all protections - webhook from external service
 export const dynamic = "force-dynamic";
 
-// NuPay status → internal status mapping
-const statusMap: Record<string, string> = {
-  PAID: "CONFIRMED",
-  APPROVED: "CONFIRMED",
-  AUTHORIZED: "PENDING",
-  WAITING_PAYMENT: "PENDING",
-  WAITING_PAYMENT_METHOD: "PENDING",
-  PENDING: "PENDING",
-  CANCELLED: "CANCELLED",
-  EXPIRED: "CANCELLED",
-  REFUNDED: "CANCELLED",
-  CHARGEBACK: "CANCELLED",
-};
-
+// NuPay notifications carry only identifiers (pspReferenceId, referenceId) and are
+// not signed. The real status is always read back from the NuPay API, so a forged
+// call can't mark an order as paid.
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
-
-  // NuPay sends the order reference and status in the webhook payload
-  const orderNumber: string | undefined =
-    body.externalReference ?? body.external_reference ?? body.orderId;
-  const nuPayStatus: string | undefined =
-    body.status ?? body.paymentStatus;
-
-  if (!orderNumber || !nuPayStatus) {
+  const pspReferenceId: string | undefined = typeof body?.pspReferenceId === "string" ? body.pspReferenceId : undefined;
+  if (!pspReferenceId) {
     return NextResponse.json({ ok: true });
   }
 
-  // NuPay webhooks are not signed: only accept calls carrying the per-order token
-  // we put in notificationUrl when the order was created.
-  if (!verifyWebhookToken(String(orderNumber), req.nextUrl.searchParams.get("token"))) {
-    console.warn("[NUPAY WEBHOOK] Rejected: invalid token for order", orderNumber);
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const config = await getNuPayConfig();
+  if (!config) {
+    console.error("[NUPAY WEBHOOK] NuPay not configured");
+    return NextResponse.json({ ok: true });
   }
 
-  const newStatus = statusMap[nuPayStatus.toUpperCase()] ?? "PENDING";
-  const settings = await prisma.companySettings.findFirst({ orderBy: { updatedAt: "desc" } });
-
-  // Order was already created with PENDING status, just update it
-  const order = await prisma.order.findUnique({
-    where: { orderNumber },
+  const order = await prisma.order.findFirst({
+    where: { paymentGateway: "nupay", paymentId: pspReferenceId },
     include: { items: { include: { product: true } } },
   });
+  if (!order) {
+    console.warn("[NUPAY WEBHOOK] No order for payment", pspReferenceId);
+    return NextResponse.json({ ok: true });
+  }
+  const orderNumber = order.orderNumber;
+
+  const remote = await getNuPayPaymentStatus(config, pspReferenceId);
+  if (!remote) {
+    // Let NuPay retry the notification later
+    return NextResponse.json({ error: "Status unavailable" }, { status: 502 });
+  }
+
+  const newStatus = mapNuPayStatus(remote.status);
+  if (!newStatus) {
+    console.log("[NUPAY WEBHOOK] Ignoring payment status:", remote.status);
+    return NextResponse.json({ ok: true });
+  }
 
   // Don't revert cancelled orders
-  if (order?.status === "CANCELLED") {
+  if (order.status === "CANCELLED") {
     console.log("[NUPAY WEBHOOK] Order is already cancelled, ignoring webhook");
     return NextResponse.json({ ok: true });
   }
 
-  if (order && order.status !== newStatus) {
+  // A paid/shipped order never goes back to PENDING
+  if (newStatus === "PENDING" && order.status !== "PENDING") {
+    return NextResponse.json({ ok: true });
+  }
+
+  // Paid amount must cover the order
+  if (newStatus === "CONFIRMED" && remote.amount !== undefined && remote.amount + 0.01 < order.total) {
+    console.error("[NUPAY WEBHOOK] Paid amount lower than order total", { orderNumber, paid: remote.amount, total: order.total });
+    return NextResponse.json({ ok: true });
+  }
+
+  const settings = await prisma.companySettings.findFirst({ orderBy: { updatedAt: "desc" } });
+
+  if (order.status !== newStatus) {
     console.log("[NUPAY WEBHOOK] Updating order status:", { orderNumber, from: order.status, to: newStatus });
-
-    // Store payment info for future refunds
-    try {
-      const updateData: any = {
-        status: newStatus,
-        paymentGateway: "nupay",
-        paymentId: orderNumber,
-        paymentMethod: "NuPay",
-      };
-
-      // NuPay fee (if available in webhook payload)
-      if (body.fee) {
-        updateData.paymentFee = body.fee;
-      }
-
-      await prisma.order.update({
-        where: { orderNumber },
-        data: updateData,
-      });
-      console.log("[NUPAY WEBHOOK] Order updated successfully", { paymentFee: body.fee });
-    } catch (updateErr) {
-      console.error("[NUPAY WEBHOOK] Error updating order:", updateErr);
-      // Continue anyway, at least update status
-      await prisma.order.update({
-        where: { orderNumber },
-        data: { status: newStatus },
-      });
+    // Conditional transition: two simultaneous notifications can't both process the order
+    const claimed = await prisma.order.updateMany({
+      where: { id: order.id, status: order.status },
+      data: { status: newStatus },
+    });
+    if (claimed.count === 0) {
+      console.log("[NUPAY WEBHOOK] Order changed concurrently, skipping", orderNumber);
+      return NextResponse.json({ ok: true });
     }
 
     // Payment cancelled/refunded: give back stock if it had been taken

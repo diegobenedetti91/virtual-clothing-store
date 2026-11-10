@@ -14,6 +14,7 @@
     "seed:demo": "npx tsx prisma/seed-demo.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^1.7.0",
     "@prisma/client": "^6.19.3",
     "@types/nodemailer": "^8.0.0",
     "bcryptjs": "^3.0.3",

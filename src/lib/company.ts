@@ -19,12 +19,14 @@ export const getCompanySettings = cache(async () => {
 // Credentials that must never leave the server (API responses, client component props).
 const SECRET_SETTINGS_FIELDS = [
   "mercadoPagoAccessToken",
+  "nuPayClientId",
   "nuPayClientSecret",
   "melhorEnvioToken",
   "melhorEnvioApiToken",
   "melhorEnvioWebhookSecret",
   "metaCapiAccessToken",
   "metaTestEventCode",
+  "aiApiKey",
   "infinityPayApiKey",
   "blingClientSecret",
   "blingAccessToken",
@@ -33,13 +35,15 @@ const SECRET_SETTINGS_FIELDS = [
 
 type SecretField = (typeof SECRET_SETTINGS_FIELDS)[number];
 type Settings = NonNullable<Awaited<ReturnType<typeof getCompanySettings>>>;
-export type PublicCompanySettings = Omit<Settings, SecretField> & { infinityPayConfigured: boolean };
+export type PublicCompanySettings = Omit<Settings, SecretField> & { infinityPayConfigured: boolean; nuPayConfigured: boolean; aiAssistantAvailable: boolean };
 
 export function toPublicSettings(settings: Settings | null): PublicCompanySettings | null {
   if (!settings) return null;
   const copy: Record<string, unknown> = { ...settings };
   for (const field of SECRET_SETTINGS_FIELDS) delete copy[field];
   copy.infinityPayConfigured = !!settings.infinityPayApiKey;
+  copy.nuPayConfigured = !!(settings.nuPayClientId && settings.nuPayClientSecret);
+  copy.aiAssistantAvailable = !!(settings.aiAssistantEnabled && settings.aiApiKey);
   return copy as PublicCompanySettings;
 }
 

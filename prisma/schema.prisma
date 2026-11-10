@@ -243,8 +243,8 @@ model CompanySettings {
   checkoutMessage        String?  @db.Text
   mercadoPagoPublicKey   String?
   mercadoPagoAccessToken String?
-  nuPayClientId          String?
-  nuPayClientSecret      String?  @db.Text
+  nuPayClientId          String?  // NuPay Merchant Key
+  nuPayClientSecret      String?  @db.Text // NuPay Merchant Token
   heroBadge              String?
   heroTitle              String?
   heroButtonText         String?
@@ -260,6 +260,12 @@ model CompanySettings {
   metaPixelId            String?
   metaCapiAccessToken    String?  @db.Text
   metaTestEventCode      String?
+  // AI customer support assistant (Claude API)
+  aiAssistantEnabled     Boolean  @default(false)
+  aiApiKey               String?  @db.Text
+  aiModel                String   @default("claude-opus-5-5")
+  aiPolicies             String?  @db.Text
+  aiDailyMessageLimit    Int      @default(300)
   fretePacoteAltura      Int      @default(5)
   fretePacoteLargura     Int      @default(12)
   fretePacoteComprimento Int      @default(17)
@@ -270,6 +276,7 @@ model CompanySettings {
   mercadoPagoAtivo       Boolean  @default(false)
   mercadoPagoTransparente Boolean @default(false) // card/Pix form inside the site (Payment Brick)
   nuPayAtivo             Boolean  @default(false)
+  nuPaySandbox           Boolean  @default(false) // NuPay sandbox environment (tests)
   infinityPayAtivo       Boolean  @default(false)
   infinityPayHandle      String?
   infinityPayApiKey      String?  @db.Text
@@ -411,4 +418,33 @@ model Return {
   @@index([customerId])
   @@index([status])
   @@index([createdAt])
+}
+
+// AI support assistant: one row per chat. `system` is frozen when the chat starts and
+// `messages` is append-only (required by the Claude API to keep thinking blocks valid).
+model AiConversation {
+  id              String   @id @default(cuid())
+  customerId      String?
+  model           String
+  system          String   @db.LongText
+  messages        Json
+  userMessages    Int      @default(0)
+  inputTokens     Int      @default(0)
+  outputTokens    Int      @default(0)
+  cacheReadTokens Int      @default(0)
+  handedOff       Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([updatedAt])
+}
+
+// Daily usage of the AI assistant (day in America/Sao_Paulo, YYYY-MM-DD)
+model AiUsageDay {
+  day              String @id
+  messages         Int    @default(0)
+  inputTokens      Int    @default(0)
+  outputTokens     Int    @default(0)
+  cacheReadTokens  Int    @default(0)
+  cacheWriteTokens Int    @default(0)
 }

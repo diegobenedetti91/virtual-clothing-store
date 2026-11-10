@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { AI_MODELS, DEFAULT_AI_MODEL } from "@/lib/aiModels";
 import { Save, MessageCircle, CreditCard, Eye, EyeOff, Truck } from "lucide-react";
 import { CompanySettings } from "@/types";
 import { formatCurrency } from "@/lib/utils";
@@ -50,6 +51,7 @@ export default function SettingsForm({ initialSettings }: Props) {
   );
   const [nuPayClientId, setNuPayClientId] = useState(initialSettings?.nuPayClientId || "");
   const [nuPayClientSecret, setNuPayClientSecret] = useState(initialSettings?.nuPayClientSecret || "");
+  const [nuPaySandbox, setNuPaySandbox] = useState(!!initialSettings?.nuPaySandbox);
   const [showNuPaySecret, setShowNuPaySecret] = useState(false);
   const [nuPayAtivo, setNuPayAtivo] = useState(
     initialSettings?.nuPayAtivo ?? initialSettings?.checkoutType === "nupay"
@@ -87,6 +89,12 @@ export default function SettingsForm({ initialSettings }: Props) {
   const [metaCapiAccessToken, setMetaCapiAccessToken] = useState(initialSettings?.metaCapiAccessToken || "");
   const [metaTestEventCode, setMetaTestEventCode] = useState(initialSettings?.metaTestEventCode || "");
   const [showMetaToken, setShowMetaToken] = useState(false);
+  const [aiAssistantEnabled, setAiAssistantEnabled] = useState(!!initialSettings?.aiAssistantEnabled);
+  const [aiApiKey, setAiApiKey] = useState(initialSettings?.aiApiKey || "");
+  const [showAiKey, setShowAiKey] = useState(false);
+  const [aiModel, setAiModel] = useState(initialSettings?.aiModel || DEFAULT_AI_MODEL);
+  const [aiPolicies, setAiPolicies] = useState(initialSettings?.aiPolicies || "");
+  const [aiDailyMessageLimit, setAiDailyMessageLimit] = useState(String(initialSettings?.aiDailyMessageLimit ?? 300));
   const [showMEToken, setShowMEToken] = useState(false);
   const [showMEApiToken, setShowMEApiToken] = useState(false);
   const [pacoteAltura, setPacoteAltura] = useState(initialSettings?.fretePacoteAltura?.toString() || "5");
@@ -109,7 +117,7 @@ export default function SettingsForm({ initialSettings }: Props) {
           name, logo, phone, whatsapp, instagram, address, cnpj, description,
           primaryColor, buttonColor, menuColor, bannerImages, checkoutType, checkoutCollectEmail, checkoutCollectAddress,
           checkoutMessage, mercadoPagoPublicKey: mpPublicKey || null, mercadoPagoAccessToken: mpAccessToken || null,
-          mercadoPagoAtivo, mercadoPagoTransparente, nuPayClientId: nuPayClientId || null, nuPayClientSecret: nuPayClientSecret || null, nuPayAtivo,
+          mercadoPagoAtivo, mercadoPagoTransparente, nuPayClientId: nuPayClientId || null, nuPayClientSecret: nuPayClientSecret || null, nuPayAtivo, nuPaySandbox,
           infinityPayHandle: infinityPayHandle || null, infinityPayApiKey: infinityPayApiKey || null, infinityPayAtivo,
           whatsappAtivo,
           heroBadge, heroTitle, heroButtonText, heroButtonSecondaryText,
@@ -125,6 +133,11 @@ export default function SettingsForm({ initialSettings }: Props) {
           metaPixelId: metaPixelId || null,
           metaCapiAccessToken: metaCapiAccessToken || null,
           metaTestEventCode: metaTestEventCode || null,
+          aiAssistantEnabled,
+          aiApiKey: aiApiKey || null,
+          aiModel,
+          aiPolicies: aiPolicies || null,
+          aiDailyMessageLimit: parseInt(aiDailyMessageLimit) || 300,
           fretePacoteAltura: parseInt(pacoteAltura) || 5,
           fretePacoteLargura: parseInt(pacoteLargura) || 12,
           fretePacoteComprimento: parseInt(pacoteComprimento) || 17,
@@ -256,6 +269,80 @@ export default function SettingsForm({ initialSettings }: Props) {
                   </button>
                 </div>
                 <p className="text-xs text-gray-400 mt-1">Gerenciador de Eventos → Configurações do Pixel → API de Conversões → Gerar token de acesso.</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
+            <label className="flex items-start justify-between gap-4 cursor-pointer">
+              <div>
+                <h2 className="font-semibold text-gray-900">Atendimento com IA</h2>
+                <p className="text-xs text-gray-500 mt-1">
+                  Assistente virtual (Claude, da Anthropic) que responde dúvidas sobre pedidos, rastreio, frete, pagamentos e políticas.
+                  Sempre oferece o botão &quot;Falar com atendente no WhatsApp&quot;. Desligado, a loja mostra só o botão do WhatsApp, como hoje.
+                </p>
+              </div>
+              <div
+                className={`relative w-11 h-6 rounded-full transition-colors shrink-0 mt-0.5 ${aiAssistantEnabled ? "bg-blue-500" : "bg-gray-200"}`}
+                onClick={() => setAiAssistantEnabled(!aiAssistantEnabled)}
+              >
+                <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${aiAssistantEnabled ? "translate-x-5" : ""}`} />
+              </div>
+            </label>
+            {aiAssistantEnabled && !aiApiKey && (
+              <p className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-xl p-3">
+                O assistente só aparece na loja depois que a chave de API for preenchida.
+              </p>
+            )}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="sm:col-span-2">
+                <label className={labelClass}>Chave de API da Anthropic</label>
+                <div className="relative">
+                  <input
+                    type={showAiKey ? "text" : "password"}
+                    value={aiApiKey}
+                    onChange={(e) => setAiApiKey(e.target.value)}
+                    className={`${inputClass} pr-10`}
+                    placeholder="sk-ant-..."
+                  />
+                  <button type="button" onClick={() => setShowAiKey(!showAiKey)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                    {showAiKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+                <p className="text-xs text-gray-400 mt-1">Crie em console.anthropic.com → API Keys. O uso é cobrado pela Anthropic no cartão cadastrado lá.</p>
+              </div>
+              <div>
+                <label className={labelClass}>Modelo</label>
+                <select value={aiModel} onChange={(e) => setAiModel(e.target.value)} className={inputClass}>
+                  {AI_MODELS.map((m) => (
+                    <option key={m.id} value={m.id}>{m.label}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-400 mt-1">Custo estimado por conversa de ~5 mensagens. Vale para conversas novas.</p>
+              </div>
+              <div>
+                <label className={labelClass}>Limite de mensagens por dia</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={aiDailyMessageLimit}
+                  onChange={(e) => setAiDailyMessageLimit(e.target.value)}
+                  className={inputClass}
+                />
+                <p className="text-xs text-gray-400 mt-1">Ao atingir, o chat passa a indicar o WhatsApp até o dia seguinte.</p>
+              </div>
+              <div className="sm:col-span-2">
+                <label className={labelClass}>Políticas e perguntas frequentes</label>
+                <textarea
+                  value={aiPolicies}
+                  onChange={(e) => setAiPolicies(e.target.value)}
+                  rows={8}
+                  className={inputClass}
+                  placeholder={"Ex.:\n- Trocas: aceitamos trocas de tamanho em até 7 dias após o recebimento, com etiqueta.\n- Tabela de medidas: P (busto 96 cm), M (100 cm), G (106 cm).\n- Cuidados: lavar do avesso, não usar alvejante.\n- Horário do atendimento humano: seg a sex, 9h às 18h."}
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  O assistente usa este texto junto com as configurações da loja (pagamentos, frete, prazo de produção). Ele não responde o que não estiver aqui.
+                </p>
               </div>
             </div>
           </div>
@@ -404,26 +491,29 @@ export default function SettingsForm({ initialSettings }: Props) {
                 <div className="space-y-4 pt-1">
                   <div className="bg-purple-50 border border-purple-100 rounded-xl p-4 text-sm text-purple-800">
                     <p className="font-semibold mb-1 flex items-center gap-2"><CreditCard size={14} /> Credenciais do NuPay for Business</p>
-                    <p className="text-xs mb-2">Após o credenciamento, acesse o painel <strong>NuPay for Business</strong> para obter seu Client ID e Client Secret.</p>
                     <p className="text-xs">
-                      Configure o webhook no painel NuPay apontando para:{" "}
-                      <strong className="break-all">{typeof window !== "undefined" ? window.location.origin : ""}/api/checkout/nupay/webhook</strong>
+                      Após o credenciamento, o NuPay for Business envia a <strong>Merchant Key</strong> e o <strong>Merchant Token</strong>.
+                      As notificações de pagamento são configuradas automaticamente em cada pedido.
                     </p>
                   </div>
                   <div>
-                    <label className={labelClass}>Client ID</label>
-                    <input value={nuPayClientId} onChange={(e) => setNuPayClientId(e.target.value)} className={inputClass} placeholder="Seu Client ID do NuPay" />
+                    <label className={labelClass}>Merchant Key</label>
+                    <input value={nuPayClientId} onChange={(e) => setNuPayClientId(e.target.value)} className={inputClass} placeholder="X-Merchant-Key" />
                   </div>
                   <div>
-                    <label className={labelClass}>Client Secret</label>
+                    <label className={labelClass}>Merchant Token</label>
                     <div className="relative">
-                      <input type={showNuPaySecret ? "text" : "password"} value={nuPayClientSecret} onChange={(e) => setNuPayClientSecret(e.target.value)} className={`${inputClass} pr-10`} placeholder="Seu Client Secret do NuPay" />
+                      <input type={showNuPaySecret ? "text" : "password"} value={nuPayClientSecret} onChange={(e) => setNuPayClientSecret(e.target.value)} className={`${inputClass} pr-10`} placeholder="X-Merchant-Token" />
                       <button type="button" onClick={() => setShowNuPaySecret(!showNuPaySecret)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
                         {showNuPaySecret ? <EyeOff size={16} /> : <Eye size={16} />}
                       </button>
                     </div>
                     <p className="text-xs text-gray-400 mt-1">Chave secreta usada no servidor. Nunca compartilhe.</p>
                   </div>
+                  <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                    <input type="checkbox" checked={nuPaySandbox} onChange={(e) => setNuPaySandbox(e.target.checked)} className="rounded" />
+                    Ambiente de testes (sandbox) — desmarque para receber pagamentos reais
+                  </label>
                 </div>
               )}
             </div>

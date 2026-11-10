@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { toPublicSettings } from "@/lib/company";
+import { AI_MODELS, DEFAULT_AI_MODEL } from "@/lib/aiModels";
 
 const ORDER = { orderBy: { updatedAt: "desc" } } as const;
 
@@ -24,8 +25,8 @@ export async function PUT(req: NextRequest) {
     checkoutMessage, mercadoPagoPublicKey, mercadoPagoAccessToken, nuPayClientId, nuPayClientSecret,
     heroBadge, heroTitle, heroButtonText, heroButtonSecondaryText,
     freteAtivo, freteTipo, freteValorFixo, freteCEPOrigem, fretePesoDefaultGramas,
-    melhorEnvioToken, melhorEnvioApiToken, melhorEnvioWebhookSecret, metaPixelId, metaCapiAccessToken, metaTestEventCode, fretePacoteAltura, fretePacoteLargura, fretePacoteComprimento,
-    freteLocalCidade, freteLocalUF, freteLocalRegioes, freteLocalRetirada, mercadoPagoAtivo, mercadoPagoTransparente, nuPayAtivo,
+    melhorEnvioToken, melhorEnvioApiToken, melhorEnvioWebhookSecret, metaPixelId, metaCapiAccessToken, metaTestEventCode, aiAssistantEnabled, aiApiKey, aiModel, aiPolicies, aiDailyMessageLimit, fretePacoteAltura, fretePacoteLargura, fretePacoteComprimento,
+    freteLocalCidade, freteLocalUF, freteLocalRegioes, freteLocalRetirada, mercadoPagoAtivo, mercadoPagoTransparente, nuPayAtivo, nuPaySandbox,
     infinityPayAtivo, infinityPayHandle, infinityPayApiKey,
     pixDiscountEnabled, pixDiscountPercent, whatsappAtivo,
     blingAtivo, blingClientId, blingClientSecret, diasUteisProduzao,
@@ -68,6 +69,11 @@ export async function PUT(req: NextRequest) {
     metaPixelId: typeof metaPixelId === "string" && /^\d{5,25}$/.test(metaPixelId.trim()) ? metaPixelId.trim() : null,
     metaCapiAccessToken: typeof metaCapiAccessToken === "string" && metaCapiAccessToken.trim() ? metaCapiAccessToken.trim() : null,
     metaTestEventCode: typeof metaTestEventCode === "string" && metaTestEventCode.trim() ? metaTestEventCode.trim() : null,
+    aiAssistantEnabled: !!aiAssistantEnabled,
+    aiApiKey: typeof aiApiKey === "string" && aiApiKey.trim() ? aiApiKey.trim() : null,
+    aiModel: AI_MODELS.some((m) => m.id === aiModel) ? aiModel : DEFAULT_AI_MODEL,
+    aiPolicies: typeof aiPolicies === "string" && aiPolicies.trim() ? aiPolicies.trim().slice(0, 20000) : null,
+    aiDailyMessageLimit: Number.isInteger(aiDailyMessageLimit) && aiDailyMessageLimit > 0 ? Math.min(aiDailyMessageLimit, 100000) : 300,
     fretePacoteAltura: typeof fretePacoteAltura === "number" ? fretePacoteAltura : 5,
     fretePacoteLargura: typeof fretePacoteLargura === "number" ? fretePacoteLargura : 12,
     fretePacoteComprimento: typeof fretePacoteComprimento === "number" ? fretePacoteComprimento : 17,
@@ -78,6 +84,7 @@ export async function PUT(req: NextRequest) {
     mercadoPagoAtivo: !!mercadoPagoAtivo,
     mercadoPagoTransparente: !!mercadoPagoTransparente,
     nuPayAtivo: !!nuPayAtivo,
+    nuPaySandbox: !!nuPaySandbox,
     infinityPayAtivo: !!infinityPayAtivo,
     infinityPayHandle: infinityPayHandle || null,
     infinityPayApiKey: infinityPayApiKey || null,

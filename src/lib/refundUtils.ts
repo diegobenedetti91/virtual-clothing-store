@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { releaseOrderStock } from "@/lib/stockUtils";
+import { refundNuPayPayment } from "@/lib/nupay";
+import { randomUUID } from "crypto";
 
 // InfinityPay's checkout API has no refund endpoint: refunds are done in their app/panel.
 const manualRefundMessage = (gateway: string, amount: number) =>
@@ -35,7 +37,7 @@ export async function refundPayment(orderNumber: string): Promise<RefundResult> 
     if (order.paymentGateway === "mercadopago") {
       await refundMercadoPago(order.paymentId);
     } else if (order.paymentGateway === "nupay") {
-      await refundNuPay(order.paymentId);
+      await refundNuPay(order.paymentId, order.total);
     } else if (order.paymentGateway === "infinitypay") {
       return { success: false, manual: true, message: manualRefundMessage(order.paymentGateway, order.total) };
     } else {
@@ -87,55 +89,10 @@ async function refundMercadoPago(paymentId: string): Promise<void> {
   console.log("[REFUND] Mercado Pago refund successful for payment:", paymentId);
 }
 
-async function refundNuPay(transactionId: string): Promise<void> {
-  const settings = await prisma.companySettings.findFirst({
-    orderBy: { updatedAt: "desc" },
-  });
-
-  const clientId = settings?.nuPayClientId;
-  const clientSecret = settings?.nuPayClientSecret;
-
-  if (!clientId || !clientSecret) {
-    throw new Error("NuPay não configurado");
-  }
-
-  // Get NuPay token
-  const tokenRes = await fetch("https://api.nupaybusiness.com.br/auth/oauth/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      grant_type: "client_credentials",
-      client_id: clientId,
-      client_secret: clientSecret,
-    }),
-  });
-
-  if (!tokenRes.ok) {
-    throw new Error("Erro ao autenticar com NuPay");
-  }
-
-  const tokenData = await tokenRes.json();
-  const token = tokenData.access_token;
-
-  // Request refund
-  const refundRes = await fetch(
-    `https://api.nupaybusiness.com.br/v1/orders/${transactionId}/refunds`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ amount: 0 }), // 0 = full refund
-    }
-  );
-
-  if (!refundRes.ok) {
-    const err = await refundRes.text();
-    throw new Error(`Erro ao reembolsar no NuPay: ${err}`);
-  }
-
-  console.log("[REFUND] NuPay refund successful for transaction:", transactionId);
+async function refundNuPay(pspReferenceId: string, amount: number): Promise<void> {
+  // One full refund per payment: a stable key makes a retry idempotent on NuPay's side
+  await refundNuPayPayment(pspReferenceId, amount, `full-${pspReferenceId}`, "Cancelamento do pedido");
+  console.log("[REFUND] NuPay full refund requested for payment:", pspReferenceId);
 }
 
 export async function refundPartialPayment(orderNumber: string, refundAmount: number): Promise<RefundResult> {
@@ -207,51 +164,7 @@ async function refundMercadoPagoPartial(paymentId: string, amount: number): Prom
   console.log("[REFUND] Mercado Pago partial refund successful for payment:", paymentId);
 }
 
-async function refundNuPayPartial(transactionId: string, amount: number): Promise<void> {
-  const settings = await prisma.companySettings.findFirst({
-    orderBy: { updatedAt: "desc" },
-  });
-
-  const clientId = settings?.nuPayClientId;
-  const clientSecret = settings?.nuPayClientSecret;
-
-  if (!clientId || !clientSecret) {
-    throw new Error("NuPay não configurado");
-  }
-
-  const tokenRes = await fetch("https://api.nupaybusiness.com.br/auth/oauth/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      grant_type: "client_credentials",
-      client_id: clientId,
-      client_secret: clientSecret,
-    }),
-  });
-
-  if (!tokenRes.ok) {
-    throw new Error("Erro ao autenticar com NuPay");
-  }
-
-  const tokenData = await tokenRes.json();
-  const token = tokenData.access_token;
-
-  const refundRes = await fetch(
-    `https://api.nupaybusiness.com.br/v1/orders/${transactionId}/refunds`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ amount: Math.round(amount * 100) / 100 }),
-    }
-  );
-
-  if (!refundRes.ok) {
-    const err = await refundRes.text();
-    throw new Error(`Erro ao reembolsar no NuPay: ${err}`);
-  }
-
-  console.log("[REFUND] NuPay partial refund successful for transaction:", transactionId);
+async function refundNuPayPartial(pspReferenceId: string, amount: number): Promise<void> {
+  await refundNuPayPayment(pspReferenceId, amount, `partial-${pspReferenceId}-${randomUUID()}`, "Devolução de itens");
+  console.log("[REFUND] NuPay partial refund requested for payment:", pspReferenceId, amount);
 }
