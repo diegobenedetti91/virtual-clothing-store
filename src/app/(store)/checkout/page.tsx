@@ -689,16 +689,11 @@ const handleNuPaySubmit = async () => {
                   </div>
                 </div>
               )}
-            </div>
 
-            {/* Sidebar direita - Resumo do pedido + Forma de pagamento */}
-            <div className="lg:col-span-1">
-              <div className="flex flex-col gap-5">
-                {/* Order summary */}
-                <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
-                  <h2 className="text-base font-bold text-gray-900 mb-4">Seu pedido</h2>
-
-                  <div className="space-y-2 mb-3">
+              {/* Items and delivery */}
+              <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm space-y-4">
+                <h2 className="text-base font-bold text-gray-900">Itens e entrega</h2>
+                  <div className="space-y-2">
                     {items.map((item) => (
                     <div key={`${item.productId}-${item.selectedAttributes ? JSON.stringify(item.selectedAttributes) : `${item.size ?? ""}-${item.color ?? ""}`}`} className="flex items-start gap-3">
                       <img
@@ -722,23 +717,18 @@ const handleNuPaySubmit = async () => {
                     ))}
                   </div>
 
-                  <div className="border-t border-gray-100 pt-4 space-y-2 mb-4">
-                  <div className="flex justify-between text-sm text-gray-500">
-                    <span>Subtotal</span>
-                    <span>{formatCurrency(total())}</span>
-                  </div>
-
+                <div className="border-t border-gray-100 pt-4">
                   {settings?.freteAtivo && (collectAddress || settings?.freteTipo === "local") ? (
                     <div>
-                      <div className="flex justify-between text-sm text-gray-500 mb-1">
-                        <span className="flex items-center gap-1"><Truck size={13} />Frete</span>
+                      <div className="flex justify-between text-sm font-semibold text-gray-700 mb-2">
+                        <span className="flex items-center gap-1.5"><Truck size={15} className="text-brand" />Opções de frete</span>
                         {shippingLoading && <Loader2 size={13} className="animate-spin text-gray-400" />}
                       </div>
                       {!shippingLoading && freteForaArea && (
                         <p className="text-xs text-red-500 font-medium">Fora da área de entrega ({freteForaArea.cidade}{freteForaArea.uf ? `/${freteForaArea.uf}` : ""}).</p>
                       )}
                       {!shippingLoading && !freteForaArea && shippingOptions.length > 0 && (
-                        <div className="space-y-1">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                           {visibleShippingOptions.map((opt) => (
                             <label
                               key={opt.codigo}
@@ -767,12 +757,12 @@ const handleNuPaySubmit = async () => {
                             </label>
                           ))}
                           {shippingOptions.length > visibleShippingOptions.length && (
-                            <button type="button" onClick={() => setShowAllShipping(true)} className="text-xs text-brand font-semibold hover:underline pt-1">
+                            <button type="button" onClick={() => setShowAllShipping(true)} className="sm:col-span-2 text-left text-xs text-brand font-semibold hover:underline pt-1">
                               Ver mais {shippingOptions.length - visibleShippingOptions.length} opções de frete
                             </button>
                           )}
                           {showAllShipping && shippingOptions.length > 3 && (
-                            <button type="button" onClick={() => setShowAllShipping(false)} className="text-xs text-gray-500 hover:underline pt-1">
+                            <button type="button" onClick={() => setShowAllShipping(false)} className="sm:col-span-2 text-left text-xs text-gray-500 hover:underline pt-1">
                               Mostrar menos
                             </button>
                           )}
@@ -792,23 +782,49 @@ const handleNuPaySubmit = async () => {
                     </div>
                   )}
 
-                    {discountAmount > 0 && (
-                      <div className="flex justify-between text-sm text-green-600 font-semibold">
-                        <span>🎉 Desconto PIX ({pixDiscount}%)</span>
-                        <span>-{formatCurrency(discountAmount)}</span>
-                      </div>
-                    )}
+                </div>
+              </div>
+            </div>
 
-                    <div className="flex justify-between font-black text-gray-900 text-lg pt-2 border-t border-gray-100">
-                      <span>Total</span>
-                      <span>{formatCurrency(finalTotal)}</span>
+            {/* Sidebar direita - Resumo + Forma de pagamento (fixa no desktop) */}
+            <div className="lg:col-span-1 lg:self-start lg:sticky lg:top-6">
+              <div className="flex flex-col gap-3">
+                {/* Order summary (compact) */}
+                <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm space-y-2">
+                  <h2 className="text-base font-bold text-gray-900 mb-1">Resumo</h2>
+                  <div className="flex justify-between text-sm text-gray-500">
+                    <span>Subtotal ({items.reduce((n, i) => n + i.quantity, 0)} {items.reduce((n, i) => n + i.quantity, 0) === 1 ? "item" : "itens"})</span>
+                    <span>{formatCurrency(total())}</span>
+                  </div>
+                  <div className="flex justify-between gap-3 text-sm text-gray-500">
+                    <span className="shrink-0">Frete</span>
+                    <span className="text-right">
+                      {!(settings?.freteAtivo && (collectAddress || settings?.freteTipo === "local"))
+                        ? "A combinar"
+                        : shippingLoading
+                          ? "Calculando..."
+                          : freteForaArea
+                            ? <span className="text-red-500">Fora da área</span>
+                            : selectedShipping
+                              ? <>{selectedShipping.valor === 0 ? "Grátis" : formatCurrency(selectedShipping.valor)}<span className="block text-[11px] text-gray-400">{selectedShipping.servico}</span></>
+                              : zipCode.replace(/\D/g, "").length < 8 ? "Informe o CEP" : "A combinar"}
+                    </span>
+                  </div>
+                  {discountAmount > 0 && (
+                    <div className="flex justify-between text-sm text-green-600 font-semibold">
+                      <span>Desconto PIX ({pixDiscount}%)</span>
+                      <span>-{formatCurrency(discountAmount)}</span>
                     </div>
+                  )}
+                  <div className="flex justify-between font-black text-gray-900 text-lg pt-2 border-t border-gray-100">
+                    <span>Total</span>
+                    <span>{formatCurrency(finalTotal)}</span>
                   </div>
                 </div>
 
                 {/* PIX Discount Checkbox */}
                 {pixDiscountAvailable && selectedPayment !== "nupay" && (
-                  <div className="bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-2xl p-4 shadow-sm">
+                  <div className="bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-2xl p-3 shadow-sm">
                     <label className="flex items-center gap-3 cursor-pointer">
                       <input
                         type="checkbox"
@@ -818,31 +834,27 @@ const handleNuPaySubmit = async () => {
                       />
                       <div>
                         <p className="font-semibold text-sm text-gray-900">🎉 Desejo pagar com PIX e ganhar {pixDiscount}% de desconto</p>
-                        <p className="text-xs text-gray-600 mt-0.5">O desconto será aplicado no total abaixo</p>
                       </div>
                     </label>
                   </div>
                 )}
 
                 {/* Payment method selector */}
-                <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm space-y-3">
-                  <div>
-                    <h2 className="text-base font-bold text-gray-900">Forma de pagamento</h2>
-                    <p className="text-sm text-gray-500 mt-1">Escolha como você deseja pagar</p>
-                  </div>
+                <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm space-y-3">
+                  <h2 className="text-base font-bold text-gray-900">Forma de pagamento</h2>
 
                   <div className="grid grid-cols-2 gap-2">
                     {paymentOptions.map((opt) => (
                       <label
                         key={opt.id}
-                        className={`relative flex flex-col p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                        className={`relative flex flex-col p-3 rounded-lg border-2 cursor-pointer transition-all ${
                           selectedPayment === opt.id
                             ? "border-brand bg-brand/10 shadow-md shadow-brand/20"
                             : "border-gray-200 bg-gray-50 hover:border-gray-300 hover:bg-gray-100"
                         }`}
                       >
                         <div className="flex items-start justify-between gap-2">
-                          <span className="text-3xl">{opt.emoji}</span>
+                          <span className="text-2xl">{opt.emoji}</span>
                           <input
                             type="radio"
                             name="payment"
@@ -891,7 +903,7 @@ const handleNuPaySubmit = async () => {
                     Nenhuma forma de pagamento disponível
                   </button>
                 )}
-                <Link href="/carrinho" className="block text-center text-sm text-gray-400 hover:text-gray-600 mt-3 transition-colors">
+                <Link href="/carrinho" className="block text-center text-sm text-gray-400 hover:text-gray-600 transition-colors">
                   ← Voltar ao carrinho
                 </Link>
               </div>
