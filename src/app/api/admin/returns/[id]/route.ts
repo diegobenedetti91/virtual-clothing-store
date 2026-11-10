@@ -158,6 +158,16 @@ export async function PATCH(
         } else {
           console.warn("[admin/returns] Refund failed:", refund.message);
         }
+      } else if (refundAmount > 0 && gateway === "infinitypay") {
+        // InfinityPay has no refund API: same treatment as WhatsApp orders (manual refund)
+        await prisma.return.update({
+          where: { id },
+          data: { refundedAt: new Date() },
+        }).catch(console.error);
+        refund = {
+          success: true,
+          message: `Estorno automático indisponível para InfinityPay: faça o estorno de R$ ${refundAmount.toFixed(2)} pelo painel da InfinityPay.`,
+        };
       } else if (refundAmount > 0 && (!gateway || gateway === "whatsapp")) {
         // Para WhatsApp ou sem gateway, apenas marcar como refundado (refund é manual)
         await prisma.return.update({

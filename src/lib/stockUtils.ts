@@ -134,9 +134,32 @@ export async function releaseOrderStock(orderId: string): Promise<void> {
   });
   if (claimed.count === 0) return;
 
-  const items = await prisma.orderItem.findMany({ where: { orderId } });
+  const [items, approvedReturns] = await Promise.all([
+    prisma.orderItem.findMany({ where: { orderId } }),
+    prisma.return.findMany({ where: { orderId, status: "APPROVED" }, select: { returnedItems: true } }),
+  ]);
+
+  // Items already put back by an approved return must not be restocked again
+  // (e.g. a gateway refund/chargeback webhook cancelling the order afterwards).
+  const alreadyReturned = new Map<string, number>();
+  for (const r of approvedReturns) {
+    let list: unknown = r.returnedItems;
+    if (typeof list === "string") {
+      try { list = JSON.parse(list); } catch { list = []; }
+    }
+    if (!Array.isArray(list)) continue;
+    for (const ri of list as { itemId?: unknown; quantity?: unknown }[]) {
+      if (typeof ri?.itemId === "string" && typeof ri.quantity === "number") {
+        alreadyReturned.set(ri.itemId, (alreadyReturned.get(ri.itemId) ?? 0) + ri.quantity);
+      }
+    }
+  }
+  const toRestore = items
+    .map((i) => ({ ...i, quantity: i.quantity - (alreadyReturned.get(i.id) ?? 0) }))
+    .filter((i) => i.quantity > 0);
+
   try {
-    await restoreOrderStock(items);
+    if (toRestore.length > 0) await restoreOrderStock(toRestore);
   } catch (err) {
     await prisma.order.update({ where: { id: orderId }, data: { stockDecrementedAt: new Date() } }).catch(() => {});
     throw err;

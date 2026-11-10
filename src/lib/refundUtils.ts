@@ -1,7 +1,19 @@
 import { prisma } from "@/lib/prisma";
 import { releaseOrderStock } from "@/lib/stockUtils";
 
-export async function refundPayment(orderNumber: string): Promise<{ success: boolean; message: string }> {
+// InfinityPay's checkout API has no refund endpoint: refunds are done in their app/panel.
+const manualRefundMessage = (gateway: string, amount: number) =>
+  `Estorno automático indisponível para ${gateway === "infinitypay" ? "InfinityPay" : gateway}. ` +
+  `Faça o estorno de R$ ${amount.toFixed(2)} pelo painel do gateway.`;
+
+export interface RefundResult {
+  success: boolean;
+  message: string;
+  /** true when the gateway has no refund API and the admin must refund by hand */
+  manual?: boolean;
+}
+
+export async function refundPayment(orderNumber: string): Promise<RefundResult> {
   const order = await prisma.order.findUnique({
     where: { orderNumber },
     include: { items: true },
@@ -24,6 +36,8 @@ export async function refundPayment(orderNumber: string): Promise<{ success: boo
       await refundMercadoPago(order.paymentId);
     } else if (order.paymentGateway === "nupay") {
       await refundNuPay(order.paymentId);
+    } else if (order.paymentGateway === "infinitypay") {
+      return { success: false, manual: true, message: manualRefundMessage(order.paymentGateway, order.total) };
     } else {
       return { success: false, message: "Gateway de pagamento desconhecido" };
     }
@@ -124,7 +138,7 @@ async function refundNuPay(transactionId: string): Promise<void> {
   console.log("[REFUND] NuPay refund successful for transaction:", transactionId);
 }
 
-export async function refundPartialPayment(orderNumber: string, refundAmount: number): Promise<{ success: boolean; message: string }> {
+export async function refundPartialPayment(orderNumber: string, refundAmount: number): Promise<RefundResult> {
   const order = await prisma.order.findUnique({
     where: { orderNumber },
     include: { items: true },
@@ -147,6 +161,8 @@ export async function refundPartialPayment(orderNumber: string, refundAmount: nu
       await refundMercadoPagoPartial(order.paymentId, refundAmount);
     } else if (order.paymentGateway === "nupay") {
       await refundNuPayPartial(order.paymentId, refundAmount);
+    } else if (order.paymentGateway === "infinitypay") {
+      return { success: false, manual: true, message: manualRefundMessage(order.paymentGateway, refundAmount) };
     } else {
       return { success: false, message: "Gateway de pagamento desconhecido" };
     }

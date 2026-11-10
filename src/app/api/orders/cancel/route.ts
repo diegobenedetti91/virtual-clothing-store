@@ -68,6 +68,8 @@ export async function POST(req: NextRequest) {
       const refundResult = await refundPayment(orderNumber);
       if (refundResult.success) {
         refundMessage = ` Reembolso de R$ ${order.total.toFixed(2)} será processado em breve.`;
+      } else if (refundResult.manual) {
+        refundMessage = ` ${refundResult.message}`;
       } else {
         console.error("[CANCEL] Refund failed:", refundResult.message);
         refundMessage = ` Erro ao processar reembolso: ${refundResult.message}`;
