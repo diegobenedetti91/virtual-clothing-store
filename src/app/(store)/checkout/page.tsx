@@ -38,6 +38,7 @@ export default function CheckoutPage() {
   const [shippingTipo, setShippingTipo] = useState<"fixo" | "correios" | null>(null);
   const [selectedShipping, setSelectedShipping] = useState<ShippingOption | null>(null);
   const [freteForaArea, setFreteForaArea] = useState<{ cidade: string; uf: string } | null>(null);
+  const [showAllShipping, setShowAllShipping] = useState(false);
 
   // Address fields
   const [street, setStreet] = useState("");
@@ -141,6 +142,20 @@ export default function CheckoutPage() {
       calcularFrete(zipCode);
     }
   }, [zipCode, settings, calcularFrete]);
+
+  // Shipping list: by default only the 3 cheapest, always including the fastest and the selected one
+  const shippingByPrice = [...shippingOptions].sort((a, b) => a.valor - b.valor);
+  const cheapestShipping = shippingByPrice[0];
+  const fastestShipping = shippingOptions.filter((o) => o.prazo > 0).sort((a, b) => a.prazo - b.prazo || a.valor - b.valor)[0];
+  const visibleShippingOptions = showAllShipping
+    ? shippingByPrice
+    : (() => {
+        const pick = shippingByPrice.slice(0, 3);
+        for (const must of [fastestShipping, selectedShipping]) {
+          if (must && !pick.some((o) => o.codigo === must.codigo)) pick[pick.length - 1] = must;
+        }
+        return [...new Map(pick.map((o) => [o.codigo, o])).values()].sort((a, b) => a.valor - b.valor);
+      })();
 
   const collectEmail = settings?.checkoutCollectEmail;
   const collectAddress = settings?.checkoutCollectAddress;
@@ -678,10 +693,10 @@ const handleNuPaySubmit = async () => {
 
             {/* Sidebar direita - Resumo do pedido + Forma de pagamento */}
             <div className="lg:col-span-1">
-              <div className="flex flex-col sticky top-24 max-h-screen gap-5">
+              <div className="flex flex-col gap-5">
                 {/* Order summary */}
-                <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm overflow-y-auto">
-                  <h2 className="text-base font-bold text-gray-900 mb-4 sticky top-0 bg-white">Seu pedido</h2>
+                <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
+                  <h2 className="text-base font-bold text-gray-900 mb-4">Seu pedido</h2>
 
                   <div className="space-y-2 mb-3">
                     {items.map((item) => (
@@ -724,7 +739,7 @@ const handleNuPaySubmit = async () => {
                       )}
                       {!shippingLoading && !freteForaArea && shippingOptions.length > 0 && (
                         <div className="space-y-1">
-                          {shippingOptions.map((opt) => (
+                          {visibleShippingOptions.map((opt) => (
                             <label
                               key={opt.codigo}
                               className={`flex items-center justify-between text-xs px-3 py-2 rounded-lg border cursor-pointer transition-all ${selectedShipping?.codigo === opt.codigo ? "border-brand bg-brand/5 font-semibold" : "border-gray-200 hover:border-gray-300"}`}
@@ -737,12 +752,30 @@ const handleNuPaySubmit = async () => {
                                   onChange={() => setSelectedShipping(opt)}
                                   className="accent-brand"
                                 />
-                                {opt.servico}
-                                {opt.prazo > 0 && <span className="text-gray-400">({opt.prazo} dias úteis)</span>}
+                                <span className="flex flex-col leading-tight">
+                                  <span>{opt.servico}</span>
+                                  <span className="text-gray-400 font-normal">
+                                    {opt.prazo > 0 ? `${opt.prazo} dias úteis` : ""}
+                                    {cheapestShipping?.codigo === opt.codigo && <span className="ml-1 text-green-600 font-semibold">· Mais barato</span>}
+                                    {fastestShipping?.codigo === opt.codigo && fastestShipping.codigo !== cheapestShipping?.codigo && (
+                                      <span className="ml-1 text-blue-600 font-semibold">· Mais rápido</span>
+                                    )}
+                                  </span>
+                                </span>
                               </span>
-                              <span>{opt.valor === 0 ? "Grátis" : formatCurrency(opt.valor)}</span>
+                              <span className="shrink-0 ml-2">{opt.valor === 0 ? "Grátis" : formatCurrency(opt.valor)}</span>
                             </label>
                           ))}
+                          {shippingOptions.length > visibleShippingOptions.length && (
+                            <button type="button" onClick={() => setShowAllShipping(true)} className="text-xs text-brand font-semibold hover:underline pt-1">
+                              Ver mais {shippingOptions.length - visibleShippingOptions.length} opções de frete
+                            </button>
+                          )}
+                          {showAllShipping && shippingOptions.length > 3 && (
+                            <button type="button" onClick={() => setShowAllShipping(false)} className="text-xs text-gray-500 hover:underline pt-1">
+                              Mostrar menos
+                            </button>
+                          )}
                         </div>
                       )}
                       {!shippingLoading && !freteForaArea && shippingOptions.length === 0 && zipCode.replace(/\D/g, "").length === 8 && (
