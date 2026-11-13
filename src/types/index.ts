@@ -42,6 +42,8 @@ export interface Product {
   stock: number;
   variantStock: string;
   pesoGramas?: number | null;
+  /** Medidas / tabela de tamanhos (texto livre) */
+  measurements?: string | null;
   embalagemId?: string | null;
   embalagem?: PackagePreset | null;
   active: boolean;

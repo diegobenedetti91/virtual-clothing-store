@@ -12,6 +12,8 @@ import { prisma } from "@/lib/prisma";
 import type { CustomerPayload } from "@/lib/customerAuth";
 import { calculateShipping, type ShippingOption } from "@/lib/shippingCalc";
 import { ORDER_STATUS } from "@/lib/utils";
+import { applyFlashSales } from "@/lib/flashSales";
+import { attributesLabel, normalizeVariantStock } from "@/lib/variantUtils";
 
 export { AI_MODELS, DEFAULT_AI_MODEL } from "@/lib/aiModels";
 
@@ -59,6 +61,8 @@ Como responder:
 - Sempre em português do Brasil, de forma cordial, objetiva e curta (no máximo 3 parágrafos curtos). Sem markdown pesado: use frases simples e, se precisar, listas curtas com "-".
 - Responda apenas sobre a loja: produtos, pedidos, pagamentos, frete, prazos, trocas e devoluções. Para outros assuntos, diga com gentileza que só pode ajudar com a loja.
 - Use somente as informações abaixo e o que as ferramentas retornarem. Nunca invente prazos, preços, estoque, status de pedido ou políticas. Se não souber, diga que não tem essa informação e sugira o botão "Falar com atendente no WhatsApp", que fica nesta conversa.
+- Para preço, tamanhos, cores, estoque ou medidas de um produto, use "buscar_produtos" e, para detalhes de um produto específico, "consultar_produto". Use sempre o preço que a ferramenta retornar (ele já considera promoções relâmpago).
+- Cupons: só ofereça um cupom quando fizer sentido (cliente em dúvida, achando caro, primeira compra ou perguntando por desconto). Use apenas os cupons retornados por "cupons_disponiveis", com as regras exatas; nunca invente cupom ou desconto.
 - Para status, rastreio ou detalhes de pedido, use as ferramentas. Se a ferramenta disser que o cliente não está logado, peça para ele entrar na conta (menu "Minha conta") e perguntar de novo.
 - Você não pode cancelar pedidos, alterar endereço, fazer reembolsos nem aplicar descontos. Para isso, oriente o caminho no site (quando existir) ou o atendimento no WhatsApp. Nunca prometa reembolso, troca ou prazo que não esteja nas informações.
 - Nunca peça senha, dados de cartão ou códigos de segurança.
@@ -105,7 +109,8 @@ export const AI_TOOLS: Anthropic.Beta.BetaTool[] = [
   },
   {
     name: "buscar_produtos",
-    description: "Busca produtos ativos da loja pelo nome ou descrição. Retorna nome, preço, disponibilidade e link.",
+    description:
+      "Busca produtos ativos da loja pelo nome ou descrição. Retorna nome, preço atual (já com promoção relâmpago), preço anterior, tamanhos/cores disponíveis e link.",
     strict: true,
     input_schema: {
       type: "object",
@@ -113,6 +118,24 @@ export const AI_TOOLS: Anthropic.Beta.BetaTool[] = [
       required: ["busca"],
       additionalProperties: false,
     },
+  },
+  {
+    name: "consultar_produto",
+    description:
+      "Detalhes de um produto: preço atual e promoção, disponibilidade de cada tamanho/cor, medidas e caimento, descrição e link. Use o nome (ou parte dele) ou o slug do link do produto.",
+    strict: true,
+    input_schema: {
+      type: "object",
+      properties: { produto: { type: "string", description: "Nome do produto ou slug, ex.: regata colors" } },
+      required: ["produto"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "cupons_disponiveis",
+    description:
+      "Lista os cupons de desconto que a loja liberou para o atendimento divulgar (código, desconto e regras). Use só quando o cliente estiver em dúvida, achar caro ou pedir desconto.",
+    input_schema: { type: "object", properties: {} },
   },
 ];
 
@@ -126,6 +149,63 @@ const NOT_LOGGED_IN = JSON.stringify({
 function ownerFilter(customer: CustomerPayload) {
   return { OR: [{ customerId: customer.id }, { customerEmail: customer.email }] };
 }
+
+type ProductRow = {
+  id: string;
+  name: string;
+  slug: string;
+  price: number;
+  comparePrice: number | null;
+  stock: number;
+  variantStock: string;
+  description?: string | null;
+  measurements?: string | null;
+};
+
+/** Disponibilidade por variação, ex.: "M / Preto: 2 un." — acima de 5 diz só "disponível". */
+function variantAvailability(variantStock: string): { variacao: string; situacao: string }[] | undefined {
+  let raw: unknown[] = [];
+  try {
+    const parsed = JSON.parse(variantStock || "[]");
+    raw = Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return undefined;
+  }
+  const variants = normalizeVariantStock(raw).filter((v) => Object.keys(v.attributes).length > 0);
+  if (variants.length === 0) return undefined;
+  return variants.slice(0, 40).map((v) => ({
+    variacao: attributesLabel(v.attributes),
+    situacao: v.stock <= 0 ? "esgotado" : v.stock > 5 ? "disponível" : `${v.stock} un.`,
+  }));
+}
+
+/** Preço atual com promoção relâmpago aplicada. */
+async function priceInfo<T extends ProductRow>(products: T[]) {
+  const withSale = await applyFlashSales(products);
+  return withSale.map((p) => ({
+    product: p,
+    preco: brl(p.price),
+    preco_anterior: p.comparePrice && p.comparePrice > p.price ? brl(p.comparePrice) : undefined,
+    promocao_relampago: p.flashSale
+      ? {
+          nome: p.flashSale.title,
+          termina_em: new Date(p.flashSale.endAt).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "short", timeStyle: "short" }),
+        }
+      : undefined,
+  }));
+}
+
+const PRODUCT_SELECT = {
+  id: true,
+  name: true,
+  slug: true,
+  price: true,
+  comparePrice: true,
+  stock: true,
+  variantStock: true,
+  description: true,
+  measurements: true,
+} as const;
 
 export async function runAiTool(name: string, input: Record<string, unknown>, customer: CustomerPayload | null): Promise<string> {
   const baseUrl = process.env.NEXTAUTH_URL || "";
@@ -208,15 +288,79 @@ export async function runAiTool(name: string, input: Record<string, unknown>, cu
       where: { active: true, AND: words.map((w) => ({ OR: [{ name: { contains: w } }, { description: { contains: w } }] })) },
       take: 6,
       orderBy: { createdAt: "desc" },
-      select: { name: true, slug: true, price: true, comparePrice: true, stock: true },
+      select: PRODUCT_SELECT,
     });
+    const priced = await priceInfo(products);
     return JSON.stringify({
-      produtos: products.map((p) => ({
-        nome: p.name,
-        preco: brl(p.price),
-        preco_anterior: p.comparePrice && p.comparePrice > p.price ? brl(p.comparePrice) : undefined,
-        disponivel: p.stock > 0,
-        link: `${baseUrl}/produtos/${p.slug}`,
+      produtos: priced.map(({ product: p, ...price }) => {
+        const variacoes = variantAvailability(p.variantStock);
+        return {
+          nome: p.name,
+          ...price,
+          disponivel: p.stock > 0,
+          // Lista curta: só o que tem estoque (detalhes completos em consultar_produto)
+          variacoes_disponiveis: variacoes?.filter((v) => v.situacao !== "esgotado").map((v) => `${v.variacao}: ${v.situacao}`),
+          tem_medidas: !!p.measurements?.trim() || undefined,
+          link: `${baseUrl}/produtos/${p.slug}`,
+        };
+      }),
+    });
+  }
+
+  if (name === "consultar_produto") {
+    const termo = String(input.produto || "").trim().slice(0, 120);
+    if (!termo) return JSON.stringify({ erro: "produto_nao_informado" });
+    const slug = termo.replace(/^.*\/produtos\//, "").replace(/[?#].*$/, "");
+    let product = await prisma.product.findFirst({ where: { active: true, slug }, select: PRODUCT_SELECT });
+    if (!product) {
+      const words = termo.split(/\s+/).filter((w) => w.length > 1).slice(0, 5);
+      product = await prisma.product.findFirst({
+        where: { active: true, AND: words.map((w) => ({ name: { contains: w } })) },
+        orderBy: { createdAt: "desc" },
+        select: PRODUCT_SELECT,
+      });
+    }
+    if (!product) return JSON.stringify({ erro: "produto_nao_encontrado", mensagem: `Nenhum produto ativo encontrado para "${termo}".` });
+    const [{ product: p, ...price }] = await priceInfo([product]);
+    return JSON.stringify({
+      nome: p.name,
+      ...price,
+      disponivel: p.stock > 0,
+      variacoes: variantAvailability(p.variantStock),
+      medidas_e_caimento: p.measurements?.trim() || "Não informadas pela loja",
+      descricao: p.description?.slice(0, 600) || undefined,
+      link: `${baseUrl}/produtos/${p.slug}`,
+    });
+  }
+
+  if (name === "cupons_disponiveis") {
+    const now = new Date();
+    const coupons = await prisma.coupon.findMany({
+      where: {
+        active: true,
+        showInChat: true,
+        AND: [{ OR: [{ startsAt: null }, { startsAt: { lte: now } }] }, { OR: [{ endsAt: null }, { endsAt: { gte: now } }] }],
+      },
+      orderBy: { createdAt: "desc" },
+      take: 5,
+    });
+    if (coupons.length === 0) return JSON.stringify({ cupons: [], mensagem: "Nenhum cupom liberado para divulgação no momento." });
+    return JSON.stringify({
+      cupons: coupons.map((c) => ({
+        codigo: c.code,
+        desconto:
+          c.type === "FREE_SHIPPING"
+            ? "frete grátis"
+            : c.type === "FIXED"
+              ? `${brl(c.value)} de desconto`
+              : `${c.value}% de desconto${c.maxDiscount ? ` (até ${brl(c.maxDiscount)})` : ""}`,
+        pedido_minimo: c.minOrderValue ? brl(c.minOrderValue) : undefined,
+        somente_primeira_compra: c.firstPurchaseOnly || undefined,
+        uso_por_cliente: c.perCustomerLimit ?? undefined,
+        vale_em_produtos_especificos: c.productIds || c.categoryIds ? true : undefined,
+        acumula_com_pix: c.stackWithPix,
+        valido_ate: c.endsAt ? c.endsAt.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" }) : undefined,
+        como_usar: "Digitar o código no campo \"Tenho um cupom\" no checkout.",
       })),
     });
   }
@@ -321,4 +465,47 @@ export async function runAiTurn(opts: {
 /** Day key in Brazil time, for the daily usage counter. */
 export function usageDay(date = new Date()): string {
   return date.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+}
+
+// ---- Passagem para o WhatsApp ----------------------------------------------------
+
+/** Textos que o cliente digitou (ignora resultados de ferramentas). */
+export function customerTexts(history: MessageParam[]): string[] {
+  return history
+    .filter((m) => m.role === "user")
+    .map((m) =>
+      typeof m.content === "string"
+        ? m.content
+        : (m.content as { type: string; text?: string }[])
+            .filter((b) => b.type === "text" && b.text)
+            .map((b) => b.text as string)
+            .join(" ")
+    )
+    .map((t) => t.trim())
+    .filter(Boolean);
+}
+
+/**
+ * Mensagem pré-preenchida para o WhatsApp da loja com o contexto da conversa
+ * (últimas perguntas e número do pedido citado), sem chamar outro modelo.
+ */
+export function buildHandoffMessage(texts: string[]): string {
+  const intro = "Olá! Vim do atendimento do site.";
+  if (texts.length === 0) return `${intro} Preciso de ajuda.`;
+  const order = texts.join(" ").match(/\bPD\d{6,}\b/i)?.[0]?.toUpperCase();
+  const recent = texts.slice(-3).map((t) => `- ${t.replace(/\s+/g, " ").slice(0, 160)}`);
+  let msg = `${intro}${order ? ` Pedido ${order}.` : ""}\nO que eu perguntei:\n${recent.join("\n")}`;
+  if (msg.length > 500) msg = `${msg.slice(0, 497)}...`;
+  return msg;
+}
+
+/** O assistente encaminhou para atendimento humano? (usado para marcar a conversa) */
+export function replySuggestsHandoff(reply: string): boolean {
+  // Só quando ele de fato manda falar com a equipe (não basta citar a palavra)
+  return /(fale|falar|chame|chamar|contate|contatar|entre em contato|recomendo|sugiro|procure)[^.!?\n]{0,60}(whatsapp|atendente|nossa equipe)|atendente (humano|no whatsapp)|bot[ãa]o "?falar com atendente/i.test(reply);
+}
+
+/** O assistente disse que não tem a informação? */
+export function replyLacksInfo(reply: string): boolean {
+  return /n[ãa]o (tenho|possuo|encontrei|consigo) (essa |esta |a |)?informa|n[ãa]o sei|n[ãa]o tenho acesso|sem essa informa/i.test(reply);
 }

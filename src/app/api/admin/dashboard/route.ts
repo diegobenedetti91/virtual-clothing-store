@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/adminAuth";
 import { prisma } from "@/lib/prisma";
 import { getAdminAlerts } from "@/lib/adminAlerts";
+import { computeProfit } from "@/lib/profit";
 
 const PAID = ["CONFIRMED", "SHIPPED", "DELIVERED", "PRONTO_PARA_RETIRADA", "RETIRADO"];
 const DAY = 24 * 60 * 60 * 1000;
@@ -70,6 +71,12 @@ export async function GET(req: NextRequest) {
       where: { createdAt: { gte: prevStart, lte: end } },
       select: {
         id: true,
+        orderNumber: true,
+        customerName: true,
+        subtotal: true,
+        shippingCost: true,
+        couponDiscount: true,
+        shippingLabelCost: true,
         total: true,
         paymentFee: true,
         status: true,
@@ -99,6 +106,21 @@ export async function GET(req: NextRequest) {
     }),
     getAdminAlerts(),
   ]);
+
+  // Meta do mês corrente (horário de Brasília) e estornos para o lucro real
+  const nowBrt = new Date(Date.now() - BRT_OFFSET);
+  const monthStart = new Date(Date.UTC(nowBrt.getUTCFullYear(), nowBrt.getUTCMonth(), 1) + BRT_OFFSET);
+  const daysInMonth = new Date(Date.UTC(nowBrt.getUTCFullYear(), nowBrt.getUTCMonth() + 1, 0)).getUTCDate();
+  const [goalSettings, monthRevenueAgg, approvedReturns] = await Promise.all([
+    prisma.companySettings.findFirst({ orderBy: { updatedAt: "desc" }, select: { monthlyRevenueGoal: true } }),
+    prisma.order.aggregate({ where: { status: { in: PAID }, createdAt: { gte: monthStart } }, _sum: { total: true } }),
+    prisma.return.findMany({
+      where: { status: "APPROVED", orderId: { in: orders.filter((o) => PAID.includes(o.status)).map((o) => o.id) } },
+      select: { orderId: true, refundAmount: true },
+    }),
+  ]);
+  const refundsByOrder = new Map<string, number>();
+  for (const r of approvedReturns) refundsByOrder.set(r.orderId, (refundsByOrder.get(r.orderId) || 0) + (r.refundAmount || 0));
 
   const cur = orders.filter((o) => o.createdAt >= start);
   const prev = orders.filter((o) => o.createdAt < start);
@@ -153,6 +175,25 @@ export async function GET(req: NextRequest) {
       prev: prev.length ? (prev.filter((o) => o.status === "CANCELLED").length / prev.length) * 100 : 0,
     },
     grossProfit: { cur: revenue - sum(paidCur, costOf), prev: revenuePrev - sum(paidPrev, costOf) },
+  };
+
+  // Lucro líquido (DRE simplificado: descontos, taxas, custo, frete subsidiado, estornos)
+  const profitCur = computeProfit(paidCur, refundsByOrder).totals;
+  const profitPrev = computeProfit(paidPrev, refundsByOrder).totals;
+
+  const goalValue = goalSettings?.monthlyRevenueGoal ?? null;
+  const monthRevenue = monthRevenueAgg._sum.total || 0;
+  const dayOfMonth = nowBrt.getUTCDate();
+  const projected = (monthRevenue / dayOfMonth) * daysInMonth;
+  const goal = {
+    target: goalValue,
+    revenue: monthRevenue,
+    projected,
+    dayOfMonth,
+    daysInMonth,
+    remaining: goalValue != null ? Math.max(0, goalValue - monthRevenue) : null,
+    // Quanto precisa vender por dia (incluindo hoje) para bater a meta
+    perDayNeeded: goalValue != null ? Math.max(0, goalValue - monthRevenue) / Math.max(1, daysInMonth - dayOfMonth + 1) : null,
   };
 
   // ─── Dimensões ───
@@ -220,6 +261,11 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     period: { start: start.toISOString(), end: end.toISOString(), monthly },
+    profit: {
+      cur: profitCur,
+      prev: { net: profitPrev.net, margin: profitPrev.margin, gross: profitPrev.gross },
+    },
+    goal,
     buckets: buckets.map((b, i) => ({
       label: b.label,
       short: b.short,

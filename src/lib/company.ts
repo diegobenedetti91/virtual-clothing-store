@@ -28,6 +28,8 @@ const SECRET_SETTINGS_FIELDS = [
   "metaTestEventCode",
   "aiApiKey",
   "infinityPayApiKey",
+  // Meta de faturamento é dado interno do negócio
+  "monthlyRevenueGoal",
   "blingClientSecret",
   "blingAccessToken",
   "blingRefreshToken",

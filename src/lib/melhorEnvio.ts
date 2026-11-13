@@ -64,6 +64,14 @@ export interface MelhorEnvioShipmentResponse {
   label_url: string;
   protocol: string;
   status: string;
+  /** Quanto o Melhor Envio cobrou da loja pela etiqueta (null se a API não informar) */
+  price: number | null;
+}
+
+/** Lê um valor monetário que o ME pode mandar como número ou texto ("23.90"). */
+function moneyOrNull(v: unknown): number | null {
+  const n = typeof v === "number" ? v : typeof v === "string" ? Number(v.replace(",", ".")) : NaN;
+  return Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : null;
 }
 
 export interface MelhorEnvioTrackingResponse {
@@ -208,6 +216,10 @@ export async function createMelhorEnvioShipment(
       label_url: checkoutData.label_url || "",
       protocol: checkoutData.protocol || "",
       status: "created",
+      // Preço da etiqueta: o item do carrinho traz "price"; o checkout traz "purchase.total"
+      price:
+        moneyOrNull(cartData?.price ?? cartData?.[0]?.price) ??
+        moneyOrNull(checkoutData?.purchase?.total ?? checkoutData?.purchase?.amount),
     };
   } catch (error) {
     console.error("[ME API] Error creating shipment:", error);

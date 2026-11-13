@@ -9,7 +9,10 @@ import {
   DEFAULT_AI_MODEL,
   MAX_USER_MESSAGES_PER_CHAT,
   MAX_USER_MESSAGE_LENGTH,
+  buildHandoffMessage,
   buildSystemPrompt,
+  customerTexts,
+  replySuggestsHandoff,
   runAiTurn,
   usageDay,
 } from "@/lib/aiAssistant";
@@ -69,6 +72,8 @@ export async function POST(req: NextRequest) {
   }
 
   const history = (Array.isArray(conversation.messages) ? conversation.messages : []) as unknown as Anthropic.Beta.BetaMessageParam[];
+  // Mensagem para o WhatsApp da loja já com o contexto da conversa
+  const whatsappText = buildHandoffMessage([...customerTexts(history), text]);
   const result = await runAiTurn({
     apiKey: settings.aiApiKey,
     model: conversation.model,
@@ -106,8 +111,11 @@ export async function POST(req: NextRequest) {
         },
       })
       .catch(() => {});
-    return json({ conversationId: conversation.id, reply: HANDOFF_TEXT, handoff: true });
+    return json({ conversationId: conversation.id, reply: HANDOFF_TEXT, handoff: true, whatsappText });
   }
+
+  // O próprio assistente encaminhou para a equipe: destaca o botão e marca a conversa
+  const handoff = replySuggestsHandoff(result.reply);
 
   await prisma.aiConversation.update({
     where: { id: conversation.id },
@@ -115,11 +123,12 @@ export async function POST(req: NextRequest) {
       messages: JSON.parse(JSON.stringify(result.messages)) as Prisma.InputJsonValue,
       userMessages: { increment: 1 },
       customerId: conversation.customerId ?? customer?.id ?? null,
+      ...(handoff ? { handedOff: true } : {}),
       inputTokens: { increment: u.inputTokens },
       outputTokens: { increment: u.outputTokens },
       cacheReadTokens: { increment: u.cacheReadTokens },
     },
   });
 
-  return json({ conversationId: conversation.id, reply: result.reply });
+  return json({ conversationId: conversation.id, reply: result.reply, whatsappText, ...(handoff ? { handoff: true } : {}) });
 }

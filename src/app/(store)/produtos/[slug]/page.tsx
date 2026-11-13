@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Star, Truck, Zap, Store, RefreshCw, CreditCard, ShieldCheck } from "lucide-react";
+import { ChevronLeft, ChevronRight, Ruler, Star, Truck, Zap, Store, RefreshCw, CreditCard, ShieldCheck } from "lucide-react";
 import { getPublicCompanySettings } from "@/lib/company";
 import { storePerks, type PerkIcon } from "@/lib/storePerks";
 import { prisma } from "@/lib/prisma";
@@ -145,6 +145,17 @@ export default async function ProductDetailPage({ params }: PageProps) {
               variantStock={normalizedVariants}
               pixPercent={pixPercent}
             />
+
+            {product.measurements?.trim() && (
+              <details className="group rounded-2xl ring-1 ring-gray-200 bg-white open:shadow-sm transition">
+                <summary className="flex items-center gap-2 cursor-pointer list-none px-4 py-3 text-sm font-semibold text-gray-900 [&::-webkit-details-marker]:hidden">
+                  <Ruler size={16} className="text-gray-500" />
+                  Medidas e caimento
+                  <ChevronRight size={16} className="ml-auto text-gray-400 transition-transform group-open:rotate-90" />
+                </summary>
+                <p className="px-4 pb-4 -mt-1 text-sm text-gray-600 leading-relaxed whitespace-pre-line">{product.measurements.trim()}</p>
+              </details>
+            )}
 
             {/* Vantagens da loja (vindas das configurações) */}
             <ul className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">

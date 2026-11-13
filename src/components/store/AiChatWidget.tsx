@@ -55,11 +55,13 @@ export default function AiChatWidget({ storeName, whatsapp }: { storeName: strin
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [handoff, setHandoff] = useState(false);
+  // Texto do WhatsApp com o resumo da conversa (vem do servidor a cada resposta)
+  const [waText, setWaText] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
   const waNumber = whatsapp?.replace(/\D/g, "") || "";
   const waUrl = waNumber
-    ? `https://wa.me/${waNumber}?text=${encodeURIComponent("Olá! Vim do site e preciso de ajuda.")}`
+    ? `https://wa.me/${waNumber.length <= 11 ? "55" : ""}${waNumber}?text=${encodeURIComponent(waText || "Olá! Vim do site e preciso de ajuda.")}`
     : null;
 
   useEffect(() => {
@@ -86,6 +88,7 @@ export default function AiChatWidget({ storeName, whatsapp }: { storeName: strin
       });
       const data = await res.json().catch(() => ({}));
       if (data.conversationId) setConversationId(data.conversationId);
+      if (typeof data.whatsappText === "string") setWaText(data.whatsappText);
       const reply: string =
         data.reply || data.error || "Não consegui responder agora. Fale com a gente pelo WhatsApp.";
       setMessages((m) => [...m, { role: "assistant", text: reply }]);
@@ -102,6 +105,7 @@ export default function AiChatWidget({ storeName, whatsapp }: { storeName: strin
     setConversationId(null);
     setMessages([]);
     setHandoff(false);
+    setWaText(null);
   };
 
   return (

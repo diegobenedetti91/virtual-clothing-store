@@ -80,6 +80,7 @@ export default function ProductForm({ productId, product, categories, navItems =
 
   const [name, setName] = useState(product?.name || "");
   const [description, setDescription] = useState(product?.description || "");
+  const [measurements, setMeasurements] = useState(product?.measurements || "");
   const [price, setPrice] = useState(product?.price?.toString() || "");
   const [comparePrice, setComparePrice] = useState(product?.comparePrice?.toString() || "");
   const [costPrice, setCostPrice] = useState(product?.costPrice?.toString() || "");
@@ -247,6 +248,7 @@ export default function ProductForm({ productId, product, categories, navItems =
           stock, variantStock, active, featured, images, attributes,
           pesoGramas: pesoGramas ? parseInt(pesoGramas) : null,
           embalagemId: embalagemId || null,
+          measurements,
           blingProdutoId: blingProdutoId || null,
           navItemIds: selectedNavIds,
         }),
@@ -333,6 +335,17 @@ export default function ProductForm({ productId, product, categories, navItems =
                 <label className={labelClass}>Descrição</label>
                 <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={4} className={inputClass} placeholder="Tecido, caimento, medidas, como usar…" />
                 <p className="mt-1 text-[11px] text-gray-400">{description.length} caracteres · dica: fale do tecido e do caimento</p>
+              </div>
+              <div>
+                <label className={labelClass}>Medidas / tabela de tamanhos</label>
+                <textarea
+                  value={measurements}
+                  onChange={(e) => setMeasurements(e.target.value)}
+                  rows={4}
+                  className={inputClass}
+                  placeholder={"Ex.:\nP — busto 88 cm · comprimento 60 cm\nM — busto 94 cm · comprimento 62 cm\nModelo veste M e tem 1,68 m"}
+                />
+                <p className="mt-1 text-[11px] text-gray-400">Aparece na página do produto em “Medidas e caimento” e o atendente de IA usa para responder dúvidas de tamanho.</p>
               </div>
             </div>
           </Section>

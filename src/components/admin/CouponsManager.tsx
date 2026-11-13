@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
-  BadgePercent, Calendar, Check, Copy, DollarSign, Link2, Pencil, Plus, Search, ShoppingBag, Sparkles, Tag, Trash2, Truck, Users, X, Zap,
+  BadgePercent, Bot, Calendar, Check, Copy, DollarSign, Link2, Pencil, Plus, Search, ShoppingBag, Sparkles, Tag, Trash2, Truck, Users, X, Zap,
 } from "lucide-react";
 import { KpiCard } from "@/components/admin/charts/Charts";
 import { fmt } from "@/components/admin/charts/theme";
@@ -23,6 +23,7 @@ interface Coupon {
   perCustomerLimit: number | null;
   firstPurchaseOnly: boolean;
   stackWithPix: boolean;
+  showInChat: boolean;
   productIds: string | null;
   categoryIds: string | null;
   active: boolean;
@@ -45,6 +46,7 @@ interface FormState {
   perCustomerCustom: string;
   firstPurchaseOnly: boolean;
   stackWithPix: boolean;
+  showInChat: boolean;
   productIds: string[];
   categoryIds: string[];
   active: boolean;
@@ -52,7 +54,7 @@ interface FormState {
 
 const EMPTY: FormState = {
   code: "", description: "", type: "PERCENT", value: "", maxDiscount: "", minOrderValue: "", startsAt: "", endsAt: "",
-  usageLimit: "", perCustomer: "1", perCustomerCustom: "2", firstPurchaseOnly: false, stackWithPix: false, productIds: [], categoryIds: [], active: true,
+  usageLimit: "", perCustomer: "1", perCustomerCustom: "2", firstPurchaseOnly: false, stackWithPix: false, showInChat: false, productIds: [], categoryIds: [], active: true,
 };
 
 const parseIds = (raw: string | null) => { try { const v = JSON.parse(raw || "[]"); return Array.isArray(v) ? (v as string[]) : []; } catch { return []; } };
@@ -174,6 +176,7 @@ export default function CouponsManager() {
       perCustomerCustom: c.perCustomerLimit && c.perCustomerLimit > 1 ? String(c.perCustomerLimit) : "2",
       firstPurchaseOnly: c.firstPurchaseOnly,
       stackWithPix: c.stackWithPix,
+      showInChat: !!c.showInChat,
       productIds: parseIds(c.productIds),
       categoryIds: parseIds(c.categoryIds),
       active: c.active,
@@ -197,6 +200,7 @@ export default function CouponsManager() {
       perCustomerLimit: form.perCustomer === "unlimited" ? null : form.perCustomer === "1" ? 1 : form.perCustomerCustom,
       firstPurchaseOnly: form.firstPurchaseOnly,
       stackWithPix: form.stackWithPix,
+      showInChat: form.showInChat,
       productIds: form.productIds,
       categoryIds: form.categoryIds,
       active: form.active,
@@ -333,6 +337,7 @@ export default function CouponsManager() {
                     {c.perCustomerLimit ? <span className="px-2 py-0.5 rounded-md bg-gray-100 text-gray-600 inline-flex items-center gap-1"><Users size={10} /> {c.perCustomerLimit}x por cliente</span> : null}
                     {restricted > 0 && <span className="px-2 py-0.5 rounded-md bg-amber-50 text-amber-700">{restricted} produto(s)/categoria(s)</span>}
                     {c.stackWithPix && <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 inline-flex items-center gap-1"><Zap size={10} /> soma com Pix</span>}
+                    {c.showInChat && <span className="px-2 py-0.5 rounded-md bg-sky-50 text-sky-700 inline-flex items-center gap-1"><Bot size={10} /> divulgado pela IA</span>}
                     {(c.startsAt || c.endsAt) && (
                       <span className="px-2 py-0.5 rounded-md bg-gray-100 text-gray-600 inline-flex items-center gap-1">
                         <Calendar size={10} /> {c.startsAt ? fmtDate(c.startsAt) : "agora"} → {c.endsAt ? fmtDate(c.endsAt) : "sem fim"}
@@ -475,6 +480,12 @@ export default function CouponsManager() {
                 <div className="space-y-3 pt-1">
                   <Toggle checked={form.firstPurchaseOnly} onChange={(v) => set("firstPurchaseOnly", v)} label="Só na primeira compra" hint="Recusa clientes que já têm pedido pago (confere CPF e e-mail)." />
                   <Toggle checked={form.stackWithPix} onChange={(v) => set("stackWithPix", v)} label="Acumula com o desconto do Pix" hint="Desligado: o cliente fica com o maior dos dois descontos." />
+                  <Toggle
+                    checked={form.showInChat}
+                    onChange={(v) => set("showInChat", v)}
+                    label="O atendente de IA pode divulgar este cupom"
+                    hint="Ele oferece o cupom só quando o cliente está em dúvida, acha caro ou pede desconto."
+                  />
                   <Toggle checked={form.active} onChange={(v) => set("active", v)} label="Cupom ativo" />
                 </div>
               </section>

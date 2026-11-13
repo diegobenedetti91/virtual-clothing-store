@@ -9,6 +9,9 @@ import {
 import TrendChart from "@/components/admin/charts/TrendChart";
 import { BarList, ChartCard, Funnel, Heatmap, KpiCard, SegmentedBar } from "@/components/admin/charts/Charts";
 import { fmt } from "@/components/admin/charts/theme";
+import { ProfitWaterfall, type ProfitTotalsView } from "@/components/admin/charts/ProfitWaterfall";
+import { GoalCard, type GoalView } from "@/components/admin/charts/GoalCard";
+import { Delta } from "@/components/admin/charts/Charts";
 
 interface KPI { cur: number; prev: number }
 interface Group { label: string; value: number; count: number }
@@ -25,6 +28,8 @@ interface DashboardData {
   heatmap: number[][];
   funnel: { label: string; value: number }[];
   alerts: { key: string; count: number; title: string; description: string; href: string; severity: "critical" | "warning" | "info" }[];
+  profit?: { cur: ProfitTotalsView; prev: { net: number; margin: number | null; gross: number } };
+  goal?: GoalView;
 }
 
 const PRESETS = [
@@ -215,6 +220,30 @@ export default function DashboardBI({ storeName }: { storeName?: string | null }
           <KpiCard icon={Percent} label="Conversão" value={fmt.pct(k.conversion.cur, 2)} current={k.conversion.cur} previous={k.conversion.prev} hint="Pedidos pagos ÷ visitas" />
           <KpiCard icon={UserPlus} label="Novos clientes" value={fmt.num(k.newCustomers.cur)} current={k.newCustomers.cur} previous={k.newCustomers.prev} hint="Contas criadas no período" />
           <KpiCard icon={XCircle} label="Cancelamentos" value={fmt.pct(k.cancelRate.cur)} current={k.cancelRate.cur} previous={k.cancelRate.prev} spark={spark("cancelled")} invert hint="% dos pedidos criados que foram cancelados" />
+        </div>
+      )}
+
+      {/* Lucro líquido + meta do mês */}
+      {data?.profit && data.goal && (
+        <div className={`grid grid-cols-1 xl:grid-cols-2 gap-4 transition-opacity ${loading ? "opacity-60" : ""}`}>
+          <ChartCard
+            title="Lucro líquido do período"
+            subtitle="Depois de descontos, taxas, custo das peças, frete pago pela loja e estornos"
+            action={<Link href="/admin/relatorios?tab=real" className="text-xs font-medium text-gray-500 hover:text-gray-900 inline-flex items-center gap-1">Detalhar <ArrowRight size={12} /></Link>}
+          >
+            <div className="flex items-baseline flex-wrap gap-x-3 gap-y-1 mb-1">
+              <span className={`text-2xl font-semibold tracking-tight tabular-nums ${data.profit.cur.net < 0 ? "text-red-600" : "text-gray-900"}`}>{fmt.brl(data.profit.cur.net)}</span>
+              {data.profit.cur.margin != null && <span className="text-sm text-gray-500">margem {fmt.pct(data.profit.cur.margin)}</span>}
+            </div>
+            <Delta current={data.profit.cur.net} previous={data.profit.prev.net} />
+            {(data.profit.cur.unitsWithoutCost ?? 0) > 0 && (
+              <p className="mt-2 text-xs text-amber-700 bg-amber-50 rounded-lg px-2.5 py-1.5">
+                {data.profit.cur.unitsWithoutCost} peça(s) vendida(s) sem preço de custo — o lucro está maior do que o real. Cadastre o custo nos produtos.
+              </p>
+            )}
+            <div className="mt-4"><ProfitWaterfall t={data.profit.cur} compact /></div>
+          </ChartCard>
+          <GoalCard goal={data.goal} />
         </div>
       )}
 

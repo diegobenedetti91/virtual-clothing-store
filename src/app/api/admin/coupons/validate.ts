@@ -15,6 +15,7 @@ export interface CouponData {
   perCustomerLimit: number | null;
   firstPurchaseOnly: boolean;
   stackWithPix: boolean;
+  showInChat: boolean;
   productIds: string | null;
   categoryIds: string | null;
   active: boolean;
@@ -78,6 +79,7 @@ export function parseCouponInput(body: unknown): { data: CouponData } | { error:
       perCustomerLimit: perCustomerLimit != null ? Math.floor(perCustomerLimit) || null : null,
       firstPurchaseOnly: b.firstPurchaseOnly === true,
       stackWithPix: b.stackWithPix === true,
+      showInChat: b.showInChat === true,
       productIds: ids(b.productIds),
       categoryIds: ids(b.categoryIds),
       active: b.active !== false,

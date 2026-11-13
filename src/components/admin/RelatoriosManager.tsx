@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { TrendingUp, ShoppingCart, DollarSign, MapPin, Tag, ChevronDown, XCircle, Percent, Calendar, Globe, Megaphone, Wallet, RotateCcw, BarChart3, Coins } from "lucide-react";
+import { TrendingUp, ShoppingCart, DollarSign, MapPin, Tag, ChevronDown, XCircle, Percent, Calendar, Globe, Megaphone, Wallet, RotateCcw, BarChart3, Coins, Scale, TrendingDown, Sparkles } from "lucide-react";
 import { BarList, ChartCard, ColumnChart, KpiCard } from "@/components/admin/charts/Charts";
 import DataTable, { type Column } from "@/components/admin/charts/DataTable";
 import { fmt } from "@/components/admin/charts/theme";
+import { useSearchParams } from "next/navigation";
+import InsightsPanels, { type InsightsTab } from "@/components/admin/InsightsPanels";
 
 interface MonthData { month: number; label: string; revenue: number; orders: number }
 interface StateData { state: string; revenue: number; orders: number }
@@ -53,10 +55,14 @@ const MONTHS = [
   { value: 10, label: "Outubro" }, { value: 11, label: "Novembro" }, { value: 12, label: "Dezembro" },
 ];
 
-type Tab = "vendas" | "lucro" | "marketing" | "cancelamentos";
+type Tab = "vendas" | "lucro" | "marketing" | "cancelamentos" | InsightsTab;
+const INSIGHT_TABS: InsightsTab[] = ["real", "perdas", "ganhos"];
 const TABS: { key: Tab; label: string; icon: React.ComponentType<{ size?: number }> }[] = [
   { key: "vendas", label: "Vendas", icon: BarChart3 },
-  { key: "lucro", label: "Lucro e margem", icon: Coins },
+  { key: "real", label: "Lucro real", icon: Scale },
+  { key: "lucro", label: "Margem por produto", icon: Coins },
+  { key: "perdas", label: "Perdas", icon: TrendingDown },
+  { key: "ganhos", label: "Produtos e clientes", icon: Sparkles },
   { key: "marketing", label: "Marketing e origem", icon: Megaphone },
   { key: "cancelamentos", label: "Cancelamentos", icon: XCircle },
 ];
@@ -98,7 +104,24 @@ export default function RelatoriosManager() {
   const [dateTo, setDateTo] = useState("");
   const [statuses, setStatuses] = useState(DEFAULT_STATUSES);
   const [stateFilter, setStateFilter] = useState("");
-  const [tab, setTab] = useState<Tab>("vendas");
+  const searchParams = useSearchParams();
+  // ?tab=real abre direto na aba (link do dashboard)
+  const [tab, setTab] = useState<Tab>(() => {
+    const t = searchParams.get("tab");
+    return TABS.some((x) => x.key === t) ? (t as Tab) : "vendas";
+  });
+
+  // Período em datas (YYYY-MM-DD) para as abas de análise
+  const insightRange = useMemo(() => {
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const today = new Date().toISOString().slice(0, 10);
+    if (filterMode === "range") return { from: dateFrom || "2000-01-01", to: dateTo || today };
+    if (month > 0) {
+      const last = new Date(year, month, 0).getDate();
+      return { from: `${year}-${pad(month)}-01`, to: `${year}-${pad(month)}-${pad(last)}` };
+    }
+    return { from: `${year}-01-01`, to: `${year}-12-31` };
+  }, [filterMode, dateFrom, dateTo, year, month]);
 
   const query = useMemo(() => {
     const params = new URLSearchParams({ statuses });
@@ -300,6 +323,12 @@ export default function RelatoriosManager() {
           </div>
 
           <div key={tab} className="space-y-4 animate-fade-up [animation-duration:0.4s]">
+            {INSIGHT_TABS.includes(tab as InsightsTab) && (
+              <>
+                <p className="text-xs text-gray-500">Esta análise usa todos os pedidos pagos do período (o filtro de status e estado não se aplica aqui).</p>
+                <InsightsPanels tab={tab as InsightsTab} from={insightRange.from} to={insightRange.to} />
+              </>
+            )}
             {tab === "vendas" && (
               <>
                 <ChartCard
