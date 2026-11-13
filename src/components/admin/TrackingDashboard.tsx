@@ -1,8 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import {
+  AlertTriangle, CheckCircle2, Clock, Copy, ExternalLink, Info, Loader2, MapPin, Package, PackageCheck, PackageX, RefreshCw, Search, Truck, XCircle,
+} from "lucide-react";
 import { getCarrierTracking } from "@/lib/carrierTracking";
+import { KpiCard } from "@/components/admin/charts/Charts";
 
 interface ShippingStats {
   labelInvalid: number;
@@ -14,7 +18,6 @@ interface ShippingStats {
   pending: number;
   shipmentErrors: number;
 }
-
 interface Order {
   id: string;
   orderNumber: string;
@@ -24,14 +27,9 @@ interface Order {
   labelValid: boolean | null;
   labelError: string | null;
   createdAt: string;
-  trackingEvents: Array<{
-    status: string;
-    timestamp: string;
-    location: string | null;
-  }>;
+  trackingEvents: Array<{ status: string; timestamp: string; location: string | null }>;
   melhorEnvioShipmentId: string | null;
 }
-
 interface ShipmentError {
   id: string;
   orderNumber: string;
@@ -41,445 +39,311 @@ interface ShipmentError {
   lastAttempt: string | null;
 }
 
+type Filter = "attention" | "all" | "posted" | "in_transit" | "delivered" | "exception" | "labelInvalid" | "cancelled";
+const DAY = 86400000;
+/** Etiqueta criada há mais que isso e ainda sem coleta merece atenção. */
+const STALE_POSTED_DAYS = 3;
+
+const STATUS: Record<string, { label: string; tone: string; icon: React.ComponentType<{ size?: number; className?: string }> }> = {
+  posted: { label: "Aguardando coleta", tone: "bg-blue-50 text-blue-700", icon: Package },
+  in_transit: { label: "Em trânsito", tone: "bg-violet-50 text-violet-700", icon: Truck },
+  delivered: { label: "Entregue", tone: "bg-emerald-50 text-emerald-700", icon: PackageCheck },
+  returned: { label: "Devolvido", tone: "bg-purple-50 text-purple-700", icon: PackageX },
+  exception: { label: "Problema na entrega", tone: "bg-red-50 text-red-700", icon: AlertTriangle },
+  cancelled: { label: "Cancelado", tone: "bg-gray-100 text-gray-600", icon: XCircle },
+};
+const statusOf = (s: string | null) => STATUS[s || ""] || { label: "Processando", tone: "bg-gray-100 text-gray-600", icon: Clock };
+
+function ago(iso: string, now: number) {
+  const h = Math.floor((now - new Date(iso).getTime()) / 3600000);
+  if (h < 1) return "agora";
+  if (h < 24) return `há ${h} h`;
+  const d = Math.floor(h / 24);
+  return `há ${d} dia${d > 1 ? "s" : ""}`;
+}
+
+/** Etiqueta inválida, problema na entrega ou etiqueta parada sem coleta. */
+function needsAttention(o: Order, now: number) {
+  return (
+    o.labelValid === false ||
+    o.shipmentStatus === "exception" ||
+    (o.shipmentStatus === "posted" && now - new Date(o.createdAt).getTime() > STALE_POSTED_DAYS * DAY)
+  );
+}
+
 export default function TrackingDashboard() {
   const [stats, setStats] = useState<ShippingStats | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
-  const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedFilter, setSelectedFilter] = useState<string>("all");
-  const [searchTerm, setSearchTerm] = useState("");
-  const [isRetrying, setIsRetrying] = useState(false);
   const [shipmentErrors, setShipmentErrors] = useState<ShipmentError[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [reload, setReload] = useState(0);
+  const [now, setNow] = useState(0);
+  const [filter, setFilter] = useState<Filter>("all");
+  const [q, setQ] = useState("");
+  const [isRetrying, setIsRetrying] = useState(false);
   const [retryingId, setRetryingId] = useState<string | null>(null);
+  const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null);
+  const [copied, setCopied] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    let cancelled = false;
+    fetch("/api/admin/tracking-stats")
+      .then((r) => r.json())
+      .then((data) => {
+        if (cancelled) return;
+        setStats(data.stats || null);
+        setOrders(data.orders || []);
+        setShipmentErrors(data.shipmentErrors || []);
+        setNow(Date.now());
+        setLoaded(true);
+        setRefreshing(false);
+      })
+      .catch(() => { if (!cancelled) { setLoaded(true); setRefreshing(false); } });
+    return () => { cancelled = true; };
+  }, [reload]);
 
-  useEffect(() => {
-    filterOrders();
-  }, [selectedFilter, searchTerm, orders]);
+  const refresh = () => { setRefreshing(true); setReload((n) => n + 1); };
 
-  const fetchData = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch("/api/admin/tracking-stats");
-      const data = await response.json();
+  const attentionCount = useMemo(() => orders.filter((o) => needsAttention(o, now)).length, [orders, now]);
 
-      setStats(data.stats);
-      setOrders(data.orders || []);
-      setShipmentErrors(data.shipmentErrors || []);
-    } catch (error) {
-      console.error("Erro ao carregar dados:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const visible = useMemo(() => {
+    const nq = q.trim().toLowerCase();
+    return orders.filter((o) => {
+      if (filter === "attention" && !needsAttention(o, now)) return false;
+      if (filter === "labelInvalid" && o.labelValid !== false) return false;
+      if (!["all", "attention", "labelInvalid"].includes(filter) && o.shipmentStatus !== filter) return false;
+      if (!nq) return true;
+      return o.orderNumber.toLowerCase().includes(nq) || o.customerName.toLowerCase().includes(nq) || (o.trackingCode || "").toLowerCase().includes(nq);
+    });
+  }, [orders, filter, q, now]);
 
-  const filterOrders = () => {
-    let filtered = [...orders];
-
-    // Filtro por status
-    if (selectedFilter !== "all") {
-      if (selectedFilter === "labelInvalid") {
-        filtered = filtered.filter((o) => o.labelValid === false);
-      } else {
-        filtered = filtered.filter((o) => o.shipmentStatus === selectedFilter);
-      }
-    }
-
-    // Busca por número de pedido ou cliente
-    if (searchTerm) {
-      filtered = filtered.filter(
-        (o) =>
-          o.orderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          o.customerName.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    setFilteredOrders(filtered);
-  };
-
+  // Gera/recria a etiqueta de um pedido (mesma rota de antes)
   const handleRetryShipment = async (orderId: string) => {
+    setRetryingId(orderId);
+    setNotice(null);
     try {
-      setRetryingId(orderId);
-      const response = await fetch("/api/admin/shipment-retry", {
+      const res = await fetch("/api/admin/shipment-retry", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ orderId }),
       });
-
-      const result = await response.json();
-      if (result.success) {
-        alert("✅ Etiqueta criada com sucesso!");
-        fetchData(); // Recarregar dados
-      } else {
-        alert(`❌ Erro: ${result.message || result.error}`);
-        fetchData(); // Atualiza a mensagem de erro exibida
-      }
-    } catch (error) {
-      alert("Erro ao retentar");
+      const result = await res.json();
+      setNotice(result.success ? { ok: true, text: result.message || "Etiqueta criada com sucesso" } : { ok: false, text: result.message || result.error || "Não foi possível gerar a etiqueta" });
+    } catch {
+      setNotice({ ok: false, text: "Erro ao chamar a API" });
     } finally {
       setRetryingId(null);
+      setReload((n) => n + 1);
     }
   };
 
+  // Tenta de novo todos os pagos sem etiqueta (GET da mesma rota)
   const handleRetryAll = async () => {
+    setIsRetrying(true);
+    setNotice(null);
     try {
-      setIsRetrying(true);
-      const response = await fetch("/api/admin/shipment-retry");
-      const result = await response.json();
-
-      alert(
-        `✅ Processados: ${result.successful} sucesso, ${result.failed} falha\n\n` +
-        result.results.map((r: any) => `${r.orderNumber}: ${r.status}`).join("\n")
-      );
-      fetchData(); // Recarregar dados
-    } catch (error) {
-      alert("Erro ao processar tentativas");
+      const res = await fetch("/api/admin/shipment-retry");
+      const r = await res.json();
+      const results: { orderNumber: string; status: string; message: string }[] = r.results || [];
+      const failedList = results.filter((x) => x.status !== "success").map((x) => `${x.orderNumber}: ${x.message}`);
+      setNotice({
+        ok: (r.failed || 0) === 0,
+        text: `${r.successful ?? 0} etiqueta(s) criada(s), ${r.failed ?? 0} falha(s).${failedList.length ? ` ${failedList.slice(0, 3).join(" · ")}` : ""}`,
+      });
+    } catch {
+      setNotice({ ok: false, text: "Erro ao processar as tentativas" });
     } finally {
       setIsRetrying(false);
+      setReload((n) => n + 1);
     }
   };
 
-  const getStatusIcon = (status: string | null) => {
-    switch (status) {
-      case "posted":
-        return "📦";
-      case "in_transit":
-        return "🚚";
-      case "delivered":
-        return "✅";
-      case "returned":
-        return "↩️";
-      case "exception":
-        return "⚠️";
-      case "cancelled":
-        return "❌";
-      default:
-        return "⏳";
-    }
+  const copy = (text: string, key: string) => {
+    navigator.clipboard?.writeText(text).catch(() => {});
+    setCopied(key);
+    setTimeout(() => setCopied(null), 1500);
   };
 
-  const getStatusLabel = (status: string | null) => {
-    switch (status) {
-      case "posted":
-        return "Aguardando Coleta";
-      case "in_transit":
-        return "Em Trânsito";
-      case "delivered":
-        return "Entregue";
-      case "returned":
-        return "Devolvido";
-      case "exception":
-        return "Exceção";
-      case "cancelled":
-        return "Cancelado";
-      default:
-        return "Processando";
-    }
-  };
+  const TABS: { key: Filter; label: string; count: number; urgent?: boolean }[] = [
+    { key: "all", label: "Todos", count: orders.length },
+    { key: "attention", label: "Precisa de atenção", count: attentionCount, urgent: true },
+    { key: "posted", label: "Aguardando coleta", count: stats?.posted ?? 0 },
+    { key: "in_transit", label: "Em trânsito", count: stats?.inTransit ?? 0 },
+    { key: "delivered", label: "Entregues", count: stats?.delivered ?? 0 },
+    { key: "exception", label: "Com problema", count: stats?.exception ?? 0, urgent: true },
+    { key: "labelInvalid", label: "Etiqueta inválida", count: stats?.labelInvalid ?? 0, urgent: true },
+    { key: "cancelled", label: "Cancelados", count: stats?.cancelled ?? 0 },
+  ];
 
-  const getStatusColor = (status: string | null) => {
-    switch (status) {
-      case "posted":
-        return "bg-blue-50 text-blue-700 border-blue-200";
-      case "in_transit":
-        return "bg-yellow-50 text-yellow-700 border-yellow-200";
-      case "delivered":
-        return "bg-green-50 text-green-700 border-green-200";
-      case "returned":
-        return "bg-purple-50 text-purple-700 border-purple-200";
-      case "exception":
-        return "bg-red-50 text-red-700 border-red-200";
-      case "cancelled":
-        return "bg-gray-50 text-gray-700 border-gray-200";
-      default:
-        return "bg-gray-50 text-gray-700 border-gray-200";
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <p className="text-gray-500">Carregando dados...</p>
-      </div>
-    );
-  }
+  const GRID = "lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1.2fr)_minmax(0,1.8fr)_160px]";
 
   return (
     <div className="space-y-6">
-      {/* Cards de Resumo */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-        {/* Erro de Shipment */}
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-red-600 font-medium">Erro de Shipment</p>
-              <p className="text-2xl font-bold text-red-700 mt-1">{stats?.shipmentErrors || 0}</p>
-            </div>
-            <span className="text-3xl">🚫</span>
-          </div>
-          {(stats?.shipmentErrors || 0) > 0 && (
-            <button
-              onClick={handleRetryAll}
-              disabled={isRetrying}
-              className="mt-2 w-full bg-red-600 text-white text-xs py-1 rounded hover:bg-red-700 disabled:opacity-50"
-            >
-              {isRetrying ? "Processando..." : "Retentar todos"}
-            </button>
-          )}
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-gray-900">Rastreamento</h1>
+          <p className="text-sm text-gray-500 mt-1">Situação de todas as etiquetas do Melhor Envio, do pagamento até a entrega.</p>
         </div>
-
-        {/* Etiquetas Inválidas */}
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-red-600 font-medium">Etiquetas Inválidas</p>
-              <p className="text-2xl font-bold text-red-700 mt-1">{stats?.labelInvalid || 0}</p>
-            </div>
-            <span className="text-3xl">⚠️</span>
-          </div>
-        </div>
-
-        {/* Aguardando Coleta */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-blue-600 font-medium">Aguardando Coleta</p>
-              <p className="text-2xl font-bold text-blue-700 mt-1">{stats?.posted || 0}</p>
-            </div>
-            <span className="text-3xl">📦</span>
-          </div>
-        </div>
-
-        {/* Em Trânsito */}
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-yellow-600 font-medium">Em Trânsito</p>
-              <p className="text-2xl font-bold text-yellow-700 mt-1">{stats?.inTransit || 0}</p>
-            </div>
-            <span className="text-3xl">🚚</span>
-          </div>
-        </div>
-
-        {/* Entregues */}
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-green-600 font-medium">Entregues</p>
-              <p className="text-2xl font-bold text-green-700 mt-1">{stats?.delivered || 0}</p>
-            </div>
-            <span className="text-3xl">✅</span>
-          </div>
-        </div>
+        <button onClick={refresh} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white ring-1 ring-gray-200 text-[13px] font-medium text-gray-600 hover:text-gray-900 self-start sm:self-auto">
+          <RefreshCw size={14} className={refreshing ? "animate-spin" : ""} /> Atualizar
+        </button>
       </div>
 
-      {/* Pedidos pagos sem etiqueta por erro na geração */}
+      {!loaded ? (
+        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">{Array.from({ length: 6 }).map((_, i) => <div key={i} className="img-skeleton rounded-2xl h-[100px]" />)}</div>
+      ) : (
+        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
+          <KpiCard icon={Package} label="Aguardando coleta" value={String(stats?.posted ?? 0)} current={stats?.posted ?? 0} />
+          <KpiCard icon={Truck} label="Em trânsito" value={String(stats?.inTransit ?? 0)} current={stats?.inTransit ?? 0} />
+          <KpiCard icon={PackageCheck} label="Entregues" value={String(stats?.delivered ?? 0)} current={stats?.delivered ?? 0} />
+          <KpiCard icon={AlertTriangle} label="Com problema" value={String(stats?.exception ?? 0)} current={stats?.exception ?? 0} hint="Ocorrência informada pela transportadora" />
+          <KpiCard icon={XCircle} label="Etiquetas inválidas" value={String(stats?.labelInvalid ?? 0)} current={stats?.labelInvalid ?? 0} hint="Precisam ser recriadas" />
+          <KpiCard icon={PackageX} label="Pagos sem etiqueta" value={String(stats?.shipmentErrors ?? 0)} current={stats?.shipmentErrors ?? 0} hint="A geração automática falhou" />
+        </div>
+      )}
+
+      {notice && (
+        <div className={`flex items-start gap-2 rounded-xl px-4 py-3 text-sm ${notice.ok ? "bg-emerald-50 text-emerald-800" : "bg-red-50 text-red-800"}`}>
+          {notice.ok ? <CheckCircle2 size={16} className="shrink-0 mt-0.5" /> : <AlertTriangle size={16} className="shrink-0 mt-0.5" />}
+          <span className="flex-1 break-words">{notice.text}</span>
+          <button onClick={() => setNotice(null)} className="opacity-60 hover:opacity-100" aria-label="Fechar"><XCircle size={15} /></button>
+        </div>
+      )}
+
+      {/* Pedidos pagos sem etiqueta (erro na geração automática) */}
       {shipmentErrors.length > 0 && (
-        <div className="bg-white rounded-lg border border-red-200 overflow-hidden">
-          <div className="px-4 py-3 bg-red-50 border-b border-red-200">
-            <h3 className="font-semibold text-red-700">🚫 Pedidos pagos sem etiqueta ({shipmentErrors.length})</h3>
-            <p className="text-xs text-red-600 mt-0.5">A geração automática da etiqueta falhou. Corrija a causa e gere novamente.</p>
-          </div>
+        <section className="bg-white rounded-2xl border border-red-200 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+          <header className="flex flex-col sm:flex-row sm:items-center gap-3 px-4 py-3 bg-red-50/70 border-b border-red-100 rounded-t-2xl">
+            <div className="flex-1">
+              <h2 className="text-sm font-semibold text-red-800 flex items-center gap-2"><PackageX size={16} /> Pedidos pagos sem etiqueta ({shipmentErrors.length})</h2>
+              <p className="text-xs text-red-700/80 mt-0.5">A geração automática falhou. Corrija a causa (saldo, CEP ou endereço) e gere de novo.</p>
+            </div>
+            <button onClick={handleRetryAll} disabled={isRetrying} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-red-600 text-white text-xs font-semibold hover:bg-red-700 disabled:opacity-50 self-start sm:self-auto">
+              {isRetrying ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />} Retentar todos
+            </button>
+          </header>
           <ul className="divide-y divide-gray-100">
             {shipmentErrors.map((o) => (
               <li key={o.id} className="px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900">
-                    {o.orderNumber} <span className="text-gray-500 font-normal">· {o.customerName}</span>
-                  </p>
-                  <p className="text-xs text-red-600 break-words">
-                    {o.retryable && <span className="font-semibold">[Saldo] </span>}
-                    {o.error || "Erro desconhecido"}
-                  </p>
-                  {o.lastAttempt && (
-                    <p className="text-xs text-gray-400">Última tentativa: {new Date(o.lastAttempt).toLocaleString("pt-BR")}</p>
-                  )}
+                  <p className="text-sm font-medium text-gray-900">{o.orderNumber} <span className="text-gray-500 font-normal">· {o.customerName}</span></p>
+                  <p className="text-xs text-red-600 break-words">{o.retryable && <b>[Saldo] </b>}{o.error || "Erro desconhecido"}</p>
+                  {o.lastAttempt && now > 0 && <p className="text-[11px] text-gray-400">Última tentativa {ago(o.lastAttempt, now)}</p>}
                 </div>
                 <div className="flex gap-2 shrink-0">
-                  <button
-                    onClick={() => handleRetryShipment(o.id)}
-                    disabled={retryingId === o.id || isRetrying}
-                    className="bg-red-600 text-white text-xs px-3 py-1.5 rounded hover:bg-red-700 disabled:opacity-50"
-                  >
-                    {retryingId === o.id ? "Gerando..." : "Gerar etiqueta"}
+                  <button onClick={() => handleRetryShipment(o.id)} disabled={retryingId === o.id || isRetrying} className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-gray-900 text-white hover:bg-gray-800 disabled:opacity-50">
+                    {retryingId === o.id ? <Loader2 size={13} className="animate-spin" /> : <Package size={13} />} Gerar etiqueta
                   </button>
-                  <Link href={`/admin/pedidos/${o.id}`} className="text-xs px-3 py-1.5 rounded border border-gray-200 text-blue-600 hover:bg-gray-50">
-                    Ver pedido
-                  </Link>
+                  <Link href={`/admin/pedidos/${o.id}`} className="text-xs px-3 py-1.5 rounded-lg ring-1 ring-gray-200 text-gray-700 hover:bg-gray-50">Ver pedido</Link>
                 </div>
               </li>
             ))}
           </ul>
+        </section>
+      )}
+
+      {/* Abas + busca */}
+      <div className="flex flex-col xl:flex-row xl:items-end gap-3">
+        <div className="border-b border-gray-200 flex gap-1 overflow-x-auto [scrollbar-width:none] flex-1">
+          {TABS.map((t) => (
+            <button key={t.key} onClick={() => setFilter(t.key)} className={`relative inline-flex items-center gap-1.5 px-3 py-2.5 text-[13px] font-medium whitespace-nowrap transition-colors ${filter === t.key ? "text-gray-900" : "text-gray-500 hover:text-gray-800"}`}>
+              {t.label}
+              <span className={`text-[11px] font-semibold rounded-full px-1.5 tabular-nums ${t.urgent && t.count > 0 ? "bg-amber-500 text-white" : "bg-gray-100 text-gray-600"}`}>{t.count}</span>
+              <span className={`absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-gray-900 transition-transform ${filter === t.key ? "scale-x-100" : "scale-x-0"}`} />
+            </button>
+          ))}
+        </div>
+        <label className="relative xl:w-72">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Pedido, cliente ou rastreio" className="w-full pl-8 pr-3 py-2 text-[13px] rounded-xl border border-gray-200 bg-white" />
+        </label>
+      </div>
+
+      {/* Lista */}
+      {!loaded ? (
+        <div className="space-y-2">{Array.from({ length: 4 }).map((_, i) => <div key={i} className="img-skeleton rounded-2xl h-20" />)}</div>
+      ) : visible.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-dashed border-gray-300 py-12 text-center px-4">
+          <Truck size={30} className="mx-auto text-gray-300 mb-3" />
+          <p className="font-medium text-gray-700">{orders.length === 0 ? "Nenhuma etiqueta gerada ainda" : filter === "attention" ? "Nada precisando de atenção" : "Nenhum envio neste filtro"}</p>
+          <p className="text-sm text-gray-500 mt-1">{orders.length === 0 ? "As etiquetas são geradas automaticamente quando o pagamento é aprovado." : "Veja as outras abas."}</p>
+        </div>
+      ) : (
+        <div className="bg-white rounded-2xl border border-gray-200/70 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+          <div className={`hidden lg:grid ${GRID} gap-3 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-gray-400 border-b border-gray-100 bg-gray-50/60 rounded-t-2xl`}>
+            <span>Pedido</span><span>Situação</span><span>Rastreio</span><span>Último evento</span><span className="text-right">Ações</span>
+          </div>
+          <ul className="divide-y divide-gray-100">
+            {visible.map((o) => {
+              const invalid = o.labelValid === false;
+              const st = statusOf(o.shipmentStatus);
+              const Icon = invalid ? XCircle : st.icon;
+              const last = o.trackingEvents?.[0];
+              const attention = needsAttention(o, now);
+              const tr = o.trackingCode ? getCarrierTracking(o.trackingCode) : null;
+              return (
+                <li key={o.id} className={`grid grid-cols-1 ${GRID} gap-2 lg:gap-3 px-4 py-3.5 ${attention ? "bg-amber-50/40" : ""}`}>
+                  <div className="min-w-0">
+                    <Link href={`/admin/pedidos/${o.id}`} className="text-sm font-semibold text-gray-900 hover:text-brand">{o.orderNumber}</Link>
+                    <p className="text-xs text-gray-500 truncate">{o.customerName}</p>
+                    {now > 0 && <p className="text-[11px] text-gray-400">pedido {ago(o.createdAt, now)}</p>}
+                  </div>
+                  <div className="min-w-0">
+                    <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[11px] font-semibold ${invalid ? "bg-red-50 text-red-700" : st.tone}`}>
+                      <Icon size={12} /> {invalid ? "Etiqueta inválida" : st.label}
+                    </span>
+                    {invalid && o.labelError && <p className="text-[11px] text-red-600 mt-1 line-clamp-2" title={o.labelError}>{o.labelError}</p>}
+                    {!invalid && o.shipmentStatus === "posted" && attention && <p className="text-[11px] text-amber-700 mt-1">Sem coleta há mais de {STALE_POSTED_DAYS} dias</p>}
+                  </div>
+                  <div className="min-w-0">
+                    {o.trackingCode ? (
+                      <div className="flex items-center gap-1.5">
+                        <a href={tr?.url} target="_blank" rel="noopener noreferrer" className="font-mono text-[13px] text-gray-900 hover:underline truncate">{o.trackingCode}</a>
+                        <button onClick={() => copy(o.trackingCode!, o.id)} className="p-1 text-gray-400 hover:text-gray-700 shrink-0" aria-label="Copiar rastreio">
+                          {copied === o.id ? <CheckCircle2 size={13} className="text-emerald-600" /> : <Copy size={13} />}
+                        </button>
+                      </div>
+                    ) : <span className="text-xs text-gray-400">Ainda sem código</span>}
+                    {tr?.carrier && <p className="text-[11px] text-gray-400">{tr.carrier}</p>}
+                  </div>
+                  <div className="min-w-0">
+                    {last ? (
+                      <div className="relative pl-4">
+                        <span className="absolute left-0 top-1.5 w-2 h-2 rounded-full bg-brand" />
+                        <p className="text-[13px] text-gray-800 line-clamp-2">{last.status}</p>
+                        <p className="text-[11px] text-gray-400">
+                          {new Date(last.timestamp).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
+                          {last.location && <> · <MapPin size={10} className="inline -mt-0.5" /> {last.location}</>}
+                        </p>
+                      </div>
+                    ) : <span className="text-xs text-gray-400">Nenhum evento ainda</span>}
+                  </div>
+                  <div className="flex items-center lg:justify-end gap-1.5">
+                    {invalid && (
+                      <button onClick={() => handleRetryShipment(o.id)} disabled={retryingId === o.id} className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 whitespace-nowrap">
+                        {retryingId === o.id ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />} Recriar
+                      </button>
+                    )}
+                    {tr?.url && (
+                      <a href={tr.url} target="_blank" rel="noopener noreferrer" className="p-1.5 rounded-lg text-gray-400 hover:text-gray-900 hover:bg-gray-100" aria-label="Rastrear na transportadora" title="Rastrear na transportadora"><Truck size={15} /></a>
+                    )}
+                    <Link href={`/admin/pedidos/${o.id}`} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-900 hover:bg-gray-100" aria-label="Abrir pedido" title="Abrir pedido"><ExternalLink size={15} /></Link>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
         </div>
       )}
 
-      {/* Filtros e Busca */}
-      <div className="bg-white rounded-lg border border-gray-200 p-4">
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Buscar por Pedido ou Cliente
-            </label>
-            <input
-              type="text"
-              placeholder="Ex: ORD-123456 ou João Silva"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Filtrar por Status
-            </label>
-            <select
-              value={selectedFilter}
-              onChange={(e) => setSelectedFilter(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="all">Todos</option>
-              <option value="labelInvalid">⚠️ Etiquetas Inválidas</option>
-              <option value="posted">📦 Aguardando Coleta</option>
-              <option value="in_transit">🚚 Em Trânsito</option>
-              <option value="delivered">✅ Entregues</option>
-              <option value="exception">⚠️ Exceções</option>
-              <option value="cancelled">❌ Cancelados</option>
-            </select>
-          </div>
-        </div>
-      </div>
-
-      {/* Tabela de Pedidos */}
-      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Pedido</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Cliente</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Status</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
-                  Código Rastreamento
-                </th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
-                  Último Evento
-                </th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Ações</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {filteredOrders.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
-                    Nenhum pedido encontrado
-                  </td>
-                </tr>
-              ) : (
-                filteredOrders.map((order) => {
-                  const lastEvent = order.trackingEvents?.[0];
-                  const isInvalid = order.labelValid === false;
-
-                  return (
-                    <tr key={order.id} className={isInvalid ? "bg-red-50" : ""}>
-                      <td className="px-4 py-3 text-sm font-medium text-gray-900">
-                        {order.orderNumber}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-700">{order.customerName}</td>
-                      <td className="px-4 py-3">
-                        {isInvalid ? (
-                          <div className="inline-flex items-center gap-2">
-                            <span className="text-xl">⚠️</span>
-                            <span className="text-sm font-medium text-red-700">Etiqueta Inválida</span>
-                          </div>
-                        ) : (
-                          <div
-                            className={`inline-flex items-center gap-2 px-3 py-1 rounded-full border text-sm font-medium ${getStatusColor(
-                              order.shipmentStatus
-                            )}`}
-                          >
-                            <span>{getStatusIcon(order.shipmentStatus)}</span>
-                            <span>{getStatusLabel(order.shipmentStatus)}</span>
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-700">
-                        {order.trackingCode ? (
-                          (() => {
-                            const { carrier, url } = getCarrierTracking(order.trackingCode);
-                            return (
-                              <div>
-                                <a
-                                  href={url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-blue-600 hover:underline font-mono"
-                                >
-                                  {order.trackingCode}
-                                </a>
-                                {carrier && <p className="text-xs text-gray-500">{carrier}</p>}
-                              </div>
-                            );
-                          })()
-                        ) : (
-                          <span className="text-gray-500">-</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-700">
-                        {lastEvent ? (
-                          <div className="text-xs">
-                            <p className="font-medium">{lastEvent.status}</p>
-                            <p className="text-gray-500">
-                              {lastEvent.location && `📍 ${lastEvent.location}`}
-                            </p>
-                          </div>
-                        ) : (
-                          <span className="text-gray-500">-</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-sm space-y-2">
-                        {isInvalid && (
-                          <button
-                            onClick={() => handleRetryShipment(order.id)}
-                            disabled={retryingId === order.id}
-                            className="block w-full bg-red-600 text-white text-xs py-1 rounded hover:bg-red-700 disabled:opacity-50"
-                          >
-                            {retryingId === order.id ? "..." : "Recriar etiqueta"}
-                          </button>
-                        )}
-                        <Link
-                          href={`/admin/pedidos/${order.id}`}
-                          className="block text-blue-600 hover:underline font-medium text-center"
-                        >
-                          Ver Detalhes
-                        </Link>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Informações */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <div className="flex gap-3">
-          <span className="text-xl">ℹ️</span>
-          <div className="text-sm text-blue-900">
-            <p className="font-medium mb-1">Sobre o Rastreamento:</p>
-            <ul className="list-disc list-inside space-y-1 text-blue-800">
-              <li>Os dados são sincronizados automaticamente a cada 6 horas</li>
-              <li>Etiquetas inválidas precisam ser corrigidas no Melhor Envio</li>
-              <li>Clique no código de rastreamento para ver detalhes nos Correios</li>
-              <li>Notificações por email são enviadas automaticamente ao cliente</li>
-            </ul>
-          </div>
-        </div>
+      <div className="flex gap-3 rounded-2xl bg-blue-50/70 px-4 py-3 text-sm text-blue-900">
+        <Info size={16} className="shrink-0 mt-0.5" />
+        <ul className="space-y-0.5 text-[13px]">
+          <li>A situação é sincronizada automaticamente com o Melhor Envio (aviso da transportadora e verificação periódica).</li>
+          <li>Etiquetas inválidas precisam ser recriadas; pedidos com problema na entrega merecem contato com o cliente.</li>
+          <li>O cliente recebe e-mail quando o pedido é coletado e quando é entregue.</li>
+        </ul>
       </div>
     </div>
   );

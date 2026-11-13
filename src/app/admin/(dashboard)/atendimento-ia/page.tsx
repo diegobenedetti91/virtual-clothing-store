@@ -1,9 +1,16 @@
 import Link from "next/link";
+import { Bot, Cpu, DollarSign, Headset, MessageSquare, Settings } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { AI_MODELS, estimateAiCostUsd } from "@/lib/aiModels";
+import { usageDay } from "@/lib/aiAssistant";
+import { ColumnChart } from "@/components/admin/charts/Charts";
+import AiConversationsPanel, { type AiConversationView } from "@/components/admin/AiConversationsPanel";
+import AiInsightsCard from "@/components/admin/AiInsightsCard";
 
-// Admin view of the AI support assistant: daily usage, estimated cost and the
-// latest conversations (so the store can improve its FAQ text).
+export const dynamic = "force-dynamic";
+
+// Visão do assistente virtual: status, uso do dia vs. limite, custo estimado e as
+// conversas recentes (para a loja melhorar o texto de políticas/perguntas frequentes).
 
 type StoredBlock = { type?: string; text?: string; name?: string };
 type StoredMessage = { role: "user" | "assistant"; content: string | StoredBlock[] };
@@ -15,9 +22,9 @@ const TOOL_LABELS: Record<string, string> = {
   buscar_produtos: "buscou produtos",
 };
 
-function transcript(messages: unknown): { role: "user" | "assistant" | "tool"; text: string }[] {
+function transcript(messages: unknown): AiConversationView["lines"] {
   if (!Array.isArray(messages)) return [];
-  const out: { role: "user" | "assistant" | "tool"; text: string }[] = [];
+  const out: AiConversationView["lines"] = [];
   for (const m of messages as StoredMessage[]) {
     if (typeof m.content === "string") {
       out.push({ role: m.role, text: m.content });
@@ -32,6 +39,7 @@ function transcript(messages: unknown): { role: "user" | "assistant" | "tool"; t
 }
 
 const usd = (n: number) => `US$ ${n.toFixed(n < 1 ? 3 : 2)}`;
+const card = "bg-white rounded-2xl border border-gray-200/70 shadow-[0_1px_2px_rgba(0,0,0,0.04)]";
 
 export default async function AtendimentoIaPage() {
   const [settings, usage, conversations] = await Promise.all([
@@ -52,116 +60,123 @@ export default async function AtendimentoIaPage() {
   const model = settings?.aiModel ?? "claude-opus-5-5";
   const modelLabel = AI_MODELS.find((m) => m.id === model)?.label ?? model;
   const active = !!(settings?.aiAssistantEnabled && settings.aiApiKey);
+  const limit = settings?.aiDailyMessageLimit ?? 300;
   const monthCost = usage.reduce((sum, d) => sum + estimateAiCostUsd(model, d), 0);
+  const todayKey = usageDay();
+  const today = usage.find((d) => d.day === todayKey);
+  const todayMsgs = today?.messages ?? 0;
+  const todayPct = limit > 0 ? Math.min(100, (todayMsgs / limit) * 100) : 0;
+  const handoffs = conversations.filter((c) => c.handedOff).length;
+
+  const views: AiConversationView[] = conversations.map((c) => {
+    const lines = transcript(c.messages);
+    const customer = c.customerId ? customerMap.get(c.customerId) : null;
+    return {
+      id: c.id,
+      customer: customer ? { name: customer.name, email: customer.email } : null,
+      updatedAt: c.updatedAt.toISOString(),
+      userMessages: c.userMessages,
+      handedOff: c.handedOff,
+      preview: lines.find((l) => l.role === "user")?.text.slice(0, 140) ?? "",
+      lines,
+    };
+  });
+
+  // Gráfico: últimos 14 dias, do mais antigo para o mais recente
+  const chart = [...usage].slice(0, 14).reverse().map((d) => ({
+    label: d.day.slice(8, 10) + "/" + d.day.slice(5, 7),
+    value: d.messages,
+    sub: usd(estimateAiCostUsd(model, d)),
+  }));
 
   return (
-    <div className="max-w-5xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Atendimento com IA</h1>
-        <p className="text-gray-500 text-sm mt-1">
-          Uso do assistente virtual e as conversas mais recentes. Configure em{" "}
-          <Link href="/admin/configuracoes" className="underline">Configurações → Atendimento com IA</Link>.
-        </p>
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-gray-900">Atendimento com IA</h1>
+          <p className="text-sm text-gray-500 mt-1">Uso do assistente virtual da loja e as conversas com os clientes.</p>
+        </div>
+        <Link href="/admin/configuracoes" className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl ring-1 ring-gray-200 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">
+          <Settings size={15} /> Configurar assistente
+        </Link>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-          <p className="text-sm text-gray-500">Status</p>
-          <p className={`text-lg font-bold ${active ? "text-green-600" : "text-gray-400"}`}>{active ? "Ativo na loja" : "Desligado"}</p>
-          {settings?.aiAssistantEnabled && !settings.aiApiKey && <p className="text-xs text-amber-600 mt-1">Falta a chave de API.</p>}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className={`${card} p-4`}>
+          <p className="text-[13px] text-gray-500 flex items-center gap-1.5"><Bot size={14} className="text-gray-400" /> Status</p>
+          <p className={`mt-1 text-lg font-semibold flex items-center gap-2 ${active ? "text-emerald-700" : "text-gray-400"}`}>
+            <span className={`w-2.5 h-2.5 rounded-full ${active ? "bg-emerald-500 animate-pulse" : "bg-gray-300"}`} />
+            {active ? "Ativo na loja" : "Desligado"}
+          </p>
+          {settings?.aiAssistantEnabled && !settings.aiApiKey && <p className="text-xs text-amber-700 mt-1">Ligado, mas falta a chave de API.</p>}
+          {!settings?.aiAssistantEnabled && <p className="text-xs text-gray-400 mt-1">Ative em Configurações → Atendimento com IA.</p>}
         </div>
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-          <p className="text-sm text-gray-500">Modelo</p>
-          <p className="text-sm font-semibold text-gray-900">{modelLabel}</p>
-          <p className="text-xs text-gray-400 mt-1">Limite: {settings?.aiDailyMessageLimit ?? 300} mensagens/dia</p>
-        </div>
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-          <p className="text-sm text-gray-500">Custo estimado (últimos 30 dias)</p>
-          <p className="text-lg font-bold text-gray-900">{usd(monthCost)}</p>
-          <p className="text-xs text-gray-400 mt-1">Estimativa pelo modelo atual. O valor oficial está no console da Anthropic.</p>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-        <h2 className="text-base font-bold text-gray-900 mb-4">Uso por dia</h2>
-        {usage.length === 0 ? (
-          <p className="text-sm text-gray-400 text-center py-6">Nenhuma mensagem ainda.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-100 text-left">
-                  <th className="pb-2 px-2 font-semibold text-gray-500">Dia</th>
-                  <th className="pb-2 px-2 font-semibold text-gray-500 text-right">Mensagens</th>
-                  <th className="pb-2 px-2 font-semibold text-gray-500 text-right">Tokens (entrada / saída / cache)</th>
-                  <th className="pb-2 px-2 font-semibold text-gray-500 text-right">Custo estimado</th>
-                </tr>
-              </thead>
-              <tbody>
-                {usage.map((d) => (
-                  <tr key={d.day} className="border-b border-gray-50">
-                    <td className="py-2 px-2 text-gray-700">{d.day.split("-").reverse().join("/")}</td>
-                    <td className="py-2 px-2 text-gray-700 text-right">{d.messages}</td>
-                    <td className="py-2 px-2 text-gray-500 text-right">
-                      {d.inputTokens.toLocaleString("pt-BR")} / {d.outputTokens.toLocaleString("pt-BR")} / {d.cacheReadTokens.toLocaleString("pt-BR")}
-                    </td>
-                    <td className="py-2 px-2 text-gray-900 font-medium text-right">{usd(estimateAiCostUsd(model, d))}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        <div className={`${card} p-4`}>
+          <p className="text-[13px] text-gray-500 flex items-center gap-1.5"><MessageSquare size={14} className="text-gray-400" /> Mensagens hoje</p>
+          <p className="mt-1 text-lg font-semibold text-gray-900 tabular-nums">{todayMsgs} <span className="text-sm font-normal text-gray-400">/ {limit}</span></p>
+          <div className="mt-2 h-1.5 rounded-full bg-gray-100 overflow-hidden">
+            <div className={`h-full rounded-full ${todayPct >= 90 ? "bg-red-500" : todayPct >= 70 ? "bg-amber-500" : "bg-emerald-500"}`} style={{ width: `${todayPct}%` }} />
           </div>
-        )}
+          <p className="text-[11px] text-gray-400 mt-1">Ao atingir o limite, o cliente é levado ao WhatsApp.</p>
+        </div>
+        <div className={`${card} p-4`}>
+          <p className="text-[13px] text-gray-500 flex items-center gap-1.5"><DollarSign size={14} className="text-gray-400" /> Custo estimado (30 dias)</p>
+          <p className="mt-1 text-lg font-semibold text-gray-900">{usd(monthCost)}</p>
+          <p className="text-[11px] text-gray-400 mt-1">Estimativa pelo modelo atual. O valor oficial está no console da Anthropic.</p>
+        </div>
+        <div className={`${card} p-4`}>
+          <p className="text-[13px] text-gray-500 flex items-center gap-1.5"><Cpu size={14} className="text-gray-400" /> Modelo</p>
+          <p className="mt-1 text-sm font-semibold text-gray-900 leading-snug">{modelLabel}</p>
+          <p className="text-[11px] text-gray-500 mt-1 inline-flex items-center gap-1"><Headset size={12} /> {handoffs} de {conversations.length} conversas recentes pediram atendente</p>
+        </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-        <h2 className="text-base font-bold text-gray-900 mb-1">Conversas recentes</h2>
-        <p className="text-xs text-gray-400 mb-4">
-          Use para ver as dúvidas mais comuns e completar as políticas e perguntas frequentes nas configurações.
-        </p>
-        {conversations.length === 0 ? (
-          <p className="text-sm text-gray-400 text-center py-6">Nenhuma conversa ainda.</p>
-        ) : (
-          <div className="space-y-2">
-            {conversations.map((c) => {
-              const customer = c.customerId ? customerMap.get(c.customerId) : null;
-              const lines = transcript(c.messages);
-              return (
-                <details key={c.id} className="border border-gray-100 rounded-xl">
-                  <summary className="cursor-pointer px-4 py-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-                    <span className="font-semibold text-gray-800">
-                      {customer ? `${customer.name} (${customer.email})` : "Visitante"}
-                    </span>
-                    <span className="text-gray-400 text-xs">
-                      {c.updatedAt.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })} · {c.userMessages} mensagem(ns)
-                    </span>
-                    {c.handedOff && (
-                      <span className="text-[11px] font-semibold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">sem resposta / WhatsApp</span>
-                    )}
-                  </summary>
-                  <div className="px-4 pb-4 space-y-2">
-                    {lines.length === 0 && <p className="text-xs text-gray-400">Sem mensagens respondidas.</p>}
-                    {lines.map((l, i) =>
-                      l.role === "tool" ? (
-                        <p key={i} className="text-[11px] text-gray-400 italic">🔎 {l.text}</p>
-                      ) : (
-                        <div
-                          key={i}
-                          className={`text-sm px-3 py-2 rounded-xl max-w-[90%] whitespace-pre-wrap ${
-                            l.role === "user" ? "ml-auto bg-gray-900 text-white" : "bg-gray-50 text-gray-800"
-                          }`}
-                        >
-                          {l.text}
-                        </div>
-                      )
-                    )}
-                  </div>
-                </details>
-              );
-            })}
-          </div>
-        )}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+        <section className={`${card} p-5 xl:col-span-1`}>
+          <h2 className="text-[15px] font-semibold text-gray-900">Mensagens por dia</h2>
+          <p className="text-xs text-gray-500 mt-0.5 mb-3">Últimos 14 dias · passe o mouse para ver o custo</p>
+          {chart.length === 0 ? (
+            <p className="text-sm text-gray-400 text-center py-10">Nenhuma mensagem ainda.</p>
+          ) : (
+            <ColumnChart data={chart} format={(v) => `${v} mensagens`} formatAxis={(v) => String(Math.round(v))} height={200} />
+          )}
+          {usage.length > 0 && (
+            <details className="mt-3 group">
+              <summary className="cursor-pointer text-xs font-medium text-gray-500 hover:text-gray-900">Ver tabela detalhada (tokens)</summary>
+              <div className="mt-2 max-h-64 overflow-y-auto">
+                <table className="w-full text-xs tabular-nums">
+                  <thead>
+                    <tr className="text-left text-gray-500 border-b border-gray-100">
+                      <th className="py-1.5 pr-2 font-medium">Dia</th>
+                      <th className="py-1.5 px-2 font-medium text-right">Msgs</th>
+                      <th className="py-1.5 px-2 font-medium text-right">Tokens (ent./saída/cache)</th>
+                      <th className="py-1.5 pl-2 font-medium text-right">Custo</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {usage.map((d) => (
+                      <tr key={d.day} className="border-b border-gray-50">
+                        <td className="py-1.5 pr-2 text-gray-700">{d.day.split("-").reverse().join("/")}</td>
+                        <td className="py-1.5 px-2 text-right text-gray-700">{d.messages}</td>
+                        <td className="py-1.5 px-2 text-right text-gray-500">
+                          {d.inputTokens.toLocaleString("pt-BR")} / {d.outputTokens.toLocaleString("pt-BR")} / {d.cacheReadTokens.toLocaleString("pt-BR")}
+                        </td>
+                        <td className="py-1.5 pl-2 text-right text-gray-900">{usd(estimateAiCostUsd(model, d))}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </details>
+          )}
+        </section>
+
+        <div className="xl:col-span-2">
+          <AiConversationsPanel conversations={views} />
+        </div>
       </div>
+
+      <AiInsightsCard />
     </div>
   );
 }

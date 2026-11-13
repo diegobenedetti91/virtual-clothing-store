@@ -1,168 +1,240 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import {
+  AlertTriangle, Bot, Check, CheckCircle2, CreditCard, Loader2, Palette, Plug, RotateCcw, Save, Store, Truck,
+} from "lucide-react";
 import { AI_MODELS, DEFAULT_AI_MODEL } from "@/lib/aiModels";
-import { Save, MessageCircle, CreditCard, Eye, EyeOff, Truck } from "lucide-react";
 import { CompanySettings } from "@/types";
 import { formatCurrency } from "@/lib/utils";
 import { BRAZILIAN_REGIONS } from "@/lib/regions";
 import ImageUpload from "./ImageUpload";
 import ImageListInput from "./ImageListInput";
+import {
+  Card, Field, Hint, IntegrationCard, SecretInput, StatusBadge, ToggleRow, inputClass, labelClass, statusOf,
+} from "./settings/ui";
 
 interface Props {
   initialSettings: CompanySettings | null;
 }
 
+const UFS = ["AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG","PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO"];
+
+type SectionKey = "loja" | "aparencia" | "pagamentos" | "frete" | "integracoes" | "ia";
+const SECTIONS: { key: SectionKey; label: string; hint: string; icon: React.ComponentType<{ size?: number; className?: string }> }[] = [
+  { key: "loja", label: "Loja", hint: "Nome, logo, contato e meta", icon: Store },
+  { key: "aparencia", label: "Aparência", hint: "Cores e banner da home", icon: Palette },
+  { key: "pagamentos", label: "Checkout e pagamentos", hint: "Formas de pagamento", icon: CreditCard },
+  { key: "frete", label: "Frete e entregas", hint: "Cálculo, Melhor Envio, prazos", icon: Truck },
+  { key: "integracoes", label: "Integrações", hint: "Bling e Meta Ads", icon: Plug },
+  { key: "ia", label: "Atendimento com IA", hint: "Assistente da loja", icon: Bot },
+];
+
+/** Estado do formulário a partir das configurações salvas. */
+function fromSettings(s: CompanySettings | null) {
+  const x = (s ?? {}) as CompanySettings & { diasUteisProduzao?: number | null; monthlyRevenueGoal?: number | null };
+  return {
+    name: x.name || "",
+    logo: x.logo || "",
+    phone: x.phone || "",
+    whatsapp: x.whatsapp || "",
+    instagram: x.instagram || "",
+    address: x.address || "",
+    cnpj: x.cnpj || "",
+    description: x.description || "",
+    primaryColor: x.primaryColor || "#ec4899",
+    buttonColor: x.buttonColor || x.primaryColor || "#ec4899",
+    menuColor: x.menuColor || x.primaryColor || "#ec4899",
+    bannerImages: JSON.parse(x.bannerImages || "[]") as string[],
+    heroBadge: x.heroBadge || "",
+    heroTitle: x.heroTitle || "",
+    heroButtonText: x.heroButtonText || "",
+    heroButtonSecondaryText: x.heroButtonSecondaryText || "",
+    checkoutType: x.checkoutType || "whatsapp",
+    checkoutCollectEmail: x.checkoutCollectEmail || false,
+    checkoutCollectAddress: x.checkoutCollectAddress || false,
+    checkoutMessage: x.checkoutMessage || "",
+    mpPublicKey: x.mercadoPagoPublicKey || "",
+    mpAccessToken: x.mercadoPagoAccessToken || "",
+    mercadoPagoTransparente: !!x.mercadoPagoTransparente,
+    mercadoPagoAtivo: x.mercadoPagoAtivo ?? x.checkoutType === "gateway",
+    nuPayClientId: x.nuPayClientId || "",
+    nuPayClientSecret: x.nuPayClientSecret || "",
+    nuPaySandbox: !!x.nuPaySandbox,
+    nuPayAtivo: x.nuPayAtivo ?? x.checkoutType === "nupay",
+    infinityPayHandle: x.infinityPayHandle || "",
+    infinityPayApiKey: x.infinityPayApiKey || "",
+    infinityPayAtivo: x.infinityPayAtivo ?? false,
+    whatsappAtivo: x.whatsappAtivo ?? true,
+    pixDiscountEnabled: x.pixDiscountEnabled ?? false,
+    pixDiscountPercent: (x.pixDiscountPercent ?? 0).toString(),
+    blingAtivo: x.blingAtivo ?? false,
+    blingClientId: x.blingClientId || "",
+    blingClientSecret: x.blingClientSecret || "",
+    freteAtivo: x.freteAtivo || false,
+    freteTipo: x.freteTipo || "fixo",
+    freteLocalCidade: x.freteLocalCidade || "",
+    freteLocalUF: x.freteLocalUF || "",
+    freteLocalRegioes: x.freteLocalRegioes ? x.freteLocalRegioes.split("|") : ([] as string[]),
+    freteLocalRetirada: x.freteLocalRetirada || false,
+    freteValorFixo: x.freteValorFixo?.toString() || "0",
+    freteCEPOrigem: x.freteCEPOrigem || "",
+    fretePesoDefault: x.fretePesoDefaultGramas?.toString() || "500",
+    melhorEnvioToken: x.melhorEnvioToken || "",
+    melhorEnvioApiToken: x.melhorEnvioApiToken || "",
+    melhorEnvioWebhookSecret: x.melhorEnvioWebhookSecret || "",
+    metaPixelId: x.metaPixelId || "",
+    metaCapiAccessToken: x.metaCapiAccessToken || "",
+    metaTestEventCode: x.metaTestEventCode || "",
+    aiAssistantEnabled: !!x.aiAssistantEnabled,
+    aiApiKey: x.aiApiKey || "",
+    aiModel: x.aiModel || DEFAULT_AI_MODEL,
+    aiPolicies: x.aiPolicies || "",
+    aiDailyMessageLimit: String(x.aiDailyMessageLimit ?? 300),
+    pacoteAltura: x.fretePacoteAltura?.toString() || "5",
+    pacoteLargura: x.fretePacoteLargura?.toString() || "12",
+    pacoteComprimento: x.fretePacoteComprimento?.toString() || "17",
+    diasUteisProduzao: x.diasUteisProduzao?.toString() || "2",
+    monthlyRevenueGoal: x.monthlyRevenueGoal?.toString() || "",
+  };
+}
+type FormState = ReturnType<typeof fromSettings>;
+
+/** Corpo do PUT /api/settings — mesmos campos e conversões de sempre. */
+function toPayload(f: FormState) {
+  return {
+    name: f.name, logo: f.logo, phone: f.phone, whatsapp: f.whatsapp, instagram: f.instagram, address: f.address, cnpj: f.cnpj, description: f.description,
+    primaryColor: f.primaryColor, buttonColor: f.buttonColor, menuColor: f.menuColor, bannerImages: f.bannerImages, checkoutType: f.checkoutType,
+    checkoutCollectEmail: f.checkoutCollectEmail, checkoutCollectAddress: f.checkoutCollectAddress,
+    checkoutMessage: f.checkoutMessage, mercadoPagoPublicKey: f.mpPublicKey || null, mercadoPagoAccessToken: f.mpAccessToken || null,
+    mercadoPagoAtivo: f.mercadoPagoAtivo, mercadoPagoTransparente: f.mercadoPagoTransparente,
+    nuPayClientId: f.nuPayClientId || null, nuPayClientSecret: f.nuPayClientSecret || null, nuPayAtivo: f.nuPayAtivo, nuPaySandbox: f.nuPaySandbox,
+    infinityPayHandle: f.infinityPayHandle || null, infinityPayApiKey: f.infinityPayApiKey || null, infinityPayAtivo: f.infinityPayAtivo,
+    whatsappAtivo: f.whatsappAtivo,
+    heroBadge: f.heroBadge, heroTitle: f.heroTitle, heroButtonText: f.heroButtonText, heroButtonSecondaryText: f.heroButtonSecondaryText,
+    pixDiscountEnabled: f.pixDiscountEnabled, pixDiscountPercent: parseFloat(f.pixDiscountPercent) || 0,
+    blingAtivo: f.blingAtivo, blingClientId: f.blingClientId || null, blingClientSecret: f.blingClientSecret || null,
+    freteAtivo: f.freteAtivo, freteTipo: f.freteTipo, freteLocalCidade: f.freteLocalCidade || null, freteLocalUF: f.freteLocalUF || null,
+    freteLocalRegioes: f.freteLocalRegioes.length > 0 ? f.freteLocalRegioes.join("|") : null, freteLocalRetirada: f.freteLocalRetirada,
+    freteValorFixo: parseFloat(f.freteValorFixo) || 0,
+    freteCEPOrigem: f.freteCEPOrigem || null,
+    fretePesoDefaultGramas: parseInt(f.fretePesoDefault) || 500,
+    melhorEnvioToken: f.melhorEnvioToken || null,
+    melhorEnvioApiToken: f.melhorEnvioApiToken || null,
+    melhorEnvioWebhookSecret: f.melhorEnvioWebhookSecret || null,
+    metaPixelId: f.metaPixelId || null,
+    metaCapiAccessToken: f.metaCapiAccessToken || null,
+    metaTestEventCode: f.metaTestEventCode || null,
+    aiAssistantEnabled: f.aiAssistantEnabled,
+    aiApiKey: f.aiApiKey || null,
+    aiModel: f.aiModel,
+    aiPolicies: f.aiPolicies || null,
+    aiDailyMessageLimit: parseInt(f.aiDailyMessageLimit) || 300,
+    fretePacoteAltura: parseInt(f.pacoteAltura) || 5,
+    fretePacoteLargura: parseInt(f.pacoteLargura) || 12,
+    fretePacoteComprimento: parseInt(f.pacoteComprimento) || 17,
+    diasUteisProduzao: parseInt(f.diasUteisProduzao) || 2,
+    // "15.000,50" (com vírgula: ponto é milhar) ou "15000.50" (sem vírgula: ponto é decimal)
+    monthlyRevenueGoal:
+      parseFloat(f.monthlyRevenueGoal.includes(",") ? f.monthlyRevenueGoal.replace(/\./g, "").replace(",", ".") : f.monthlyRevenueGoal) || null,
+  };
+}
+
 export default function SettingsForm({ initialSettings }: Props) {
+  const [form, setForm] = useState<FormState>(() => fromSettings(initialSettings));
+  const [savedSnapshot, setSavedSnapshot] = useState(() => JSON.stringify(fromSettings(initialSettings)));
+  const [section, setSection] = useState<SectionKey>("loja");
   const [loading, setLoading] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [error, setError] = useState("");
+  const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null);
 
-  const [name, setName] = useState(initialSettings?.name || "");
-  const [logo, setLogo] = useState(initialSettings?.logo || "");
-  const [phone, setPhone] = useState(initialSettings?.phone || "");
-  const [whatsapp, setWhatsapp] = useState(initialSettings?.whatsapp || "");
-  const [instagram, setInstagram] = useState(initialSettings?.instagram || "");
-  const [address, setAddress] = useState(initialSettings?.address || "");
-  const [cnpj, setCnpj] = useState(initialSettings?.cnpj || "");
-  const [description, setDescription] = useState(initialSettings?.description || "");
-  const [primaryColor, setPrimaryColor] = useState(initialSettings?.primaryColor || "#ec4899");
-  const [buttonColor, setButtonColor] = useState(initialSettings?.buttonColor || initialSettings?.primaryColor || "#ec4899");
-  const [menuColor, setMenuColor] = useState(initialSettings?.menuColor || initialSettings?.primaryColor || "#ec4899");
-  const [bannerImages, setBannerImages] = useState<string[]>(
-    JSON.parse(initialSettings?.bannerImages || "[]")
-  );
+  const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setForm((f) => ({ ...f, [k]: v }));
+  const dirty = JSON.stringify(form) !== savedSnapshot;
 
-  const [heroBadge, setHeroBadge] = useState(initialSettings?.heroBadge || "");
-  const [heroTitle, setHeroTitle] = useState(initialSettings?.heroTitle || "");
-  const [heroButtonText, setHeroButtonText] = useState(initialSettings?.heroButtonText || "");
-  const [heroButtonSecondaryText, setHeroButtonSecondaryText] = useState(initialSettings?.heroButtonSecondaryText || "");
+  // Aviso do navegador ao sair com mudanças não salvas
+  useEffect(() => {
+    if (!dirty) return;
+    const onBeforeUnload = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ""; };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [dirty]);
 
-  const [checkoutType] = useState(initialSettings?.checkoutType || "whatsapp");
-  const [checkoutCollectEmail, setCheckoutCollectEmail] = useState(initialSettings?.checkoutCollectEmail || false);
-  const [checkoutCollectAddress, setCheckoutCollectAddress] = useState(initialSettings?.checkoutCollectAddress || false);
-  const [checkoutMessage, setCheckoutMessage] = useState(initialSettings?.checkoutMessage || "");
-  const [mpPublicKey, setMpPublicKey] = useState(initialSettings?.mercadoPagoPublicKey || "");
-  const [mpAccessToken, setMpAccessToken] = useState(initialSettings?.mercadoPagoAccessToken || "");
-  const [mercadoPagoTransparente, setMercadoPagoTransparente] = useState(!!initialSettings?.mercadoPagoTransparente);
-  const [showToken, setShowToken] = useState(false);
-  const [mercadoPagoAtivo, setMercadoPagoAtivo] = useState(
-    initialSettings?.mercadoPagoAtivo ?? initialSettings?.checkoutType === "gateway"
-  );
-  const [nuPayClientId, setNuPayClientId] = useState(initialSettings?.nuPayClientId || "");
-  const [nuPayClientSecret, setNuPayClientSecret] = useState(initialSettings?.nuPayClientSecret || "");
-  const [nuPaySandbox, setNuPaySandbox] = useState(!!initialSettings?.nuPaySandbox);
-  const [showNuPaySecret, setShowNuPaySecret] = useState(false);
-  const [nuPayAtivo, setNuPayAtivo] = useState(
-    initialSettings?.nuPayAtivo ?? initialSettings?.checkoutType === "nupay"
-  );
-  const [infinityPayHandle, setInfinityPayHandle] = useState(initialSettings?.infinityPayHandle || "");
-  const [infinityPayApiKey, setInfinityPayApiKey] = useState(initialSettings?.infinityPayApiKey || "");
-  const [showInfinityPayKey, setShowInfinityPayKey] = useState(false);
-  const [infinityPayAtivo, setInfinityPayAtivo] = useState(
-    initialSettings?.infinityPayAtivo ?? false
-  );
-  const [whatsappAtivo, setWhatsappAtivo] = useState(initialSettings?.whatsappAtivo ?? true);
-  const [pixDiscountEnabled, setPixDiscountEnabled] = useState(initialSettings?.pixDiscountEnabled ?? false);
-  const [pixDiscountPercent, setPixDiscountPercent] = useState((initialSettings?.pixDiscountPercent ?? 0).toString());
-  const [blingAtivo, setBlingAtivo] = useState(initialSettings?.blingAtivo ?? false);
-  const [blingClientId, setBlingClientId] = useState(initialSettings?.blingClientId || "");
-  const [blingClientSecret, setBlingClientSecret] = useState(initialSettings?.blingClientSecret || "");
-  const [showBlingSecret, setShowBlingSecret] = useState(false);
+  // Abre a seção vinda da URL (ex.: /admin/configuracoes#ia)
+  useEffect(() => {
+    const hash = window.location.hash.replace("#", "") as SectionKey;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- leitura única do hash após a hidratação
+    if (SECTIONS.some((s) => s.key === hash)) setSection(hash);
+  }, []);
 
-  const [freteAtivo, setFreteAtivo] = useState(initialSettings?.freteAtivo || false);
-  const [freteTipo, setFreteTipo] = useState(initialSettings?.freteTipo || "fixo");
-  const [freteLocalCidade, setFreteLocalCidade] = useState(initialSettings?.freteLocalCidade || "");
-  const [freteLocalUF, setFreteLocalUF] = useState(initialSettings?.freteLocalUF || "");
-  const [freteLocalRegioes, setFreteLocalRegioes] = useState<string[]>(
-    initialSettings?.freteLocalRegioes ? initialSettings.freteLocalRegioes.split("|") : []
-  );
-  const [freteLocalRetirada, setFreteLocalRetirada] = useState(initialSettings?.freteLocalRetirada || false);
-  const [freteValorFixo, setFreteValorFixo] = useState(initialSettings?.freteValorFixo?.toString() || "0");
-  const [freteCEPOrigem, setFreteCEPOrigem] = useState(initialSettings?.freteCEPOrigem || "");
-  const [fretePesoDefault, setFretePesoDefault] = useState(initialSettings?.fretePesoDefaultGramas?.toString() || "500");
-  const [melhorEnvioToken, setMelhorEnvioToken] = useState(initialSettings?.melhorEnvioToken || "");
-  const [melhorEnvioApiToken, setMelhorEnvioApiToken] = useState(initialSettings?.melhorEnvioApiToken || "");
-  const [melhorEnvioWebhookSecret, setMelhorEnvioWebhookSecret] = useState(initialSettings?.melhorEnvioWebhookSecret || "");
-  const [showMEWebhookSecret, setShowMEWebhookSecret] = useState(false);
-  const [metaPixelId, setMetaPixelId] = useState(initialSettings?.metaPixelId || "");
-  const [metaCapiAccessToken, setMetaCapiAccessToken] = useState(initialSettings?.metaCapiAccessToken || "");
-  const [metaTestEventCode, setMetaTestEventCode] = useState(initialSettings?.metaTestEventCode || "");
-  const [showMetaToken, setShowMetaToken] = useState(false);
-  const [aiAssistantEnabled, setAiAssistantEnabled] = useState(!!initialSettings?.aiAssistantEnabled);
-  const [aiApiKey, setAiApiKey] = useState(initialSettings?.aiApiKey || "");
-  const [showAiKey, setShowAiKey] = useState(false);
-  const [aiModel, setAiModel] = useState(initialSettings?.aiModel || DEFAULT_AI_MODEL);
-  const [aiPolicies, setAiPolicies] = useState(initialSettings?.aiPolicies || "");
-  const [aiDailyMessageLimit, setAiDailyMessageLimit] = useState(String(initialSettings?.aiDailyMessageLimit ?? 300));
-  const [showMEToken, setShowMEToken] = useState(false);
-  const [showMEApiToken, setShowMEApiToken] = useState(false);
-  const [pacoteAltura, setPacoteAltura] = useState(initialSettings?.fretePacoteAltura?.toString() || "5");
-  const [pacoteLargura, setPacoteLargura] = useState(initialSettings?.fretePacoteLargura?.toString() || "12");
-  const [pacoteComprimento, setPacoteComprimento] = useState(initialSettings?.fretePacoteComprimento?.toString() || "17");
-  const [diasUteisProduzao, setDiasUteisProduzao] = useState((initialSettings as any)?.diasUteisProduzao?.toString() || "2");
+  const goTo = (key: SectionKey) => {
+    setSection(key);
+    history.replaceState(null, "", `#${key}`);
+  };
 
-  const inputClass = "w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm text-gray-900 bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand transition";
-  const labelClass = "block text-sm font-medium text-gray-700 mb-1.5";
+  // ─── Situação de cada integração (selos) ───
+  const st = useMemo(() => ({
+    whatsapp: statusOf(form.whatsappAtivo, !!form.whatsapp.replace(/\D/g, "")),
+    mp: statusOf(form.mercadoPagoAtivo, !!form.mpPublicKey && !!form.mpAccessToken),
+    nupay: statusOf(form.nuPayAtivo, !!form.nuPayClientId && !!form.nuPayClientSecret, form.nuPaySandbox),
+    infinity: statusOf(form.infinityPayAtivo, !!form.infinityPayHandle && !!form.infinityPayApiKey),
+    bling: statusOf(form.blingAtivo, !!form.blingClientId && !!form.blingClientSecret),
+    me: statusOf(
+      form.freteAtivo && (form.freteTipo === "melhorenvio" || form.freteTipo === "hibrido"),
+      !!form.melhorEnvioToken
+    ),
+    meta: statusOf(!!form.metaPixelId || !!form.metaCapiAccessToken, !!form.metaPixelId),
+    ai: statusOf(form.aiAssistantEnabled, !!form.aiApiKey),
+  }), [form]);
+  const blingAuthorized = !!initialSettings?.blingAccessToken;
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
+  // Seções com algo pendente ganham um ponto âmbar no menu
+  const attention: Partial<Record<SectionKey, boolean>> = {
+    loja: !form.name.trim(),
+    pagamentos: [st.mp, st.nupay, st.infinity, st.whatsapp].includes("missing"),
+    frete: st.me === "missing",
+    integracoes: st.bling === "missing" || (form.blingAtivo && !blingAuthorized),
+    ia: st.ai === "missing",
+  };
+
+  const handleSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    setNotice(null);
+    if (!form.name.trim()) {
+      goTo("loja");
+      setNotice({ ok: false, text: "Informe o nome da loja antes de salvar." });
+      return;
+    }
     setLoading(true);
     try {
       const res = await fetch("/api/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name, logo, phone, whatsapp, instagram, address, cnpj, description,
-          primaryColor, buttonColor, menuColor, bannerImages, checkoutType, checkoutCollectEmail, checkoutCollectAddress,
-          checkoutMessage, mercadoPagoPublicKey: mpPublicKey || null, mercadoPagoAccessToken: mpAccessToken || null,
-          mercadoPagoAtivo, mercadoPagoTransparente, nuPayClientId: nuPayClientId || null, nuPayClientSecret: nuPayClientSecret || null, nuPayAtivo, nuPaySandbox,
-          infinityPayHandle: infinityPayHandle || null, infinityPayApiKey: infinityPayApiKey || null, infinityPayAtivo,
-          whatsappAtivo,
-          heroBadge, heroTitle, heroButtonText, heroButtonSecondaryText,
-          pixDiscountEnabled, pixDiscountPercent: parseFloat(pixDiscountPercent) || 0,
-          blingAtivo, blingClientId: blingClientId || null, blingClientSecret: blingClientSecret || null,
-          freteAtivo, freteTipo, freteLocalCidade: freteLocalCidade || null, freteLocalUF: freteLocalUF || null, freteLocalRegioes: freteLocalRegioes.length > 0 ? freteLocalRegioes.join("|") : null, freteLocalRetirada,
-          freteValorFixo: parseFloat(freteValorFixo) || 0,
-          freteCEPOrigem: freteCEPOrigem || null,
-          fretePesoDefaultGramas: parseInt(fretePesoDefault) || 500,
-          melhorEnvioToken: melhorEnvioToken || null,
-          melhorEnvioApiToken: melhorEnvioApiToken || null,
-          melhorEnvioWebhookSecret: melhorEnvioWebhookSecret || null,
-          metaPixelId: metaPixelId || null,
-          metaCapiAccessToken: metaCapiAccessToken || null,
-          metaTestEventCode: metaTestEventCode || null,
-          aiAssistantEnabled,
-          aiApiKey: aiApiKey || null,
-          aiModel,
-          aiPolicies: aiPolicies || null,
-          aiDailyMessageLimit: parseInt(aiDailyMessageLimit) || 300,
-          fretePacoteAltura: parseInt(pacoteAltura) || 5,
-          fretePacoteLargura: parseInt(pacoteLargura) || 12,
-          fretePacoteComprimento: parseInt(pacoteComprimento) || 17,
-          diasUteisProduzao: parseInt(diasUteisProduzao) || 2,
-        }),
+        body: JSON.stringify(toPayload(form)),
       });
       if (!res.ok) throw new Error();
-      setSaved(true);
-      setTimeout(() => setSaved(false), 3000);
+      setSavedSnapshot(JSON.stringify(form));
+      setNotice({ ok: true, text: "Configurações salvas. As mudanças já valem na loja." });
+      setTimeout(() => setNotice((n) => (n?.ok ? null : n)), 4000);
     } catch {
-      setError("Erro ao salvar configurações.");
+      setNotice({ ok: false, text: "Erro ao salvar configurações. Tente de novo." });
     } finally {
       setLoading(false);
     }
   };
 
+  const discard = () => {
+    if (!confirm("Descartar as mudanças não salvas?")) return;
+    setForm(JSON.parse(savedSnapshot));
+  };
+
   const whatsappPreview = [
-    checkoutMessage ? checkoutMessage + "\n\n" : "",
-    `🛍️ *NOVO PEDIDO - ${name || "Minha Loja"}*`,
+    form.checkoutMessage ? form.checkoutMessage + "\n\n" : "",
+    `🛍️ *NOVO PEDIDO - ${form.name || "Minha Loja"}*`,
     ``,
     `📋 *Nº do pedido:* PD2605090001`,
     `👤 *Cliente:* Maria Silva`,
     `📱 *Telefone:* (11) 99999-9999`,
-    ...(checkoutCollectEmail ? [`📧 *E-mail:* maria@email.com`] : []),
-    ...(checkoutCollectAddress ? [`📍 *Endereço:* Rua das Flores, 123 - São Paulo`] : []),
+    ...(form.checkoutCollectEmail ? [`📧 *E-mail:* maria@email.com`] : []),
+    ...(form.checkoutCollectAddress ? [`📍 *Endereço:* Rua das Flores, 123 - São Paulo`] : []),
     ``,
     `*Produtos:*`,
     `• Vestido Floral (Tam: M, Cor: Rosa) - 1× ${formatCurrency(89.9)} = ${formatCurrency(89.9)}`,
@@ -172,900 +244,465 @@ export default function SettingsForm({ initialSettings }: Props) {
     `🚚 *Frete:* A combinar`,
   ].join("\n");
 
+  const usesCep = form.freteTipo === "melhorenvio" || form.freteTipo === "hibrido" || form.freteTipo === "correios";
+  const current = SECTIONS.find((s) => s.key === section)!;
+
   return (
-    <form onSubmit={handleSubmit}>
-      {error && (
-        <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">{error}</div>
+    <form onSubmit={handleSubmit} noValidate className="pb-24">
+      {/* Cabeçalho */}
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 mb-6">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-gray-900">Configurações da loja</h1>
+          <p className="text-sm text-gray-500 mt-1">Dados da loja, aparência, pagamentos, frete e integrações. Salve no fim — nada muda na loja até salvar.</p>
+        </div>
+        {dirty && <span className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-700 bg-amber-50 ring-1 ring-amber-200 rounded-full px-2.5 py-1 self-start sm:self-auto"><span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Mudanças não salvas</span>}
+      </div>
+
+      {notice && (
+        <div className={`mb-4 flex items-center gap-2 rounded-xl px-4 py-3 text-sm ${notice.ok ? "bg-emerald-50 text-emerald-800" : "bg-red-50 text-red-800"}`}>
+          {notice.ok ? <CheckCircle2 size={16} /> : <AlertTriangle size={16} />} {notice.text}
+        </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
-            <h2 className="font-semibold text-gray-900">Informações da loja</h2>
-            <div>
-              <label className={labelClass}>Nome da loja *</label>
-              <input required value={name} onChange={(e) => setName(e.target.value)} className={inputClass} placeholder="Ex: Moda da Mari" />
-            </div>
-            <div>
-              <label className={labelClass}>Descrição</label>
-              <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} className={inputClass} placeholder="Uma frase descrevendo sua loja..." />
-            </div>
-            <div>
-              <ImageUpload value={logo} onChange={setLogo} label="Logo da loja" aspect="landscape" />
-            </div>
-          </div>
-
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
-            <h2 className="font-semibold text-gray-900">Contato</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className={labelClass}>Telefone</label>
-                <input value={phone} onChange={(e) => setPhone(e.target.value)} className={inputClass} placeholder="(00) 00000-0000" />
-              </div>
-              <div>
-                <label className={labelClass}>
-                  WhatsApp para receber pedidos
-                  <span className="ml-1 text-xs text-green-600 font-normal">(com DDD e código do país)</span>
-                </label>
-                <input value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} className={inputClass} placeholder="5511999999999" />
-                <p className="text-xs text-gray-400 mt-1">Ex: 5511999999999 (55 = Brasil, 11 = DDD, 9 dígitos)</p>
-              </div>
-              <div>
-                <label className={labelClass}>Instagram</label>
-                <input value={instagram} onChange={(e) => setInstagram(e.target.value)} className={inputClass} placeholder="@nomedaLoja" />
-              </div>
-              <div>
-                <label className={labelClass}>Endereço da loja física</label>
-                <input value={address} onChange={(e) => setAddress(e.target.value)} className={inputClass} placeholder="Rua, número - Cidade/UF" />
-              </div>
-              <div>
-                <label className={labelClass}>CNPJ (para API Melhor Envio)</label>
-                <input value={cnpj} onChange={(e) => setCnpj(e.target.value)} className={inputClass} placeholder="12.345.678/0001-00" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
-            <div>
-              <h2 className="font-semibold text-gray-900">Meta Ads (Facebook / Instagram)</h2>
-              <p className="text-xs text-gray-500 mt-1">
-                Pixel e API de Conversões para medir os anúncios. Os eventos só são enviados para visitantes que aceitarem os cookies de marketing.
-              </p>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className={labelClass}>ID do Pixel (conjunto de dados)</label>
-                <input
-                  value={metaPixelId}
-                  onChange={(e) => setMetaPixelId(e.target.value.replace(/\D/g, ""))}
-                  className={inputClass}
-                  inputMode="numeric"
-                  placeholder="123456789012345"
-                />
-                <p className="text-xs text-gray-400 mt-1">Gerenciador de Eventos → Fontes de dados → seu Pixel → ID.</p>
-              </div>
-              <div>
-                <label className={labelClass}>Código de teste (opcional)</label>
-                <input
-                  value={metaTestEventCode}
-                  onChange={(e) => setMetaTestEventCode(e.target.value)}
-                  className={inputClass}
-                  placeholder="TEST12345"
-                />
-                <p className="text-xs text-gray-400 mt-1">Use só durante a validação em &quot;Testar eventos&quot;. Apague depois.</p>
-              </div>
-              <div className="sm:col-span-2">
-                <label className={labelClass}>Token de acesso da API de Conversões</label>
-                <div className="relative">
-                  <input
-                    type={showMetaToken ? "text" : "password"}
-                    value={metaCapiAccessToken}
-                    onChange={(e) => setMetaCapiAccessToken(e.target.value)}
-                    className={`${inputClass} pr-10`}
-                    placeholder="EAAG..."
-                  />
-                  <button type="button" onClick={() => setShowMetaToken(!showMetaToken)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                    {showMetaToken ? <EyeOff size={16} /> : <Eye size={16} />}
+      <div className="grid grid-cols-1 lg:grid-cols-[230px_minmax(0,1fr)] gap-6">
+        {/* Navegação das seções */}
+        <nav className="lg:sticky lg:top-24 lg:self-start -mx-4 px-4 lg:mx-0 lg:px-0 overflow-x-auto [scrollbar-width:none]" aria-label="Seções">
+          <ul className="flex lg:flex-col gap-1 min-w-max lg:min-w-0">
+            {SECTIONS.map((s) => {
+              const active = section === s.key;
+              const Icon = s.icon;
+              return (
+                <li key={s.key}>
+                  <button
+                    type="button"
+                    onClick={() => goTo(s.key)}
+                    className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left transition ${active ? "bg-white shadow-sm ring-1 ring-gray-200 text-gray-900" : "text-gray-600 hover:bg-white/70 hover:text-gray-900"}`}
+                  >
+                    <Icon size={17} className={active ? "text-brand" : "text-gray-400"} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[13px] font-medium whitespace-nowrap">{s.label}</span>
+                      <span className="hidden lg:block text-[11px] text-gray-400 truncate">{s.hint}</span>
+                    </span>
+                    {attention[s.key] && <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" title="Algo precisa de atenção" />}
                   </button>
-                </div>
-                <p className="text-xs text-gray-400 mt-1">Gerenciador de Eventos → Configurações do Pixel → API de Conversões → Gerar token de acesso.</p>
-              </div>
-            </div>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+
+        <div key={section} className="space-y-5 animate-fade-up [animation-duration:0.3s] min-w-0">
+          <div className="hidden lg:block">
+            <h2 className="text-lg font-semibold text-gray-900">{current.label}</h2>
+            <p className="text-sm text-gray-500">{current.hint}</p>
           </div>
 
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
-            <label className="flex items-start justify-between gap-4 cursor-pointer">
-              <div>
-                <h2 className="font-semibold text-gray-900">Atendimento com IA</h2>
-                <p className="text-xs text-gray-500 mt-1">
-                  Assistente virtual (Claude, da Anthropic) que responde dúvidas sobre pedidos, rastreio, frete, pagamentos e políticas.
-                  Sempre oferece o botão &quot;Falar com atendente no WhatsApp&quot;. Desligado, a loja mostra só o botão do WhatsApp, como hoje.
-                </p>
-              </div>
-              <div
-                className={`relative w-11 h-6 rounded-full transition-colors shrink-0 mt-0.5 ${aiAssistantEnabled ? "bg-blue-500" : "bg-gray-200"}`}
-                onClick={() => setAiAssistantEnabled(!aiAssistantEnabled)}
-              >
-                <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${aiAssistantEnabled ? "translate-x-5" : ""}`} />
-              </div>
-            </label>
-            {aiAssistantEnabled && !aiApiKey && (
-              <p className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-xl p-3">
-                O assistente só aparece na loja depois que a chave de API for preenchida.
-              </p>
-            )}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="sm:col-span-2">
-                <label className={labelClass}>Chave de API da Anthropic</label>
-                <div className="relative">
-                  <input
-                    type={showAiKey ? "text" : "password"}
-                    value={aiApiKey}
-                    onChange={(e) => setAiApiKey(e.target.value)}
-                    className={`${inputClass} pr-10`}
-                    placeholder="sk-ant-..."
-                  />
-                  <button type="button" onClick={() => setShowAiKey(!showAiKey)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                    {showAiKey ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
+          {/* ───────── LOJA ───────── */}
+          {section === "loja" && (
+            <>
+              <Card title="Identidade" description="Como a loja aparece para os clientes.">
+                <Field label="Nome da loja *">
+                  <input value={form.name} onChange={(e) => set("name", e.target.value)} className={`${inputClass} ${!form.name.trim() ? "border-amber-300" : ""}`} placeholder="Ex.: Moda da Mari" />
+                </Field>
+                <Field label="Descrição" hint="Aparece no rodapé e na seção de destaque da home.">
+                  <textarea value={form.description} onChange={(e) => set("description", e.target.value)} rows={3} className={inputClass} placeholder="Uma frase descrevendo sua loja…" />
+                </Field>
+                <ImageUpload value={form.logo} onChange={(v) => set("logo", v)} label="Logo da loja" aspect="landscape" />
+              </Card>
+
+              <Card title="Contato" description="Usado no rodapé, no menu e nos botões de WhatsApp.">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Field label="Telefone">
+                    <input value={form.phone} onChange={(e) => set("phone", e.target.value)} className={inputClass} placeholder="(00) 00000-0000" />
+                  </Field>
+                  <Field label="WhatsApp da loja" hint="Com código do país e DDD. Ex.: 5511999999999 (55 = Brasil, 11 = DDD).">
+                    <input value={form.whatsapp} onChange={(e) => set("whatsapp", e.target.value)} className={inputClass} placeholder="5511999999999" inputMode="tel" />
+                  </Field>
+                  <Field label="Instagram">
+                    <input value={form.instagram} onChange={(e) => set("instagram", e.target.value)} className={inputClass} placeholder="@sualoja" />
+                  </Field>
+                  <Field label="CNPJ" hint="Também usado na emissão de etiquetas do Melhor Envio.">
+                    <input value={form.cnpj} onChange={(e) => set("cnpj", e.target.value)} className={inputClass} placeholder="12.345.678/0001-00" />
+                  </Field>
+                  <Field label="Endereço da loja física" className="sm:col-span-2" hint="Também é o endereço de remetente das etiquetas.">
+                    <input value={form.address} onChange={(e) => set("address", e.target.value)} className={inputClass} placeholder="Rua, número - Bairro, Cidade/UF" />
+                  </Field>
                 </div>
-                <p className="text-xs text-gray-400 mt-1">Crie em console.anthropic.com → API Keys. O uso é cobrado pela Anthropic no cartão cadastrado lá.</p>
-              </div>
-              <div>
-                <label className={labelClass}>Modelo</label>
-                <select value={aiModel} onChange={(e) => setAiModel(e.target.value)} className={inputClass}>
-                  {AI_MODELS.map((m) => (
-                    <option key={m.id} value={m.id}>{m.label}</option>
+              </Card>
+
+              <Card title="Meta de faturamento" description="Aparece no painel com o quanto já foi vendido no mês, a projeção e quanto vender por dia. Só você vê.">
+                <Field label="Meta do mês (R$)" hint="Deixe em branco para não usar meta. Vale para todos os meses até você mudar." className="max-w-xs">
+                  <input inputMode="decimal" value={form.monthlyRevenueGoal} onChange={(e) => set("monthlyRevenueGoal", e.target.value.replace(/[^\d.,]/g, ""))} className={inputClass} placeholder="Ex.: 15000" />
+                </Field>
+              </Card>
+            </>
+          )}
+
+          {/* ───────── APARÊNCIA ───────── */}
+          {section === "aparencia" && (
+            <>
+              <Card title="Cores" description="A cor dos botões e a do menu valem para a loja e para o admin.">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  {([
+                    ["primaryColor", "Cor principal", "Base para as outras cores."],
+                    ["buttonColor", "Cor dos botões", "Comprar, salvar e destaques."],
+                    ["menuColor", "Cor do menu", "Itens ativos e ícones do cabeçalho."],
+                  ] as const).map(([k, label, hint]) => (
+                    <div key={k}>
+                      <label className={labelClass}>{label}</label>
+                      <div className="flex items-center gap-2 rounded-xl ring-1 ring-gray-200 p-1.5 pr-3">
+                        <input type="color" value={form[k]} onChange={(e) => set(k, e.target.value)} className="w-9 h-9 rounded-lg cursor-pointer border-0 p-0 bg-transparent" aria-label={label} />
+                        <span className="text-sm text-gray-700 font-mono">{form[k]}</span>
+                        {k !== "primaryColor" && form[k] !== form.primaryColor && (
+                          <button type="button" onClick={() => set(k, form.primaryColor)} className="ml-auto text-[11px] text-gray-400 hover:text-gray-700" title="Usar a cor principal">
+                            <RotateCcw size={13} />
+                          </button>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-400 mt-1">{hint}</p>
+                    </div>
                   ))}
-                </select>
-                <p className="text-xs text-gray-400 mt-1">Custo estimado por conversa de ~5 mensagens. Vale para conversas novas.</p>
-              </div>
-              <div>
-                <label className={labelClass}>Limite de mensagens por dia</label>
-                <input
-                  type="number"
-                  min={1}
-                  value={aiDailyMessageLimit}
-                  onChange={(e) => setAiDailyMessageLimit(e.target.value)}
-                  className={inputClass}
+                </div>
+                {/* Prévia ao vivo */}
+                <div className="rounded-2xl ring-1 ring-gray-200 overflow-hidden">
+                  <div className="bg-gray-900 text-white text-[11px] text-center py-1.5">Prévia do cabeçalho da loja</div>
+                  <div className="bg-white px-4 py-3 flex items-center gap-3 border-b border-gray-100">
+                    <span className="font-bold text-gray-900 text-sm truncate">{form.name || "Sua loja"}</span>
+                    <span className="flex-1 h-8 rounded-full bg-gray-100" />
+                    <span className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[11px] font-bold" style={{ backgroundColor: form.buttonColor }}>DD</span>
+                  </div>
+                  <div className="bg-white px-4 py-2.5 flex flex-wrap items-center gap-2">
+                    <span className="px-3 py-1.5 rounded-full text-xs font-semibold" style={{ backgroundColor: `color-mix(in srgb, ${form.menuColor} 14%, white)`, color: form.menuColor }}>Início</span>
+                    <span className="px-3 py-1.5 rounded-full text-xs font-semibold text-gray-600">Produtos</span>
+                    <span className="ml-auto px-4 py-2 rounded-xl text-white text-xs font-semibold" style={{ backgroundColor: form.buttonColor }}>Adicionar ao carrinho</span>
+                  </div>
+                </div>
+              </Card>
+
+              <Card title="Banner da página inicial" description="Imagens do carrossel (formato paisagem) e os textos sobre elas.">
+                <ImageListInput images={form.bannerImages} onChange={(v) => set("bannerImages", v)} aspect="landscape" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Field label="Etiqueta acima do título" hint="Texto pequeno em destaque.">
+                    <input value={form.heroBadge} onChange={(e) => set("heroBadge", e.target.value)} className={inputClass} placeholder="Ex.: NOVA COLEÇÃO" />
+                  </Field>
+                  <Field label="Título principal" hint="Se vazio, usa o nome da loja.">
+                    <input value={form.heroTitle} onChange={(e) => set("heroTitle", e.target.value)} className={inputClass} placeholder="Ex.: Estilo que fala por você" />
+                  </Field>
+                  <Field label="Botão principal" hint="Padrão: “Ver coleção”.">
+                    <input value={form.heroButtonText} onChange={(e) => set("heroButtonText", e.target.value)} className={inputClass} placeholder="Ex.: Ver coleção" />
+                  </Field>
+                  <Field label="Botão secundário" hint="Se vazio, mostra o link do Instagram.">
+                    <input value={form.heroButtonSecondaryText} onChange={(e) => set("heroButtonSecondaryText", e.target.value)} className={inputClass} placeholder="Ex.: Explorar coleção" />
+                  </Field>
+                </div>
+              </Card>
+            </>
+          )}
+
+          {/* ───────── PAGAMENTOS ───────── */}
+          {section === "pagamentos" && (
+            <>
+              <Hint tone="blue">O cliente escolhe como pagar no checkout. Ligue as formas que você usa; cada uma mostra se está pronta para receber.</Hint>
+
+              <IntegrationCard title="Mercado Pago" icon="💳" description="Cartão de crédito, Pix e boleto." status={st.mp} on={form.mercadoPagoAtivo} onToggle={(v) => set("mercadoPagoAtivo", v)}>
+                <Hint>Em <b>mercadopago.com.br → Seu negócio → Configurações → Credenciais</b>, use as credenciais de <b>produção</b>.</Hint>
+                <Field label="Public Key (chave pública)" hint="Identifica sua conta no navegador.">
+                  <input value={form.mpPublicKey} onChange={(e) => set("mpPublicKey", e.target.value)} className={`${inputClass} font-mono`} placeholder="APP_USR-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
+                </Field>
+                <Field label="Access Token (chave secreta)" hint="Usada só no servidor. Nunca compartilhe.">
+                  <SecretInput value={form.mpAccessToken} onChange={(v) => set("mpAccessToken", v)} placeholder="APP_USR-xxxxxxxx…" />
+                </Field>
+                <ToggleRow
+                  title="Pagamento dentro do site (checkout transparente)"
+                  hint="O cliente digita o cartão ou gera o Pix sem sair da loja. Desligado, ele vai para a página do Mercado Pago. Requer chave Pix cadastrada na conta."
+                  checked={form.mercadoPagoTransparente}
+                  onChange={(v) => set("mercadoPagoTransparente", v)}
                 />
-                <p className="text-xs text-gray-400 mt-1">Ao atingir, o chat passa a indicar o WhatsApp até o dia seguinte.</p>
+              </IntegrationCard>
+
+              <IntegrationCard title="Pix com desconto" icon="⚡" description="Desconto para quem paga no Pix." status={form.pixDiscountEnabled ? (parseFloat(form.pixDiscountPercent) > 0 ? "active" : "missing") : "off"} on={form.pixDiscountEnabled} onToggle={(v) => set("pixDiscountEnabled", v)}>
+                <Field label="Percentual de desconto (%)" hint={`O cliente vê “Pix com desconto (${form.pixDiscountPercent || 0}% off)” e paga só com Pix.`} className="max-w-[200px]">
+                  <input type="number" min="0" max="100" step="0.5" value={form.pixDiscountPercent} onChange={(e) => set("pixDiscountPercent", e.target.value)} className={inputClass} placeholder="Ex.: 5" />
+                </Field>
+              </IntegrationCard>
+
+              <IntegrationCard title="NuPay" icon="🟣" description="Débito, crédito Nubank ou Pix em até 24×." status={st.nupay} on={form.nuPayAtivo} onToggle={(v) => set("nuPayAtivo", v)}>
+                <Hint>Após o credenciamento, o NuPay for Business envia a <b>Merchant Key</b> e o <b>Merchant Token</b>. As notificações de pagamento são configuradas sozinhas em cada pedido.</Hint>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Field label="Merchant Key">
+                    <input value={form.nuPayClientId} onChange={(e) => set("nuPayClientId", e.target.value)} className={`${inputClass} font-mono`} placeholder="X-Merchant-Key" />
+                  </Field>
+                  <Field label="Merchant Token" hint="Chave secreta usada no servidor.">
+                    <SecretInput value={form.nuPayClientSecret} onChange={(v) => set("nuPayClientSecret", v)} placeholder="X-Merchant-Token" />
+                  </Field>
+                </div>
+                <ToggleRow title="Ambiente de testes (sandbox)" hint="Desligue para receber pagamentos reais." checked={form.nuPaySandbox} onChange={(v) => set("nuPaySandbox", v)} />
+              </IntegrationCard>
+
+              <IntegrationCard title="Infinity Pay" icon="♾️" description="Cartão de crédito, Pix ou boleto." status={st.infinity} on={form.infinityPayAtivo} onToggle={(v) => set("infinityPayAtivo", v)}>
+                <Hint>
+                  Configure o webhook no painel Infinity Pay apontando para:{" "}
+                  <b className="break-all">{typeof window !== "undefined" ? window.location.origin : ""}/api/checkout/infinitypay/webhook</b>
+                </Hint>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Field label="Handle (InfiniteTag)" hint="Seu usuário no app, sem o $.">
+                    <input value={form.infinityPayHandle} onChange={(e) => set("infinityPayHandle", e.target.value)} className={inputClass} placeholder="sualoja" />
+                  </Field>
+                  <Field label="API Key" hint="Chave secreta usada no servidor.">
+                    <SecretInput value={form.infinityPayApiKey} onChange={(v) => set("infinityPayApiKey", v)} placeholder="Sua API Key" />
+                  </Field>
+                </div>
+              </IntegrationCard>
+
+              <IntegrationCard title="Pedido pelo WhatsApp" icon="💬" description="O cliente envia o pedido pelo WhatsApp e vocês combinam pagamento e entrega." status={st.whatsapp} on={form.whatsappAtivo} onToggle={(v) => set("whatsappAtivo", v)}>
+                {!form.whatsapp.replace(/\D/g, "") && <Hint tone="amber">Cadastre o WhatsApp da loja na seção <button type="button" onClick={() => goTo("loja")} className="underline font-medium">Loja</button>.</Hint>}
+                <Field label="Mensagem inicial (opcional)">
+                  <textarea value={form.checkoutMessage} onChange={(e) => set("checkoutMessage", e.target.value)} rows={2} className={inputClass} placeholder="Ex.: Olá! Gostaria de fazer um pedido:" />
+                </Field>
+                <ToggleRow title="Pedir e-mail do cliente" hint="Inclui o campo de e-mail no checkout." checked={form.checkoutCollectEmail} onChange={(v) => set("checkoutCollectEmail", v)} />
+                <ToggleRow title="Pedir endereço de entrega" hint="Inclui o campo de endereço no checkout." checked={form.checkoutCollectAddress} onChange={(v) => set("checkoutCollectAddress", v)} />
+                <div>
+                  <p className={labelClass}>Prévia da mensagem</p>
+                  <div className="bg-[#e5ddd5] rounded-xl p-4">
+                    <div className="bg-white rounded-xl p-3 max-w-xs shadow-sm">
+                      <pre className="text-xs text-gray-800 whitespace-pre-wrap font-sans leading-relaxed">{whatsappPreview}</pre>
+                    </div>
+                  </div>
+                </div>
+              </IntegrationCard>
+            </>
+          )}
+
+          {/* ───────── FRETE ───────── */}
+          {section === "frete" && (
+            <>
+              <Card title="Frete no checkout" description="Como o frete é calculado e onde você entrega." action={<StatusBadge status={form.freteAtivo ? "active" : "off"} label={form.freteAtivo ? "Calculando frete" : "A combinar"} />}>
+                <ToggleRow title="Calcular frete no checkout" hint="Desligado, o frete aparece como “a combinar”." checked={form.freteAtivo} onChange={(v) => set("freteAtivo", v)} />
+                {form.freteAtivo && (
+                  <>
+                    <div>
+                      <p className={labelClass}>Tipo de cálculo</p>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-2">
+                        {[
+                          { value: "local", label: "Entrega local", desc: "Só na sua cidade" },
+                          { value: "fixo", label: "Fixo", desc: "Mesmo valor para todos" },
+                          { value: "correios", label: "Correios", desc: "PAC/SEDEX pelo CEP" },
+                          { value: "melhorenvio", label: "Melhor Envio", desc: "Várias transportadoras" },
+                          { value: "hibrido", label: "Híbrido", desc: "Fixo local + transportadora" },
+                        ].map((opt) => (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => set("freteTipo", opt.value)}
+                            className={`flex flex-col gap-0.5 p-3 rounded-xl text-left ring-1 transition ${form.freteTipo === opt.value ? "ring-2 ring-[var(--brand)] bg-brand-light" : "ring-gray-200 hover:bg-gray-50"}`}
+                          >
+                            <span className="font-semibold text-sm text-gray-900 flex items-center gap-1">{form.freteTipo === opt.value && <Check size={13} className="text-brand" />}{opt.label}</span>
+                            <span className="text-[11px] text-gray-500">{opt.desc}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {form.freteTipo === "local" && (
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                          <Field label="Cidade atendida" className="sm:col-span-2">
+                            <input value={form.freteLocalCidade} onChange={(e) => set("freteLocalCidade", e.target.value)} className={inputClass} placeholder="Ex.: São Paulo" />
+                          </Field>
+                          <Field label="Estado (UF)">
+                            <select value={form.freteLocalUF} onChange={(e) => set("freteLocalUF", e.target.value)} className={inputClass}>
+                              <option value="">Selecione</option>
+                              {UFS.map((uf) => <option key={uf} value={uf}>{uf}</option>)}
+                            </select>
+                          </Field>
+                        </div>
+                        <p className="text-xs text-gray-400 -mt-2">Cidade e UF validam o CEP do cliente (evita confusão com cidades de mesmo nome em outros estados).</p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <Field label="CEP da loja (origem)">
+                            <input value={form.freteCEPOrigem} onChange={(e) => set("freteCEPOrigem", e.target.value)} className={inputClass} placeholder="00000-000" maxLength={9} />
+                          </Field>
+                          <Field label="Valor da entrega local (R$)" hint="Use 0 para entrega grátis.">
+                            <input type="number" step="0.01" min="0" value={form.freteValorFixo} onChange={(e) => set("freteValorFixo", e.target.value)} className={inputClass} placeholder="0,00" />
+                          </Field>
+                        </div>
+                        <ToggleRow title="Permitir retirada na loja" hint="O cliente pode retirar o pedido na loja sem frete." checked={form.freteLocalRetirada} onChange={(v) => set("freteLocalRetirada", v)} />
+                      </div>
+                    )}
+
+                    {(form.freteTipo === "fixo" || form.freteTipo === "hibrido") && (
+                      <Field label={form.freteTipo === "hibrido" ? "Valor fixo para entrega local (R$)" : "Valor do frete fixo (R$)"} hint="Use 0 para frete grátis." className="max-w-xs">
+                        <input type="number" step="0.01" min="0" value={form.freteValorFixo} onChange={(e) => set("freteValorFixo", e.target.value)} className={inputClass} placeholder="0,00" />
+                      </Field>
+                    )}
+
+                    {usesCep && (
+                      <Field
+                        label="CEP de origem (da loja)"
+                        className="max-w-xs"
+                        hint={form.freteTipo === "hibrido" ? "CEPs com o mesmo prefixo (5 dígitos) pagam o frete local; os demais calculam pela transportadora." : "De onde os produtos saem."}
+                      >
+                        <input value={form.freteCEPOrigem} onChange={(e) => set("freteCEPOrigem", e.target.value)} className={inputClass} placeholder="00000-000" maxLength={9} />
+                      </Field>
+                    )}
+
+                    <div>
+                      <p className={labelClass}>Regiões atendidas</p>
+                      <div className="flex flex-wrap gap-2">
+                        {Object.entries(BRAZILIAN_REGIONS).map(([key, region]) => {
+                          const on = form.freteLocalRegioes.includes(key);
+                          return (
+                            <button
+                              key={key}
+                              type="button"
+                              onClick={() => set("freteLocalRegioes", on ? form.freteLocalRegioes.filter((r) => r !== key) : [...form.freteLocalRegioes, key])}
+                              className={`px-3 py-1.5 rounded-full text-xs font-medium ring-1 transition ${on ? "bg-gray-900 text-white ring-gray-900" : "ring-gray-200 text-gray-600 hover:bg-gray-50"}`}
+                            >
+                              {on && <Check size={11} className="inline mr-1 -mt-0.5" />}{region.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <p className="text-xs text-gray-400 mt-1.5">Nenhuma marcada = vende para todo o Brasil. Clientes fora das regiões marcadas não conseguem finalizar.</p>
+                    </div>
+                  </>
+                )}
+              </Card>
+
+              {form.freteAtivo && (form.freteTipo === "melhorenvio" || form.freteTipo === "hibrido") && (
+                <IntegrationCard title="Melhor Envio" icon="📦" description="Cotação de Correios, Jadlog e outras, e criação automática de etiquetas." status={st.me}>
+                  <Field label="Token de cotação" hint={<>Em <b>melhorenvio.com.br → Integrações → Tokens</b>, permissão <b>Cotações</b>.{form.freteTipo === "hibrido" && " Sem ele, usa Correios."}</>}>
+                    <SecretInput value={form.melhorEnvioToken} onChange={(v) => set("melhorEnvioToken", v)} placeholder="eyJ0eXAiOiJKV1Qi…" />
+                  </Field>
+                  <Field label="Token de etiquetas (API)" hint={<>Cria etiquetas sozinho quando o pagamento é aprovado. Permissão <b>Cotações + Envios</b>.</>}>
+                    <SecretInput value={form.melhorEnvioApiToken} onChange={(v) => set("melhorEnvioApiToken", v)} placeholder="Token com permissão de envios" />
+                  </Field>
+                  <Field label="Secret do aplicativo (webhook de rastreio)" hint="Valida as notificações de rastreio. Sem ele, o rastreio só atualiza pela rotina automática.">
+                    <SecretInput value={form.melhorEnvioWebhookSecret} onChange={(v) => set("melhorEnvioWebhookSecret", v)} placeholder="Secret do aplicativo no Melhor Envio" />
+                  </Field>
+                  {!form.melhorEnvioApiToken && <Hint tone="amber">Sem o token de etiquetas, os pedidos pagos ficam “sem etiqueta” e precisam ser gerados manualmente.</Hint>}
+                </IntegrationCard>
+              )}
+
+              <Card title="Pacote e prazos" description="Valores padrão usados no cálculo quando o produto não tem os seus.">
+                {form.freteAtivo && usesCep && (
+                  <div>
+                    <p className={labelClass}>Dimensões padrão da embalagem (cm)</p>
+                    <div className="grid grid-cols-3 gap-3 max-w-md">
+                      {([["pacoteComprimento", "Comprimento", "16"], ["pacoteLargura", "Largura", "11"], ["pacoteAltura", "Altura", "2"]] as const).map(([k, l, min]) => (
+                        <div key={k}>
+                          <label className="text-xs text-gray-500 mb-1 block">{l}</label>
+                          <input type="number" min={min} value={form[k]} onChange={(e) => set(k, e.target.value)} className={inputClass} />
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1">Mínimo dos Correios: 16 × 11 × 2 cm. Embalagens específicas ficam em Entregas → Embalagens.</p>
+                  </div>
+                )}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Field label="Peso padrão por produto (g)" hint="Quando o produto não tem peso cadastrado.">
+                    <input type="number" min="1" value={form.fretePesoDefault} onChange={(e) => set("fretePesoDefault", e.target.value)} className={inputClass} placeholder="500" />
+                  </Field>
+                  <Field label="Dias úteis de produção/separação" hint={`Somado ao prazo do frete. Ex.: ${form.diasUteisProduzao || 0} + 3 dias de frete = ${(parseInt(form.diasUteisProduzao) || 0) + 3} dias úteis.`}>
+                    <input type="number" min="0" max="10" value={form.diasUteisProduzao} onChange={(e) => set("diasUteisProduzao", e.target.value)} className={inputClass} placeholder="2" />
+                  </Field>
+                </div>
+              </Card>
+            </>
+          )}
+
+          {/* ───────── INTEGRAÇÕES ───────── */}
+          {section === "integracoes" && (
+            <>
+              <IntegrationCard title="Bling" icon="🧾" description="Envia os pedidos aprovados para o Bling (nota fiscal e estoque)." status={st.bling} on={form.blingAtivo} onToggle={(v) => set("blingAtivo", v)}>
+                <Hint>Crie uma aplicação em <b>Bling → Integrações → Minhas Aplicações</b> e copie o Client ID e o Client Secret.</Hint>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Field label="Client ID">
+                    <input value={form.blingClientId} onChange={(e) => set("blingClientId", e.target.value)} className={`${inputClass} font-mono`} placeholder="Client ID" />
+                  </Field>
+                  <Field label="Client Secret" hint="Chave secreta usada no servidor.">
+                    <SecretInput value={form.blingClientSecret} onChange={(v) => set("blingClientSecret", v)} placeholder="Client Secret" />
+                  </Field>
+                </div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <StatusBadge status={blingAuthorized ? "active" : "missing"} label={blingAuthorized ? "Conta autorizada" : "Falta autorizar"} />
+                  {form.blingClientId && form.blingClientSecret && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (dirty && !confirm("Salve as configurações antes de autorizar, senão as chaves novas não serão usadas. Continuar mesmo assim?")) return;
+                        window.location.href = "/api/settings/bling/authorize";
+                      }}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold transition"
+                    >
+                      🔓 {blingAuthorized ? "Autorizar de novo" : "Autorizar com o Bling"}
+                    </button>
+                  )}
+                </div>
+              </IntegrationCard>
+
+              <IntegrationCard title="Meta Ads (Facebook / Instagram)" icon="📣" description="Pixel e API de Conversões para medir anúncios. Só envia eventos de quem aceitou os cookies de marketing." status={st.meta}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Field label="ID do Pixel (conjunto de dados)" hint="Gerenciador de Eventos → Fontes de dados → seu Pixel → ID.">
+                    <input value={form.metaPixelId} onChange={(e) => set("metaPixelId", e.target.value.replace(/\D/g, ""))} className={`${inputClass} font-mono`} inputMode="numeric" placeholder="123456789012345" />
+                  </Field>
+                  <Field label="Código de teste (opcional)" hint="Só durante a validação em “Testar eventos”. Apague depois.">
+                    <input value={form.metaTestEventCode} onChange={(e) => set("metaTestEventCode", e.target.value)} className={inputClass} placeholder="TEST12345" />
+                  </Field>
+                  <Field label="Token da API de Conversões" className="sm:col-span-2" hint="Configurações do Pixel → API de Conversões → Gerar token de acesso.">
+                    <SecretInput value={form.metaCapiAccessToken} onChange={(v) => set("metaCapiAccessToken", v)} placeholder="EAAG…" />
+                  </Field>
+                </div>
+                {form.metaTestEventCode && <Hint tone="amber">Código de teste preenchido: lembre de apagar depois de validar os eventos.</Hint>}
+              </IntegrationCard>
+            </>
+          )}
+
+          {/* ───────── IA ───────── */}
+          {section === "ia" && (
+            <IntegrationCard
+              title="Atendimento com IA"
+              icon="🤖"
+              description={<>Assistente (Claude, da Anthropic) que responde sobre pedidos, rastreio, frete, pagamentos e políticas, sempre com o botão “Falar com atendente no WhatsApp”. Desligado, a loja mostra só o botão do WhatsApp.</>}
+              status={st.ai}
+              on={form.aiAssistantEnabled}
+              onToggle={(v) => set("aiAssistantEnabled", v)}
+            >
+              {!form.aiApiKey && <Hint tone="amber">O assistente só aparece na loja depois que a chave de API for preenchida.</Hint>}
+              <Field label="Chave de API da Anthropic" hint="Crie em console.anthropic.com → API Keys. O uso é cobrado pela Anthropic.">
+                <SecretInput value={form.aiApiKey} onChange={(v) => set("aiApiKey", v)} placeholder="sk-ant-…" />
+              </Field>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Field label="Modelo" hint="Custo estimado por conversa de ~5 mensagens. Vale para conversas novas.">
+                  <select value={form.aiModel} onChange={(e) => set("aiModel", e.target.value)} className={inputClass}>
+                    {AI_MODELS.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
+                  </select>
+                </Field>
+                <Field label="Limite de mensagens por dia" hint="Ao atingir, o chat indica o WhatsApp até o dia seguinte.">
+                  <input type="number" min={1} value={form.aiDailyMessageLimit} onChange={(e) => set("aiDailyMessageLimit", e.target.value)} className={inputClass} />
+                </Field>
               </div>
-              <div className="sm:col-span-2">
-                <label className={labelClass}>Políticas e perguntas frequentes</label>
+              <Field label="Políticas e perguntas frequentes" hint="O assistente usa este texto junto com as configurações (pagamentos, frete, prazo). Ele não responde o que não estiver aqui — veja em Atendimento IA o que os clientes perguntaram e ele não soube.">
                 <textarea
-                  value={aiPolicies}
-                  onChange={(e) => setAiPolicies(e.target.value)}
-                  rows={8}
+                  value={form.aiPolicies}
+                  onChange={(e) => set("aiPolicies", e.target.value)}
+                  rows={10}
                   className={inputClass}
                   placeholder={"Ex.:\n- Trocas: aceitamos trocas de tamanho em até 7 dias após o recebimento, com etiqueta.\n- Tabela de medidas: P (busto 96 cm), M (100 cm), G (106 cm).\n- Cuidados: lavar do avesso, não usar alvejante.\n- Horário do atendimento humano: seg a sex, 9h às 18h."}
                 />
-                <p className="text-xs text-gray-400 mt-1">
-                  O assistente usa este texto junto com as configurações da loja (pagamentos, frete, prazo de produção). Ele não responde o que não estiver aqui.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-6">
-            <div className="flex items-center gap-2 mb-1">
-              <MessageCircle size={18} className="text-green-600" />
-              <h2 className="font-semibold text-gray-900">Formas de pagamento disponíveis</h2>
-            </div>
-            <p className="text-xs text-gray-500 -mt-4">O cliente escolhe como quer pagar no momento do checkout. WhatsApp e Dinheiro estão sempre disponíveis.</p>
-
-            {/* WhatsApp — sempre ativo */}
-            <div className="border border-gray-100 rounded-xl p-4 space-y-4">
-              <div className="flex items-center gap-3">
-                <span className="text-xl">💬</span>
-                <div className="flex-1">
-                  <p className="font-semibold text-sm text-gray-900">WhatsApp <span className="ml-1 text-xs text-green-600 font-normal bg-green-50 px-2 py-0.5 rounded-full">Sempre ativo</span></p>
-                  <p className="text-xs text-gray-500 mt-0.5">Pedido enviado pelo WhatsApp — pagamento e entrega combinados na conversa.</p>
-                </div>
-              </div>
-              <p className="text-xs text-gray-500">Configure o que aparece na mensagem enviada ao WhatsApp da loja.</p>
-              <div>
-                <label className={labelClass}>Mensagem inicial personalizada (opcional)</label>
-                <textarea
-                  value={checkoutMessage}
-                  onChange={(e) => setCheckoutMessage(e.target.value)}
-                  rows={2}
-                  className={inputClass}
-                  placeholder="Ex: Olá! Gostaria de fazer um pedido:"
-                />
-              </div>
-              <div className="space-y-3">
-                <label className="flex items-center justify-between cursor-pointer group">
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">Solicitar e-mail do cliente</p>
-                    <p className="text-xs text-gray-500">Inclui campo de e-mail no checkout</p>
-                  </div>
-                  <div
-                    className={`relative w-11 h-6 rounded-full transition-colors ${checkoutCollectEmail ? "bg-green-500" : "bg-gray-200"}`}
-                    onClick={() => setCheckoutCollectEmail(!checkoutCollectEmail)}
-                  >
-                    <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${checkoutCollectEmail ? "translate-x-5" : ""}`} />
-                  </div>
-                </label>
-                <label className="flex items-center justify-between cursor-pointer group">
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">Solicitar endereço de entrega</p>
-                    <p className="text-xs text-gray-500">Inclui campo de endereço no checkout</p>
-                  </div>
-                  <div
-                    className={`relative w-11 h-6 rounded-full transition-colors ${checkoutCollectAddress ? "bg-green-500" : "bg-gray-200"}`}
-                    onClick={() => setCheckoutCollectAddress(!checkoutCollectAddress)}
-                  >
-                    <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${checkoutCollectAddress ? "translate-x-5" : ""}`} />
-                  </div>
-                </label>
-              </div>
-              <div>
-                <p className={labelClass}>Preview da mensagem WhatsApp</p>
-                <div className="bg-[#e5ddd5] rounded-xl p-4">
-                  <div className="bg-white rounded-xl p-3 max-w-xs shadow-sm">
-                    <pre className="text-xs text-gray-800 whitespace-pre-wrap font-sans leading-relaxed">{whatsappPreview}</pre>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Mercado Pago */}
-            <div className="border border-gray-100 rounded-xl p-4 space-y-4">
-              <label className="flex items-center justify-between cursor-pointer">
-                <div className="flex items-center gap-3">
-                  <span className="text-xl">💳</span>
-                  <div>
-                    <p className="font-semibold text-sm text-gray-900">Mercado Pago</p>
-                    <p className="text-xs text-gray-500 mt-0.5">Cartão de crédito, Pix ou boleto. Requer credenciais de produção.</p>
-                  </div>
-                </div>
-                <div
-                  className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${mercadoPagoAtivo ? "bg-blue-500" : "bg-gray-200"}`}
-                  onClick={() => setMercadoPagoAtivo(!mercadoPagoAtivo)}
-                >
-                  <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${mercadoPagoAtivo ? "translate-x-5" : ""}`} />
-                </div>
-              </label>
-              {mercadoPagoAtivo && (
-                <div className="space-y-4 pt-1">
-                  <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-sm text-blue-800">
-                    <p className="font-semibold mb-1 flex items-center gap-2"><CreditCard size={14} /> Credenciais do Mercado Pago</p>
-                    <p className="text-xs">
-                      Acesse <strong>mercadopago.com.br → Seu negócio → Configurações → Credenciais</strong> para obter suas chaves.
-                      Use as credenciais de <strong>produção</strong> para receber pagamentos reais.
-                    </p>
-                  </div>
-                  <div>
-                    <label className={labelClass}>Public Key (chave pública)</label>
-                    <input value={mpPublicKey} onChange={(e) => setMpPublicKey(e.target.value)} className={inputClass} placeholder="APP_USR-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
-                    <p className="text-xs text-gray-400 mt-1">Usada no frontend para identificar sua conta.</p>
-                  </div>
-                  <div>
-                    <label className={labelClass}>Access Token (chave secreta)</label>
-                    <div className="relative">
-                      <input type={showToken ? "text" : "password"} value={mpAccessToken} onChange={(e) => setMpAccessToken(e.target.value)} className={`${inputClass} pr-10`} placeholder="APP_USR-xxxxxxxx..." />
-                      <button type="button" onClick={() => setShowToken(!showToken)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                        {showToken ? <EyeOff size={16} /> : <Eye size={16} />}
-                      </button>
-                    </div>
-                    <p className="text-xs text-gray-400 mt-1">Chave secreta usada no servidor. Nunca compartilhe.</p>
-                  </div>
-                  <label className="flex items-start justify-between gap-4 cursor-pointer bg-gray-50 rounded-xl p-3">
-                    <div>
-                      <p className="text-sm font-semibold text-gray-900">Pagamento dentro do site (checkout transparente)</p>
-                      <p className="text-xs text-gray-500 mt-0.5">
-                        O cliente digita o cartão ou gera o Pix sem sair da loja. Desligado, o cliente é levado para a página do Mercado Pago.
-                        Requer credenciais de produção ativadas e chave Pix cadastrada na conta Mercado Pago.
-                      </p>
-                    </div>
-                    <div
-                      className={`relative w-11 h-6 rounded-full transition-colors shrink-0 mt-0.5 ${mercadoPagoTransparente ? "bg-blue-500" : "bg-gray-200"}`}
-                      onClick={() => setMercadoPagoTransparente(!mercadoPagoTransparente)}
-                    >
-                      <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${mercadoPagoTransparente ? "translate-x-5" : ""}`} />
-                    </div>
-                  </label>
-                </div>
-              )}
-            </div>
-
-            {/* NuPay */}
-            <div className="border border-gray-100 rounded-xl p-4 space-y-4">
-              <label className="flex items-center justify-between cursor-pointer">
-                <div className="flex items-center gap-3">
-                  <span className="text-xl">🟣</span>
-                  <div>
-                    <p className="font-semibold text-sm text-gray-900">NuPay</p>
-                    <p className="text-xs text-gray-500 mt-0.5">Débito, crédito Nubank ou Pix em até 24×. Requer credenciais NuPay for Business.</p>
-                  </div>
-                </div>
-                <div
-                  className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${nuPayAtivo ? "bg-purple-500" : "bg-gray-200"}`}
-                  onClick={() => setNuPayAtivo(!nuPayAtivo)}
-                >
-                  <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${nuPayAtivo ? "translate-x-5" : ""}`} />
-                </div>
-              </label>
-              {nuPayAtivo && (
-                <div className="space-y-4 pt-1">
-                  <div className="bg-purple-50 border border-purple-100 rounded-xl p-4 text-sm text-purple-800">
-                    <p className="font-semibold mb-1 flex items-center gap-2"><CreditCard size={14} /> Credenciais do NuPay for Business</p>
-                    <p className="text-xs">
-                      Após o credenciamento, o NuPay for Business envia a <strong>Merchant Key</strong> e o <strong>Merchant Token</strong>.
-                      As notificações de pagamento são configuradas automaticamente em cada pedido.
-                    </p>
-                  </div>
-                  <div>
-                    <label className={labelClass}>Merchant Key</label>
-                    <input value={nuPayClientId} onChange={(e) => setNuPayClientId(e.target.value)} className={inputClass} placeholder="X-Merchant-Key" />
-                  </div>
-                  <div>
-                    <label className={labelClass}>Merchant Token</label>
-                    <div className="relative">
-                      <input type={showNuPaySecret ? "text" : "password"} value={nuPayClientSecret} onChange={(e) => setNuPayClientSecret(e.target.value)} className={`${inputClass} pr-10`} placeholder="X-Merchant-Token" />
-                      <button type="button" onClick={() => setShowNuPaySecret(!showNuPaySecret)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                        {showNuPaySecret ? <EyeOff size={16} /> : <Eye size={16} />}
-                      </button>
-                    </div>
-                    <p className="text-xs text-gray-400 mt-1">Chave secreta usada no servidor. Nunca compartilhe.</p>
-                  </div>
-                  <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-                    <input type="checkbox" checked={nuPaySandbox} onChange={(e) => setNuPaySandbox(e.target.checked)} className="rounded" />
-                    Ambiente de testes (sandbox) — desmarque para receber pagamentos reais
-                  </label>
-                </div>
-              )}
-            </div>
-
-            {/* Infinity Pay */}
-            <div className="border border-gray-100 rounded-xl p-4 space-y-4">
-              <label className="flex items-center justify-between cursor-pointer">
-                <div className="flex items-center gap-3">
-                  <span className="text-xl">♾️</span>
-                  <div>
-                    <p className="font-semibold text-sm text-gray-900">Infinity Pay</p>
-                    <p className="text-xs text-gray-500 mt-0.5">Cartão de crédito, Pix ou boleto. Requer credenciais Infinity Pay.</p>
-                  </div>
-                </div>
-                <div
-                  className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${infinityPayAtivo ? "bg-indigo-500" : "bg-gray-200"}`}
-                  onClick={() => setInfinityPayAtivo(!infinityPayAtivo)}
-                >
-                  <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${infinityPayAtivo ? "translate-x-5" : ""}`} />
-                </div>
-              </label>
-              {infinityPayAtivo && (
-                <div className="space-y-4 pt-1">
-                  <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 text-sm text-indigo-800">
-                    <p className="font-semibold mb-1 flex items-center gap-2"><CreditCard size={14} /> Credenciais do Infinity Pay</p>
-                    <p className="text-xs mb-2">Acesse o painel <strong>Infinity Pay</strong> para obter seu Handle (InfiniteTag) e API Key.</p>
-                    <p className="text-xs">
-                      Configure o webhook no painel Infinity Pay apontando para:{" "}
-                      <strong className="break-all">{typeof window !== "undefined" ? window.location.origin : ""}/api/checkout/infinitypay/webhook</strong>
-                    </p>
-                  </div>
-                  <div>
-                    <label className={labelClass}>Handle (InfiniteTag)</label>
-                    <input value={infinityPayHandle} onChange={(e) => setInfinityPayHandle(e.target.value)} className={inputClass} placeholder="Seu Handle Infinity Pay (sem o símbolo $)" />
-                    <p className="text-xs text-gray-400 mt-1">Seu nome de usuário no app Infinity Pay, sem o símbolo $ do início.</p>
-                  </div>
-                  <div>
-                    <label className={labelClass}>API Key</label>
-                    <div className="relative">
-                      <input type={showInfinityPayKey ? "text" : "password"} value={infinityPayApiKey} onChange={(e) => setInfinityPayApiKey(e.target.value)} className={`${inputClass} pr-10`} placeholder="Sua API Key do Infinity Pay" />
-                      <button type="button" onClick={() => setShowInfinityPayKey(!showInfinityPayKey)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                        {showInfinityPayKey ? <EyeOff size={16} /> : <Eye size={16} />}
-                      </button>
-                    </div>
-                    <p className="text-xs text-gray-400 mt-1">Chave secreta usada no servidor. Nunca compartilhe.</p>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Bling */}
-            <div className="border border-gray-100 rounded-xl p-4 space-y-4">
-              <label className="flex items-center justify-between cursor-pointer">
-                <div className="flex items-center gap-3">
-                  <span className="text-xl">📦</span>
-                  <div>
-                    <p className="font-semibold text-sm text-gray-900">Bling</p>
-                    <p className="text-xs text-gray-500 mt-0.5">Integração automática de pedidos ao sistema Bling quando o pagamento for aprovado.</p>
-                  </div>
-                </div>
-                <div
-                  className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${blingAtivo ? "bg-orange-500" : "bg-gray-200"}`}
-                  onClick={() => setBlingAtivo(!blingAtivo)}
-                >
-                  <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${blingAtivo ? "translate-x-5" : ""}`} />
-                </div>
-              </label>
-              {blingAtivo && (
-                <div className="space-y-4 pt-1">
-                  <div className="bg-orange-50 border border-orange-100 rounded-xl p-4 text-sm text-orange-800">
-                    <p className="font-semibold mb-1">🔐 Integração Automática Bling</p>
-                    <p className="text-xs mb-2">Quando ativado, os pedidos aprovados serão automaticamente integrados no seu sistema Bling.</p>
-                    <p className="text-xs">
-                      Obtenha suas credenciais em <strong>Bling → Integrações → Minhas Aplicações</strong> (crie uma aplicação para sua loja).
-                    </p>
-                  </div>
-                  <div>
-                    <label className={labelClass}>Client ID</label>
-                    <input value={blingClientId} onChange={(e) => setBlingClientId(e.target.value)} className={inputClass} placeholder="Client ID da sua aplicação Bling" />
-                    <p className="text-xs text-gray-400 mt-1">ID público da sua aplicação.</p>
-                  </div>
-                  <div>
-                    <label className={labelClass}>Client Secret</label>
-                    <div className="relative">
-                      <input type={showBlingSecret ? "text" : "password"} value={blingClientSecret} onChange={(e) => setBlingClientSecret(e.target.value)} className={`${inputClass} pr-10`} placeholder="Client Secret da sua aplicação Bling" />
-                      <button type="button" onClick={() => setShowBlingSecret(!showBlingSecret)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                        {showBlingSecret ? <EyeOff size={16} /> : <Eye size={16} />}
-                      </button>
-                    </div>
-                    <p className="text-xs text-gray-400 mt-1">Chave secreta usada no servidor. Nunca compartilhe.</p>
-                  </div>
-                  {blingClientId && blingClientSecret && (
-                    <button
-                      type="button"
-                      onClick={() => window.location.href = "/api/settings/bling/authorize"}
-                      className="w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-2.5 rounded-xl transition-colors"
-                    >
-                      🔓 Autorizar com Bling
-                    </button>
-                  )}
-                  <p className="text-xs text-green-700 bg-green-50 p-3 rounded-lg">✅ Integração automática: ao aprovar um pagamento, o pedido é enviado direto ao Bling!</p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* WhatsApp */}
-          <div className="border border-gray-100 rounded-xl p-4 space-y-4">
-            <label className="flex items-center justify-between cursor-pointer">
-              <div className="flex items-center gap-3">
-                <span className="text-xl">💬</span>
-                <div>
-                  <p className="font-semibold text-sm text-gray-900">WhatsApp</p>
-                  <p className="text-xs text-gray-500 mt-0.5">Oferece WhatsApp como opção de pagamento no checkout</p>
-                </div>
-              </div>
-              <div
-                className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${whatsappAtivo ? "bg-green-500" : "bg-gray-200"}`}
-                onClick={() => setWhatsappAtivo(!whatsappAtivo)}
-              >
-                <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${whatsappAtivo ? "translate-x-5" : ""}`} />
-              </div>
-            </label>
-            {!whatsappAtivo && (
-              <div className="bg-gray-50 border border-gray-100 rounded-xl p-3 text-xs text-gray-600">
-                WhatsApp está desativado. Ele não aparecerá como opção de pagamento no checkout.
-              </div>
-            )}
-          </div>
-
-          {/* PIX com Desconto */}
-          <div className="border border-gray-100 rounded-xl p-4 space-y-4">
-            <label className="flex items-center justify-between cursor-pointer">
-              <div className="flex items-center gap-3">
-                <span className="text-xl">🎉</span>
-                <div>
-                  <p className="font-semibold text-sm text-gray-900">PIX com Desconto</p>
-                  <p className="text-xs text-gray-500 mt-0.5">Ofereça desconto para pagamentos exclusivos via PIX</p>
-                </div>
-              </div>
-              <div
-                className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${pixDiscountEnabled ? "bg-yellow-500" : "bg-gray-200"}`}
-                onClick={() => setPixDiscountEnabled(!pixDiscountEnabled)}
-              >
-                <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${pixDiscountEnabled ? "translate-x-5" : ""}`} />
-              </div>
-            </label>
-            {pixDiscountEnabled && (
-              <div className="space-y-4 pt-1">
-                <div className="bg-yellow-50 border border-yellow-100 rounded-xl p-4 text-sm text-yellow-800">
-                  <p className="font-semibold mb-1">💰 Configuração de Desconto PIX</p>
-                  <p className="text-xs">
-                    Quando ativado, seus clientes verão a opção "PIX com Desconto" no checkout.
-                    O sistema forçará pagamento exclusivo via PIX (sem possibilidade de escolher cartão depois).
-                  </p>
-                </div>
-                <div>
-                  <label className={labelClass}>Percentual de desconto (%)</label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="number"
-                      min="0"
-                      max="100"
-                      step="0.5"
-                      value={pixDiscountPercent}
-                      onChange={(e) => setPixDiscountPercent(e.target.value)}
-                      className={inputClass}
-                      placeholder="Ex: 5"
-                    />
-                    <span className="text-gray-600 font-semibold">%</span>
-                  </div>
-                  <p className="text-xs text-gray-400 mt-2">
-                    Ex: 5 oferecerá 5% de desconto em pagamentos via PIX. Clientes verão "PIX com Desconto (5% off)".
-                  </p>
-                </div>
-              </div>
-            )}
-            {!pixDiscountEnabled && (
-              <div className="bg-gray-50 border border-gray-100 rounded-xl p-3 text-xs text-gray-600">
-                PIX com desconto está desativado. A opção não aparecerá no checkout.
-              </div>
-            )}
-          </div>
-
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
-            <div className="flex items-center gap-2 mb-1">
-              <Truck size={18} className="text-blue-600" />
-              <h2 className="font-semibold text-gray-900">Configurações de frete</h2>
-            </div>
-
-            <label className="flex items-center justify-between cursor-pointer">
-              <div>
-                <p className="text-sm font-medium text-gray-900">Frete ativo</p>
-                <p className="text-xs text-gray-500">Exibe e calcula frete no checkout</p>
-              </div>
-              <div
-                className={`relative w-11 h-6 rounded-full transition-colors ${freteAtivo ? "bg-blue-500" : "bg-gray-200"}`}
-                onClick={() => setFreteAtivo(!freteAtivo)}
-              >
-                <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${freteAtivo ? "translate-x-5" : ""}`} />
-              </div>
-            </label>
-
-            {freteAtivo && (
-              <>
-                <div>
-                  <label className={labelClass}>Restrição por região</label>
-                  <p className="text-xs text-gray-500 mb-3">Selecione as regiões onde você faz entregas. Clientes fora dessas regiões não conseguirão finalizar a compra.</p>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    {Object.entries(BRAZILIAN_REGIONS).map(([key, region]) => (
-                      <label key={key} className="flex items-center gap-2 cursor-pointer p-3 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition">
-                        <input
-                          type="checkbox"
-                          checked={freteLocalRegioes.includes(key)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setFreteLocalRegioes([...freteLocalRegioes, key]);
-                            } else {
-                              setFreteLocalRegioes(freteLocalRegioes.filter((r) => r !== key));
-                            }
-                          }}
-                          className="w-4 h-4 rounded border-gray-300 cursor-pointer"
-                        />
-                        <span className="text-sm font-medium text-gray-900">{region.label}</span>
-                      </label>
-                    ))}
-                  </div>
-                  <p className="text-xs text-gray-400 mt-2">Deixe em branco para aceitar vendas em todo o Brasil.</p>
-                </div>
-
-                <div>
-                  <label className={labelClass}>Tipo de cálculo</label>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    {[
-                      { value: "local", label: "Entrega local", desc: "Só dentro da cidade" },
-                      { value: "fixo", label: "Fixo", desc: "Valor único para todos" },
-                      { value: "correios", label: "Correios", desc: "PAC/SEDEX pelo CEP" },
-                      { value: "melhorenvio", label: "Melhor Envio", desc: "Múltiplas transportadoras" },
-                      { value: "hibrido", label: "Híbrido", desc: "Fixo local + transportadora" },
-                    ].map((opt) => (
-                      <button
-                        key={opt.value}
-                        type="button"
-                        onClick={() => setFreteTipo(opt.value)}
-                        className={`flex flex-col gap-1 p-3 rounded-xl border-2 text-left transition-all ${freteTipo === opt.value ? "border-blue-500 bg-blue-50" : "border-gray-200 hover:border-gray-300"}`}
-                      >
-                        <p className="font-semibold text-sm text-gray-900">{opt.label}</p>
-                        <p className="text-xs text-gray-500">{opt.desc}</p>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {freteTipo === "local" && (
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                      <div className="sm:col-span-2">
-                        <label className={labelClass}>Cidade atendida</label>
-                        <input
-                          value={freteLocalCidade}
-                          onChange={(e) => setFreteLocalCidade(e.target.value)}
-                          className={inputClass}
-                          placeholder="Ex: São Paulo"
-                        />
-                      </div>
-                      <div>
-                        <label className={labelClass}>Estado (UF)</label>
-                        <select value={freteLocalUF} onChange={(e) => setFreteLocalUF(e.target.value)} className={inputClass}>
-                          <option value="">Selecione</option>
-                          {["AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG","PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO"].map((uf) => (
-                            <option key={uf} value={uf}>{uf}</option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-                    <p className="text-xs text-gray-400 -mt-2">Cidade e estado usados para validar o CEP do cliente via ViaCEP. Evita conflito com cidades homônimas em outros estados.</p>
-                    <div>
-                      <label className={labelClass}>CEP da loja (origem)</label>
-                      <input value={freteCEPOrigem} onChange={(e) => setFreteCEPOrigem(e.target.value)} className={inputClass} placeholder="00000-000" maxLength={9} />
-                      <p className="text-xs text-gray-400 mt-1">CEP de onde os produtos são enviados.</p>
-                    </div>
-                    <div>
-                      <label className={labelClass}>Valor da entrega local (R$)</label>
-                      <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">R$</span>
-                        <input type="number" step="0.01" min="0" value={freteValorFixo} onChange={(e) => setFreteValorFixo(e.target.value)} className={`${inputClass} pl-9`} placeholder="0,00" />
-                      </div>
-                      <p className="text-xs text-gray-400 mt-1">Use 0 para entrega grátis.</p>
-                    </div>
-                    <label className="flex items-center justify-between cursor-pointer">
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">Permitir retirada na loja</p>
-                        <p className="text-xs text-gray-500">Cliente pode optar por retirar o pedido na loja (grátis)</p>
-                      </div>
-                      <div
-                        className={`relative w-11 h-6 rounded-full transition-colors ${freteLocalRetirada ? "bg-blue-500" : "bg-gray-200"}`}
-                        onClick={() => setFreteLocalRetirada(!freteLocalRetirada)}
-                      >
-                        <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${freteLocalRetirada ? "translate-x-5" : ""}`} />
-                      </div>
-                    </label>
-                  </div>
-                )}
-
-                {(freteTipo === "fixo" || freteTipo === "hibrido") && (
-                  <div>
-                    <label className={labelClass}>
-                      {freteTipo === "hibrido" ? "Valor fixo para entrega local (R$)" : "Valor do frete fixo (R$)"}
-                    </label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">R$</span>
-                      <input type="number" step="0.01" min="0" value={freteValorFixo} onChange={(e) => setFreteValorFixo(e.target.value)} className={`${inputClass} pl-9`} placeholder="0,00" />
-                    </div>
-                    <p className="text-xs text-gray-400 mt-1">Use 0 para frete grátis.</p>
-                  </div>
-                )}
-
-                {(freteTipo === "melhorenvio" || freteTipo === "hibrido" || freteTipo === "correios") && (
-                  <div>
-                    <label className={labelClass}>CEP de origem (da loja)</label>
-                    <input value={freteCEPOrigem} onChange={(e) => setFreteCEPOrigem(e.target.value)} className={inputClass} placeholder="00000-000" maxLength={9} />
-                    <p className="text-xs text-gray-400 mt-1">
-                      {freteTipo === "hibrido" ? "CEPs com mesmo prefixo (5 dígitos) recebem frete local; demais calculam pela transportadora." : "CEP de onde os produtos serão enviados."}
-                    </p>
-                  </div>
-                )}
-
-                {(freteTipo === "melhorenvio" || freteTipo === "hibrido") && (
-                  <div className="bg-orange-50 border border-orange-100 rounded-xl p-4 space-y-3">
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg">📦</span>
-                      <div>
-                        <p className="text-sm font-semibold text-orange-900">Melhor Envio</p>
-                        <p className="text-xs text-orange-700">Retorna preços de Correios, Jadlog, Total Express e outras em uma única consulta.</p>
-                      </div>
-                    </div>
-                    <div>
-                      <label className={labelClass}>Token de acesso (Cálculo de frete)</label>
-                      <div className="relative">
-                        <input
-                          type={showMEToken ? "text" : "password"}
-                          value={melhorEnvioToken}
-                          onChange={(e) => setMelhorEnvioToken(e.target.value)}
-                          className={`${inputClass} pr-10`}
-                          placeholder="eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9..."
-                        />
-                        <button type="button" onClick={() => setShowMEToken(!showMEToken)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                          {showMEToken ? <EyeOff size={16} /> : <Eye size={16} />}
-                        </button>
-                      </div>
-                      <p className="text-xs text-orange-700 mt-1">
-                        Obtenha em <strong>melhorenvio.com.br → Integrações → Tokens</strong>. Selecione permissão <strong>Cotações</strong>.
-                        {freteTipo === "hibrido" && " Se não configurado, usa Correios como fallback."}
-                      </p>
-                    </div>
-
-                    <div>
-                      <label className={labelClass}>Token de acesso (API - Criar etiquetas)</label>
-                      <div className="relative">
-                        <input
-                          type={showMEApiToken ? "text" : "password"}
-                          value={melhorEnvioApiToken}
-                          onChange={(e) => setMelhorEnvioApiToken(e.target.value)}
-                          className={`${inputClass} pr-10`}
-                          placeholder="10v4wcpYXt8hmw9XyaXh8H0ivZACXkLcgk120stI"
-                        />
-                        <button type="button" onClick={() => setShowMEApiToken(!showMEApiToken)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                          {showMEApiToken ? <EyeOff size={16} /> : <Eye size={16} />}
-                        </button>
-                      </div>
-                      <p className="text-xs text-orange-700 mt-1">
-                        Token para criar etiquetas e shipments automaticamente. Obtenha em <strong>melhorenvio.com.br → Integrações → Tokens</strong>. Selecione permissão <strong>Cotações + Envios</strong>.
-                      </p>
-                    </div>
-
-                    <div>
-                      <label className={labelClass}>Secret do aplicativo (Webhook de rastreio)</label>
-                      <div className="relative">
-                        <input
-                          type={showMEWebhookSecret ? "text" : "password"}
-                          value={melhorEnvioWebhookSecret}
-                          onChange={(e) => setMelhorEnvioWebhookSecret(e.target.value)}
-                          className={`${inputClass} pr-10`}
-                          placeholder="Secret do aplicativo no Melhor Envio"
-                        />
-                        <button type="button" onClick={() => setShowMEWebhookSecret(!showMEWebhookSecret)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                          {showMEWebhookSecret ? <EyeOff size={16} /> : <Eye size={16} />}
-                        </button>
-                      </div>
-                      <p className="text-xs text-orange-700 mt-1">
-                        Usado para validar as notificações de rastreio enviadas pelo Melhor Envio. É o <strong>Secret</strong> do aplicativo cadastrado na área de desenvolvedor do Melhor Envio (par do Client ID). Sem ele, as notificações são recusadas e o rastreio é atualizado só pela rotina automática.
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {(freteTipo === "melhorenvio" || freteTipo === "correios" || freteTipo === "hibrido") && (
-                  <div>
-                    <label className={labelClass}>Dimensões padrão da embalagem (cm)</label>
-                    <div className="grid grid-cols-3 gap-3">
-                      <div>
-                        <label className="text-xs text-gray-500 mb-1 block">Comprimento</label>
-                        <input type="number" min="16" value={pacoteComprimento} onChange={(e) => setPacoteComprimento(e.target.value)} className={inputClass} placeholder="17" />
-                      </div>
-                      <div>
-                        <label className="text-xs text-gray-500 mb-1 block">Largura</label>
-                        <input type="number" min="11" value={pacoteLargura} onChange={(e) => setPacoteLargura(e.target.value)} className={inputClass} placeholder="12" />
-                      </div>
-                      <div>
-                        <label className="text-xs text-gray-500 mb-1 block">Altura</label>
-                        <input type="number" min="2" value={pacoteAltura} onChange={(e) => setPacoteAltura(e.target.value)} className={inputClass} placeholder="5" />
-                      </div>
-                    </div>
-                    <p className="text-xs text-gray-400 mt-1">Mínimos aceitos pelos Correios: 16 × 11 × 2 cm. Ajuste conforme sua embalagem típica.</p>
-                  </div>
-                )}
-
-                <div>
-                  <label className={labelClass}>Peso padrão por produto (gramas)</label>
-                  <input type="number" min="1" value={fretePesoDefault} onChange={(e) => setFretePesoDefault(e.target.value)} className={inputClass} placeholder="500" />
-                  <p className="text-xs text-gray-400 mt-1">Usado quando o produto não tem peso cadastrado.</p>
-                </div>
-
-                <div>
-                  <label className={labelClass}>Dias úteis para produção</label>
-                  <input type="number" min="0" max="10" value={diasUteisProduzao} onChange={(e) => setDiasUteisProduzao(e.target.value)} className={inputClass} placeholder="2" />
-                  <p className="text-xs text-gray-400 mt-1">Dias úteis necessários para produzir os itens. Será somado ao prazo de frete no checkout.</p>
-                  <p className="text-xs text-gray-500 mt-2 bg-gray-50 p-2 rounded">Exemplo: Se configurar 2 dias de produção + frete de 3 dias = prazo total de 5 dias úteis</p>
-                </div>
-              </>
-            )}
-          </div>
-
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
-            <h2 className="font-semibold text-gray-900">Textos do banner principal</h2>
-            <p className="text-xs text-gray-500">Personalize os textos exibidos sobre as imagens do banner da página inicial.</p>
-            <div>
-              <label className={labelClass}>Etiqueta acima do título</label>
-              <input value={heroBadge} onChange={(e) => setHeroBadge(e.target.value)} className={inputClass} placeholder="Ex: NOVA COLEÇÃO" />
-              <p className="text-xs text-gray-400 mt-1">Texto pequeno em destaque exibido antes do título.</p>
-            </div>
-            <div>
-              <label className={labelClass}>Título principal do banner</label>
-              <input value={heroTitle} onChange={(e) => setHeroTitle(e.target.value)} className={inputClass} placeholder="Ex: Estilo que fala por você" />
-              <p className="text-xs text-gray-400 mt-1">Se vazio, usa o nome da loja como título.</p>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className={labelClass}>Texto do botão principal</label>
-                <input value={heroButtonText} onChange={(e) => setHeroButtonText(e.target.value)} className={inputClass} placeholder="Ex: Ver coleção" />
-                <p className="text-xs text-gray-400 mt-1">Padrão: "Ver coleção"</p>
-              </div>
-              <div>
-                <label className={labelClass}>Texto do botão secundário</label>
-                <input value={heroButtonSecondaryText} onChange={(e) => setHeroButtonSecondaryText(e.target.value)} className={inputClass} placeholder="Ex: Explorar coleção" />
-                <p className="text-xs text-gray-400 mt-1">Se vazio, exibe o link do Instagram.</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
-            <h2 className="font-semibold text-gray-900">Banners da página inicial</h2>
-            <p className="text-xs text-gray-500">Imagens para o carrossel de banners (formato paisagem recomendado).</p>
-            <ImageListInput images={bannerImages} onChange={setBannerImages} aspect="landscape" />
-          </div>
+              </Field>
+            </IntegrationCard>
+          )}
         </div>
+      </div>
 
-        <div className="space-y-6 lg:sticky lg:top-6 self-start">
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
-            <h2 className="font-semibold text-gray-900">Aparência</h2>
-            <div>
-              <label className={labelClass}>Cor principal</label>
-              <div className="flex items-center gap-3">
-                <input type="color" value={primaryColor} onChange={(e) => setPrimaryColor(e.target.value)} className="w-12 h-10 rounded-lg border border-gray-200 cursor-pointer p-0.5" />
-                <span className="text-sm text-gray-600 font-mono">{primaryColor}</span>
-              </div>
-            </div>
-            <div>
-              <label className={labelClass}>Cor dos botões</label>
-              <p className="text-xs text-gray-400 mb-2">Aplicada nos botões do site e do admin. Botões de checkout (WhatsApp e Mercado Pago) mantêm suas cores originais.</p>
-              <div className="flex items-center gap-3">
-                <input type="color" value={buttonColor} onChange={(e) => setButtonColor(e.target.value)} className="w-12 h-10 rounded-lg border border-gray-200 cursor-pointer p-0.5" />
-                <span className="text-sm text-gray-600 font-mono">{buttonColor}</span>
-                <button type="button" onClick={() => setButtonColor(primaryColor)} className="text-xs text-gray-400 hover:text-gray-600 underline">
-                  Usar cor principal
-                </button>
-              </div>
-              <div className="mt-3 flex items-center gap-2">
-                <span className="text-xs text-gray-500">Preview:</span>
-                <button type="button" className="px-4 py-1.5 rounded-lg text-white text-sm font-medium" style={{ backgroundColor: buttonColor }}>
-                  Adicionar ao carrinho
-                </button>
-              </div>
-            </div>
-            <div>
-              <label className={labelClass}>Cor dos menus</label>
-              <p className="text-xs text-gray-400 mb-2">Usada nos botões de navegação e ícones do cabeçalho ao passar o mouse ou na página ativa.</p>
-              <div className="flex items-center gap-3">
-                <input type="color" value={menuColor} onChange={(e) => setMenuColor(e.target.value)} className="w-12 h-10 rounded-lg border border-gray-200 cursor-pointer p-0.5" />
-                <span className="text-sm text-gray-600 font-mono">{menuColor}</span>
-                <button type="button" onClick={() => setMenuColor(primaryColor)} className="text-xs text-gray-400 hover:text-gray-600 underline">
-                  Usar cor principal
-                </button>
-              </div>
-              <div className="mt-3 flex items-center gap-3">
-                <span className="text-xs text-gray-500">Preview:</span>
-                <span
-                  className="px-4 py-1.5 rounded-xl text-sm font-semibold"
-                  style={{ backgroundColor: `color-mix(in srgb, ${menuColor} 22%, white)`, color: menuColor }}
-                >
-                  Início
-                </span>
-                <span
-                  className="px-4 py-1.5 rounded-xl text-sm font-semibold"
-                  style={{ backgroundColor: `color-mix(in srgb, ${menuColor} 12%, white)`, color: menuColor }}
-                >
-                  Produtos
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-            <button
-              type="submit"
-              disabled={loading}
-              className={`w-full flex items-center justify-center gap-2 py-4 rounded-xl font-bold text-base text-white shadow-md hover:shadow-lg active:scale-[0.98] transition-all disabled:opacity-60`}
-              style={{ backgroundColor: saved ? "#22c55e" : "var(--brand)" }}
-            >
-              {loading ? (
-                <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24" fill="none">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
-                </svg>
-              ) : (
-                <Save size={18} />
-              )}
-              {loading ? "Salvando..." : saved ? "✓ Salvo com sucesso!" : "Salvar configurações"}
-            </button>
-            {saved && (
-              <p className="text-center text-xs text-green-600 mt-2 font-medium">Alterações aplicadas na loja</p>
-            )}
-          </div>
-
-          <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 text-sm text-amber-800">
-            <p className="font-semibold mb-1">Dicas para o WhatsApp</p>
-            <ul className="space-y-1 text-xs">
-              <li>• O número precisa incluir código do país (55 para Brasil) e DDD</li>
-              <li>• Exemplo: 5511999999999</li>
-              <li>• Sem o número, o WhatsApp abre mas sem destinatário</li>
-            </ul>
-          </div>
+      {/* Barra de salvar (fixa no rodapé) */}
+      <div className={`fixed bottom-0 inset-x-0 md:left-64 z-30 transition-transform duration-300 ${dirty || loading ? "translate-y-0" : "translate-y-full"}`}>
+        <div className="mx-4 md:mx-8 mb-4 rounded-2xl bg-gray-900 text-white shadow-2xl px-4 py-3 flex items-center gap-3">
+          <span className="text-sm flex-1 min-w-0 truncate">Você tem mudanças não salvas</span>
+          <button type="button" onClick={discard} disabled={loading} className="text-sm text-white/70 hover:text-white px-3 py-1.5 rounded-lg">Descartar</button>
+          <button type="submit" disabled={loading} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-60" style={{ backgroundColor: "var(--brand)" }}>
+            {loading ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />} {loading ? "Salvando…" : "Salvar alterações"}
+          </button>
         </div>
       </div>
     </form>
