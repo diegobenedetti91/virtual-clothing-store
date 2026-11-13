@@ -65,13 +65,9 @@ export default function Footer({ settings, categories = [] }: FooterProps) {
         <div className="grid grid-cols-2 lg:grid-cols-12 gap-10">
           {/* Marca */}
           <div className="col-span-2 lg:col-span-4">
-            {settings?.logo ? (
-              <img src={settings.logo} alt={name} className="h-14 w-auto object-contain rounded-xl bg-white p-1.5" />
-            ) : (
-              <p className="text-white font-black text-2xl tracking-tight">{name}</p>
-            )}
-            {settings?.description && <p className="text-sm leading-relaxed mt-4 max-w-sm">{settings.description}</p>}
-            <div className="flex gap-2 mt-5">
+            {/* Sem logo no rodapé: só a descrição (se houver) e as redes */}
+            {settings?.description && <p className="text-sm leading-relaxed mb-5 max-w-sm">{settings.description}</p>}
+            <div className="flex gap-2">
               {ig && (
                 <a href={ig} target="_blank" rel="noopener noreferrer" aria-label="Instagram" className="w-10 h-10 rounded-xl bg-white/5 ring-1 ring-white/10 flex items-center justify-center text-gray-300 hover:text-white hover:bg-white/10 transition">
                   <InstagramIcon size={18} />

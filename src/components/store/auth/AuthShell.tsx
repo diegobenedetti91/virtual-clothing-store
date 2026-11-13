@@ -5,6 +5,7 @@ import type { Perk, PerkIcon } from "@/lib/storePerks";
 export interface AuthBrand {
   storeName: string;
   logo: string | null;
+  /** Mantido por compatibilidade; a moldura não usa mais foto de fundo */
   heroImage: string | null;
   perks: Perk[];
 }
@@ -13,57 +14,75 @@ const ICONS: Record<PerkIcon, React.ComponentType<{ size?: number; className?: s
   pix: Zap, truck: Truck, store: Store, refresh: RefreshCw, card: CreditCard, shield: ShieldCheck,
 };
 
-/** Moldura das telas de conta: marca da loja à esquerda (desktop) e formulário à direita. */
+/**
+ * Moldura das telas de conta: um cartão centralizado dentro da página da loja
+ * (cabeçalho e rodapé continuam visíveis). No desktop, uma faixa estreita com a
+ * cor da loja, o logo e as vantagens; no celular, só o formulário.
+ */
 export default function AuthShell({ brand, eyebrow, title, children }: { brand: AuthBrand; eyebrow: string; title: string; children: React.ReactNode }) {
   return (
-    <div className="min-h-[calc(100vh-140px)] grid lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] bg-white">
-      {/* Painel da marca */}
-      <aside
-        className="relative hidden lg:flex flex-col justify-between overflow-hidden p-10 xl:p-14 text-white"
-        style={{ background: "linear-gradient(145deg, var(--brand), color-mix(in srgb, var(--brand) 45%, #0b0b14))" }}
-      >
-        {brand.heroImage && <img src={brand.heroImage} alt="" className="absolute inset-0 w-full h-full object-cover opacity-25 mix-blend-luminosity" />}
-        <span className="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-white/10 blur-2xl animate-glow-drift" />
+    <div className="bg-gray-50/80 px-4 py-8 sm:py-12">
+      <div className="mx-auto max-w-5xl grid lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] rounded-3xl bg-white ring-1 ring-gray-200/70 shadow-[0_20px_50px_-30px_rgba(0,0,0,0.25)] overflow-hidden">
+        {/* Faixa da marca (desktop) */}
+        <aside
+          className="relative hidden lg:flex flex-col justify-between gap-10 overflow-hidden p-10 text-white"
+          style={{ background: "linear-gradient(150deg, var(--brand), color-mix(in srgb, var(--brand) 40%, #0b0b14))" }}
+        >
+          <span className="absolute -top-20 -right-20 w-72 h-72 rounded-full bg-white/10 blur-2xl" />
+          <span className="absolute -bottom-24 -left-16 w-72 h-72 rounded-full bg-black/10 blur-2xl" />
 
-        <div className="relative">
-          {brand.logo ? (
-            <img src={brand.logo} alt={brand.storeName} className="h-16 w-auto object-contain rounded-2xl bg-white p-2 shadow-sm" />
-          ) : (
-            <span className="inline-flex w-14 h-14 rounded-2xl bg-white/20 ring-1 ring-white/30 items-center justify-center"><Store size={24} /></span>
-          )}
-        </div>
+          <div className="relative">
+            {brand.logo ? (
+              <img src={brand.logo} alt={brand.storeName} className="h-14 w-auto max-w-[180px] object-contain rounded-xl shadow-sm" />
+            ) : (
+              <span className="inline-flex items-center gap-2.5">
+                <span className="w-11 h-11 rounded-xl bg-white/20 ring-1 ring-white/30 flex items-center justify-center"><Store size={20} /></span>
+                <span className="font-semibold">{brand.storeName}</span>
+              </span>
+            )}
+          </div>
 
-        <div className="relative max-w-md">
-          <p className="text-sm font-medium text-white/70 uppercase tracking-widest">{eyebrow}</p>
-          <h2 className="mt-2 text-3xl xl:text-4xl font-semibold tracking-tight leading-tight">{title}</h2>
-          <ul className="mt-8 space-y-3">
-            {brand.perks.map((p) => {
-              const Icon = ICONS[p.icon];
-              return (
-                <li key={p.title} className="flex items-center gap-3">
-                  <span className="w-9 h-9 rounded-xl bg-white/15 ring-1 ring-white/20 flex items-center justify-center shrink-0"><Icon size={16} /></span>
-                  <span className="leading-tight">
-                    <span className="block text-sm font-semibold">{p.title}</span>
-                    <span className="block text-xs text-white/70">{p.desc}</span>
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
+          <div className="relative">
+            <p className="text-xs font-medium text-white/70 uppercase tracking-widest">{eyebrow}</p>
+            <h2 className="mt-2 text-2xl font-semibold tracking-tight leading-snug">{title}</h2>
+            <ul className="mt-7 space-y-3">
+              {brand.perks.slice(0, 4).map((p) => {
+                const Icon = ICONS[p.icon];
+                return (
+                  <li key={p.title} className="flex items-center gap-3">
+                    <span className="w-8 h-8 rounded-lg bg-white/15 ring-1 ring-white/20 flex items-center justify-center shrink-0"><Icon size={15} /></span>
+                    <span className="leading-tight">
+                      <span className="block text-sm font-medium">{p.title}</span>
+                      <span className="block text-xs text-white/65">{p.desc}</span>
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
 
-        <p className="relative text-xs text-white/50">© {new Date().getFullYear()} {brand.storeName}</p>
-      </aside>
+          <p className="relative text-xs text-white/50">© {new Date().getFullYear()} {brand.storeName}</p>
+        </aside>
 
-      {/* Conteúdo */}
-      <main className="flex justify-center px-4 sm:px-8 py-10 lg:py-14" style={{ background: "radial-gradient(ellipse at top, color-mix(in srgb, var(--brand) 6%, white), white 55%)" }}>
-        <div className="w-full max-w-md">
-          {children}
-          <p className="mt-8 text-center">
-            <Link href="/" className="inline-flex items-center gap-1 text-sm text-gray-400 hover:text-gray-700"><ArrowLeft size={14} /> Voltar à loja</Link>
-          </p>
-        </div>
-      </main>
+        {/* Formulário */}
+        <main className="px-5 py-8 sm:px-10 sm:py-10">
+          {/* Marca no celular */}
+          <div className="lg:hidden flex items-center gap-2.5 mb-6">
+            {brand.logo ? (
+              <img src={brand.logo} alt={brand.storeName} className="h-10 w-auto max-w-[140px] object-contain rounded-lg" />
+            ) : (
+              <span className="w-10 h-10 rounded-xl bg-brand text-white flex items-center justify-center"><Store size={18} /></span>
+            )}
+            <span className="text-sm font-semibold text-gray-900 truncate">{brand.storeName}</span>
+          </div>
+          <div className="mx-auto w-full max-w-md">
+            {children}
+            <p className="mt-8 text-center">
+              <Link href="/" className="inline-flex items-center gap-1 text-sm text-gray-400 hover:text-gray-700"><ArrowLeft size={14} /> Voltar à loja</Link>
+            </p>
+          </div>
+        </main>
+      </div>
     </div>
   );
 }
