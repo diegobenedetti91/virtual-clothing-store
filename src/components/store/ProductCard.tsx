@@ -3,19 +3,7 @@
 import Link from "next/link";
 import { ShoppingBag, Heart, Check, Tag } from "lucide-react";
 
-const COLOR_CSS: Record<string, string> = {
-  azul: "#3b82f6", vermelho: "#ef4444", verde: "#22c55e", preto: "#18181b",
-  branco: "#f4f4f5", rosa: "#ec4899", amarelo: "#eab308", laranja: "#f97316",
-  roxo: "#8b5cf6", cinza: "#71717a", marrom: "#78350f", bege: "#d6bc96",
-  caramelo: "#c08b5c", nude: "#e8c9a0", vinho: "#7f1d1d", navy: "#1e3a5f",
-  coral: "#fb7185", salmão: "#fda4af", turquesa: "#2dd4bf", dourado: "#d97706",
-  prata: "#9ca3af", off: "#fef3c7", lilás: "#c4b5fd", khaki: "#a3a062",
-};
-
-function colorToCss(name: string): string {
-  const key = name.toLowerCase().trim();
-  return COLOR_CSS[key] ?? COLOR_CSS[key.split(" ")[0]] ?? "#9ca3af";
-}
+import { colorToCss } from "@/lib/colorSwatch";
 import { Product } from "@/types";
 import { formatCurrency } from "@/lib/utils";
 import { useCart } from "@/hooks/useCart";

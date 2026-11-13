@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, RotateCcw, MessageCircle } from "lucide-react";
+import { ChevronLeft, ChevronRight, Star, Truck, Zap, Store, RefreshCw, CreditCard, ShieldCheck } from "lucide-react";
+import { getPublicCompanySettings } from "@/lib/company";
+import { storePerks, type PerkIcon } from "@/lib/storePerks";
 import { prisma } from "@/lib/prisma";
 import type { Product } from "@/types";
 import { getProductAttributes, normalizeVariantStock } from "@/lib/variantUtils";
@@ -18,6 +20,7 @@ interface PageProps {
 export default async function ProductDetailPage({ params }: PageProps) {
   const { slug } = await params;
 
+  const settingsPromise = getPublicCompanySettings();
   const raw = await prisma.product.findUnique({
     where: { slug },
     include: { category: true, _count: { select: { reviews: { where: { approved: true } } } } },
@@ -26,6 +29,13 @@ export default async function ProductDetailPage({ params }: PageProps) {
   if (!raw || !raw.active) notFound();
 
   const product = (await applyFlashSales([raw]))[0] as unknown as Product;
+  const settings = await settingsPromise;
+  const pixPercent = settings?.pixDiscountEnabled ? settings.pixDiscountPercent ?? 0 : 0;
+  const PERK_ICONS: Record<PerkIcon, React.ComponentType<{ size?: number; className?: string }>> = {
+    pix: Zap, truck: Truck, store: Store, refresh: RefreshCw, card: CreditCard, shield: ShieldCheck,
+  };
+  // Pix já aparece junto do preço; aqui entram entrega, troca e pagamento
+  const perks = storePerks(settings).filter((p) => p.icon !== "pix").slice(0, 3);
   const images = JSON.parse(product.images || "[]") as string[];
   const attributes = getProductAttributes({
     attributes: product.attributes || "[]",
@@ -65,13 +75,13 @@ export default async function ProductDetailPage({ params }: PageProps) {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 xl:gap-20">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 xl:gap-16">
 
           {/* Gallery */}
           <ProductGallery images={images} name={product.name} />
 
           {/* Info panel */}
-          <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-5 lg:sticky lg:top-32 lg:self-start">
 
             {/* Category + badges */}
             <div className="flex items-center gap-2 flex-wrap">
@@ -96,16 +106,20 @@ export default async function ProductDetailPage({ params }: PageProps) {
             </div>
 
             {/* Title */}
-            <h1 className="text-3xl sm:text-4xl font-black text-gray-900 leading-tight tracking-tight">
-              {product.name}
-            </h1>
-
-            {/* Description */}
-            {product.description && (
-              <p className="text-gray-500 leading-relaxed text-base">
-                {product.description}
-              </p>
-            )}
+            <div>
+              <h1 className="text-2xl sm:text-[28px] font-bold text-gray-900 leading-tight tracking-tight">
+                {product.name}
+              </h1>
+              {reviewCount > 0 && (
+                <a href="#avaliacoes" className="mt-1.5 inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-900">
+                  <Star size={14} className="text-amber-400" fill="currentColor" />
+                  {reviewCount} avaliação{reviewCount !== 1 ? "ões" : ""}
+                </a>
+              )}
+              {product.description && (
+                <p className="mt-3 text-[15px] text-gray-600 leading-relaxed">{product.description}</p>
+              )}
+            </div>
 
             {product.flashSale && (
               <FlashSaleTimer
@@ -129,34 +143,24 @@ export default async function ProductDetailPage({ params }: PageProps) {
               attributes={attributes}
               stock={product.stock}
               variantStock={normalizedVariants}
+              pixPercent={pixPercent}
             />
 
-            {/* Info cards (Estoque is inside ProductActions, variant-aware) */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
-              {reviewCount > 0 && (
-                <a href="#avaliacoes" className="flex items-center gap-2.5 bg-gray-50 rounded-2xl px-4 py-3 hover:bg-yellow-50 transition-colors">
-                  <span className="text-yellow-400 text-base">★</span>
-                  <div>
-                    <p className="text-xs font-bold text-gray-700">Avaliações</p>
-                    <p className="text-xs text-gray-500">{reviewCount} avaliação{reviewCount !== 1 ? "ões" : ""}</p>
-                  </div>
-                </a>
-              )}
-              <div className="flex items-center gap-2.5 bg-gray-50 rounded-2xl px-4 py-3">
-                <MessageCircle size={16} className="text-green-500 shrink-0" />
-                <div>
-                  <p className="text-xs font-bold text-gray-700">Pagamento</p>
-                  <p className="text-xs text-gray-500">Combinado via WhatsApp</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2.5 bg-gray-50 rounded-2xl px-4 py-3">
-                <RotateCcw size={16} className="text-blue-400 shrink-0" />
-                <div>
-                  <p className="text-xs font-bold text-gray-700">Troca</p>
-                  <p className="text-xs text-gray-500">Fácil e sem burocracia</p>
-                </div>
-              </div>
-            </div>
+            {/* Vantagens da loja (vindas das configurações) */}
+            <ul className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
+              {perks.map((p) => {
+                const Icon = PERK_ICONS[p.icon];
+                return (
+                  <li key={p.title} className="flex items-center gap-2.5 rounded-xl bg-gray-50 px-3 py-2.5">
+                    <Icon size={16} className="text-gray-500 shrink-0" />
+                    <span className="leading-tight">
+                      <span className="block text-xs font-semibold text-gray-800">{p.title}</span>
+                      <span className="block text-[11px] text-gray-500">{p.desc}</span>
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
           </div>
         </div>
 

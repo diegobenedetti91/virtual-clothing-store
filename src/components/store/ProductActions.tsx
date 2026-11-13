@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
-import { ShoppingBag, Check, Heart, Package, Minus, Plus, Loader2 } from "lucide-react";
+import { useRef, useState } from "react";
+import { ShoppingBag, Check, Heart, Minus, Plus, Loader2, Zap, Bell, AlertCircle } from "lucide-react";
 import { useCart } from "@/hooks/useCart";
 import { useWishlist } from "@/hooks/useWishlist";
 import { formatCurrency } from "@/lib/utils";
 import { ProductAttribute } from "@/types";
 import { NormalizedVariant, getStockForSelection, variantKey } from "@/lib/variantUtils";
+import { isColorAttribute, swatchBackground } from "@/lib/colorSwatch";
 import WaitlistForm from "@/components/store/WaitlistForm";
 
 interface Props {
@@ -19,96 +20,93 @@ interface Props {
   attributes: ProductAttribute[];
   stock: number;
   variantStock: NormalizedVariant[];
+  /** Desconto do Pix configurado na loja (0 = desligado) */
+  pixPercent?: number;
 }
 
-export default function ProductActions({ productId, name, price, comparePrice, image, slug, attributes, stock, variantStock }: Props) {
-  const [selected, setSelected] = useState<Record<string, string>>({});
+export default function ProductActions({ productId, name, price, comparePrice, image, slug, attributes, stock, variantStock, pixPercent = 0 }: Props) {
+  // Atributos com uma única opção (ex.: "Tamanho: Único") já vêm escolhidos
+  const [selected, setSelected] = useState<Record<string, string>>(() =>
+    Object.fromEntries(attributes.filter((a) => a.values.length === 1).map((a) => [a.name, a.values[0]]))
+  );
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
   const [adding, setAdding] = useState(false);
   const [validationError, setValidationError] = useState("");
+  const [highlight, setHighlight] = useState<string | null>(null);
+  const groupRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const addItem = useCart((s) => s.addItem);
   const cartItems = useCart((s) => s.items);
   const { toggle, has } = useWishlist();
   const inWishlist = has(productId);
 
-  const discount =
-    comparePrice && comparePrice > price
-      ? Math.round(((comparePrice - price) / comparePrice) * 100)
-      : 0;
+  const discount = comparePrice && comparePrice > price ? Math.round(((comparePrice - price) / comparePrice) * 100) : 0;
+  const pixPrice = pixPercent > 0 ? Math.round(price * (1 - pixPercent / 100) * 100) / 100 : null;
 
   const hasVariantStock = variantStock.length > 0;
+  const totallyOut = stock <= 0;
 
-  // Compute current stock for the selected combination
   const currentVariantStock: number | null = (() => {
     if (!hasVariantStock) return null;
-    const selectedKeys = Object.keys(selected).filter((k) => selected[k]);
-    if (selectedKeys.length === 0) return null;
+    if (!Object.values(selected).some(Boolean)) return null;
     return getStockForSelection(variantStock, selected);
   })();
 
   const effectiveStock = currentVariantStock !== null ? currentVariantStock : stock;
-  const isOutOfStock = effectiveStock === 0;
-
-  const fullySelected = attributes.every((a) => selected[a.name]);
+  const isOutOfStock = effectiveStock <= 0;
+  const missing = attributes.filter((a) => !selected[a.name]);
+  const fullySelected = missing.length === 0;
   const showWaitlist = isOutOfStock && fullySelected;
 
-  // Count same variant already in cart
   const existingInCart = fullySelected
-    ? (cartItems.find(
-        (i) =>
-          i.productId === productId &&
-          variantKey(i.selectedAttributes || {}) === variantKey(selected)
-      )?.quantity ?? 0)
+    ? cartItems.find((i) => i.productId === productId && variantKey(i.selectedAttributes || {}) === variantKey(selected))?.quantity ?? 0
     : 0;
-
   const maxQuantity = Math.max(0, effectiveStock - existingInCart);
 
   const selectValue = (attrName: string, val: string) => {
-    setSelected((prev) => ({
-      ...prev,
-      [attrName]: prev[attrName] === val ? "" : val,
-    }));
+    setSelected((prev) => ({ ...prev, [attrName]: prev[attrName] === val ? "" : val }));
     setValidationError("");
+    setHighlight(null);
     setQuantity(1);
   };
 
-  const changeQty = (delta: number) =>
-    setQuantity((q) => Math.min(maxQuantity, Math.max(1, q + delta)));
+  const changeQty = (delta: number) => setQuantity((q) => Math.min(Math.max(1, maxQuantity), Math.max(1, q + delta)));
 
-  // Is a specific value out of stock given current partial selection?
+  /** Opção indisponível considerando o que já foi escolhido nos outros atributos. */
   const isValueOutOfStock = (attrName: string, val: string): boolean => {
+    if (totallyOut) return true;
     if (!hasVariantStock) return false;
-    const testSelection = { ...selected, [attrName]: val };
-    return getStockForSelection(variantStock, testSelection) === 0;
+    const others = Object.fromEntries(Object.entries(selected).filter(([k, v]) => k !== attrName && v));
+    return getStockForSelection(variantStock, { ...others, [attrName]: val }) === 0;
+  };
+
+  const pointToMissing = () => {
+    const first = missing[0];
+    if (!first) return;
+    setValidationError(`Escolha ${first.name.toLowerCase()} para continuar`);
+    setHighlight(first.name);
+    groupRefs.current[first.name]?.scrollIntoView({ behavior: "smooth", block: "center" });
+    setTimeout(() => setHighlight(null), 1200);
   };
 
   const handleAddToCart = async () => {
-    if (isOutOfStock || adding) return;
-    for (const attr of attributes) {
-      if (!selected[attr.name]) {
-        setValidationError(`Selecione ${attr.name} antes de continuar`);
-        return;
-      }
-    }
+    if (adding) return;
+    if (!fullySelected) return pointToMissing();
+    if (isOutOfStock) return;
     setAdding(true);
     setValidationError("");
     try {
       const params = new URLSearchParams({ productId });
-      if (Object.keys(selected).length > 0) {
-        params.set("attributes", JSON.stringify(selected));
-      }
+      if (Object.keys(selected).length > 0) params.set("attributes", JSON.stringify(selected));
       const res = await fetch(`/api/stock?${params}`);
       const { available } = await res.json();
       const availableForCart = Math.max(0, available - existingInCart);
       if (available === 0) {
-        setValidationError("Produto esgotado no momento");
+        setValidationError("Esta opção acabou de esgotar");
         return;
       }
       if (quantity > availableForCart) {
-        setValidationError(
-          `Estoque insuficiente — máximo ${availableForCart} unidade${availableForCart !== 1 ? "s" : ""} disponível${availableForCart !== 1 ? "is" : ""}`
-        );
+        setValidationError(`Só temos mais ${availableForCart} unidade${availableForCart !== 1 ? "s" : ""} desta opção`);
         return;
       }
       addItem({
@@ -129,143 +127,162 @@ export default function ProductActions({ productId, name, price, comparePrice, i
     }
   };
 
+  const ctaLabel = added
+    ? "Adicionado ao carrinho!"
+    : adding
+      ? "Verificando…"
+      : totallyOut
+        ? "Esgotado"
+        : !fullySelected
+          ? `Escolha ${missing[0].name.toLowerCase()}`
+          : isOutOfStock
+            ? "Esgotado nesta opção"
+            : "Adicionar ao carrinho";
+  const ctaDisabled = adding || (fullySelected && isOutOfStock) || totallyOut;
+
   return (
     <div className="space-y-5">
-      {/* Price */}
-      <div className="flex items-end gap-3">
-        <span className="text-4xl font-black text-gray-900 tracking-tight">{formatCurrency(price)}</span>
-        {discount > 0 && comparePrice && (
-          <>
-            <span className="text-xl text-gray-400 line-through mb-1">{formatCurrency(comparePrice)}</span>
-            <span className="mb-1 bg-red-100 text-red-600 text-sm font-bold px-2.5 py-1 rounded-full">
-              -{discount}%
-            </span>
-          </>
+      {/* Preço */}
+      <div>
+        <div className="flex items-baseline flex-wrap gap-x-2.5 gap-y-1">
+          <span className="text-3xl font-semibold text-gray-900 tracking-tight tabular-nums">{formatCurrency(price)}</span>
+          {discount > 0 && comparePrice && (
+            <>
+              <span className="text-base text-gray-400 line-through tabular-nums">{formatCurrency(comparePrice)}</span>
+              <span className="text-xs font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-full">-{discount}%</span>
+            </>
+          )}
+        </div>
+        {pixPrice != null && (
+          <p className="mt-1 inline-flex items-center gap-1.5 text-sm text-gray-600">
+            <Zap size={14} className="text-emerald-600" />
+            <b className="text-emerald-700 tabular-nums">{formatCurrency(pixPrice)}</b> no Pix
+            <span className="text-xs text-gray-400">({pixPercent}% de desconto)</span>
+          </p>
         )}
       </div>
 
-      {/* Attribute selectors */}
-      {attributes.map((attr) => (
-        <div key={attr.name}>
-          <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">
-            {attr.name}
-            {selected[attr.name] && (
-              <span className="normal-case tracking-normal ml-1" style={{ color: "var(--brand)" }}>
-                — {selected[attr.name]}
-              </span>
-            )}
-          </p>
-          <div className="flex gap-2 flex-wrap">
-            {attr.values.map((val) => {
-              const outOfStock = isValueOutOfStock(attr.name, val);
-              const isSelected = selected[attr.name] === val;
-              return (
-                <button
-                  key={val}
-                  onClick={() => selectValue(attr.name, val)}
-                  className={`relative h-11 px-4 rounded-xl border-2 text-sm font-bold transition-all ${
-                    isSelected
-                      ? "border-gray-900 bg-gray-900 text-white shadow-md"
-                      : outOfStock && fullySelected
-                        ? "border-gray-100 text-gray-300"
-                        : "border-gray-200 text-gray-700 hover:border-gray-400"
-                  }`}
-                >
-                  {val}
-                  {outOfStock && fullySelected && !isSelected && (
-                    <span className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                      <span className="absolute w-full h-px bg-gray-300 rotate-[-20deg]" />
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
+      {totallyOut && (
+        <div className="flex items-start gap-2.5 rounded-xl bg-gray-50 ring-1 ring-gray-200 px-3.5 py-3 text-sm text-gray-700">
+          <Bell size={16} className="text-gray-500 shrink-0 mt-0.5" />
+          <span>
+            <b className="text-gray-900">Produto esgotado no momento.</b>{" "}
+            {attributes.length > 0 ? "Escolha as opções abaixo e avisamos por e-mail quando voltar." : "Deixe seu e-mail e avisamos quando voltar."}
+          </span>
         </div>
-      ))}
+      )}
 
-      {/* Variant stock indicator */}
-      {currentVariantStock !== null && (
-        <p className={`text-sm font-medium ${isOutOfStock ? "text-red-500" : currentVariantStock <= 3 ? "text-amber-600" : "text-green-600"}`}>
-          {isOutOfStock
-            ? "Sem estoque para esta combinação"
-            : currentVariantStock <= 3
-              ? `Apenas ${currentVariantStock} unidade${currentVariantStock > 1 ? "s" : ""} disponíve${currentVariantStock > 1 ? "is" : "l"}`
-              : `${currentVariantStock} unidades disponíveis`}
+      {/* Opções */}
+      {attributes.map((attr) => {
+        const colorAttr = isColorAttribute(attr.name);
+        return (
+          <div
+            key={attr.name}
+            ref={(el) => { groupRefs.current[attr.name] = el; }}
+            className={`rounded-2xl transition-all duration-300 ${highlight === attr.name ? "ring-2 ring-[var(--brand)] ring-offset-4" : ""}`}
+          >
+            <p className="text-sm text-gray-500 mb-2.5">
+              <span className="font-semibold text-gray-900">{attr.name}</span>
+              {selected[attr.name] ? <>: <span className="text-gray-700">{selected[attr.name]}</span></> : attr.values.length > 1 && <span className="text-gray-400"> · escolha uma opção</span>}
+            </p>
+            <div className="flex gap-2 flex-wrap">
+              {attr.values.map((val) => {
+                const out = isValueOutOfStock(attr.name, val);
+                const isSel = selected[attr.name] === val;
+                const swatch = colorAttr ? swatchBackground(val) : null;
+                return (
+                  <button
+                    key={val}
+                    type="button"
+                    onClick={() => selectValue(attr.name, val)}
+                    aria-pressed={isSel}
+                    title={out ? `${val} — esgotado` : val}
+                    className={`relative inline-flex items-center gap-2 h-10 rounded-full border text-[13px] font-medium transition-all active:scale-[0.97] ${swatch ? "pl-1.5 pr-3.5" : "px-4"} ${
+                      isSel
+                        ? "border-gray-900 bg-gray-900 text-white shadow-sm"
+                        : out
+                          ? "border-gray-200 text-gray-400 bg-gray-50 hover:border-gray-300"
+                          : "border-gray-200 text-gray-800 bg-white hover:border-gray-900"
+                    }`}
+                  >
+                    {swatch && (
+                      <span
+                        className={`w-7 h-7 rounded-full shrink-0 ring-1 ${isSel ? "ring-white/40" : "ring-black/10"} ${out ? "opacity-50" : ""}`}
+                        style={{ background: swatch }}
+                      />
+                    )}
+                    <span className={out && !isSel ? "line-through decoration-gray-300" : ""}>{val}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+
+      {/* Situação do estoque da opção escolhida */}
+      {fullySelected && !totallyOut && currentVariantStock !== null && currentVariantStock > 0 && currentVariantStock <= 3 && (
+        <p className="inline-flex items-center gap-1.5 text-sm font-medium text-amber-700">
+          <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+          {currentVariantStock === 1 ? "Última unidade!" : `Últimas ${currentVariantStock} unidades`}
         </p>
       )}
 
-      {/* Quantity */}
-      {!isOutOfStock && (
-        <div>
-          <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Quantidade</p>
-          <div className="flex items-center gap-3">
-            <button type="button" onClick={() => changeQty(-1)} disabled={quantity <= 1} className="w-9 h-9 rounded-xl border-2 border-gray-200 flex items-center justify-center text-gray-600 hover:border-gray-400 disabled:opacity-30 disabled:cursor-not-allowed transition-all">
-              <Minus size={14} />
-            </button>
-            <span className="w-8 text-center font-bold text-gray-900 text-lg">{quantity}</span>
-            <button type="button" onClick={() => changeQty(1)} disabled={quantity >= maxQuantity} className="w-9 h-9 rounded-xl border-2 border-gray-200 flex items-center justify-center text-gray-600 hover:border-gray-400 disabled:opacity-30 disabled:cursor-not-allowed transition-all">
-              <Plus size={14} />
-            </button>
-            {existingInCart > 0 && (
-              <span className="text-xs text-amber-600 font-medium">{existingInCart} já no carrinho</span>
-            )}
-          </div>
-        </div>
-      )}
-
       {validationError && (
-        <p className="text-sm font-medium text-red-500">{validationError}</p>
+        <p className="inline-flex items-center gap-1.5 text-sm font-medium text-red-600 animate-fade-up [animation-duration:0.25s]">
+          <AlertCircle size={15} /> {validationError}
+        </p>
       )}
 
-      {/* CTA */}
-      <div className="flex gap-3 pt-1">
+      {/* Quantidade + comprar + favoritar */}
+      <div className="flex items-stretch gap-2.5">
+        {!isOutOfStock && !totallyOut && (
+          <div className="flex items-center rounded-2xl border border-gray-200 bg-white h-12 shrink-0">
+            <button type="button" onClick={() => changeQty(-1)} disabled={quantity <= 1} className="w-10 h-full flex items-center justify-center text-gray-600 disabled:opacity-30" aria-label="Diminuir quantidade">
+              <Minus size={15} />
+            </button>
+            <span className="w-7 text-center text-sm font-semibold text-gray-900 tabular-nums" aria-live="polite">{quantity}</span>
+            <button type="button" onClick={() => changeQty(1)} disabled={quantity >= maxQuantity} className="w-10 h-full flex items-center justify-center text-gray-600 disabled:opacity-30" aria-label="Aumentar quantidade">
+              <Plus size={15} />
+            </button>
+          </div>
+        )}
         <button
           onClick={handleAddToCart}
-          disabled={isOutOfStock || adding}
-          className={`flex-1 h-14 rounded-2xl font-bold text-base flex items-center justify-center gap-2.5 transition-all shadow-lg active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed ${
-            added ? "bg-green-500 text-white shadow-green-100" : "text-white shadow-[0_4px_14px_color-mix(in_srgb,var(--brand)_40%,transparent)]"
+          disabled={ctaDisabled}
+          className={`flex-1 h-12 rounded-2xl font-semibold text-[15px] flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:cursor-not-allowed ${
+            added
+              ? "bg-emerald-500 text-white"
+              : ctaDisabled
+                ? "bg-gray-200 text-gray-500"
+                : !fullySelected
+                  ? "bg-gray-900 text-white hover:bg-gray-800"
+                  : "text-white shadow-[0_8px_20px_-8px_color-mix(in_srgb,var(--brand)_60%,transparent)] hover:-translate-y-0.5"
           }`}
-          style={!added ? { backgroundColor: "var(--brand)" } : undefined}
+          style={!added && !ctaDisabled && fullySelected ? { backgroundColor: "var(--brand)" } : undefined}
         >
-          {added ? <Check size={20} /> : adding ? <Loader2 size={20} className="animate-spin" /> : <ShoppingBag size={20} />}
-          {added ? "Adicionado!" : adding ? "Verificando..." : isOutOfStock ? "Sem estoque" : "Adicionar ao carrinho"}
+          {added ? <Check size={18} /> : adding ? <Loader2 size={18} className="animate-spin" /> : <ShoppingBag size={18} />}
+          {ctaLabel === "Adicionar ao carrinho" ? <span>Adicionar<span className="hidden min-[400px]:inline"> ao carrinho</span></span> : ctaLabel}
         </button>
-
         <button
           onClick={() => toggle({ productId, name, price, image, slug })}
-          className={`w-14 h-14 rounded-2xl border-2 flex items-center justify-center transition-all active:scale-[0.98] ${
-            inWishlist ? "text-white shadow-lg" : "border-gray-200 text-gray-400 hover:text-[var(--brand)]"
+          className={`w-12 h-12 rounded-2xl border flex items-center justify-center transition-all active:scale-90 shrink-0 ${
+            inWishlist ? "text-white border-transparent" : "border-gray-200 text-gray-500 hover:text-[var(--brand)] hover:border-[var(--brand)]"
           }`}
-          style={inWishlist ? { backgroundColor: "var(--brand)", borderColor: "var(--brand)" } : {}}
+          style={inWishlist ? { backgroundColor: "var(--brand)" } : undefined}
           aria-label={inWishlist ? "Remover dos favoritos" : "Adicionar aos favoritos"}
         >
-          <Heart size={20} fill={inWishlist ? "currentColor" : "none"} />
+          <Heart size={19} fill={inWishlist ? "currentColor" : "none"} />
         </button>
       </div>
 
-      {/* Waitlist */}
-      {showWaitlist && (
-        <WaitlistForm
-          productId={productId}
-          selectedAttributes={selected}
-        />
+      {existingInCart > 0 && !added && (
+        <p className="text-xs text-gray-500">Você já tem {existingInCart} desta opção no carrinho.</p>
       )}
 
-      {/* Stock card */}
-      <div className="flex items-center gap-2.5 bg-gray-50 rounded-2xl px-4 py-3">
-        <Package size={16} className={effectiveStock > 0 ? "text-green-500 shrink-0" : "text-red-400 shrink-0"} />
-        <div>
-          <p className="text-xs font-bold text-gray-700">Estoque</p>
-          <p className="text-xs text-gray-500">
-            {effectiveStock === 0
-              ? "Indisponível"
-              : effectiveStock > 5
-                ? "Disponível"
-                : `${effectiveStock} restante${effectiveStock > 1 ? "s" : ""}`}
-          </p>
-        </div>
-      </div>
+      {(showWaitlist || (totallyOut && attributes.length === 0)) && (
+        <WaitlistForm productId={productId} selectedAttributes={selected} />
+      )}
     </div>
   );
 }
