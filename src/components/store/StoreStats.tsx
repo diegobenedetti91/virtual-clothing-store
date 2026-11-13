@@ -1,56 +1,28 @@
 import { prisma } from "@/lib/prisma";
-import { Truck, ShoppingBag } from "lucide-react";
+import { Truck } from "lucide-react";
+
+/** Abaixo disso o número mais atrapalha que ajuda como prova social. */
+const MIN_TO_SHOW = 10;
 
 export async function StoreStats() {
   const [deliveredOrders, totalItemsSold] = await Promise.all([
-    prisma.order.count({
-      where: {
-        status: {
-          in: ["DELIVERED", "RETIRADO"],
-        },
-      },
-    }),
+    prisma.order.count({ where: { status: { in: ["DELIVERED", "RETIRADO"] } } }),
     prisma.orderItem.aggregate({
       _sum: { quantity: true },
-      where: {
-        order: {
-          status: {
-            in: ["DELIVERED", "RETIRADO"],
-          },
-        },
-      },
+      where: { order: { status: { in: ["DELIVERED", "RETIRADO"] } } },
     }),
-  ]);
+  ]).catch(() => [0, { _sum: { quantity: 0 } }] as const);
 
-  const itemsCount = totalItemsSold._sum?.quantity || 0;
+  if (deliveredOrders < MIN_TO_SHOW) return null;
+  const items = totalItemsSold._sum?.quantity || 0;
 
   return (
-    <div className="flex items-center gap-3 sm:gap-5">
-      {/* Delivered Orders */}
-      <div className="flex items-center gap-2.5 px-3.5 py-3 sm:px-5 sm:py-3.5 bg-white/10 hover:bg-white/15 rounded-xl border border-white/20 hover:border-white/40 transition-all backdrop-blur-sm">
-        <div className="w-9 h-9 sm:w-10 sm:h-10 bg-gradient-to-br from-brand to-pink-500 rounded-lg flex items-center justify-center flex-shrink-0 shadow-lg">
-          <Truck size={20} className="text-white" />
-        </div>
-        <div className="min-w-0">
-          <p className="text-sm sm:text-base font-bold text-white">
-            {deliveredOrders.toLocaleString("pt-BR")}
-          </p>
-          <p className="text-xs text-white/70 font-medium truncate">Entregue{deliveredOrders !== 1 ? "s" : ""}</p>
-        </div>
-      </div>
-
-      {/* Items Sold */}
-      <div className="flex items-center gap-2.5 px-3.5 py-3 sm:px-5 sm:py-3.5 bg-white/10 hover:bg-white/15 rounded-xl border border-white/20 hover:border-white/40 transition-all backdrop-blur-sm">
-        <div className="w-9 h-9 sm:w-10 sm:h-10 bg-gradient-to-br from-purple-400 to-brand rounded-lg flex items-center justify-center flex-shrink-0 shadow-lg">
-          <ShoppingBag size={20} className="text-white" />
-        </div>
-        <div className="min-w-0">
-          <p className="text-sm sm:text-base font-bold text-white">
-            {itemsCount.toLocaleString("pt-BR")}
-          </p>
-          <p className="text-xs text-white/70 font-medium truncate">Vendido{itemsCount !== 1 ? "s" : ""}</p>
-        </div>
-      </div>
+    <div className="inline-flex items-center gap-3 rounded-2xl bg-white/5 ring-1 ring-white/10 px-4 py-3">
+      <span className="w-9 h-9 rounded-xl bg-brand flex items-center justify-center text-white shrink-0"><Truck size={17} /></span>
+      <p className="text-sm leading-tight">
+        <b className="text-white">+{deliveredOrders.toLocaleString("pt-BR")} pedidos entregues</b>
+        <span className="block text-xs text-gray-500">{items.toLocaleString("pt-BR")} peças já foram para clientes felizes</span>
+      </p>
     </div>
   );
 }

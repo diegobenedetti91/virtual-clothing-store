@@ -51,7 +51,7 @@ export default function NewArrivalsSection({ products }: Props) {
 
         {/* Category filter pills — sticky on mobile while inside this section */}
         {showPills && (
-          <div className="sticky top-0 z-20 -mx-4 sm:mx-0 px-4 sm:px-0 bg-gray-50/95 backdrop-blur-sm sm:static sm:bg-transparent py-3 sm:py-0 mb-6 border-b border-gray-200/60 sm:border-0">
+          <div className="sticky top-[88px] z-20 -mx-4 sm:mx-0 px-4 sm:px-0 bg-gray-50/95 backdrop-blur-sm sm:static sm:bg-transparent py-3 sm:py-0 mb-6 border-b border-gray-200/60 sm:border-0">
             <div className="flex gap-2 overflow-x-auto scrollbar-none pb-0.5 sm:pb-0 sm:flex-wrap">
               <button
                 onClick={() => setSelectedCat(null)}

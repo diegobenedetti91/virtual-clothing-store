@@ -876,7 +876,7 @@ const handleNuPaySubmit = async () => {
             </div>
 
             {/* Sidebar direita - Resumo + Forma de pagamento (fixa no desktop) */}
-            <div className="lg:col-span-1 lg:self-start lg:sticky lg:top-6">
+            <div className="lg:col-span-1 lg:self-start lg:sticky lg:top-28">
               <div className="flex flex-col gap-3">
                 {/* Order summary (compact) */}
                 <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm space-y-2">

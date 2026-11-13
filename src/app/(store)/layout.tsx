@@ -19,9 +19,16 @@ import CouponLinkCatcher from "@/components/store/CouponLinkCatcher";
 
 export default async function StoreLayout({ children }: { children: React.ReactNode }) {
   await cookies();
-  const [settings, navItems] = await Promise.all([
+  const [settings, navItems, categories] = await Promise.all([
     getPublicCompanySettings(),
     prisma.navItem.findMany({ where: { active: true }, orderBy: [{ position: "asc" }, { createdAt: "asc" }] }).catch(() => []),
+    prisma.category
+      .findMany({
+        where: { active: true, products: { some: { active: true } } },
+        select: { id: true, name: true, slug: true, image: true },
+        orderBy: { name: "asc" },
+      })
+      .catch(() => []),
   ]);
   const brandColor = settings?.buttonColor || settings?.primaryColor || "#ec4899";
   const menuColor = (settings as Record<string, string> | null)?.menuColor || settings?.primaryColor || "#ec4899";
@@ -33,13 +40,13 @@ export default async function StoreLayout({ children }: { children: React.ReactN
       <CartSyncer />
       <TrafficSourceTracker />
       <MetaPixelPageView pixelId={settings?.metaPixelId ?? null} />
-      <Header settings={settings} navItems={navItems} />
+      <Header settings={settings} navItems={navItems} categories={categories} />
       <ScrollReveal />
       <CouponLinkCatcher />
       <ViewTransition name="store-page">
         <main className="flex-1">{children}</main>
       </ViewTransition>
-      <Footer settings={settings} />
+      <Footer settings={settings} categories={categories} />
       {settings?.aiAssistantAvailable ? (
         <AiChatWidget storeName={settings.name || "Loja"} whatsapp={settings.whatsapp ?? null} />
       ) : (
