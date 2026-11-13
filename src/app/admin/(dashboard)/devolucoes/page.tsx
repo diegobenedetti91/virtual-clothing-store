@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Package, Check, X, Loader2, Upload, Truck, Send, ExternalLink } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Package, Check, X, Loader2, Upload, Truck, Send, ExternalLink, ArrowRight, Clock, Inbox, CheckCircle2, XCircle } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { getCarrierTracking } from "@/lib/carrierTracking";
 
@@ -29,7 +29,7 @@ interface Return {
       price: number;
       size?: string | null;
       color?: string | null;
-      product: { name: string };
+      product: { name: string; images?: string | null };
     }>;
   };
   customer: {
@@ -39,15 +39,13 @@ interface Return {
 }
 
 const STATUS_TABS = [
-  { status: "PENDING", label: "⏳ Novas" },
-  { status: "AWAITING_RETURN", label: "🚚 Aguardando mercadoria" },
-  { status: "APPROVED", label: "✅ Aprovadas" },
-  { status: "REJECTED", label: "❌ Recusadas" },
+  { status: "PENDING", label: "Novas", icon: Inbox },
+  { status: "AWAITING_RETURN", label: "Peça a caminho", icon: Truck },
+  { status: "APPROVED", label: "Aprovadas", icon: CheckCircle2 },
+  { status: "REJECTED", label: "Recusadas", icon: XCircle },
 ];
 
 export default function DevolucoesPage() {
-  const [returns, setReturns] = useState<Return[]>([]);
-  const [loading, setLoading] = useState(true);
   const [selectedReturn, setSelectedReturn] = useState<Return | null>(null);
   const [adminNotes, setAdminNotes] = useState("");
   const [trackingCode, setTrackingCode] = useState("");
@@ -58,29 +56,32 @@ export default function DevolucoesPage() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ ok: boolean; message: string } | null>(null);
 
-  useEffect(() => {
-    fetchReturns();
-  }, [statusFilter]);
+  const [allReturns, setAllReturns] = useState<Return[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const [now, setNow] = useState(0);
+  const [reloadTick, setReloadTick] = useState(0);
+  const returns = useMemo(() => allReturns.filter((r) => r.status === statusFilter), [allReturns, statusFilter]);
 
-  const fetchReturns = async () => {
-    try {
-      const res = await fetch(`/api/admin/returns?status=${statusFilter}`);
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error || "Erro ao buscar devoluções");
-        setReturns([]);
-      } else {
-        setReturns(Array.isArray(data) ? data : []);
-        setError(null);
-      }
-    } catch (error) {
-      console.error("Erro ao buscar devoluções:", error);
-      setError("Erro ao buscar devoluções");
-      setReturns([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/admin/returns")
+      .then(async (res) => {
+        const data = await res.json();
+        if (cancelled) return;
+        if (!res.ok) {
+          setError(data.error || "Erro ao buscar devoluções");
+          setAllReturns([]);
+        } else {
+          setAllReturns(Array.isArray(data) ? data : []);
+          setNow(Date.now());
+        }
+      })
+      .catch(() => !cancelled && setError("Erro ao buscar devoluções"))
+      .finally(() => !cancelled && setLoaded(true));
+    return () => { cancelled = true; };
+  }, [reloadTick]);
+
+  const fetchReturns = () => setReloadTick((n) => n + 1);
 
   const openReturn = (ret: Return) => {
     setSelectedReturn(ret);
@@ -203,7 +204,7 @@ export default function DevolucoesPage() {
   const statusBadge = (status: string) => {
     const styles: Record<string, [string, string]> = {
       PENDING: ["Nova", "bg-amber-50 text-amber-700 ring-amber-200"],
-      AWAITING_RETURN: ["Aguardando mercadoria", "bg-blue-50 text-blue-700 ring-blue-200"],
+      AWAITING_RETURN: ["Peça a caminho", "bg-blue-50 text-blue-700 ring-blue-200"],
       APPROVED: ["Aprovada", "bg-green-50 text-green-700 ring-green-200"],
       REJECTED: ["Recusada", "bg-red-50 text-red-700 ring-red-200"],
     };
@@ -222,10 +223,29 @@ export default function DevolucoesPage() {
     );
   };
 
-  if (loading) {
+  const counts = useMemo(() => {
+    const c: Record<string, number> = {};
+    for (const r of allReturns) c[r.status] = (c[r.status] || 0) + 1;
+    return c;
+  }, [allReturns]);
+  const waitingDays = (ret: Return) => Math.floor((now - new Date(ret.labelSentAt || ret.createdAt).getTime()) / (24 * 60 * 60 * 1000));
+  const firstImage = (ret: Return, itemId: string) => {
+    const it = ret.order.items.find((i) => i.id === itemId);
+    try { const imgs = JSON.parse(it?.product.images || "[]"); return Array.isArray(imgs) ? (imgs[0] as string) ?? null : null; } catch { return null; }
+  };
+  const NEXT_STEP: Record<string, string> = {
+    PENDING: "Gerar a logística reversa e enviar o código ao cliente",
+    AWAITING_RETURN: "Quando a peça chegar, analisar e aprovar ou recusar",
+    APPROVED: "Concluída",
+    REJECTED: "Concluída",
+  };
+
+  if (!loaded) {
     return (
-      <div className="flex items-center justify-center min-h-96">
-        <Loader2 size={32} className="animate-spin text-brand" />
+      <div className="space-y-4">
+        <div className="img-skeleton rounded-2xl h-24" />
+        <div className="img-skeleton rounded-2xl h-40" />
+        <div className="img-skeleton rounded-2xl h-40" />
       </div>
     );
   }
@@ -233,78 +253,127 @@ export default function DevolucoesPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
-          <Package size={32} />
-          Devoluções
-        </h1>
-        <p className="text-gray-600">Gerencie solicitações de devoluções de clientes</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-gray-900">Devoluções e trocas</h1>
+        <p className="text-sm text-gray-500 mt-1">Acompanhe cada solicitação do pedido até o estorno.</p>
       </div>
 
+      {/* Como funciona */}
+      <ol className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+        {[
+          { n: 1, title: "Cliente solicita", desc: "Pelo site, escolhendo as peças e o motivo", icon: Package },
+          { n: 2, title: "Você envia o código", desc: "Gere a reversa no Melhor Envio e envie o código", icon: Send },
+          { n: 3, title: "Peça chega", desc: "Confira o produto quando receber", icon: Truck },
+          { n: 4, title: "Aprova ou recusa", desc: "Ao aprovar: estorno e volta ao estoque", icon: Check },
+        ].map((s) => (
+          <li key={s.n} className="flex items-start gap-3 rounded-2xl bg-white border border-gray-200/70 px-3.5 py-3">
+            <span className="w-7 h-7 rounded-full bg-gray-900 text-white text-xs font-semibold flex items-center justify-center shrink-0">{s.n}</span>
+            <div className="min-w-0">
+              <p className="text-[13px] font-semibold text-gray-900 flex items-center gap-1.5"><s.icon size={13} className="text-gray-400" />{s.title}</p>
+              <p className="text-[11px] text-gray-500 leading-snug">{s.desc}</p>
+            </div>
+          </li>
+        ))}
+      </ol>
+
       {notice && (
-        <div className={`flex justify-between items-start gap-3 rounded-lg p-4 border ${notice.ok ? "bg-green-50 border-green-200 text-green-800" : "bg-red-50 border-red-200 text-red-800"}`}>
+        <div className={`flex justify-between items-start gap-3 rounded-xl px-4 py-3 ring-1 ${notice.ok ? "bg-emerald-50 ring-emerald-200 text-emerald-800" : "bg-red-50 ring-red-200 text-red-800"}`}>
           <p className="text-sm font-medium">{notice.message}</p>
-          <button onClick={() => setNotice(null)} className="opacity-60 hover:opacity-100">
-            <X size={16} />
-          </button>
+          <button onClick={() => setNotice(null)} className="opacity-60 hover:opacity-100" aria-label="Fechar"><X size={16} /></button>
         </div>
       )}
 
-      <div className="bg-white border border-gray-200 rounded-lg p-4">
-        <div className="flex flex-wrap gap-2">
-          {STATUS_TABS.map((tab) => (
+      {/* Abas com contadores */}
+      <div className="border-b border-gray-200 flex gap-1 overflow-x-auto [scrollbar-width:none]">
+        {STATUS_TABS.map((tab) => {
+          const n = counts[tab.status] || 0;
+          const active = statusFilter === tab.status;
+          const urgent = (tab.status === "PENDING" || tab.status === "AWAITING_RETURN") && n > 0;
+          return (
             <button
               key={tab.status}
               onClick={() => setStatusFilter(tab.status)}
-              className={`px-4 py-2 rounded-lg font-semibold transition-colors ${
-                statusFilter === tab.status
-                  ? "bg-brand text-white"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
+              className={`relative inline-flex items-center gap-2 px-3 py-2.5 text-[13px] font-medium whitespace-nowrap transition-colors ${active ? "text-gray-900" : "text-gray-500 hover:text-gray-800"}`}
             >
+              <tab.icon size={15} />
               {tab.label}
+              <span className={`text-[11px] font-semibold rounded-full px-1.5 tabular-nums ${urgent ? "bg-amber-500 text-white" : "bg-gray-100 text-gray-600"}`}>{n}</span>
+              <span className={`absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-gray-900 transition-transform ${active ? "scale-x-100" : "scale-x-0"}`} />
             </button>
-          ))}
-        </div>
+          );
+        })}
       </div>
 
+      {error && !selectedReturn && <p className="text-sm text-red-700 bg-red-50 rounded-xl px-4 py-3">{error}</p>}
+
       {returns.length === 0 ? (
-        <div className="text-center py-12">
-          <Package size={48} className="mx-auto text-gray-300 mb-4" />
-          <p className="text-gray-600">Nenhuma devolução neste status</p>
+        <div className="bg-white rounded-2xl border border-dashed border-gray-300 py-16 text-center">
+          <Package size={36} className="mx-auto text-gray-300 mb-3" />
+          <p className="font-medium text-gray-700">
+            {statusFilter === "PENDING" ? "Nenhuma solicitação nova" : statusFilter === "AWAITING_RETURN" ? "Nenhuma peça a caminho" : "Nada por aqui"}
+          </p>
+          <p className="text-sm text-gray-500 mt-1">{statusFilter === "PENDING" ? "Quando um cliente pedir devolução, ela aparece aqui." : "Veja as outras abas."}</p>
         </div>
       ) : (
-        <div className="grid gap-4">
-          {returns.map((ret) => (
-            <div
-              key={ret.id}
-              className="bg-white border border-gray-200 rounded-lg p-4 cursor-pointer hover:shadow-md transition-shadow"
-              onClick={() => openReturn(ret)}
-            >
-              <div className="flex justify-between items-start mb-3">
-                <div>
-                  <p className="font-semibold text-gray-900">{ret.order.orderNumber}</p>
-                  <p className="text-sm text-gray-600">{ret.order.customerName}</p>
+        <div className="grid gap-3 md:grid-cols-2">
+          {returns.map((ret) => {
+            const days = waitingDays(ret);
+            const late = (ret.status === "PENDING" && days >= 2) || (ret.status === "AWAITING_RETURN" && days >= 10);
+            const lines = returnedLines(ret);
+            return (
+              <button
+                key={ret.id}
+                onClick={() => openReturn(ret)}
+                className={`text-left bg-white rounded-2xl p-4 ring-1 shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:shadow-md hover:-translate-y-0.5 transition-all ${late ? "ring-amber-300" : "ring-gray-200/80"}`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-gray-900">{ret.order.orderNumber}</p>
+                    <p className="text-xs text-gray-500 truncate">{ret.customer?.name || ret.order.customerName}</p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    {statusBadge(ret.status)}
+                    <p className="text-sm font-semibold text-gray-900 mt-1 tabular-nums">{formatCurrency(ret.status === "APPROVED" ? ret.refundAmount : refundOf(ret))}</p>
+                  </div>
                 </div>
-                <div className="text-right space-y-1">
-                  {statusBadge(ret.status)}
-                  <p className="text-sm font-semibold text-gray-900">{formatCurrency(refundOf(ret))}</p>
+
+                <div className="mt-3 flex items-center gap-2">
+                  <div className="flex -space-x-2">
+                    {lines.slice(0, 4).map((l) => {
+                      const img = firstImage(ret, l.itemId);
+                      return (
+                        <span key={l.itemId} className="w-9 h-9 rounded-lg ring-2 ring-white bg-gray-100 overflow-hidden" title={l.item?.product.name}>
+                          {img ? <img src={img} alt="" className="w-full h-full object-cover" /> : <Package size={14} className="m-auto mt-2.5 text-gray-400" />}
+                        </span>
+                      );
+                    })}
+                  </div>
+                  <p className="text-xs text-gray-600 truncate">{lines.map((l) => `${l.quantity}× ${l.item?.product.name ?? "item"}`).join(", ")}</p>
                 </div>
-              </div>
-              <p className="text-sm text-gray-600 mb-2">{ret.reason}</p>
-              {ret.trackingCode && (
-                <p className="text-sm text-gray-600 mb-2 flex items-center gap-2">
-                  <Truck size={14} /> {trackingLink(ret.trackingCode)}
-                </p>
-              )}
-              <p className="text-xs text-gray-400">Solicitada em {new Date(ret.createdAt).toLocaleDateString("pt-BR")}</p>
-            </div>
-          ))}
+
+                <p className="mt-3 text-xs text-gray-600 line-clamp-2 bg-gray-50 rounded-lg px-3 py-2">“{ret.reason}”</p>
+
+                <div className="mt-3 flex items-center justify-between gap-2 text-[11px]">
+                  {ret.status === "PENDING" || ret.status === "AWAITING_RETURN" ? (
+                    <span className="inline-flex items-center gap-1 font-medium text-gray-700"><ArrowRight size={12} className="text-brand" /> {NEXT_STEP[ret.status]}</span>
+                  ) : (
+                    <span className="text-gray-400">Respondida {ret.responseDate ? `em ${new Date(ret.responseDate).toLocaleDateString("pt-BR")}` : ""}</span>
+                  )}
+                  {(ret.status === "PENDING" || ret.status === "AWAITING_RETURN") && (
+                    <span className={`shrink-0 inline-flex items-center gap-1 ${late ? "text-amber-700 font-semibold" : "text-gray-400"}`}>
+                      <Clock size={11} /> {days === 0 ? "hoje" : `${days} dia${days > 1 ? "s" : ""}`}
+                    </span>
+                  )}
+                </div>
+                {ret.trackingCode && <p className="mt-2 text-[11px] text-gray-500 flex items-center gap-1.5"><Truck size={12} /> {trackingLink(ret.trackingCode)}</p>}
+              </button>
+            );
+          })}
         </div>
       )}
 
       {selectedReturn && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={closeModal}>
-          <div className="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] flex flex-col shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm flex justify-end z-[60]" onClick={closeModal}>
+          <div className="bg-white w-full max-w-2xl h-full flex flex-col shadow-2xl animate-fade-up [animation-duration:0.3s]" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between items-start gap-4 px-6 py-5 border-b border-gray-100">
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-3">
