@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCustomerFromRequest } from "@/lib/customerAuth";
 import { sendReturnRequestNotificationEmail, sendReturnRequestConfirmationEmail } from "@/lib/email";
+import { RETURN_DAYS, returnDeadline } from "@/lib/customerOrder";
 
-const RETURN_DAYS = 7;
 
 export async function POST(req: NextRequest) {
   try {
@@ -27,13 +27,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Pedido não encontrado" }, { status: 404 });
     }
 
-    // Verificar se está dentro do prazo de 7 dias
-    const createdAt = new Date(order.createdAt);
-    const daysDiff = Math.floor((Date.now() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
-
-    if (daysDiff > RETURN_DAYS) {
+    // Devolução é para pedido recebido; antes disso o caminho é cancelar
+    if (!["DELIVERED", "RETIRADO"].includes(order.status)) {
       return NextResponse.json(
-        { error: `Prazo de devolução expirado. O prazo é de ${RETURN_DAYS} dias.` },
+        { error: order.status === "CONFIRMED" ? "Seu pedido ainda não saiu. Você pode cancelá-lo em vez de pedir devolução." : "A devolução fica disponível depois que você receber o pedido." },
+        { status: 400 }
+      );
+    }
+
+    // Prazo de 7 dias a partir do recebimento (CDC art. 49)
+    const deadline = returnDeadline(order);
+    if (!deadline || Date.now() > deadline.getTime()) {
+      return NextResponse.json(
+        { error: `Prazo de devolução expirado. O prazo é de ${RETURN_DAYS} dias a partir do recebimento.` },
         { status: 400 }
       );
     }

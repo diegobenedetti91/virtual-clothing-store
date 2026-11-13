@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCustomerFromCookie } from "@/lib/customerAuth";
+import { CUSTOMER_ORDER_SELECT, customerActions } from "@/lib/customerOrder";
 
 export async function GET() {
   const payload = await getCustomerFromCookie();
@@ -14,7 +15,7 @@ export async function GET() {
         { customerEmail: payload.email },
       ],
     },
-    include: { items: { include: { product: true } } },
+    select: CUSTOMER_ORDER_SELECT,
     orderBy: { createdAt: "desc" },
   });
 
@@ -27,5 +28,6 @@ export async function GET() {
     });
   }
 
-  return NextResponse.json(orders);
+  // Só campos que o cliente pode ver (sem IDs internos, IP, taxas etc.)
+  return NextResponse.json(orders.map(({ customerId: _c, cpfCnpj: _d, ...o }) => ({ ...o, ...customerActions(o) })));
 }

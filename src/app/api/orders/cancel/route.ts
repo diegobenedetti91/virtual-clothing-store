@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { getCustomerFromRequest } from "@/lib/customerAuth";
 import { prisma } from "@/lib/prisma";
 import { refundPayment } from "@/lib/refundUtils";
 import { releaseOrderStock } from "@/lib/stockUtils";
@@ -40,7 +41,12 @@ export async function POST(req: NextRequest) {
 
     // Verify authorization (admin via NextAuth session or customer owner)
     const isAdmin = !!session?.user?.email; // NextAuth session = admin
-    const isOwner = session?.user?.id === order.customerId;
+    // Cliente da loja entra por cookie próprio (não pelo NextAuth do admin)
+    const customer = getCustomerFromRequest(req);
+    const isOwner =
+      !!customer &&
+      (order.customerId === customer.id ||
+        (!!order.customerEmail && order.customerEmail.toLowerCase() === customer.email.toLowerCase()));
 
     if (!isAdmin && !isOwner) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 403 });

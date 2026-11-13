@@ -49,7 +49,7 @@ export function buildSystemPrompt(s: Settings): string {
     s.pixDiscountEnabled && s.pixDiscountPercent > 0 ? `Pagamento com Pix tem ${s.pixDiscountPercent}% de desconto nos produtos (marcando a opção no checkout).` : null,
     `Prazo de produção/separação: ${s.diasUteisProduzao || 2} dias úteis antes do envio; o prazo da entrega soma esse prazo ao do frete.`,
     `Frete: ${frete}.`,
-    "Devoluções: o cliente solicita pela página do pedido (Minha conta → Meus pedidos) em até 7 dias após a compra; a loja analisa e envia as instruções de postagem.",
+    "Devoluções: o cliente solicita pela página do pedido (Minha conta → Meus pedidos) em até 7 dias após receber o pedido (o prazo conta da entrega ou retirada); antes do envio, o cliente pode cancelar o pedido pela mesma página; a loja analisa e envia as instruções de postagem.",
     "Pedidos só são confirmados depois que o pagamento é aprovado; a confirmação e o código de rastreio são enviados por e-mail.",
   ].filter(Boolean);
 

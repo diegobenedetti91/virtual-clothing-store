@@ -1,34 +1,36 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCustomer } from "@/hooks/useCustomer";
-import { formatCurrency, cn } from "@/lib/utils";
+import { formatCurrency, cn, ORDER_STATUS } from "@/lib/utils";
 import {
-  Package, LogOut, User, MapPin, Phone, Mail,
-  Edit3, Check, X, ShoppingBag, Heart,
+  ArrowRight, Check, ChevronRight, Edit3, Heart, LogOut, Mail, MapPin, MessageCircle, Package, Phone, ShoppingBag, Truck, User, X,
 } from "lucide-react";
 
 interface OrderItem {
   id: string;
   quantity: number;
   price: number;
-  size?: string;
-  color?: string;
-  product: { name: string };
+  size?: string | null;
+  color?: string | null;
+  product: { name: string; images?: string | null };
 }
-
 interface Order {
   id: string;
   orderNumber: string;
   status: string;
-  returnStatus?: string;
+  returnStatus?: string | null;
   total: number;
   createdAt: string;
+  shippingMethod?: string | null;
+  trackingCode?: string | null;
   items: OrderItem[];
+  canCancel?: boolean;
+  canReturn?: boolean;
+  returns?: { status: string }[];
 }
-
 interface Profile {
   id: string;
   name: string;
@@ -42,59 +44,127 @@ interface Profile {
   zipCode: string | null;
 }
 
-const STATUS: Record<string, { label: string; dot: string; badge: string }> = {
-  PENDING:   { label: "Aguardando",  dot: "bg-yellow-400", badge: "bg-yellow-50 text-yellow-700 border border-yellow-200" },
-  CONFIRMED: { label: "Confirmado",  dot: "bg-blue-400",   badge: "bg-blue-50 text-blue-700 border border-blue-200" },
-  SHIPPED:   { label: "Enviado",     dot: "bg-purple-400", badge: "bg-purple-50 text-purple-700 border border-purple-200" },
-  DELIVERED: { label: "Entregue",    dot: "bg-green-400",  badge: "bg-green-50 text-green-700 border border-green-200" },
-  CANCELLED: { label: "Cancelado",   dot: "bg-red-400",    badge: "bg-red-50 text-red-700 border border-red-200" },
-};
+const UF_LIST = ["AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG","PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO"];
+const ACTIVE = ["PENDING", "CONFIRMED", "SHIPPED", "PRONTO_PARA_RETIRADA"];
+const DONE = ["DELIVERED", "RETIRADO"];
 
-const UF_LIST = [
-  "AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG",
-  "PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO",
-];
+const stepOf = (s: string) =>
+  s === "PENDING" ? 0 : s === "CONFIRMED" ? 1 : s === "SHIPPED" || s === "PRONTO_PARA_RETIRADA" ? 2 : DONE.includes(s) ? 3 : -1;
+
+/** Frase curta do que está acontecendo com o pedido. */
+function orderHint(o: Order) {
+  const pickup = o.shippingMethod === "retirada";
+  if (o.returns?.some((r) => r.status === "PENDING" || r.status === "AWAITING_RETURN")) return "Devolução em andamento";
+  switch (o.status) {
+    case "PENDING": return "Aguardando a confirmação do pagamento";
+    case "CONFIRMED": return pickup ? "Separando seu pedido para retirada" : "Preparando o envio";
+    case "SHIPPED": return o.trackingCode ? `A caminho · rastreio ${o.trackingCode}` : "A caminho";
+    case "PRONTO_PARA_RETIRADA": return "Pronto para retirar na loja";
+    case "DELIVERED": return o.canReturn ? "Entregue · ainda dá para pedir devolução" : "Entregue";
+    case "RETIRADO": return "Retirado na loja";
+    case "CANCELLED": return "Cancelado";
+    default: return "";
+  }
+}
+
+const firstImage = (raw?: string | null) => { try { const v = JSON.parse(raw || "[]"); return Array.isArray(v) ? (v[0] as string) ?? null : null; } catch { return null; } };
+
+function MiniSteps({ status }: { status: string }) {
+  const step = stepOf(status);
+  if (step < 0) return null;
+  return (
+    <div className="flex gap-1" aria-label={`Etapa ${step + 1} de 4`}>
+      {[0, 1, 2, 3].map((i) => (
+        <span key={i} className={cn("h-1.5 flex-1 rounded-full transition-colors", i <= step ? "bg-brand" : "bg-gray-200")} />
+      ))}
+    </div>
+  );
+}
+
+function OrderCard({ order }: { order: Order }) {
+  const st = ORDER_STATUS[order.status] || { label: order.status, color: "bg-gray-100 text-gray-700" };
+  const units = order.items.reduce((s, i) => s + i.quantity, 0);
+  return (
+    <Link href={`/pedido/${order.id}`} className="group block bg-white rounded-2xl border border-gray-200/70 shadow-[0_1px_2px_rgba(0,0,0,0.04)] p-4 hover:shadow-md hover:-translate-y-0.5 transition-all">
+      <div className="flex items-start gap-3">
+        <div className="flex -space-x-3 shrink-0">
+          {order.items.slice(0, 3).map((it) => {
+            const img = firstImage(it.product.images);
+            return (
+              <span key={it.id} className="w-12 h-14 rounded-xl ring-2 ring-white bg-gray-100 overflow-hidden">
+                {img ? <img src={img} alt="" className="w-full h-full object-cover" /> : <Package size={16} className="m-auto mt-4 text-gray-400" />}
+              </span>
+            );
+          })}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-gray-900">Pedido {order.orderNumber}</p>
+              <p className="text-xs text-gray-500">
+                {new Date(order.createdAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" })} · {units} {units === 1 ? "peça" : "peças"}
+              </p>
+            </div>
+            <span className={`shrink-0 px-2 py-0.5 rounded-full text-[11px] font-semibold ${st.color}`}>{st.label}</span>
+          </div>
+          <p className="text-xs text-gray-600 mt-1.5 truncate">{order.items.map((i) => i.product.name).join(", ")}</p>
+        </div>
+      </div>
+      <div className="mt-3"><MiniSteps status={order.status} /></div>
+      <div className="mt-3 flex items-center justify-between gap-3">
+        <p className="text-xs text-gray-600 truncate">{orderHint(order)}</p>
+        <span className="shrink-0 inline-flex items-center gap-1 text-sm font-semibold text-gray-900 tabular-nums">
+          {formatCurrency(order.total)}
+          <ChevronRight size={16} className="text-gray-400 group-hover:translate-x-0.5 transition-transform" />
+        </span>
+      </div>
+    </Link>
+  );
+}
 
 export default function AccountPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { customer, logout, loading } = useCustomer();
-  const [activeTab, setActiveTab] = useState<"profile" | "orders">(
-    searchParams.get("tab") === "orders" ? "orders" : "profile"
-  );
+  const [tab, setTab] = useState<"orders" | "profile">(searchParams.get("tab") === "profile" ? "profile" : "orders");
+  const [orderFilter, setOrderFilter] = useState<"active" | "done" | "all">("all");
   const [orders, setOrders] = useState<Order[]>([]);
-  const [ordersLoading, setOrdersLoading] = useState(true);
+  const [ordersLoaded, setOrdersLoaded] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useState<null | "personal" | "address">(null);
   const [saving, setSaving] = useState(false);
   const [saveOk, setSaveOk] = useState(false);
-  const [form, setForm] = useState({
-    name: "", phone: "", street: "", number: "",
-    neighborhood: "", city: "", state: "", zipCode: "",
-  });
+  const [whatsapp, setWhatsapp] = useState<string | null>(null);
+  const [form, setForm] = useState({ name: "", phone: "", street: "", number: "", neighborhood: "", city: "", state: "", zipCode: "" });
 
   useEffect(() => {
     if (!loading && !customer) router.push("/conta/login");
   }, [customer, loading, router]);
 
   useEffect(() => {
-    const tab = searchParams.get("tab");
-    if (tab === "orders" || tab === "profile") setActiveTab(tab);
+    const t = searchParams.get("tab");
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sincroniza a aba com a URL (?tab=)
+    if (t === "orders" || t === "profile") setTab(t);
   }, [searchParams]);
+
+  const fillForm = (d: Profile) =>
+    setForm({
+      name: d.name || "", phone: d.phone || "", street: d.street || "", number: d.number || "",
+      neighborhood: d.neighborhood || "", city: d.city || "", state: d.state || "", zipCode: d.zipCode || "",
+    });
 
   useEffect(() => {
     if (!customer) return;
-    fetch("/api/customer/orders").then((r) => r.json()).then((d) => { setOrders(d); setOrdersLoading(false); });
-    fetch("/api/customer/profile").then((r) => r.json()).then((d: Profile) => {
-      setProfile(d);
-      setForm({
-        name: d.name || "", phone: d.phone || "",
-        street: d.street || "", number: d.number || "",
-        neighborhood: d.neighborhood || "", city: d.city || "",
-        state: d.state || "", zipCode: d.zipCode || "",
-      });
-    });
+    let cancelled = false;
+    fetch("/api/customer/orders").then((r) => r.json()).then((d) => { if (!cancelled) { setOrders(Array.isArray(d) ? d : []); setOrdersLoaded(true); } });
+    fetch("/api/customer/profile").then((r) => r.json()).then((d: Profile) => { if (!cancelled) { setProfile(d); fillForm(d); } });
+    fetch("/api/settings").then((r) => r.json()).then((s) => !cancelled && setWhatsapp(s?.whatsapp || null)).catch(() => {});
+    return () => { cancelled = true; };
   }, [customer]);
+
+  const activeOrders = useMemo(() => orders.filter((o) => ACTIVE.includes(o.status)), [orders]);
+  const featured = activeOrders[0];
+  const filtered = orderFilter === "active" ? activeOrders : orderFilter === "done" ? orders.filter((o) => !ACTIVE.includes(o.status)) : orders;
 
   const handleLogout = async () => {
     await fetch("/api/customer/logout", { method: "POST" });
@@ -105,38 +175,22 @@ export default function AccountPage() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const res = await fetch("/api/customer/profile", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
-      });
+      const res = await fetch("/api/customer/profile", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
       const updated = await res.json();
       setProfile(updated);
-      setEditing(false);
+      fillForm(updated);
+      setEditing(null);
       setSaveOk(true);
       setTimeout(() => setSaveOk(false), 2500);
     } finally {
       setSaving(false);
     }
   };
+  const handleCancel = () => { if (profile) fillForm(profile); setEditing(null); };
+  const f = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm((prev) => ({ ...prev, [k]: e.target.value }));
 
-  const handleCancel = () => {
-    if (profile) {
-      setForm({
-        name: profile.name || "", phone: profile.phone || "",
-        street: profile.street || "", number: profile.number || "",
-        neighborhood: profile.neighborhood || "", city: profile.city || "",
-        state: profile.state || "", zipCode: profile.zipCode || "",
-      });
-    }
-    setEditing(false);
-  };
-
-  const f = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
-    setForm((prev) => ({ ...prev, [k]: e.target.value }));
-
-  const inputCls = "w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand transition";
-  const labelCls = "block text-xs font-semibold text-gray-500 mb-1";
+  const inputCls = "w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 bg-white placeholder:text-gray-400 transition";
+  const labelCls = "block text-xs font-medium text-gray-600 mb-1";
 
   if (loading || !customer) {
     return (
@@ -146,263 +200,194 @@ export default function AccountPage() {
     );
   }
 
+  const firstName = customer.name.split(" ")[0];
   const initials = customer.name.split(" ").slice(0, 2).map((w: string) => w[0]).join("").toUpperCase();
+  const missing = profile ? [!profile.phone && "celular", !profile.street && "endereço"].filter(Boolean) as string[] : [];
+  const waDigits = (whatsapp || "").replace(/\D/g, "");
+  const waLink = waDigits ? `https://wa.me/${waDigits.length <= 11 ? "55" : ""}${waDigits}` : null;
+
+  const editButtons = (
+    <div className="flex gap-2">
+      <button onClick={handleCancel} className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-gray-800 px-3 py-1.5 rounded-lg hover:bg-gray-100"><X size={12} /> Cancelar</button>
+      <button onClick={handleSave} disabled={saving} className="inline-flex items-center gap-1 text-xs font-semibold text-white bg-brand hover:opacity-90 px-4 py-1.5 rounded-lg disabled:opacity-60">
+        {saving ? "Salvando…" : <><Check size={12} /> Salvar</>}
+      </button>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-gray-50/80">
-      <div className="max-w-2xl mx-auto px-4 py-8 sm:py-12">
-
-        {/* Hero card */}
-        <div
-          className="relative rounded-3xl p-6 mb-6 overflow-hidden"
-          style={{ background: "linear-gradient(135deg, var(--brand), color-mix(in srgb, var(--brand) 60%, #1a1a2e))" }}
-        >
-          <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full pointer-events-none" />
-          <div className="absolute -bottom-8 -left-8 w-28 h-28 bg-white/10 rounded-full pointer-events-none" />
-          <div className="relative flex items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center shrink-0 border border-white/30 shadow-inner">
-                <span className="text-xl font-black text-white">{initials}</span>
-              </div>
-              <div>
-                <p className="font-black text-white text-lg leading-tight">{customer.name}</p>
-                <p className="text-white/65 text-sm mt-0.5">{customer.email}</p>
-              </div>
-            </div>
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-1.5 text-white/80 hover:text-white text-xs font-semibold bg-white/10 hover:bg-white/20 px-3 py-2 rounded-xl transition-colors shrink-0"
-            >
-              <LogOut size={13} /> Sair
-            </button>
+      <div className="max-w-3xl mx-auto px-4 py-8 sm:py-10 space-y-5">
+        {/* Saudação */}
+        <div className="flex items-center gap-4">
+          <span className="w-14 h-14 rounded-2xl bg-brand text-white flex items-center justify-center text-lg font-semibold shadow-sm shrink-0">{initials}</span>
+          <div className="min-w-0 flex-1">
+            <h1 className="text-2xl font-semibold tracking-tight text-gray-900">Olá, {firstName}!</h1>
+            <p className="text-sm text-gray-500 truncate">{customer.email}</p>
           </div>
+          <button onClick={handleLogout} className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-gray-900 px-3 py-2 rounded-xl hover:bg-white ring-1 ring-transparent hover:ring-gray-200 transition">
+            <LogOut size={14} /> Sair
+          </button>
         </div>
 
-        {/* Tabs */}
-        <div className="flex gap-1 bg-white border border-gray-100 shadow-sm p-1 rounded-2xl mb-5">
-          {(["profile", "orders"] as const).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={cn(
-                "flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-semibold rounded-xl transition-all duration-200",
-                activeTab === tab
-                  ? "bg-brand text-white shadow-sm"
-                  : "text-gray-500 hover:text-gray-800 hover:bg-gray-50"
-              )}
-            >
-              {tab === "profile" ? <User size={14} /> : <Package size={14} />}
-              {tab === "profile" ? "Dados da conta" : "Meus Pedidos"}
-              {tab === "orders" && orders.length > 0 && (
-                <span className={cn(
-                  "text-[10px] font-black rounded-full w-4 h-4 flex items-center justify-center leading-none",
-                  activeTab === "orders" ? "bg-white text-brand" : "bg-brand text-white"
-                )}>
-                  {orders.length > 9 ? "9+" : orders.length}
+        {/* Pedido em andamento */}
+        {featured && (
+          <Link href={`/pedido/${featured.id}`} className="group block rounded-2xl p-5 text-white shadow-lg overflow-hidden relative" style={{ background: "linear-gradient(135deg, var(--brand), color-mix(in srgb, var(--brand) 55%, #111827))" }}>
+            <span className="absolute -top-12 -right-12 w-44 h-44 rounded-full bg-white/10" />
+            <div className="relative">
+              <p className="text-xs font-medium text-white/70 uppercase tracking-wider flex items-center gap-1.5"><Truck size={13} /> Pedido em andamento</p>
+              <div className="mt-1 flex items-end justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-lg font-semibold">{orderHint(featured)}</p>
+                  <p className="text-sm text-white/70">Pedido {featured.orderNumber} · {formatCurrency(featured.total)}</p>
+                </div>
+                <span className="shrink-0 inline-flex items-center gap-1 text-sm font-semibold bg-white/15 group-hover:bg-white/25 rounded-xl px-3 py-2 transition">
+                  Acompanhar <ArrowRight size={15} />
                 </span>
-              )}
+              </div>
+              <div className="mt-4 flex gap-1">
+                {[0, 1, 2, 3].map((i) => <span key={i} className={cn("h-1.5 flex-1 rounded-full", i <= stepOf(featured.status) ? "bg-white" : "bg-white/25")} />)}
+              </div>
+              {activeOrders.length > 1 && <p className="mt-2 text-xs text-white/70">+ {activeOrders.length - 1} outro{activeOrders.length > 2 ? "s" : ""} pedido{activeOrders.length > 2 ? "s" : ""} em andamento</p>}
+            </div>
+          </Link>
+        )}
+
+        {/* Abas */}
+        <div className="flex gap-1 bg-white ring-1 ring-gray-200/70 p-1 rounded-2xl">
+          {([["orders", "Meus pedidos", Package], ["profile", "Meus dados", User]] as const).map(([key, label, Icon]) => (
+            <button
+              key={key}
+              onClick={() => setTab(key)}
+              className={cn("flex-1 inline-flex items-center justify-center gap-2 py-2.5 text-sm font-semibold rounded-xl transition-all", tab === key ? "bg-gray-900 text-white shadow-sm" : "text-gray-500 hover:text-gray-900 hover:bg-gray-50")}
+            >
+              <Icon size={15} /> {label}
+              {key === "orders" && orders.length > 0 && <span className={cn("text-[11px] rounded-full px-1.5 tabular-nums", tab === key ? "bg-white/20" : "bg-gray-100 text-gray-600")}>{orders.length}</span>}
+              {key === "profile" && missing.length > 0 && <span className="w-2 h-2 rounded-full bg-amber-500" />}
             </button>
           ))}
         </div>
 
-        {/* ── Profile Tab ── */}
-        {activeTab === "profile" && (
-          <>
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-              <div className="flex items-center justify-between mb-5">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Informações pessoais</p>
-                {!editing ? (
-                  <button
-                    onClick={() => setEditing(true)}
-                    className="flex items-center gap-1.5 text-xs font-bold text-brand hover:opacity-80 px-3 py-1.5 rounded-xl hover:bg-brand-light transition-colors"
-                  >
-                    <Edit3 size={12} /> Editar
-                  </button>
-                ) : (
-                  <div className="flex gap-2">
-                    <button onClick={handleCancel} className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 px-3 py-1.5 rounded-xl hover:bg-gray-100 transition-colors">
-                      <X size={12} /> Cancelar
-                    </button>
-                    <button
-                      onClick={handleSave}
-                      disabled={saving}
-                      className="flex items-center gap-1 text-xs font-bold text-white bg-brand hover:opacity-90 px-4 py-1.5 rounded-xl transition-colors disabled:opacity-60"
-                    >
-                      {saving ? "Salvando..." : <><Check size={12} /> Salvar</>}
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {saveOk && (
-                <div className="mb-4 text-sm text-green-700 bg-green-50 border border-green-200 rounded-xl px-4 py-2.5 flex items-center gap-2">
-                  <Check size={14} /> Dados salvos com sucesso!
-                </div>
-              )}
-
-              {!editing ? (
-                <div className="space-y-0 divide-y divide-gray-50">
-                  {[
-                    { icon: Mail, label: "E-mail", value: profile?.email || customer.email },
-                    { icon: Phone, label: "Celular / WhatsApp", value: profile?.phone },
-                    {
-                      icon: MapPin, label: "Endereço de entrega",
-                      value: profile?.street
-                        ? `${profile.street}${profile.number ? `, ${profile.number}` : ""}${profile.neighborhood ? ` — ${profile.neighborhood}` : ""}\n${profile.city}${profile.state ? `/${profile.state}` : ""}${profile.zipCode ? ` · CEP ${profile.zipCode}` : ""}`
-                        : null,
-                    },
-                  ].map(({ icon: Icon, label, value }) => (
-                    <div key={label} className="flex items-start gap-3 py-4 first:pt-0 last:pb-0">
-                      <div className="w-8 h-8 bg-gray-50 rounded-xl flex items-center justify-center shrink-0 mt-0.5">
-                        <Icon size={14} className="text-gray-400" />
-                      </div>
-                      <div>
-                        <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">{label}</p>
-                        {value ? (
-                          <p className="text-sm text-gray-800 whitespace-pre-line">{value}</p>
-                        ) : (
-                          <p className="text-sm text-gray-300 italic">Não informado</p>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <div>
-                    <label className={labelCls}>Nome completo</label>
-                    <input value={form.name} onChange={f("name")} className={inputCls} placeholder="Seu nome" />
-                  </div>
-                  <div className="bg-gray-50 rounded-xl p-3">
-                    <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wide mb-3">Contato</p>
-                    <label className={labelCls}>Celular / WhatsApp</label>
-                    <input value={form.phone} onChange={f("phone")} className={inputCls} placeholder="(00) 00000-0000" />
-                  </div>
-                  <div className="bg-gray-50 rounded-xl p-3">
-                    <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wide mb-3">Endereço de entrega</p>
-                    <div className="grid grid-cols-3 gap-3">
-                      <div className="col-span-2">
-                        <label className={labelCls}>Rua / Avenida</label>
-                        <input value={form.street} onChange={f("street")} className={inputCls} placeholder="Ex: Rua das Flores" />
-                      </div>
-                      <div>
-                        <label className={labelCls}>Número</label>
-                        <input value={form.number} onChange={f("number")} className={inputCls} placeholder="123" />
-                      </div>
-                      <div>
-                        <label className={labelCls}>Bairro</label>
-                        <input value={form.neighborhood} onChange={f("neighborhood")} className={inputCls} placeholder="Centro" />
-                      </div>
-                      <div>
-                        <label className={labelCls}>Cidade</label>
-                        <input value={form.city} onChange={f("city")} className={inputCls} placeholder="São Paulo" />
-                      </div>
-                      <div>
-                        <label className={labelCls}>Estado</label>
-                        <select value={form.state} onChange={f("state")} className={inputCls}>
-                          <option value="">UF</option>
-                          {UF_LIST.map((uf) => <option key={uf} value={uf}>{uf}</option>)}
-                        </select>
-                      </div>
-                      <div>
-                        <label className={labelCls}>CEP</label>
-                        <input value={form.zipCode} onChange={f("zipCode")} className={inputCls} placeholder="00000-000" />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="mt-4 grid grid-cols-2 gap-3">
-              <Link href="/favoritos" className="flex items-center justify-center gap-2 text-sm font-medium text-gray-600 hover:text-brand py-3.5 bg-white rounded-2xl border border-gray-100 shadow-sm hover:border-brand/30 hover:shadow-md transition-all">
-                <Heart size={15} /> Favoritos
-              </Link>
-              <Link href="/produtos" className="flex items-center justify-center gap-2 text-sm font-medium text-gray-600 hover:text-brand py-3.5 bg-white rounded-2xl border border-gray-100 shadow-sm hover:border-brand/30 hover:shadow-md transition-all">
-                <ShoppingBag size={15} /> Produtos
-              </Link>
-            </div>
-          </>
-        )}
-
-        {/* ── Orders Tab ── */}
-        {activeTab === "orders" && (
+        {/* Pedidos */}
+        {tab === "orders" && (
           <div className="space-y-3">
-            {ordersLoading ? (
-              <div className="py-16 flex justify-center">
-                <div className="w-7 h-7 border-2 border-brand border-t-transparent rounded-full animate-spin" />
+            {orders.length > 0 && (
+              <div className="flex gap-1.5">
+                {([["all", "Todos"], ["active", "Em andamento"], ["done", "Concluídos e cancelados"]] as const).map(([k, l]) => (
+                  <button key={k} onClick={() => setOrderFilter(k)} className={cn("px-3 py-1.5 rounded-full text-xs font-medium ring-1 transition", orderFilter === k ? "bg-gray-900 text-white ring-gray-900" : "bg-white text-gray-600 ring-gray-200 hover:bg-gray-50")}>
+                    {l}
+                  </button>
+                ))}
               </div>
+            )}
+            {!ordersLoaded ? (
+              Array.from({ length: 2 }).map((_, i) => <div key={i} className="img-skeleton rounded-2xl h-36" />)
             ) : orders.length === 0 ? (
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm py-16 text-center">
-                <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <Package size={28} className="text-gray-300" />
-                </div>
-                <p className="font-bold text-gray-700 mb-1">Nenhum pedido ainda</p>
-                <p className="text-sm text-gray-400 mb-6">Que tal explorar nossa coleção?</p>
-                <Link href="/produtos" className="inline-flex items-center gap-2 bg-brand text-white px-6 py-2.5 rounded-xl text-sm font-bold hover:opacity-90 transition">
-                  <ShoppingBag size={14} /> Ver produtos
-                </Link>
+              <div className="bg-white rounded-2xl border border-gray-200/70 py-14 text-center px-4">
+                <span className="w-14 h-14 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto mb-3"><Package size={26} className="text-gray-300" /></span>
+                <p className="font-semibold text-gray-800">Você ainda não fez nenhum pedido</p>
+                <p className="text-sm text-gray-500 mt-1 mb-5">Quando comprar, você acompanha tudo por aqui: pagamento, envio e entrega.</p>
+                <Link href="/produtos" className="inline-flex items-center gap-2 bg-brand text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:opacity-90"><ShoppingBag size={15} /> Ver produtos</Link>
               </div>
+            ) : filtered.length === 0 ? (
+              <p className="text-sm text-gray-500 text-center py-10">Nenhum pedido neste filtro.</p>
             ) : (
-              orders.map((order) => {
-                const s = STATUS[order.status] || { label: order.status, dot: "bg-gray-400", badge: "bg-gray-100 text-gray-700 border border-gray-200" };
-                return (
-                  <Link
-                    href={`/pedido/${order.id}`}
-                    key={order.id}
-                    className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:border-brand/20 hover:shadow-md transition-all block"
-                  >
-                    <div className="flex items-start justify-between gap-3 mb-3">
-                      <div>
-                        <p className="font-black text-gray-900 text-base">#{order.orderNumber}</p>
-                        <p className="text-xs text-gray-400 mt-0.5">
-                          {new Date(order.createdAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })}
-                        </p>
-                      </div>
-                      <div className="flex flex-col items-end gap-2 shrink-0">
-                        <div className="flex flex-col gap-1 items-end">
-                          <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full ${s.badge}`}>
-                            <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
-                            {s.label}
-                          </span>
-                          {order.returnStatus && (
-                            <span className={`inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-full ${
-                              order.returnStatus === "FULL_RETURN" 
-                                ? "bg-red-100 text-red-700 border border-red-200" 
-                                : "bg-orange-100 text-orange-700 border border-orange-200"
-                            }`}>
-                              {order.returnStatus === "FULL_RETURN" ? "🔄 Devolvido Total" : "🔄 Devolvido Parcial"}
-                            </span>
-                          )}
-                        </div>
-                        <span className="font-black text-gray-900">{formatCurrency(order.total)}</span>
-                      </div>
-                    </div>
-                    <div className="border-t border-gray-50 pt-3 space-y-1.5">
-                      {order.items.map((item) => (
-                        <div key={item.id} className="flex items-center gap-2 text-xs text-gray-500">
-                          <span className="w-5 h-5 bg-gray-100 rounded-lg flex items-center justify-center text-[10px] font-bold text-gray-600 shrink-0">
-                            {item.quantity}×
-                          </span>
-                          <span>
-                            {item.product.name}
-                            {item.size ? <span className="text-gray-400"> · Tam: {item.size}</span> : null}
-                            {item.color ? <span className="text-gray-400"> · {item.color}</span> : null}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                    {order.status === "CONFIRMED" && (
-                      <div className="border-t border-gray-50 mt-3 pt-3">
-                        <p className="text-xs text-gray-500 mb-2">Clique para ver detalhes ou cancelar este pedido</p>
-                      </div>
-                    )}
-                  </Link>
-                );
-              })
+              filtered.map((o) => <OrderCard key={o.id} order={o} />)
             )}
           </div>
         )}
+
+        {/* Dados */}
+        {tab === "profile" && (
+          <div className="space-y-4">
+            {saveOk && <div className="text-sm text-emerald-800 bg-emerald-50 rounded-xl px-4 py-2.5 flex items-center gap-2"><Check size={15} /> Dados salvos!</div>}
+            {missing.length > 0 && !editing && (
+              <div className="rounded-2xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3 text-sm text-amber-900 flex items-center justify-between gap-3">
+                <span>Complete seu {missing.join(" e ")} para finalizar as próximas compras mais rápido.</span>
+                <button onClick={() => setEditing(!profile?.phone ? "personal" : "address")} className="shrink-0 text-xs font-semibold underline">Completar</button>
+              </div>
+            )}
+
+            {/* Dados pessoais */}
+            <section className="bg-white rounded-2xl border border-gray-200/70 shadow-[0_1px_2px_rgba(0,0,0,0.04)] p-5">
+              <header className="flex items-center justify-between mb-4">
+                <h2 className="text-[15px] font-semibold text-gray-900 flex items-center gap-2"><User size={16} className="text-gray-400" /> Dados pessoais</h2>
+                {editing === "personal" ? editButtons : (
+                  <button onClick={() => setEditing("personal")} disabled={editing !== null} className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand px-3 py-1.5 rounded-lg hover:bg-gray-50 disabled:opacity-40"><Edit3 size={12} /> Editar</button>
+                )}
+              </header>
+              {editing === "personal" ? (
+                <div className="grid sm:grid-cols-2 gap-3">
+                  <div className="sm:col-span-2"><label className={labelCls}>Nome completo</label><input value={form.name} onChange={f("name")} className={inputCls} /></div>
+                  <div><label className={labelCls}>Celular / WhatsApp</label><input value={form.phone} onChange={f("phone")} placeholder="(00) 00000-0000" className={inputCls} /></div>
+                  <div><label className={labelCls}>E-mail</label><input value={profile?.email || customer.email} disabled className={`${inputCls} bg-gray-50 text-gray-500`} /></div>
+                </div>
+              ) : (
+                <dl className="grid sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
+                  {[
+                    { icon: User, label: "Nome", value: profile?.name || customer.name },
+                    { icon: Mail, label: "E-mail", value: profile?.email || customer.email },
+                    { icon: Phone, label: "Celular / WhatsApp", value: profile?.phone },
+                  ].map(({ icon: Icon, label, value }) => (
+                    <div key={label} className="flex items-start gap-2.5 min-w-0">
+                      <Icon size={15} className="text-gray-400 mt-0.5 shrink-0" />
+                      <div className="min-w-0">
+                        <dt className="text-xs text-gray-500">{label}</dt>
+                        <dd className={cn("break-words", value ? "text-gray-900" : "text-gray-400 italic")}>{value || "Não informado"}</dd>
+                      </div>
+                    </div>
+                  ))}
+                </dl>
+              )}
+            </section>
+
+            {/* Endereço */}
+            <section className="bg-white rounded-2xl border border-gray-200/70 shadow-[0_1px_2px_rgba(0,0,0,0.04)] p-5">
+              <header className="flex items-center justify-between mb-4">
+                <h2 className="text-[15px] font-semibold text-gray-900 flex items-center gap-2"><MapPin size={16} className="text-gray-400" /> Endereço de entrega</h2>
+                {editing === "address" ? editButtons : (
+                  <button onClick={() => setEditing("address")} disabled={editing !== null} className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand px-3 py-1.5 rounded-lg hover:bg-gray-50 disabled:opacity-40"><Edit3 size={12} /> {profile?.street ? "Editar" : "Adicionar"}</button>
+                )}
+              </header>
+              {editing === "address" ? (
+                <div className="grid grid-cols-6 gap-3">
+                  <div className="col-span-6 sm:col-span-2"><label className={labelCls}>CEP</label><input value={form.zipCode} onChange={f("zipCode")} placeholder="00000-000" className={inputCls} /></div>
+                  <div className="col-span-4 sm:col-span-3"><label className={labelCls}>Rua / Avenida</label><input value={form.street} onChange={f("street")} className={inputCls} /></div>
+                  <div className="col-span-2 sm:col-span-1"><label className={labelCls}>Número</label><input value={form.number} onChange={f("number")} className={inputCls} /></div>
+                  <div className="col-span-6 sm:col-span-2"><label className={labelCls}>Bairro</label><input value={form.neighborhood} onChange={f("neighborhood")} className={inputCls} /></div>
+                  <div className="col-span-4 sm:col-span-3"><label className={labelCls}>Cidade</label><input value={form.city} onChange={f("city")} className={inputCls} /></div>
+                  <div className="col-span-2 sm:col-span-1">
+                    <label className={labelCls}>UF</label>
+                    <select value={form.state} onChange={f("state")} className={inputCls}><option value="">—</option>{UF_LIST.map((uf) => <option key={uf} value={uf}>{uf}</option>)}</select>
+                  </div>
+                </div>
+              ) : profile?.street ? (
+                <p className="text-sm text-gray-800 leading-relaxed">
+                  {profile.street}{profile.number ? `, ${profile.number}` : ""}{profile.neighborhood ? ` — ${profile.neighborhood}` : ""}
+                  <br />
+                  <span className="text-gray-500">{profile.city}{profile.state ? `/${profile.state}` : ""}{profile.zipCode ? ` · CEP ${profile.zipCode}` : ""}</span>
+                </p>
+              ) : (
+                <p className="text-sm text-gray-400 italic">Nenhum endereço salvo. Ele é preenchido automaticamente no checkout.</p>
+              )}
+            </section>
+          </div>
+        )}
+
+        {/* Atalhos */}
+        <div className={cn("grid gap-3", waLink ? "grid-cols-3" : "grid-cols-2")}>
+          <Link href="/favoritos" className="flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-2 text-xs sm:text-sm font-medium text-gray-700 py-3.5 bg-white rounded-2xl ring-1 ring-gray-200/70 hover:shadow-md hover:-translate-y-0.5 transition-all">
+            <Heart size={16} className="text-brand" /> Favoritos
+          </Link>
+          <Link href="/produtos" className="flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-2 text-xs sm:text-sm font-medium text-gray-700 py-3.5 bg-white rounded-2xl ring-1 ring-gray-200/70 hover:shadow-md hover:-translate-y-0.5 transition-all">
+            <ShoppingBag size={16} className="text-brand" /> Continuar comprando
+          </Link>
+          {waLink && (
+            <a href={waLink} target="_blank" rel="noopener noreferrer" className="flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-2 text-xs sm:text-sm font-medium text-gray-700 py-3.5 bg-white rounded-2xl ring-1 ring-gray-200/70 hover:shadow-md hover:-translate-y-0.5 transition-all">
+              <MessageCircle size={16} className="text-[#25D366]" /> Falar com a loja
+            </a>
+          )}
+        </div>
       </div>
     </div>
   );
