@@ -32,6 +32,15 @@ interface Order {
   melhorEnvioShipmentId: string | null;
 }
 
+interface ShipmentError {
+  id: string;
+  orderNumber: string;
+  customerName: string;
+  error: string | null;
+  retryable: boolean;
+  lastAttempt: string | null;
+}
+
 export default function TrackingDashboard() {
   const [stats, setStats] = useState<ShippingStats | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -40,6 +49,8 @@ export default function TrackingDashboard() {
   const [selectedFilter, setSelectedFilter] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [isRetrying, setIsRetrying] = useState(false);
+  const [shipmentErrors, setShipmentErrors] = useState<ShipmentError[]>([]);
+  const [retryingId, setRetryingId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -57,6 +68,7 @@ export default function TrackingDashboard() {
 
       setStats(data.stats);
       setOrders(data.orders || []);
+      setShipmentErrors(data.shipmentErrors || []);
     } catch (error) {
       console.error("Erro ao carregar dados:", error);
     } finally {
@@ -71,8 +83,6 @@ export default function TrackingDashboard() {
     if (selectedFilter !== "all") {
       if (selectedFilter === "labelInvalid") {
         filtered = filtered.filter((o) => o.labelValid === false);
-      } else if (selectedFilter === "shipmentError") {
-        filtered = filtered.filter((o) => o.labelError && !o.melhorEnvioShipmentId);
       } else {
         filtered = filtered.filter((o) => o.shipmentStatus === selectedFilter);
       }
@@ -92,7 +102,7 @@ export default function TrackingDashboard() {
 
   const handleRetryShipment = async (orderId: string) => {
     try {
-      setIsRetrying(true);
+      setRetryingId(orderId);
       const response = await fetch("/api/admin/shipment-retry", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -104,12 +114,13 @@ export default function TrackingDashboard() {
         alert("✅ Etiqueta criada com sucesso!");
         fetchData(); // Recarregar dados
       } else {
-        alert(`❌ Erro: ${result.message}`);
+        alert(`❌ Erro: ${result.message || result.error}`);
+        fetchData(); // Atualiza a mensagem de erro exibida
       }
     } catch (error) {
       alert("Erro ao retentar");
     } finally {
-      setIsRetrying(false);
+      setRetryingId(null);
     }
   };
 
@@ -215,7 +226,7 @@ export default function TrackingDashboard() {
               disabled={isRetrying}
               className="mt-2 w-full bg-red-600 text-white text-xs py-1 rounded hover:bg-red-700 disabled:opacity-50"
             >
-              {isRetrying ? "Processando..." : "Retentar"}
+              {isRetrying ? "Processando..." : "Retentar todos"}
             </button>
           )}
         </div>
@@ -265,6 +276,46 @@ export default function TrackingDashboard() {
         </div>
       </div>
 
+      {/* Pedidos pagos sem etiqueta por erro na geração */}
+      {shipmentErrors.length > 0 && (
+        <div className="bg-white rounded-lg border border-red-200 overflow-hidden">
+          <div className="px-4 py-3 bg-red-50 border-b border-red-200">
+            <h3 className="font-semibold text-red-700">🚫 Pedidos pagos sem etiqueta ({shipmentErrors.length})</h3>
+            <p className="text-xs text-red-600 mt-0.5">A geração automática da etiqueta falhou. Corrija a causa e gere novamente.</p>
+          </div>
+          <ul className="divide-y divide-gray-100">
+            {shipmentErrors.map((o) => (
+              <li key={o.id} className="px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900">
+                    {o.orderNumber} <span className="text-gray-500 font-normal">· {o.customerName}</span>
+                  </p>
+                  <p className="text-xs text-red-600 break-words">
+                    {o.retryable && <span className="font-semibold">[Saldo] </span>}
+                    {o.error || "Erro desconhecido"}
+                  </p>
+                  {o.lastAttempt && (
+                    <p className="text-xs text-gray-400">Última tentativa: {new Date(o.lastAttempt).toLocaleString("pt-BR")}</p>
+                  )}
+                </div>
+                <div className="flex gap-2 shrink-0">
+                  <button
+                    onClick={() => handleRetryShipment(o.id)}
+                    disabled={retryingId === o.id || isRetrying}
+                    className="bg-red-600 text-white text-xs px-3 py-1.5 rounded hover:bg-red-700 disabled:opacity-50"
+                  >
+                    {retryingId === o.id ? "Gerando..." : "Gerar etiqueta"}
+                  </button>
+                  <Link href={`/admin/pedidos/${o.id}`} className="text-xs px-3 py-1.5 rounded border border-gray-200 text-blue-600 hover:bg-gray-50">
+                    Ver pedido
+                  </Link>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {/* Filtros e Busca */}
       <div className="bg-white rounded-lg border border-gray-200 p-4">
         <div className="space-y-4">
@@ -291,7 +342,6 @@ export default function TrackingDashboard() {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="all">Todos</option>
-              <option value="shipmentError">❌ Erro de Shipment</option>
               <option value="labelInvalid">⚠️ Etiquetas Inválidas</option>
               <option value="posted">📦 Aguardando Coleta</option>
               <option value="in_transit">🚚 Em Trânsito</option>
@@ -391,13 +441,13 @@ export default function TrackingDashboard() {
                         )}
                       </td>
                       <td className="px-4 py-3 text-sm space-y-2">
-                        {isInvalid && !order.melhorEnvioShipmentId && (
+                        {isInvalid && (
                           <button
                             onClick={() => handleRetryShipment(order.id)}
-                            disabled={isRetrying}
+                            disabled={retryingId === order.id}
                             className="block w-full bg-red-600 text-white text-xs py-1 rounded hover:bg-red-700 disabled:opacity-50"
                           >
-                            {isRetrying ? "..." : "Retentar"}
+                            {retryingId === order.id ? "..." : "Recriar etiqueta"}
                           </button>
                         )}
                         <Link

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
+import { SHIPMENT_ERROR_WHERE } from "@/lib/shipmentUtils";
 
 export async function GET() {
   try {
@@ -40,16 +41,16 @@ export async function GET() {
 
     // Buscar também pedidos com erro de shipment
     const ordersWithShipmentErrors = await prisma.order.findMany({
-      where: {
-        shipmentRetryableError: true,
-        melhorEnvioShipmentId: null,
-      },
+      where: SHIPMENT_ERROR_WHERE,
       select: {
         id: true,
         orderNumber: true,
         customerName: true,
         shipmentRetryError: true,
+        shipmentRetryableError: true,
+        lastShipmentAttempt: true,
       },
+      orderBy: { lastShipmentAttempt: "desc" },
     });
 
     // Calcular estatísticas
@@ -83,6 +84,8 @@ export async function GET() {
         orderNumber: order.orderNumber,
         customerName: order.customerName,
         error: order.shipmentRetryError,
+        retryable: !!order.shipmentRetryableError,
+        lastAttempt: order.lastShipmentAttempt,
       })),
     });
   } catch (error) {

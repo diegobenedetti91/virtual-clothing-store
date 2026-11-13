@@ -111,3 +111,8 @@ export function isValidCPFOrCNPJ(doc: string): boolean {
   if (clean.length === 14) return isValidCNPJ(doc);
   return false;
 }
+
+/** Só serviços numéricos do Melhor Envio geram etiqueta ("local" e "retirada" não). */
+export function needsMelhorEnvioLabel(shippingMethod: string | null | undefined): boolean {
+  return !!shippingMethod && /^\d+$/.test(shippingMethod);
+}

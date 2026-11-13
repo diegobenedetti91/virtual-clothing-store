@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
 import { createMelhorEnvioShipment, validateShipmentLabel, MelhorEnvioShipmentPayload } from "@/lib/melhorEnvio";
 import { sendShippingConfirmationEmail } from "@/lib/email";
+import { needsMelhorEnvioLabel } from "@/lib/utils";
 
 function formatPhoneForMelhorEnvio(phone: string): string {
   if (!phone) return "1133334444";
@@ -80,6 +82,14 @@ function parseAddress(fullAddress: string) {
   return { street, number, district: district || "Centro", city, state };
 }
 
+/** Pedidos pagos (ainda não enviados) cuja geração de etiqueta falhou. */
+export const SHIPMENT_ERROR_WHERE = {
+  shipmentRetryError: { not: null },
+  melhorEnvioShipmentId: null,
+  status: "CONFIRMED",
+  shippingMethod: { notIn: ["local", "retirada"] },
+} satisfies Prisma.OrderWhereInput;
+
 export async function createAutomaticShipment(orderId: string) {
   try {
     const order = await prisma.order.findUnique({
@@ -99,10 +109,15 @@ export async function createAutomaticShipment(orderId: string) {
 
     const settings = await prisma.companySettings.findFirst();
 
-    if (!settings?.melhorEnvioApiToken) {
-      console.warn("[SHIPMENT] Melhor Envio API token (Criar etiquetas) not configured - shipment creation skipped");
-      console.warn("[SHIPMENT] Configure em: Configurações → Melhor Envio → 'Token de acesso (API - Criar etiquetas)'");
+    // Entrega local / retirada na loja não geram etiqueta
+    if (!needsMelhorEnvioLabel(order.shippingMethod)) {
+      console.log(`[SHIPMENT] Order ${order.orderNumber} uses "${order.shippingMethod}" - no label needed`);
       return;
+    }
+
+    if (!settings?.melhorEnvioApiToken) {
+      console.warn("[SHIPMENT] Configure em: Configurações → Melhor Envio → 'Token de acesso (API - Criar etiquetas)'");
+      throw new Error("Token do Melhor Envio (Criar etiquetas) não configurado");
     }
 
     console.log("[SHIPMENT] API Token found:", settings.melhorEnvioApiToken.substring(0, 20) + "...");
@@ -125,7 +140,7 @@ export async function createAutomaticShipment(orderId: string) {
         state: order.state,
         zipCode: order.zipCode,
       });
-      return;
+      throw new Error("Pedido sem dados de entrega completos (endereço, cidade, UF ou CEP)");
     }
 
     // Get sender (store) info from settings - parse address if available
@@ -232,6 +247,8 @@ export async function createAutomaticShipment(orderId: string) {
       labelValidatedAt: new Date(),
       labelValid: validation.valid,
       labelError: validation.valid ? null : validation.message,
+      shipmentRetryError: null,
+      shipmentRetryableError: false,
     };
 
     await prisma.order.update({

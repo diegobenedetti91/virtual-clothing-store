@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useRef } from "react";
+import Link from "next/link";
 import { Order } from "@/types";
 import { formatCurrency, formatDate, ORDER_STATUS } from "@/lib/utils";
 import { Search, ChevronDown, ChevronUp, X, AlertCircle, User, Truck, Upload, Package, Zap } from "lucide-react";
@@ -218,6 +219,7 @@ export default function OrdersManager({ initialOrders, blingEnabled = false }: P
         );
         setTimeout(() => setBlingRetryMessage(null), 3000);
       } else {
+        setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, blingIntegrationStatus: "error" } : o)));
         setBlingRetryMessage({
           orderId,
           type: "error",
@@ -523,7 +525,7 @@ export default function OrdersManager({ initialOrders, blingEnabled = false }: P
                       </div>
                     )}
 
-                    {blingEnabled && order.blingIntegrationStatus && (
+                    {blingEnabled && (order.blingIntegrationStatus === "success" || order.blingIntegrationStatus === "error" || (order.status !== "PENDING" && order.status !== "CANCELLED")) && (
                       <div>
                         <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Integração Bling</h4>
                         <div className="flex items-center gap-2 flex-wrap">
@@ -537,7 +539,9 @@ export default function OrdersManager({ initialOrders, blingEnabled = false }: P
                             <>
                               <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-yellow-50 border border-yellow-200">
                                 <AlertCircle size={14} className="text-yellow-600" />
-                                <span className="text-xs text-yellow-700 font-semibold">Erro na integração</span>
+                                <span className="text-xs text-yellow-700 font-semibold">
+                                  {order.blingIntegrationStatus === "error" ? "Erro na integração" : "Não enviado ao Bling"}
+                                </span>
                               </div>
                               <button
                                 onClick={() => retryBlingIntegration(order.id)}
@@ -545,7 +549,7 @@ export default function OrdersManager({ initialOrders, blingEnabled = false }: P
                                 className="px-3 py-2 rounded-xl bg-orange-50 border border-orange-200 text-xs text-orange-700 font-semibold hover:bg-orange-100 transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-1"
                               >
                                 <Zap size={12} />
-                                {retryingBling === order.id ? "Reintegrando..." : "Reintegrar agora"}
+                                {retryingBling === order.id ? "Enviando..." : order.blingIntegrationStatus === "error" ? "Reintegrar agora" : "Enviar ao Bling"}
                               </button>
                             </>
                           )}
@@ -563,6 +567,13 @@ export default function OrdersManager({ initialOrders, blingEnabled = false }: P
                         </div>
                       </div>
                     )}
+
+                    <Link
+                      href={`/admin/pedidos/${order.id}`}
+                      className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:underline"
+                    >
+                      <Package size={12} /> Ver detalhes, etiqueta e Bling
+                    </Link>
 
                     <div>
                       <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Alterar status</h4>

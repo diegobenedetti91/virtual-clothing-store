@@ -135,7 +135,26 @@ async function obterTokenAutomatico(settings: { blingClientId: string | null; bl
   }
 }
 
-export async function integrarPedidoBling(orderId: string): Promise<{ success: boolean; error?: string; blingId?: string }> {
+type BlingIntegrationResult = { success: boolean; error?: string; blingId?: string };
+
+/**
+ * Envia o pedido ao Bling. Em caso de falha marca `blingIntegrationStatus = "error"`
+ * para o admin enxergar o pedido e poder reenviar.
+ */
+export async function integrarPedidoBling(orderId: string): Promise<BlingIntegrationResult> {
+  const result = await enviarPedidoBling(orderId);
+  if (!result.success) {
+    await prisma.order
+      .updateMany({
+        where: { id: orderId, blingPedidoId: null },
+        data: { blingIntegrationStatus: "error" },
+      })
+      .catch((e) => console.error("[Bling] Falha ao registrar erro de integração:", e));
+  }
+  return result;
+}
+
+async function enviarPedidoBling(orderId: string): Promise<BlingIntegrationResult> {
   try {
     const settings = await prisma.companySettings.findFirst({ orderBy: { updatedAt: "desc" } });
 

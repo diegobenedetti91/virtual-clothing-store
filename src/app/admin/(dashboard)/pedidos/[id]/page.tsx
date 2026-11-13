@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { needsMelhorEnvioLabel } from "@/lib/utils";
 
 interface OrderDetails {
   id: string;
@@ -20,6 +21,11 @@ interface OrderDetails {
   shipmentStatus?: string;
   labelValid?: boolean;
   labelError?: string;
+  shippingMethod?: string | null;
+  shipmentRetryError?: string | null;
+  blingIntegrationStatus?: string | null;
+  blingPedidoId?: string | null;
+  blingIntegratedAt?: string | null;
   trafficChannel?: string | null;
   utmSource?: string | null;
   utmMedium?: string | null;
@@ -35,6 +41,10 @@ export default function OrderDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [retracting, setRetracting] = useState(false);
+  const [shipmentMsg, setShipmentMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [blingEnabled, setBlingEnabled] = useState(false);
+  const [sendingBling, setSendingBling] = useState(false);
+  const [blingMsg, setBlingMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   const id = params.id as string;
 
@@ -55,9 +65,47 @@ export default function OrderDetailsPage() {
     if (id) fetchOrder();
   }, [id]);
 
+  useEffect(() => {
+    fetch("/api/settings")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((s) => setBlingEnabled(!!s?.blingAtivo))
+      .catch(() => {});
+  }, []);
+
+  const handleBlingRetry = async () => {
+    if (!order) return;
+    setSendingBling(true);
+    setBlingMsg(null);
+    try {
+      const res = await fetch("/api/admin/pedidos/bling-retry", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId: order.id }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setOrder({
+          ...order,
+          blingIntegrationStatus: "success",
+          blingPedidoId: data.blingId,
+          blingIntegratedAt: new Date().toISOString(),
+        });
+        setBlingMsg({ type: "success", text: `Pedido enviado ao Bling (ID: ${data.blingId})` });
+      } else {
+        setOrder({ ...order, blingIntegrationStatus: "error" });
+        setBlingMsg({ type: "error", text: data.error || "Erro ao enviar ao Bling" });
+      }
+    } catch {
+      setBlingMsg({ type: "error", text: "Erro ao chamar a API" });
+    } finally {
+      setSendingBling(false);
+    }
+  };
+
   const handleRetry = async () => {
     if (!order) return;
     setRetracting(true);
+    setShipmentMsg(null);
     try {
       const res = await fetch("/api/admin/shipment-retry", {
         method: "POST",
@@ -67,11 +115,14 @@ export default function OrderDetailsPage() {
       const data = await res.json();
       if (data.success) {
         setOrder({ ...order, ...data });
+        setShipmentMsg({ type: "success", text: data.message || "Etiqueta criada" });
       } else {
-        setError(data.error || "Erro ao recriar etiqueta");
+        const msg = data.error || data.message || "Erro ao gerar etiqueta";
+        setOrder({ ...order, shipmentRetryError: msg });
+        setShipmentMsg({ type: "error", text: msg });
       }
     } catch (err) {
-      setError("Erro ao recriar etiqueta");
+      setShipmentMsg({ type: "error", text: "Erro ao gerar etiqueta" });
     } finally {
       setRetracting(false);
     }
@@ -80,6 +131,12 @@ export default function OrderDetailsPage() {
   if (loading) return <div className="p-8">Carregando...</div>;
   if (error) return <div className="p-8 text-red-600">Erro: {error}</div>;
   if (!order) return <div className="p-8">Pedido não encontrado</div>;
+
+  const isPaid = order.status !== "PENDING" && order.status !== "CANCELLED";
+  const usesLabel = needsMelhorEnvioLabel(order.shippingMethod);
+  const blingIntegrated = order.blingIntegrationStatus === "success" && !!order.blingPedidoId;
+  const msgClass = (type: "success" | "error") =>
+    `mt-3 text-sm rounded p-3 ${type === "success" ? "bg-green-50 text-green-800 border border-green-200" : "bg-red-50 text-red-800 border border-red-200"}`;
 
   return (
     <div className="p-8 bg-gray-50 min-h-screen">
@@ -178,7 +235,7 @@ export default function OrderDetailsPage() {
                 </div>
               )}
 
-              {!order.labelValid && (
+              {order.labelValid === false && (
                 <button
                   onClick={handleRetry}
                   disabled={retracting}
@@ -188,12 +245,69 @@ export default function OrderDetailsPage() {
                 </button>
               )}
             </div>
+          ) : !usesLabel ? (
+            <div className="bg-gray-50 border border-gray-200 rounded p-4">
+              <p className="text-gray-700">Entrega local / retirada na loja — não usa etiqueta.</p>
+            </div>
           ) : (
             <div className="bg-yellow-50 border border-yellow-200 rounded p-4">
               <p className="text-yellow-800">⚠️ Nenhuma etiqueta criada ainda</p>
+              {order.shipmentRetryError && (
+                <div className="bg-red-50 border border-red-200 rounded p-3 mt-3">
+                  <p className="text-red-800 font-semibold mb-1">Último erro na geração:</p>
+                  <p className="text-red-700 text-sm break-words">{order.shipmentRetryError}</p>
+                </div>
+              )}
+              {isPaid && (
+                <button
+                  onClick={handleRetry}
+                  disabled={retracting}
+                  className="mt-3 bg-orange-600 text-white px-4 py-2 rounded hover:bg-orange-700 disabled:opacity-50"
+                >
+                  {retracting ? "Gerando..." : "📦 Gerar Etiqueta"}
+                </button>
+              )}
             </div>
           )}
+          {shipmentMsg && <p className={msgClass(shipmentMsg.type)}>{shipmentMsg.text}</p>}
         </div>
+
+        {/* Seção Bling */}
+        {blingEnabled && (
+          <div className="border-t pt-6 mt-6">
+            <h2 className="text-xl font-bold mb-4">🧾 Integração Bling</h2>
+            {blingIntegrated ? (
+              <div className="bg-green-50 border border-green-200 rounded p-4">
+                <p className="text-green-800 font-semibold">✅ Integrado (ID Bling: {order.blingPedidoId})</p>
+                {order.blingIntegratedAt && (
+                  <p className="text-sm text-green-700">
+                    em {new Date(order.blingIntegratedAt).toLocaleString("pt-BR")}
+                  </p>
+                )}
+              </div>
+            ) : !isPaid ? (
+              <div className="bg-gray-50 border border-gray-200 rounded p-4">
+                <p className="text-gray-700">O pedido é enviado ao Bling quando o pagamento é aprovado.</p>
+              </div>
+            ) : (
+              <div className={`${order.blingIntegrationStatus === "error" ? "bg-red-50 border-red-200" : "bg-yellow-50 border-yellow-200"} border rounded p-4`}>
+                <p className={order.blingIntegrationStatus === "error" ? "text-red-800 font-semibold" : "text-yellow-800"}>
+                  {order.blingIntegrationStatus === "error"
+                    ? "❌ Falha ao enviar o pedido ao Bling"
+                    : "⚠️ Pedido pago ainda não enviado ao Bling"}
+                </p>
+                <button
+                  onClick={handleBlingRetry}
+                  disabled={sendingBling}
+                  className="mt-3 bg-orange-600 text-white px-4 py-2 rounded hover:bg-orange-700 disabled:opacity-50"
+                >
+                  {sendingBling ? "Enviando..." : "🔄 Enviar ao Bling"}
+                </button>
+              </div>
+            )}
+            {blingMsg && <p className={msgClass(blingMsg.type)}>{blingMsg.text}</p>}
+          </div>
+        )}
 
         {/* Itens do Pedido */}
         <div className="border-t pt-6 mt-6">
