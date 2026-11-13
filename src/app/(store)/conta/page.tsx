@@ -134,6 +134,7 @@ export default function AccountPage() {
   const [editing, setEditing] = useState<null | "personal" | "address">(null);
   const [saving, setSaving] = useState(false);
   const [saveOk, setSaveOk] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [whatsapp, setWhatsapp] = useState<string | null>(null);
   const [form, setForm] = useState({ name: "", phone: "", street: "", number: "", neighborhood: "", city: "", state: "", zipCode: "" });
 
@@ -176,7 +177,13 @@ export default function AccountPage() {
     setSaving(true);
     try {
       const res = await fetch("/api/customer/profile", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
-      const updated = await res.json();
+      const updated = await res.json().catch(() => ({}));
+      // O servidor valida telefone, CPF e CEP: mostra o motivo e mantém a edição aberta
+      if (!res.ok) {
+        setSaveError(updated?.error || "Não foi possível salvar. Confira os dados.");
+        return;
+      }
+      setSaveError(null);
       setProfile(updated);
       fillForm(updated);
       setEditing(null);
@@ -186,7 +193,7 @@ export default function AccountPage() {
       setSaving(false);
     }
   };
-  const handleCancel = () => { if (profile) fillForm(profile); setEditing(null); };
+  const handleCancel = () => { if (profile) fillForm(profile); setEditing(null); setSaveError(null); };
   const f = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm((prev) => ({ ...prev, [k]: e.target.value }));
 
   const inputCls = "w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 bg-white placeholder:text-gray-400 transition";
@@ -301,6 +308,7 @@ export default function AccountPage() {
         {tab === "profile" && (
           <div className="space-y-4">
             {saveOk && <div className="text-sm text-emerald-800 bg-emerald-50 rounded-xl px-4 py-2.5 flex items-center gap-2"><Check size={15} /> Dados salvos!</div>}
+            {saveError && <div className="text-sm text-red-800 bg-red-50 rounded-xl px-4 py-2.5" role="alert">{saveError}</div>}
             {missing.length > 0 && !editing && (
               <div className="rounded-2xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3 text-sm text-amber-900 flex items-center justify-between gap-3">
                 <span>Complete seu {missing.join(" e ")} para finalizar as próximas compras mais rápido.</span>

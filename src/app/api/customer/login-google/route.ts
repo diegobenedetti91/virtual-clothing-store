@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { signToken, buildCookieHeader } from "@/lib/customerAuth";
 import { OAuth2Client } from "google-auth-library";
+import { isProfileComplete, missingProfileFields } from "@/lib/customerProfile";
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 
@@ -66,6 +67,9 @@ export async function POST(req: NextRequest) {
       email: customer.email,
       name: customer.name,
       isFirstLogin,
+      // Conta do Google nasce só com nome e e-mail: a tela manda completar o cadastro enquanto faltar algo
+      profileComplete: isProfileComplete(customer),
+      missingFields: missingProfileFields(customer),
     });
     res.headers.set("Set-Cookie", buildCookieHeader(token));
     return res;

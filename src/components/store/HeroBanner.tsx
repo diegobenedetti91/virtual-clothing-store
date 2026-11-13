@@ -11,6 +11,16 @@ interface HeroBannerProps {
 
 export default function HeroBanner({ settings }: HeroBannerProps) {
   const [current, setCurrent] = useState(0);
+  // Proporção (largura ÷ altura) da primeira foto; 16:7 até a imagem carregar
+  const [ratio, setRatio] = useState(16 / 7);
+  const firstBanner = (JSON.parse(settings?.bannerImages || "[]") as string[])[0];
+  // Mede a foto mesmo se ela vier do cache antes da hidratação (onLoad não dispararia)
+  useEffect(() => {
+    if (!firstBanner) return;
+    const probe = new Image();
+    probe.onload = () => { if (probe.naturalWidth && probe.naturalHeight) setRatio(probe.naturalWidth / probe.naturalHeight); };
+    probe.src = firstBanner;
+  }, [firstBanner]);
   const banners = JSON.parse(settings?.bannerImages || "[]") as string[];
 
   useEffect(() => {
@@ -72,26 +82,38 @@ export default function HeroBanner({ settings }: HeroBannerProps) {
   }
 
   return (
-    <div className="relative overflow-hidden bg-gray-900" style={{ height: "560px" }}>
+    <div
+      className="relative overflow-hidden bg-gray-900 w-full transition-[aspect-ratio] duration-500"
+      // A altura segue a proporção da foto enviada: nada é cortado, no desktop ou no celular
+      style={{ aspectRatio: String(ratio), maxHeight: "82vh", minHeight: "240px" }}
+    >
       {banners.map((src, i) => (
         <div
           key={i}
           className={`absolute inset-0 transition-opacity duration-700 ${i === current ? "opacity-100" : "opacity-0"}`}
         >
+          {/* Fundo desfocado: só aparece se a tela for mais larga que a foto (limite de 82% da altura) */}
+          <img src={src} alt="" aria-hidden className="absolute inset-0 w-full h-full object-cover scale-110 blur-2xl opacity-60" />
           <img
             key={i === current ? `active-${current}` : `idle-${i}`}
             src={src}
             alt={`Banner ${i + 1}`}
-            className={`w-full h-full object-cover ${i === current ? "animate-ken-burns" : ""}`}
+            decoding="async"
+            fetchPriority={i === 0 ? "high" : "auto"}
+            onLoad={i === 0 ? (e) => {
+              const img = e.currentTarget;
+              if (img.naturalWidth && img.naturalHeight) setRatio(img.naturalWidth / img.naturalHeight);
+            } : undefined}
+            className={`relative w-full h-full object-contain ${i === current ? "animate-ken-burns" : ""}`}
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/20 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-r from-black/45 via-black/10 to-transparent" />
         </div>
       ))}
 
-      <div key={current} className="absolute bottom-8 left-8 sm:left-16 z-20 animate-fade-up [animation-delay:250ms]">
+      <div key={current} className="absolute bottom-4 left-4 sm:bottom-8 sm:left-16 z-20 animate-fade-up [animation-delay:250ms]">
         <Link
           href="/produtos"
-          className="group inline-flex items-center gap-2 bg-white/90 backdrop-blur-md text-gray-900 px-8 py-4 rounded-2xl font-bold hover:bg-brand hover:text-white hover:-translate-y-0.5 transition-all shadow-xl active:scale-[0.97]"
+          className="group inline-flex items-center gap-2 bg-white/90 backdrop-blur-md text-gray-900 px-4 py-2.5 text-sm sm:px-8 sm:py-4 sm:text-base rounded-xl sm:rounded-2xl font-bold hover:bg-brand hover:text-white hover:-translate-y-0.5 transition-all shadow-xl active:scale-[0.97]"
         >
           {primaryBtn} <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
         </Link>
@@ -101,17 +123,17 @@ export default function HeroBanner({ settings }: HeroBannerProps) {
         <>
           <button
             onClick={() => setCurrent((c) => (c - 1 + banners.length) % banners.length)}
-            className="absolute left-4 top-1/2 -translate-y-1/2 z-20 bg-white/15 hover:bg-white/30 text-white p-3 rounded-full backdrop-blur-sm transition"
+            className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-20 bg-white/15 hover:bg-white/30 text-white p-1.5 sm:p-3 rounded-full backdrop-blur-sm transition"
           >
             <ChevronLeft size={22} />
           </button>
           <button
             onClick={() => setCurrent((c) => (c + 1) % banners.length)}
-            className="absolute right-4 top-1/2 -translate-y-1/2 z-20 bg-white/15 hover:bg-white/30 text-white p-3 rounded-full backdrop-blur-sm transition"
+            className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-20 bg-white/15 hover:bg-white/30 text-white p-1.5 sm:p-3 rounded-full backdrop-blur-sm transition"
           >
             <ChevronRight size={22} />
           </button>
-          <div className="absolute bottom-5 left-0 right-0 flex justify-center gap-2 z-20">
+          <div className="absolute bottom-2 sm:bottom-5 right-4 sm:left-0 sm:right-0 flex justify-end sm:justify-center gap-2 z-20">
             {banners.map((_, i) => (
               <button
                 key={i}

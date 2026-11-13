@@ -102,7 +102,8 @@ html {
 /* ───────────── Banner e destaques ───────────── */
 @keyframes ken-burns {
   from { transform: scale(1); }
-  to { transform: scale(1.12) translate3d(-1%, -1%, 0); }
+  /* zoom leve: ampliar demais deixa a foto menos nítida */
+  to { transform: scale(1.04); }
 }
 .animate-ken-burns { animation: ken-burns 9s ease-out forwards; }
 @keyframes fade-up {
@@ -154,4 +155,11 @@ html {
 @keyframes banner-progress { from { width: 0; } to { width: 100%; } }
 @media (prefers-reduced-motion: reduce) {
   [style*="banner-progress"] { animation: none !important; width: 100%; }
+}
+
+/* Erro no login do admin */
+@keyframes login-shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-6px); }
+  40%, 80% { transform: translateX(6px); }
 }

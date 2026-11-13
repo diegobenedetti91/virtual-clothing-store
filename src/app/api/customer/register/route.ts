@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import { signToken, buildCookieHeader } from "@/lib/customerAuth";
 import { clientIp, isRateLimited } from "@/lib/rateLimit";
 import { sincronizarClienteComBling } from "@/lib/blingSync";
+import { MIN_PASSWORD, isValidEmail, validateProfileFields } from "@/lib/customerProfile";
 
 export async function POST(req: NextRequest) {
   console.log("[register] ========== ENDPOINT CHAMADO ==========");
@@ -36,12 +37,20 @@ export async function POST(req: NextRequest) {
       console.error("[register] Campos obrigatórios faltando");
       return NextResponse.json({ error: "Todos os campos são obrigatórios" }, { status: 400 });
     }
-    if (typeof password !== "string" || password.length < 8) {
-      return NextResponse.json({ error: "A senha deve ter pelo menos 8 caracteres" }, { status: 400 });
+    if (typeof password !== "string" || password.length < MIN_PASSWORD) {
+      return NextResponse.json({ error: `A senha deve ter pelo menos ${MIN_PASSWORD} caracteres` }, { status: 400 });
+    }
+    if (!isValidEmail(email)) {
+      return NextResponse.json({ error: "E-mail inválido", fields: {} }, { status: 400 });
+    }
+    // Formato dos campos (CPF/CNPJ válido, celular com DDD, CEP com 8 dígitos, UF)
+    const fieldErrors = validateProfileFields({ name, phone, cpfCnpj, street, number, neighborhood, city, state, zipCode });
+    if (Object.keys(fieldErrors).length > 0) {
+      return NextResponse.json({ error: "Confira os campos destacados", fields: fieldErrors }, { status: 400 });
     }
 
     console.log("[register] Verificando e-mail duplicado...");
-    const existing = await prisma.customerUser.findUnique({ where: { email } });
+    const existing = await prisma.customerUser.findUnique({ where: { email: String(email).trim() } });
     if (existing) {
       console.warn("[register] E-mail já cadastrado");
       return NextResponse.json({ error: "E-mail já cadastrado" }, { status: 409 });
@@ -53,8 +62,8 @@ export async function POST(req: NextRequest) {
     console.log("[register] Criando cliente no banco...");
     const customer = await prisma.customerUser.create({
       data: {
-        name,
-        email,
+        name: String(name).trim(),
+        email: String(email).trim(),
         password: hashed,
         phone,
         cpfCnpj,
@@ -62,7 +71,7 @@ export async function POST(req: NextRequest) {
         number,
         neighborhood,
         city,
-        state,
+        state: String(state).trim().toUpperCase(),
         zipCode,
       },
     });

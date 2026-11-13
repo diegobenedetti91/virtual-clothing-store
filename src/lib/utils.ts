@@ -84,25 +84,19 @@ export function isValidCNPJ(cnpj: string): boolean {
   if (clean.length !== 14) return false;
   if (/^(\d)\1{13}$/.test(clean)) return false;
 
-  let sum = 0;
-  let remainder;
-
-  for (let i = 1; i <= 12; i++) {
-    sum += parseInt(clean.substring(i - 1, i)) * (13 - i);
-  }
-  remainder = (sum % 11);
-  remainder = remainder < 2 ? 0 : 11 - remainder;
-  if (remainder !== parseInt(clean.substring(12, 13))) return false;
-
-  sum = 0;
-  for (let i = 1; i <= 13; i++) {
-    sum += parseInt(clean.substring(i - 1, i)) * (14 - i);
-  }
-  remainder = (sum % 11);
-  remainder = remainder < 2 ? 0 : 11 - remainder;
-  if (remainder !== parseInt(clean.substring(13, 14))) return false;
-
-  return true;
+  // Pesos oficiais: 5,4,3,2,9,8,7,6,5,4,3,2 (1º dígito) e 6,5,4,3,2,9,8,7,6,5,4,3,2 (2º).
+  // A versão anterior usava os pesos do CPF e recusava todo CNPJ válido.
+  const digit = (len: number) => {
+    let sum = 0;
+    let weight = len - 7;
+    for (let i = 0; i < len; i++) {
+      sum += parseInt(clean[i]) * weight;
+      weight = weight === 2 ? 9 : weight - 1;
+    }
+    const r = sum % 11;
+    return r < 2 ? 0 : 11 - r;
+  };
+  return digit(12) === parseInt(clean[12]) && digit(13) === parseInt(clean[13]);
 }
 
 export function isValidCPFOrCNPJ(doc: string): boolean {

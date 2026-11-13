@@ -12,6 +12,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CompanySettings } from "@/types";
 import { isValidCPFOrCNPJ } from "@/lib/utils";
+import { isProfileComplete } from "@/lib/customerProfile";
 import MercadoPagoTransparentCheckout from "@/components/store/MercadoPagoTransparentCheckout";
 import CouponBox from "@/components/store/CouponBox";
 import { PENDING_COUPON_KEY } from "@/components/store/CouponLinkCatcher";
@@ -90,6 +91,11 @@ export default function CheckoutPage() {
     // Pre-fill address and phone from saved profile
     fetch("/api/customer/profile").then((r) => r.json()).then((p) => {
       if (!p) return;
+      // Cadastro incompleto (ex.: conta criada pelo Google): completa antes de comprar e volta para cá
+      if (!isProfileComplete(p)) {
+        router.replace("/conta/completar-perfil?redirect=/checkout");
+        return;
+      }
       if (p.phone) setPhone((prev) => prev || p.phone);
       if (p.street) setStreet((prev) => prev || p.street);
       if (p.number) setNumber((prev) => prev || p.number);
