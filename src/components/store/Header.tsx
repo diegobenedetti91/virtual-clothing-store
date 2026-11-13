@@ -35,6 +35,18 @@ export default function Header({ settings, navItems = [] }: HeaderProps) {
   const pathname = usePathname();
   const customer = useCustomer((s) => s.customer);
 
+  // "Pula" o contador do carrinho quando um item é adicionado
+  // (ignora a reidratação do carrinho salvo no navegador)
+  const [cartBump, setCartBump] = useState(0);
+  useEffect(() => {
+    return useCart.subscribe((state, prev) => {
+      if (!useCart.persist.hasHydrated()) return;
+      if (state.items.length === 0 && prev.items.length === 0) return;
+      const qty = (items: typeof state.items) => items.reduce((n, i) => n + i.quantity, 0);
+      if (qty(state.items) > qty(prev.items)) setCartBump((n) => n + 1);
+    });
+  }, []);
+
   useEffect(() => {
     const handler = () => setScrolled(window.scrollY > 8);
     window.addEventListener("scroll", handler);
@@ -168,10 +180,13 @@ export default function Header({ settings, navItems = [] }: HeaderProps) {
                   className="relative p-2.5 rounded-xl text-gray-500 hover:text-menu hover:bg-menu-light transition-all duration-150 active:scale-95"
                   aria-label="Carrinho"
                 >
-                  <ShoppingBag size={19} />
-                  <span className={cn(
+                  <span key={`bag-${cartBump}`} className={cn("inline-flex", cartBump > 0 && "animate-heart-pop")}>
+                    <ShoppingBag size={19} />
+                  </span>
+                  <span key={cartBump} className={cn(
                     "absolute top-1 right-1 text-[10px] font-black rounded-full w-4 h-4 flex items-center justify-center leading-none shadow-sm transition-colors",
-                    count > 0 ? "bg-brand text-white" : "bg-gray-200 text-gray-500"
+                    count > 0 ? "bg-brand text-white" : "bg-gray-200 text-gray-500",
+                    cartBump > 0 && "animate-bump"
                   )}>
                     {count > 9 ? "9+" : count}
                   </span>

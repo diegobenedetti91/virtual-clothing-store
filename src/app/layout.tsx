@@ -21,7 +21,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR" className={`${geist.variable} h-full antialiased`}>
+    <html lang="pt-BR" data-scroll-behavior="smooth" className={`${geist.variable} h-full antialiased`}>
       <head>
         <Script
           src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js"

@@ -224,7 +224,7 @@ export default function ProductActions({ productId, name, price, comparePrice, i
           onClick={handleAddToCart}
           disabled={isOutOfStock || adding}
           className={`flex-1 h-14 rounded-2xl font-bold text-base flex items-center justify-center gap-2.5 transition-all shadow-lg active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed ${
-            added ? "bg-green-500 text-white shadow-green-100" : "text-white shadow-[0_4px_14px_var(--brand-shadow)]"
+            added ? "bg-green-500 text-white shadow-green-100" : "text-white shadow-[0_4px_14px_color-mix(in_srgb,var(--brand)_40%,transparent)]"
           }`}
           style={!added ? { backgroundColor: "var(--brand)" } : undefined}
         >

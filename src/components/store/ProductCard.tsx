@@ -21,7 +21,7 @@ import { formatCurrency } from "@/lib/utils";
 import { useCart } from "@/hooks/useCart";
 import { useWishlist } from "@/hooks/useWishlist";
 import { track } from "@/lib/analytics";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Zap } from "lucide-react";
 
 interface FlashSale {
@@ -39,6 +39,14 @@ export default function ProductCard({ product, flashSale }: ProductCardProps) {
   const addItem = useCart((s) => s.addItem);
   const { toggle, has } = useWishlist();
   const [added, setAdded] = useState(false);
+  const [imgLoaded, setImgLoaded] = useState(false);
+  const [heartPop, setHeartPop] = useState(0);
+  const imgRef = useRef<HTMLImageElement>(null);
+
+  // A imagem pode terminar de carregar antes da hidratação (onLoad não dispara)
+  useEffect(() => {
+    if (imgRef.current?.complete) setImgLoaded(true);
+  }, []);
 
   const images = JSON.parse(product.images || "[]") as string[];
   const firstImage = images[0] || "/placeholder-product.svg";
@@ -97,6 +105,7 @@ export default function ProductCard({ product, flashSale }: ProductCardProps) {
   const handleWishlist = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    if (!inWishlist) setHeartPop((n) => n + 1);
     toggle({
       productId: product.id,
       name: product.name,
@@ -109,15 +118,23 @@ export default function ProductCard({ product, flashSale }: ProductCardProps) {
   return (
     <Link href={`/produtos/${product.slug}`} className="group block" onClick={handleProductClick}>
       {/* Image area */}
-      <div className="relative bg-gray-100 rounded-2xl overflow-hidden aspect-[3/4]">
+      <div
+        className={`relative rounded-2xl overflow-hidden aspect-[3/4] transition-all duration-500 ease-out group-hover:-translate-y-1 group-hover:shadow-[0_18px_40px_-14px_rgba(0,0,0,0.28)] ${
+          imgLoaded ? "bg-gray-100" : "img-skeleton"
+        }`}
+      >
         <img
+          ref={imgRef}
+          onLoad={() => setImgLoaded(true)}
+          loading="lazy"
           src={firstImage}
           alt={product.name}
-          className={`w-full h-full object-cover transition-all duration-500 ease-out ${secondImage ? "group-hover:opacity-0" : "group-hover:scale-[1.04]"}`}
-          onError={(e) => { (e.target as HTMLImageElement).src = "/placeholder-product.svg"; }}
+          className={`w-full h-full object-cover transition-all duration-500 ease-out ${imgLoaded ? "" : "opacity-0"} ${secondImage ? "group-hover:opacity-0" : "group-hover:scale-[1.04]"}`}
+          onError={(e) => { setImgLoaded(true); (e.target as HTMLImageElement).src = "/placeholder-product.svg"; }}
         />
         {secondImage && (
           <img
+            loading="lazy"
             src={secondImage}
             alt={product.name}
             className="absolute inset-0 w-full h-full object-cover opacity-0 scale-[1.04] group-hover:opacity-100 group-hover:scale-100 transition-all duration-500 ease-out"
@@ -130,22 +147,25 @@ export default function ProductCard({ product, flashSale }: ProductCardProps) {
         {/* Badges */}
         <div className="absolute top-3 left-3 flex flex-col gap-1.5">
           {flashSale && (
-            <span className="bg-red-600 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-sm tracking-wide uppercase flex items-center gap-1">
+            <span className="bg-red-600/85 backdrop-blur-md ring-1 ring-white/25 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-sm tracking-wide uppercase flex items-center gap-1">
               <Zap size={10} fill="white" /> Flash
             </span>
           )}
           {product.featured && !flashSale && (
-            <span className="bg-brand text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-sm tracking-wide uppercase">
+            <span
+              className="backdrop-blur-md ring-1 ring-white/25 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-sm tracking-wide uppercase"
+              style={{ background: "color-mix(in srgb, var(--brand) 85%, transparent)" }}
+            >
               Destaque
             </span>
           )}
           {isNew && !product.featured && !flashSale && (
-            <span className="bg-emerald-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-sm tracking-wide uppercase">
+            <span className="bg-emerald-500/85 backdrop-blur-md ring-1 ring-white/25 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-sm tracking-wide uppercase">
               Novo
             </span>
           )}
           {discount > 0 && (
-            <span className="bg-red-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-sm">
+            <span className="bg-white/80 backdrop-blur-md ring-1 ring-black/5 text-red-600 text-[10px] font-black px-2.5 py-1 rounded-full shadow-sm">
               -{discount}%
             </span>
           )}
@@ -154,15 +174,38 @@ export default function ProductCard({ product, flashSale }: ProductCardProps) {
         {/* Wishlist button — always visible */}
         <button
           onClick={handleWishlist}
-          className={`absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 shadow-sm ${
+          className={`absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 shadow-sm active:scale-90 ${
             inWishlist
               ? "bg-brand text-white"
-              : "bg-white/90 backdrop-blur text-gray-400 hover:bg-brand hover:text-white"
+              : "bg-white/80 backdrop-blur-md ring-1 ring-black/5 text-gray-500 hover:bg-brand hover:text-white"
           }`}
           aria-label={inWishlist ? "Remover dos favoritos" : "Adicionar aos favoritos"}
         >
-          <Heart size={14} fill={inWishlist ? "currentColor" : "none"} />
+          {heartPop > 0 && (
+            <span
+              key={`ring-${heartPop}`}
+              className="absolute inset-0 rounded-full border-2 border-[var(--brand)] animate-ring-burst pointer-events-none"
+            />
+          )}
+          <span key={heartPop} className={heartPop > 0 ? "animate-heart-pop inline-flex" : "inline-flex"}>
+            <Heart size={14} fill={inWishlist ? "currentColor" : "none"} />
+          </span>
         </button>
+
+        {/* Botão rápido sobre a foto — só desktop com mouse */}
+        {!outOfStock && (
+          <div className="hidden can-hover:block absolute inset-x-3 bottom-3 translate-y-[calc(100%+12px)] opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300 ease-out">
+            <button
+              onClick={handleAddToCart}
+              className={`w-full py-2.5 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 shadow-lg backdrop-blur-md transition-colors ${
+                added ? "bg-green-500 text-white" : "bg-white/90 text-gray-900 hover:bg-brand hover:text-white"
+              }`}
+            >
+              {added ? <Check size={14} /> : <ShoppingBag size={14} />}
+              {added ? "Adicionado!" : hasVariants ? "Ver opções" : "Adicionar ao carrinho"}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Info */}
@@ -217,7 +260,7 @@ export default function ProductCard({ product, flashSale }: ProductCardProps) {
       <button
         onClick={handleAddToCart}
         disabled={outOfStock}
-        className={`mt-3 w-full py-2.5 rounded-xl border font-semibold text-sm flex items-center justify-center gap-2 transition-all duration-200 disabled:cursor-not-allowed ${
+        className={`mt-3 w-full py-2.5 rounded-xl border font-semibold text-sm flex items-center justify-center gap-2 transition-all duration-200 disabled:cursor-not-allowed active:scale-[0.98] ${outOfStock ? "" : "can-hover:hidden"} ${
           outOfStock
             ? "border-gray-200 bg-gray-50 text-gray-400"
             : added

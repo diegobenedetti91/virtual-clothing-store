@@ -58,13 +58,37 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
     <>
       <HeroBanner settings={settings} />
 
-      {/* Features strip */}
-      <section className="bg-white border-y border-gray-100 py-6">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-            {FEATURES.map(({ icon: Icon, label, desc }) => (
-              <div key={label} className="flex items-center gap-3 group">
-                <div className="shrink-0 w-10 h-10 rounded-xl bg-menu-light flex items-center justify-center group-hover:bg-menu-muted transition-colors">
+      {/* Features strip — letreiro infinito no celular, grade no desktop */}
+      <section className="bg-white border-y border-gray-100 py-5 md:py-6 overflow-hidden">
+        <div className="md:hidden relative [mask-image:linear-gradient(to_right,transparent,black_8%,black_92%,transparent)]">
+          <div className="flex w-max animate-marquee hover:[animation-play-state:paused]">
+            {[0, 1].map((copy) => (
+              <div key={copy} className="flex shrink-0 gap-8 pr-8" aria-hidden={copy === 1}>
+                {FEATURES.map(({ icon: Icon, label, desc }) => (
+                  <div key={label} className="flex items-center gap-3 shrink-0">
+                    <div className="shrink-0 w-10 h-10 rounded-xl bg-menu-light flex items-center justify-center">
+                      <Icon size={18} className="text-menu" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-gray-900 leading-tight whitespace-nowrap">{label}</p>
+                      <p className="text-xs text-gray-400 mt-0.5 whitespace-nowrap">{desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="hidden md:block max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-4 gap-6">
+            {FEATURES.map(({ icon: Icon, label, desc }, i) => (
+              <div
+                key={label}
+                data-reveal
+                style={{ "--reveal-delay": `${i * 80}ms` } as React.CSSProperties}
+                className="flex items-center gap-3 group"
+              >
+                <div className="shrink-0 w-10 h-10 rounded-xl bg-menu-light flex items-center justify-center group-hover:bg-menu-muted group-hover:-translate-y-0.5 group-hover:rotate-[-4deg] transition-all duration-300">
                   <Icon size={18} className="text-menu" />
                 </div>
                 <div>
@@ -81,7 +105,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
       {categories.length > 0 && (
         <section className="py-14 bg-white">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 className="text-2xl font-bold text-gray-900 text-center mb-10 tracking-tight">
+            <h2 data-reveal className="text-2xl font-bold text-gray-900 text-center mb-10 tracking-tight">
               Compre por Categoria
             </h2>
             <div className="flex flex-wrap justify-center gap-6 sm:gap-8 lg:gap-10">
@@ -89,9 +113,11 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
                 <Link
                   key={cat.id}
                   href={`/produtos?category=${cat.slug}`}
+                  data-reveal
+                  style={{ "--reveal-delay": `${Math.min(i, 8) * 60}ms` } as React.CSSProperties}
                   className="group flex flex-col items-center gap-3"
                 >
-                  <div className="w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 rounded-full overflow-hidden border-2 border-gray-200 group-hover:border-menu transition-colors duration-300 shadow-sm group-hover:shadow-md">
+                  <div className="w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 rounded-full overflow-hidden border-2 border-gray-200 ring-0 ring-offset-2 group-hover:ring-2 ring-[var(--menu)] group-hover:border-transparent group-hover:-translate-y-1 transition-all duration-300 shadow-sm group-hover:shadow-lg">
                     {cat.image ? (
                       <img
                         src={cat.image}
@@ -123,7 +149,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
       {featured.length > 0 && (
         <section className="py-16 bg-white">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex items-end justify-between mb-10">
+            <div data-reveal className="flex items-end justify-between mb-10">
               <div>
                 <span className="inline-flex items-center gap-1.5 text-xs font-bold text-brand uppercase tracking-widest mb-2">
                   <Sparkles size={12} /> Destaques
@@ -135,7 +161,11 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
               </Link>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-x-4 gap-y-8">
-              {featured.map((p) => <ProductCard key={p.id} product={p} />)}
+              {featured.map((p, i) => (
+                <div key={p.id} data-reveal style={{ "--reveal-delay": `${i * 90}ms` } as React.CSSProperties}>
+                  <ProductCard product={p} />
+                </div>
+              ))}
             </div>
           </div>
         </section>
@@ -145,13 +175,18 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
       {/* Editorial break */}
       <section className="py-20 bg-gray-900 overflow-hidden relative">
         <div
-          className="absolute inset-0 pointer-events-none"
+          className="absolute -inset-[20%] pointer-events-none animate-glow-drift"
           style={{
             background:
               "radial-gradient(ellipse at 20% 50%, color-mix(in srgb, var(--brand) 30%, transparent), transparent 60%), radial-gradient(ellipse at 80% 50%, color-mix(in srgb, var(--brand) 15%, transparent), transparent 60%)",
           }}
         />
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+        {/* textura de pontos sutil */}
+        <div
+          className="absolute inset-0 pointer-events-none opacity-[0.07]"
+          style={{ backgroundImage: "radial-gradient(white 1px, transparent 1px)", backgroundSize: "22px 22px" }}
+        />
+        <div data-reveal className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           {settings?.heroBadge && (
             <p className="text-xs font-bold tracking-widest text-brand uppercase mb-4">{settings.heroBadge}</p>
           )}
@@ -163,9 +198,9 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
           </p>
           <Link
             href="/produtos"
-            className="inline-flex items-center gap-2 bg-brand text-white px-10 py-4 rounded-2xl font-bold hover:opacity-90 transition-all shadow-xl text-sm"
+            className="group inline-flex items-center gap-2 bg-brand text-white px-10 py-4 rounded-2xl font-bold hover:-translate-y-0.5 hover:shadow-[0_12px_40px_color-mix(in_srgb,var(--brand)_40%,transparent)] transition-all shadow-xl text-sm active:scale-[0.97]"
           >
-            Explorar toda a coleção <ArrowRight size={18} />
+            Explorar toda a coleção <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
           </Link>
         </div>
       </section>

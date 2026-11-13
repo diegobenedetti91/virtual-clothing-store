@@ -34,7 +34,7 @@ export default function NewArrivalsSection({ products }: Props) {
   return (
     <section className="py-16 bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-end justify-between mb-6">
+        <div data-reveal className="flex items-end justify-between mb-6">
           <div>
             <span className="inline-flex items-center gap-1.5 text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
               Recém chegadas
@@ -81,8 +81,10 @@ export default function NewArrivalsSection({ products }: Props) {
         )}
 
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-x-4 gap-y-8">
-          {filtered.slice(0, 8).map((p) => (
-            <ProductCard key={p.id} product={p} />
+          {filtered.slice(0, 8).map((p, i) => (
+            <div key={p.id} data-reveal style={{ "--reveal-delay": `${(i % 4) * 90}ms` } as React.CSSProperties}>
+              <ProductCard product={p} />
+            </div>
           ))}
         </div>
 

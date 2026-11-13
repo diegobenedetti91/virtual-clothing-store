@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* Desktop com mouse (tablets/celulares não têm hover) */
+@custom-variant can-hover (@media (hover: hover) and (min-width: 768px));
+
 @theme inline {
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
@@ -37,4 +40,118 @@ select:focus {
   outline: none;
   border-color: var(--brand) !important;
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand) 30%, transparent) !important;
+}
+
+/* ───────────── Acabamentos gerais ───────────── */
+html {
+  scroll-behavior: smooth;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--brand) 55%, transparent) transparent;
+}
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--brand) 45%, transparent);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover { background-color: var(--brand); }
+::selection {
+  background: color-mix(in srgb, var(--brand) 25%, transparent);
+  color: inherit;
+}
+
+/* ───────────── Entrada ao rolar ─────────────
+   ScrollReveal adiciona .reveal-ready ao <html>; elementos que já estão na
+   tela ao carregar ficam visíveis direto (sem piscar). */
+.reveal-ready [data-reveal]:not(.is-revealed) {
+  opacity: 0;
+  transform: translate3d(0, 24px, 0);
+}
+.reveal-ready [data-reveal] {
+  transition:
+    opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+  transition-delay: var(--reveal-delay, 0ms);
+}
+
+/* ───────────── Card de produto ───────────── */
+@keyframes shimmer {
+  from { background-position: 150% 0; }
+  to { background-position: -50% 0; }
+}
+.img-skeleton {
+  background: linear-gradient(100deg, #f3f4f6 30%, #e5e7eb 50%, #f3f4f6 70%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+@keyframes heart-pop {
+  0% { transform: scale(1); }
+  30% { transform: scale(1.35); }
+  55% { transform: scale(0.9); }
+  100% { transform: scale(1); }
+}
+.animate-heart-pop { animation: heart-pop 0.45s cubic-bezier(0.22, 1, 0.36, 1); }
+@keyframes ring-burst {
+  from { transform: scale(0.6); opacity: 0.7; }
+  to { transform: scale(1.9); opacity: 0; }
+}
+.animate-ring-burst { animation: ring-burst 0.55s ease-out forwards; }
+
+/* ───────────── Banner e destaques ───────────── */
+@keyframes ken-burns {
+  from { transform: scale(1); }
+  to { transform: scale(1.12) translate3d(-1%, -1%, 0); }
+}
+.animate-ken-burns { animation: ken-burns 9s ease-out forwards; }
+@keyframes fade-up {
+  from { opacity: 0; transform: translate3d(0, 18px, 0); }
+  to { opacity: 1; transform: none; }
+}
+.animate-fade-up { animation: fade-up 0.8s cubic-bezier(0.22, 1, 0.36, 1) both; }
+@keyframes marquee {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(-50%, 0, 0); }
+}
+.animate-marquee { animation: marquee 28s linear infinite; }
+@keyframes glow-drift {
+  0%, 100% { transform: translate3d(-6%, -4%, 0) scale(1); }
+  50% { transform: translate3d(6%, 4%, 0) scale(1.15); }
+}
+.animate-glow-drift { animation: glow-drift 14s ease-in-out infinite; }
+
+/* Contador do carrinho */
+@keyframes bump {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.45); }
+  65% { transform: scale(0.9); }
+  100% { transform: scale(1); }
+}
+.animate-bump { animation: bump 0.5s cubic-bezier(0.22, 1, 0.36, 1); }
+
+/* Transição entre páginas (React <ViewTransition>) */
+::view-transition-old(root),
+::view-transition-new(root) { animation-duration: 0.25s; }
+::view-transition-old(store-page),
+::view-transition-old(admin-page) { animation: 0.18s ease-in both vt-fade-out; }
+::view-transition-new(store-page),
+::view-transition-new(admin-page) { animation: 0.32s cubic-bezier(0.22, 1, 0.36, 1) both vt-fade-in; }
+@keyframes vt-fade-out { to { opacity: 0; } }
+@keyframes vt-fade-in { from { opacity: 0; transform: translate3d(0, 10px, 0); } }
+
+/* Quem pede menos movimento no sistema não recebe animações */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .reveal-ready [data-reveal]:not(.is-revealed) { opacity: 1; transform: none; }
+  .animate-ken-burns, .animate-fade-up, .animate-marquee, .animate-glow-drift,
+  .animate-bump, .animate-heart-pop, .animate-ring-burst, .img-skeleton { animation: none !important; }
+  ::view-transition-old(store-page), ::view-transition-new(store-page),
+  ::view-transition-old(admin-page), ::view-transition-new(admin-page),
+  ::view-transition-old(root), ::view-transition-new(root) { animation: none !important; }
+}
+
+@keyframes banner-progress { from { width: 0; } to { width: 100%; } }
+@media (prefers-reduced-motion: reduce) {
+  [style*="banner-progress"] { animation: none !important; width: 100%; }
 }

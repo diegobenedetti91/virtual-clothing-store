@@ -15,9 +15,10 @@ export default function HeroBanner({ settings }: HeroBannerProps) {
 
   useEffect(() => {
     if (banners.length <= 1) return;
-    const t = setInterval(() => setCurrent((c) => (c + 1) % banners.length), 5000);
-    return () => clearInterval(t);
-  }, [banners.length]);
+    // Reinicia a contagem a cada troca (inclusive manual), em sincronia com a barra de progresso
+    const t = setTimeout(() => setCurrent((c) => (c + 1) % banners.length), 5000);
+    return () => clearTimeout(t);
+  }, [banners.length, current]);
 
   const title = settings?.heroTitle || settings?.name;
   const primaryBtn = settings?.heroButtonText || "Ver coleção";
@@ -27,29 +28,32 @@ export default function HeroBanner({ settings }: HeroBannerProps) {
     if (!title && !settings?.description) return null;
     return (
       <section className="relative overflow-hidden min-h-[480px] flex items-center bg-brand-light">
-        <div className="absolute -top-32 -right-32 w-[600px] h-[600px] rounded-full blur-3xl pointer-events-none" style={{ background: "color-mix(in srgb, var(--brand) 15%, transparent)" }} />
-        <div className="absolute -bottom-24 left-1/4 w-[480px] h-[480px] bg-fuchsia-300/15 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -top-32 -right-32 w-[600px] h-[600px] rounded-full blur-3xl pointer-events-none animate-glow-drift" style={{ background: "color-mix(in srgb, var(--brand) 15%, transparent)" }} />
+        <div className="absolute -bottom-24 left-1/4 w-[480px] h-[480px] bg-fuchsia-300/15 rounded-full blur-3xl pointer-events-none animate-glow-drift [animation-delay:-7s]" />
 
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full py-20">
           {settings?.heroBadge && (
-            <p className="text-xs font-bold tracking-widest text-brand uppercase mb-4">{settings.heroBadge}</p>
+            <p className="animate-fade-up inline-flex items-center gap-2 text-xs font-bold tracking-widest text-brand uppercase mb-4 bg-white/70 backdrop-blur px-3 py-1.5 rounded-full ring-1 ring-black/5">
+              <span className="w-1.5 h-1.5 rounded-full bg-brand animate-pulse" />
+              {settings.heroBadge}
+            </p>
           )}
           {title && (
-            <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black text-gray-900 leading-[1.05] tracking-tight mb-5">
+            <h1 className="animate-fade-up [animation-delay:120ms] text-5xl sm:text-6xl lg:text-7xl font-black text-gray-900 leading-[1.05] tracking-tight mb-5">
               {title}
             </h1>
           )}
           {settings?.description && (
-            <p className="text-lg text-gray-500 mb-8 leading-relaxed max-w-md">
+            <p className="animate-fade-up [animation-delay:240ms] text-lg text-gray-500 mb-8 leading-relaxed max-w-md">
               {settings.description}
             </p>
           )}
-          <div className="flex flex-wrap gap-3">
+          <div className="animate-fade-up [animation-delay:360ms] flex flex-wrap gap-3">
             <Link
               href="/produtos"
-              className="inline-flex items-center gap-2 bg-brand text-white px-8 py-4 rounded-2xl font-bold hover:opacity-90 transition-all shadow-lg active:scale-[0.97]"
+              className="group inline-flex items-center gap-2 bg-brand text-white px-8 py-4 rounded-2xl font-bold hover:-translate-y-0.5 hover:shadow-[0_12px_40px_color-mix(in_srgb,var(--brand)_40%,transparent)] transition-all shadow-lg active:scale-[0.97]"
             >
-              {primaryBtn} <ArrowRight size={18} />
+              {primaryBtn} <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
             </Link>
             {!secondaryBtn && settings?.instagram ? (
               <a
@@ -74,17 +78,22 @@ export default function HeroBanner({ settings }: HeroBannerProps) {
           key={i}
           className={`absolute inset-0 transition-opacity duration-700 ${i === current ? "opacity-100" : "opacity-0"}`}
         >
-          <img src={src} alt={`Banner ${i + 1}`} className="w-full h-full object-cover" />
+          <img
+            key={i === current ? `active-${current}` : `idle-${i}`}
+            src={src}
+            alt={`Banner ${i + 1}`}
+            className={`w-full h-full object-cover ${i === current ? "animate-ken-burns" : ""}`}
+          />
           <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/20 to-transparent" />
         </div>
       ))}
 
-      <div className="absolute bottom-8 left-8 sm:left-16 z-20">
+      <div key={current} className="absolute bottom-8 left-8 sm:left-16 z-20 animate-fade-up [animation-delay:250ms]">
         <Link
           href="/produtos"
-          className="inline-flex items-center gap-2 bg-white text-gray-900 px-8 py-4 rounded-2xl font-bold hover:bg-brand hover:text-white transition-all shadow-xl active:scale-[0.97]"
+          className="group inline-flex items-center gap-2 bg-white/90 backdrop-blur-md text-gray-900 px-8 py-4 rounded-2xl font-bold hover:bg-brand hover:text-white hover:-translate-y-0.5 transition-all shadow-xl active:scale-[0.97]"
         >
-          {primaryBtn} <ArrowRight size={18} />
+          {primaryBtn} <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
         </Link>
       </div>
 
@@ -107,8 +116,17 @@ export default function HeroBanner({ settings }: HeroBannerProps) {
               <button
                 key={i}
                 onClick={() => setCurrent(i)}
-                className={`h-1.5 rounded-full transition-all ${i === current ? "bg-white w-8" : "bg-white/40 w-2"}`}
-              />
+                aria-label={`Ir para o banner ${i + 1}`}
+                className={`relative h-1.5 rounded-full overflow-hidden transition-all duration-300 ${i === current ? "bg-white/40 w-10" : "bg-white/40 w-2 hover:bg-white/70"}`}
+              >
+                {i === current && (
+                  <span
+                    key={current}
+                    className="absolute inset-y-0 left-0 bg-white rounded-full"
+                    style={{ animation: "banner-progress 5s linear forwards" }}
+                  />
+                )}
+              </button>
             ))}
           </div>
         </>
