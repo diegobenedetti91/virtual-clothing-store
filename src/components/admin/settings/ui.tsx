@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
+import { Button } from "../ui/Button";
 
 /** Peças visuais compartilhadas pelas seções de Configurações. */
 
@@ -60,14 +61,14 @@ export function SecretInput({ value, onChange, placeholder }: { value: string; o
         placeholder={placeholder}
         autoComplete="off"
       />
-      <button
-        type="button"
+      <Button
+        variant="ghost"
+        size="iconSm"
+        icon={show ? EyeOff : Eye}
         onClick={() => setShow((v) => !v)}
-        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700"
+        className="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-400 active:scale-100"
         aria-label={show ? "Ocultar" : "Mostrar"}
-      >
-        {show ? <EyeOff size={16} /> : <Eye size={16} />}
-      </button>
+      />
     </div>
   );
 }

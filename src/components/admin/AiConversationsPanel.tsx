@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Bot, ChevronRight, MessageCircle, Search, User, UserRound, X, Headset } from "lucide-react";
+import { Button } from "./ui/Button";
 
 export interface AiConversationView {
   id: string;
@@ -42,7 +43,7 @@ export default function AiConversationsPanel({ conversations }: { conversations:
         <div className="mt-3 flex flex-col sm:flex-row sm:items-end gap-2 border-b border-gray-100">
           <div className="flex gap-1">
             {([["all", "Todas", conversations.length], ["handoff", "Pediram atendente", handoffs]] as const).map(([k, label, n]) => (
-              <button key={k} onClick={() => setTab(k)} className={`relative inline-flex items-center gap-1.5 px-3 py-2.5 text-[13px] font-medium ${tab === k ? "text-gray-900" : "text-gray-500 hover:text-gray-800"}`}>
+              <button key={k} type="button" onClick={() => setTab(k)} className={`relative inline-flex items-center gap-1.5 px-3 py-2.5 text-[13px] font-medium ${tab === k ? "text-gray-900" : "text-gray-500 hover:text-gray-800"}`}>
                 {label}
                 <span className={`text-[11px] font-semibold rounded-full px-1.5 tabular-nums ${k === "handoff" && n > 0 ? "bg-amber-500 text-white" : "bg-gray-100 text-gray-600"}`}>{n}</span>
                 <span className={`absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-gray-900 transition-transform ${tab === k ? "scale-x-100" : "scale-x-0"}`} />
@@ -68,7 +69,7 @@ export default function AiConversationsPanel({ conversations }: { conversations:
         <ul className="divide-y divide-gray-100">
           {visible.map((c) => (
             <li key={c.id}>
-              <button onClick={() => setOpen(c)} className="group w-full text-left flex items-center gap-3 px-5 py-3 hover:bg-gray-50/80 transition-colors">
+              <button type="button" onClick={() => setOpen(c)} className="group w-full text-left flex items-center gap-3 px-5 py-3 hover:bg-gray-50/80 transition-colors">
                 <span className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${c.customer ? "bg-blue-50 text-blue-600" : "bg-gray-100 text-gray-400"}`}>
                   {c.customer ? <User size={16} /> : <UserRound size={16} />}
                 </span>
@@ -104,7 +105,7 @@ export default function AiConversationsPanel({ conversations }: { conversations:
                   </p>
                 )}
               </div>
-              <button onClick={() => setOpen(null)} className="p-2 -mr-2 rounded-lg text-gray-400 hover:bg-gray-100" aria-label="Fechar"><X size={18} /></button>
+              <Button variant="ghost" size="icon" icon={X} onClick={() => setOpen(null)} aria-label="Fechar" className="-mr-2 text-gray-400" />
             </div>
             <div className="flex-1 overflow-y-auto px-5 py-5 space-y-2.5 bg-gray-50/60">
               {open.lines.length === 0 && <p className="text-xs text-gray-400 text-center">Sem mensagens respondidas.</p>}

@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, CalendarDays, CheckCircle2, CreditCard, DollarSign, Info, Loader2, Percent, RefreshCw, RotateCcw, Wallet } from "lucide-react";
+import { AlertTriangle, CalendarDays, CheckCircle2, CreditCard, DollarSign, Info, Percent, RefreshCw, RotateCcw, Wallet } from "lucide-react";
+import { Button } from "@/components/admin/ui/Button";
 import { ChartCard, KpiCard, SegmentedBar } from "@/components/admin/charts/Charts";
 import DataTable, { type Column } from "@/components/admin/charts/DataTable";
 import { fmt } from "@/components/admin/charts/theme";
@@ -117,7 +118,7 @@ export default function PagamentosPage() {
         <div className="flex flex-wrap items-center gap-2">
           <div className="inline-flex rounded-xl bg-white p-1 ring-1 ring-gray-200 shadow-sm">
             {PRESETS.map((p) => (
-              <button key={p.key} onClick={() => applyPreset(p)} className={`px-3 py-1.5 text-[13px] font-medium rounded-lg transition ${preset === p.key ? "bg-gray-900 text-white shadow" : "text-gray-600 hover:bg-gray-100"}`}>{p.label}</button>
+              <button key={p.key} type="button" onClick={() => applyPreset(p)} className={`px-3 py-1.5 text-[13px] font-medium rounded-lg transition ${preset === p.key ? "bg-gray-900 text-white shadow" : "text-gray-600 hover:bg-gray-100"}`}>{p.label}</button>
             ))}
           </div>
           <div className="inline-flex items-center gap-1.5 rounded-xl bg-white px-2.5 py-1.5 ring-1 ring-gray-200 shadow-sm">
@@ -126,9 +127,7 @@ export default function PagamentosPage() {
             <span className="text-gray-300">–</span>
             <input type="date" value={to} onChange={(e) => { setTo(e.target.value); setPreset("custom"); }} className="text-[13px] bg-transparent outline-none w-[118px]" aria-label="Até" />
           </div>
-          <button onClick={() => setTick((n) => n + 1)} className="p-2 rounded-xl bg-white ring-1 ring-gray-200 shadow-sm text-gray-500 hover:text-gray-900" aria-label="Atualizar">
-            <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
-          </button>
+          <Button size="icon" icon={RefreshCw} onClick={() => setTick((n) => n + 1)} aria-label="Atualizar" className={`text-gray-500 ${loading ? "[&_svg]:animate-spin" : ""}`} />
         </div>
       </div>
 
@@ -139,9 +138,9 @@ export default function PagamentosPage() {
           <p className="text-sm text-amber-900 flex-1">
             <b>{s.missingFees}</b> pedido(s) do Mercado Pago estão sem a taxa registrada. Até agora a loja não gravava a taxa (lia um campo que o Mercado Pago não envia) — busque as taxas reais com um clique.
           </p>
-          <button onClick={syncFees} disabled={syncing} className="shrink-0 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gray-900 text-white text-sm font-semibold hover:bg-gray-800 disabled:opacity-60">
-            {syncing ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />} Buscar taxas no Mercado Pago
-          </button>
+          <Button variant="dark" size="sm" icon={RefreshCw} onClick={syncFees} loading={syncing} className="shrink-0">
+            Buscar taxas no Mercado Pago
+          </Button>
         </div>
       )}
       {syncMsg && (

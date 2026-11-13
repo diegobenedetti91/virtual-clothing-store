@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Bell, BellRing, CheckCircle2, ChevronDown, Mail, Package, PackageCheck, PackageX, Search, Trash2, Users } from "lucide-react";
+import { Button } from "@/components/admin/ui/Button";
 import { KpiCard } from "@/components/admin/charts/Charts";
 import { fmt } from "@/components/admin/charts/theme";
 import { getStockForSelection, normalizeVariantStock } from "@/lib/variantUtils";
@@ -180,7 +181,7 @@ export default function WaitlistManager({ productInfo = {} }: { productInfo?: Re
       <div className="flex flex-col sm:flex-row sm:items-end gap-3 border-b border-gray-200">
         <div className="flex gap-1 overflow-x-auto [scrollbar-width:none]">
           {([["pending", "Aguardando"], ["notified", "Notificados"], ["all", "Todos"]] as const).map(([k, label]) => (
-            <button key={k} onClick={() => setTab(k)} className={`relative inline-flex items-center gap-1.5 px-3 py-2.5 text-[13px] font-medium whitespace-nowrap ${tab === k ? "text-gray-900" : "text-gray-500 hover:text-gray-800"}`}>
+            <button key={k} type="button" onClick={() => setTab(k)} className={`relative inline-flex items-center gap-1.5 px-3 py-2.5 text-[13px] font-medium whitespace-nowrap ${tab === k ? "text-gray-900" : "text-gray-500 hover:text-gray-800"}`}>
               {label}
               <span className={`text-[11px] font-semibold rounded-full px-1.5 tabular-nums ${k === "pending" && counts.pending > 0 ? "bg-amber-500 text-white" : "bg-gray-100 text-gray-600"}`}>{counts[k]}</span>
               <span className={`absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-gray-900 transition-transform ${tab === k ? "scale-x-100" : "scale-x-0"}`} />
@@ -226,22 +227,23 @@ export default function WaitlistManager({ productInfo = {} }: { productInfo?: Re
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-1.5 ml-auto">
+                  <div className="flex items-center gap-1 ml-auto">
                     {pending > 0 ? (
-                      <button
+                      <Button
+                        variant={(stock ?? 1) > 0 ? "dark" : "secondary"}
+                        size="sm"
+                        icon={Mail}
                         onClick={() => handleNotify(g)}
-                        disabled={notifying === g.key}
-                        className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold disabled:opacity-60 ${(stock ?? 1) > 0 ? "bg-gray-900 text-white hover:bg-gray-800" : "ring-1 ring-gray-200 text-gray-600 hover:bg-gray-50"}`}
+                        loading={notifying === g.key}
+                        loadingText="Enviando…"
                         title={(stock ?? 1) > 0 ? undefined : "Ainda sem estoque — avise depois de repor"}
                       >
-                        <Mail size={14} /> {notifying === g.key ? "Enviando…" : `Avisar ${pending}`}
-                      </button>
+                        {`Avisar ${pending}`}
+                      </Button>
                     ) : (
                       <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700"><CheckCircle2 size={14} /> Todos avisados</span>
                     )}
-                    <button onClick={() => setExpanded(isOpen ? null : g.key)} className="p-2 rounded-lg text-gray-400 hover:bg-gray-100" aria-label={isOpen ? "Esconder clientes" : "Ver clientes"} aria-expanded={isOpen}>
-                      <ChevronDown size={16} className={`transition-transform ${isOpen ? "rotate-180" : ""}`} />
-                    </button>
+                    <Button variant="ghost" size="icon" icon={ChevronDown} onClick={() => setExpanded(isOpen ? null : g.key)} aria-label={isOpen ? "Esconder clientes" : "Ver clientes"} aria-expanded={isOpen} className={`text-gray-400 [&_svg]:transition-transform ${isOpen ? "[&_svg]:rotate-180" : ""}`} />
                   </div>
                 </div>
                 {isOpen && (
@@ -258,9 +260,7 @@ export default function WaitlistManager({ productInfo = {} }: { productInfo?: Re
                         ) : (
                           <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-700 bg-amber-50 rounded-full px-2 py-0.5"><Bell size={11} /> aguardando</span>
                         )}
-                        <button onClick={() => handleDelete(e.id)} className="p-1.5 rounded-lg text-gray-300 hover:text-red-600 hover:bg-red-50" aria-label="Remover">
-                          <Trash2 size={14} />
-                        </button>
+                        <Button variant="dangerGhost" size="iconSm" icon={Trash2} onClick={() => handleDelete(e.id)} aria-label="Remover" className="text-gray-300" />
                       </li>
                     ))}
                   </ul>

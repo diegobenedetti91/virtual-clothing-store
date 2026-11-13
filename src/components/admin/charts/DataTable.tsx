@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { Button } from "@/components/admin/ui/Button";
 import { ArrowDown, ArrowUp, ArrowUpDown, Download, Search } from "lucide-react";
 
 export interface Column<T> {
@@ -98,13 +99,9 @@ export default function DataTable<T>({
             </label>
           )}
           {exportName && (
-            <button
-              onClick={download}
-              disabled={filtered.length === 0}
-              className="ml-auto inline-flex items-center gap-1.5 text-xs font-medium text-gray-600 px-2.5 py-1.5 rounded-lg ring-1 ring-gray-200 hover:bg-gray-50 disabled:opacity-40"
-            >
-              <Download size={13} /> Exportar CSV
-            </button>
+            <Button size="sm" icon={Download} onClick={download} disabled={filtered.length === 0} className="ml-auto">
+              Exportar CSV
+            </Button>
           )}
         </div>
       )}
@@ -122,6 +119,7 @@ export default function DataTable<T>({
                   return (
                     <th key={c.key} className={`py-2 px-2 font-medium text-gray-500 whitespace-nowrap ${c.align === "right" ? "text-right" : "text-left"}`}>
                       <button
+                        type="button"
                         onClick={() => toggleSort(c.key)}
                         className={`inline-flex items-center gap-1 hover:text-gray-900 transition-colors ${active ? "text-gray-900" : ""} ${c.align === "right" ? "flex-row-reverse" : ""}`}
                       >
@@ -151,9 +149,9 @@ export default function DataTable<T>({
       {filtered.length > limit && (
         <div className="mt-3 flex items-center justify-between text-xs text-gray-500">
           <span>Mostrando {limit} de {filtered.length}</span>
-          <button onClick={() => setLimit((l) => l + pageSize * 2)} className="font-medium text-gray-700 hover:text-gray-900">
+          <Button variant="ghost" size="xs" onClick={() => setLimit((l) => l + pageSize * 2)}>
             Ver mais
-          </button>
+          </Button>
         </div>
       )}
     </div>

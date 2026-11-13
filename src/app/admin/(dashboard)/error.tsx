@@ -1,5 +1,8 @@
 "use client";
 
+import { RotateCcw } from "lucide-react";
+import { Button } from "@/components/admin/ui/Button";
+
 export default function AdminError({
   error,
   reset,
@@ -11,12 +14,9 @@ export default function AdminError({
     <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
       <h2 className="text-xl font-bold text-gray-800">Algo deu errado</h2>
       <p className="text-sm text-gray-500 max-w-md text-center">{error.message}</p>
-      <button
-        onClick={reset}
-        className="px-4 py-2 bg-brand text-white rounded-xl text-sm hover:opacity-90"
-      >
+      <Button variant="primary" icon={RotateCcw} onClick={reset}>
         Tentar novamente
-      </button>
+      </Button>
     </div>
   );
 }

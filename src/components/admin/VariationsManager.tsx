@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Check, Layers, Pencil, Plus, Trash2, X } from "lucide-react";
 import { isColorAttribute, swatchBackground } from "@/lib/colorSwatch";
+import { Button } from "@/components/admin/ui/Button";
 
 interface VariationTemplate {
   id: string;
@@ -133,9 +134,9 @@ export default function VariationsManager({ initialTemplates }: Props) {
           <h1 className="text-2xl font-semibold tracking-tight text-gray-900">Variações</h1>
           <p className="text-sm text-gray-500 mt-1">Modelos reutilizáveis de tamanhos, cores e outros atributos. No cadastro do produto, é só escolher e aplicar.</p>
         </div>
-        <button onClick={openNew} className="inline-flex items-center gap-2 bg-brand text-white px-4 py-2.5 rounded-xl text-sm font-semibold shadow-sm hover:opacity-90 active:scale-[0.98] transition shrink-0">
-          <Plus size={16} /> Nova variação
-        </button>
+        <Button variant="primary" icon={Plus} onClick={openNew} className="shrink-0">
+          Nova variação
+        </Button>
       </div>
 
       {templates.length === 0 ? (
@@ -143,7 +144,7 @@ export default function VariationsManager({ initialTemplates }: Props) {
           <Layers size={32} className="mx-auto text-gray-300 mb-3" />
           <p className="font-medium text-gray-700">Nenhuma variação cadastrada</p>
           <p className="text-sm text-gray-500 mt-1 mb-4">Ex.: &ldquo;Tamanho&rdquo; com P, M, G, GG ou &ldquo;Cor&rdquo; com Preto, Branco, Bege.</p>
-          <button onClick={openNew} className="inline-flex items-center gap-2 bg-gray-900 text-white px-4 py-2 rounded-xl text-sm font-semibold"><Plus size={15} /> Criar variação</button>
+          <Button variant="dark" size="sm" icon={Plus} onClick={openNew}>Criar variação</Button>
         </div>
       ) : (
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -175,9 +176,9 @@ export default function VariationsManager({ initialTemplates }: Props) {
                   {values.length > 0 ? values.slice(0, 14).map((v) => <Chip key={v} value={v} color={color} />) : <span className="text-xs text-gray-400 italic">Sem valores cadastrados</span>}
                   {values.length > 14 && <span className="text-xs text-gray-500 self-center">+{values.length - 14}</span>}
                 </div>
-                <div className="mt-3 pt-2 border-t border-gray-100 flex justify-end gap-0.5">
-                  <button onClick={() => openEdit(t)} className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-900" aria-label="Editar"><Pencil size={15} /></button>
-                  <button onClick={() => handleDelete(t)} className="p-1.5 rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-600" aria-label="Remover"><Trash2 size={15} /></button>
+                <div className="mt-3 pt-2 border-t border-gray-100 flex justify-end gap-1">
+                  <Button variant="ghost" size="iconSm" icon={Pencil} onClick={() => openEdit(t)} aria-label="Editar" />
+                  <Button variant="dangerGhost" size="iconSm" icon={Trash2} onClick={() => handleDelete(t)} aria-label="Remover" />
                 </div>
               </div>
             );
@@ -192,7 +193,7 @@ export default function VariationsManager({ initialTemplates }: Props) {
           <div className="relative w-full max-w-lg h-full bg-white shadow-2xl flex flex-col animate-fade-up [animation-duration:0.3s]">
             <div className="px-6 h-16 flex items-center justify-between border-b border-gray-100 shrink-0">
               <h2 className="text-lg font-semibold text-gray-900">{form.id ? `Editar ${form.name || "variação"}` : "Nova variação"}</h2>
-              <button onClick={() => setForm(null)} className="p-2 rounded-lg text-gray-400 hover:bg-gray-100" aria-label="Fechar"><X size={18} /></button>
+              <Button variant="ghost" size="icon" icon={X} onClick={() => setForm(null)} aria-label="Fechar" />
             </div>
             <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
               <div>
@@ -250,9 +251,9 @@ export default function VariationsManager({ initialTemplates }: Props) {
                 <p className="text-xs font-medium text-gray-600 mb-2">Atalhos</p>
                 <div className="flex flex-wrap gap-1.5">
                   {QUICK.map((q) => (
-                    <button key={q.label} type="button" onClick={() => applyQuick(q)} className="inline-flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-full ring-1 ring-gray-200 text-gray-600 hover:bg-gray-50 hover:ring-gray-300">
-                      <Plus size={11} /> {q.label}
-                    </button>
+                    <Button key={q.label} variant="secondary" size="xs" icon={Plus} onClick={() => applyQuick(q)} className="rounded-full font-medium">
+                      {q.label}
+                    </Button>
                   ))}
                 </div>
               </div>
@@ -260,10 +261,10 @@ export default function VariationsManager({ initialTemplates }: Props) {
             <div className="px-6 py-4 border-t border-gray-100 shrink-0 space-y-2">
               {error && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
               <div className="flex gap-2 justify-end">
-                <button onClick={() => setForm(null)} disabled={saving} className="px-4 py-2.5 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-100">Cancelar</button>
-                <button onClick={save} disabled={saving || !form.name.trim()} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-sm font-semibold bg-brand text-white shadow-sm hover:opacity-90 disabled:opacity-50">
-                  <Check size={15} /> {saving ? "Salvando…" : form.id ? "Salvar" : "Criar variação"}
-                </button>
+                <Button variant="ghost" onClick={() => setForm(null)} disabled={saving}>Cancelar</Button>
+                <Button variant="primary" icon={Check} onClick={save} loading={saving} loadingText="Salvando…" disabled={!form.name.trim()}>
+                  {form.id ? "Salvar" : "Criar variação"}
+                </Button>
               </div>
             </div>
           </div>

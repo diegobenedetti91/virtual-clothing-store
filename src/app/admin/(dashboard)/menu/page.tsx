@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import { Button, ButtonLink } from "@/components/admin/ui/Button";
 import { AlertTriangle, ExternalLink, Filter, Link2, Lock, Pencil, Plus, Tag, Trash2, Wand2, X } from "lucide-react";
 
 interface NavItem {
@@ -165,9 +165,9 @@ export default function AdminMenuPage() {
           <h1 className="text-2xl font-semibold tracking-tight text-gray-900">Menu da loja</h1>
           <p className="text-sm text-gray-500 mt-1">Links que aparecem no cabeçalho e no menu lateral da loja. Início e Produtos são fixos.</p>
         </div>
-        <button onClick={() => openNew()} className="inline-flex items-center gap-2 bg-brand text-white px-4 py-2.5 rounded-xl text-sm font-semibold shadow-sm hover:opacity-90 active:scale-[0.98] transition shrink-0">
-          <Plus size={16} /> Novo item
-        </button>
+        <Button variant="primary" icon={Plus} onClick={() => openNew()} className="shrink-0">
+          Novo item
+        </Button>
       </div>
 
       {/* Prévia */}
@@ -210,7 +210,7 @@ export default function AdminMenuPage() {
               <p className="text-sm text-gray-500 mt-1 mb-4">Crie atalhos como “Promoção” ou “Novidades” para destacar coleções no cabeçalho.</p>
               <div className="flex flex-wrap justify-center gap-1.5">
                 {SUGGESTIONS.map((s) => (
-                  <button key={s} onClick={() => openNew(s)} className="text-xs px-3 py-1.5 rounded-full ring-1 ring-gray-200 text-gray-600 hover:bg-gray-50">+ {s}</button>
+                  <Button key={s} size="xs" icon={Plus} onClick={() => openNew(s)} className="rounded-full">{s}</Button>
                 ))}
               </div>
             </li>
@@ -231,16 +231,16 @@ export default function AdminMenuPage() {
                     </div>
                     <p className="text-xs text-gray-400 truncate">{d.label}</p>
                     {brokenFilter && (
-                      <button onClick={() => handleFixHref(item)} className="mt-1 inline-flex items-center gap-1 text-[11px] font-medium text-amber-700 hover:underline" title="O link não mostra os produtos marcados com este menu">
+                      <button type="button" onClick={() => handleFixHref(item)} className="mt-1 inline-flex items-center gap-1 rounded text-[11px] font-medium text-amber-700 hover:underline cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400" title="O link não mostra os produtos marcados com este menu">
                         <AlertTriangle size={11} /> O link ignora os {n} produtos marcados — corrigir
                       </button>
                     )}
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
                     <Toggle checked={item.active} onChange={() => handleToggle(item)} label={item.active ? "Ocultar do menu" : "Mostrar no menu"} />
-                    <Link href={item.href} target="_blank" className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-900" aria-label="Abrir na loja"><ExternalLink size={15} /></Link>
-                    <button onClick={() => openEdit(item)} className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-900" aria-label="Editar"><Pencil size={15} /></button>
-                    <button onClick={() => handleDelete(item)} className="p-1.5 rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-600" aria-label="Excluir"><Trash2 size={15} /></button>
+                    <ButtonLink href={item.href} target="_blank" variant="ghost" size="iconSm" icon={ExternalLink} aria-label="Abrir na loja" title="Abrir na loja" className="ml-1 text-gray-400" />
+                    <Button variant="ghost" size="iconSm" icon={Pencil} onClick={() => openEdit(item)} aria-label="Editar" className="text-gray-400" />
+                    <Button variant="dangerGhost" size="iconSm" icon={Trash2} onClick={() => handleDelete(item)} aria-label="Excluir" />
                   </div>
                 </li>
               );
@@ -261,7 +261,7 @@ export default function AdminMenuPage() {
           <div className="relative w-full max-w-md h-full bg-white shadow-2xl flex flex-col animate-fade-up [animation-duration:0.3s]">
             <div className="px-6 h-16 flex items-center justify-between border-b border-gray-100 shrink-0">
               <h2 className="text-lg font-semibold text-gray-900">{form.id ? "Editar item" : "Novo item do menu"}</h2>
-              <button onClick={() => setForm(null)} className="p-2 rounded-lg text-gray-400 hover:bg-gray-100" aria-label="Fechar"><X size={18} /></button>
+              <Button variant="ghost" size="icon" icon={X} onClick={() => setForm(null)} aria-label="Fechar" className="-mr-2 text-gray-400" />
             </div>
             <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
               <div>
@@ -332,10 +332,10 @@ export default function AdminMenuPage() {
             <div className="px-6 py-4 border-t border-gray-100 shrink-0 space-y-2">
               {error && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
               <div className="flex gap-2 justify-end">
-                <button onClick={() => setForm(null)} disabled={saving} className="px-4 py-2.5 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-100">Cancelar</button>
-                <button onClick={save} disabled={saving} className="px-5 py-2.5 rounded-xl text-sm font-semibold bg-brand text-white shadow-sm hover:opacity-90 disabled:opacity-50">
-                  {saving ? "Salvando…" : form.id ? "Salvar" : "Adicionar ao menu"}
-                </button>
+                <Button variant="ghost" onClick={() => setForm(null)} disabled={saving}>Cancelar</Button>
+                <Button variant="primary" onClick={save} loading={saving} loadingText="Salvando…">
+                  {form.id ? "Salvar" : "Adicionar ao menu"}
+                </Button>
               </div>
             </div>
           </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
+import { Button, ButtonLink } from "@/components/admin/ui/Button";
 import { BadgePercent, Calendar, Check, DollarSign, ExternalLink, Package, Pencil, Plus, Search, Timer, Trash2, X, Zap } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 
@@ -168,9 +168,9 @@ export default function FlashSaleManager() {
           </h1>
           <p className="text-sm text-gray-500 mt-1">Desconto com tempo limitado em um produto. A loja mostra o preço promocional, o selo ⚡ e um cronômetro — e o checkout cobra o preço da promoção.</p>
         </div>
-        <button onClick={openNew} className="inline-flex items-center gap-2 bg-brand text-white px-4 py-2.5 rounded-xl text-sm font-semibold shadow-sm hover:opacity-90 active:scale-[0.98] transition shrink-0">
-          <Plus size={16} /> Nova promoção
-        </button>
+        <Button variant="primary" icon={Plus} onClick={openNew} className="shrink-0 self-start sm:self-auto">
+          Nova promoção
+        </Button>
       </div>
 
       {!loaded ? (
@@ -180,7 +180,7 @@ export default function FlashSaleManager() {
           <Zap size={32} className="mx-auto text-gray-300 mb-3" />
           <p className="font-medium text-gray-700">Nenhuma promoção relâmpago ainda</p>
           <p className="text-sm text-gray-500 mt-1 mb-4">Ex.: 30% no vestido mais vendido só até meia-noite.</p>
-          <button onClick={openNew} className="inline-flex items-center gap-2 bg-gray-900 text-white px-4 py-2 rounded-xl text-sm font-semibold"><Plus size={15} /> Criar promoção</button>
+          <Button variant="dark" size="sm" icon={Plus} onClick={openNew}>Criar promoção</Button>
         </div>
       ) : (
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -229,14 +229,14 @@ export default function FlashSaleManager() {
 
                 <div className="mt-auto flex items-center gap-1 px-3 py-2 border-t border-gray-100">
                   {s.product && (
-                    <Link href={`/produtos/${s.product.slug}`} target="_blank" className="inline-flex items-center gap-1 text-xs font-medium text-gray-600 px-2 py-1.5 rounded-lg hover:bg-gray-100">
-                      <ExternalLink size={13} /> Ver na loja
-                    </Link>
+                    <ButtonLink href={`/produtos/${s.product.slug}`} target="_blank" variant="ghost" size="xs" icon={ExternalLink}>
+                      Ver na loja
+                    </ButtonLink>
                   )}
-                  <div className="ml-auto flex items-center gap-0.5">
-                    {st.key !== "ended" && <button onClick={() => toggle(s)} className="text-xs font-medium text-gray-600 px-2.5 py-1.5 rounded-lg hover:bg-gray-100">{s.active ? "Pausar" : "Ativar"}</button>}
-                    <button onClick={() => openEdit(s)} className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-900" aria-label="Editar"><Pencil size={15} /></button>
-                    <button onClick={() => remove(s)} className="p-1.5 rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-600" aria-label="Excluir"><Trash2 size={15} /></button>
+                  <div className="ml-auto flex items-center gap-1">
+                    {st.key !== "ended" && <Button variant="ghost" size="xs" onClick={() => toggle(s)}>{s.active ? "Pausar" : "Ativar"}</Button>}
+                    <Button variant="ghost" size="iconSm" icon={Pencil} onClick={() => openEdit(s)} aria-label="Editar" />
+                    <Button variant="dangerGhost" size="iconSm" icon={Trash2} onClick={() => remove(s)} aria-label="Excluir" />
                   </div>
                 </div>
               </div>
@@ -252,7 +252,7 @@ export default function FlashSaleManager() {
           <div className="relative w-full max-w-lg h-full bg-white shadow-2xl flex flex-col animate-fade-up [animation-duration:0.3s]">
             <div className="px-6 h-16 flex items-center justify-between border-b border-gray-100 shrink-0">
               <h2 className="text-lg font-semibold text-gray-900">{form.id ? "Editar promoção" : "Nova promoção relâmpago"}</h2>
-              <button onClick={() => setForm(null)} className="p-2 rounded-lg text-gray-400 hover:bg-gray-100" aria-label="Fechar"><X size={18} /></button>
+              <Button variant="ghost" size="icon" icon={X} onClick={() => setForm(null)} aria-label="Fechar" />
             </div>
             <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
               <div>
@@ -271,7 +271,7 @@ export default function FlashSaleManager() {
                       <p className="text-sm font-medium text-gray-900 truncate">{selectedProduct.name}</p>
                       <p className="text-xs text-gray-500">{formatCurrency(selectedProduct.price)}</p>
                     </div>
-                    <button onClick={() => set("productId", "")} className="text-xs font-medium text-gray-500 hover:text-gray-900 px-2">Trocar</button>
+                    <Button variant="ghost" size="xs" onClick={() => set("productId", "")}>Trocar</Button>
                   </div>
                 ) : (
                   <>
@@ -357,10 +357,10 @@ export default function FlashSaleManager() {
             <div className="px-6 py-4 border-t border-gray-100 shrink-0 space-y-2">
               {formError && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{formError}</p>}
               <div className="flex gap-2 justify-end">
-                <button onClick={() => setForm(null)} disabled={saving} className="px-4 py-2.5 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-100">Cancelar</button>
-                <button onClick={save} disabled={saving || !form.productId || !form.title} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-sm font-semibold bg-brand text-white shadow-sm hover:opacity-90 disabled:opacity-50">
-                  <Check size={15} /> {saving ? "Salvando…" : form.id ? "Salvar" : "Criar promoção"}
-                </button>
+                <Button variant="ghost" onClick={() => setForm(null)} disabled={saving}>Cancelar</Button>
+                <Button variant="primary" icon={Check} onClick={save} disabled={!form.productId || !form.title} loading={saving} loadingText="Salvando…">
+                  {form.id ? "Salvar" : "Criar promoção"}
+                </Button>
               </div>
             </div>
           </div>

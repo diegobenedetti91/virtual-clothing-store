@@ -5,6 +5,7 @@ import {
   BadgePercent, Bot, Calendar, Check, Copy, DollarSign, Link2, Pencil, Plus, Search, ShoppingBag, Sparkles, Tag, Trash2, Truck, Users, X, Zap,
 } from "lucide-react";
 import { KpiCard } from "@/components/admin/charts/Charts";
+import { Button } from "@/components/admin/ui/Button";
 import { fmt } from "@/components/admin/charts/theme";
 
 type CouponType = "PERCENT" | "FIXED" | "FREE_SHIPPING";
@@ -261,9 +262,9 @@ export default function CouponsManager() {
           <h1 className="text-2xl font-semibold tracking-tight text-gray-900">Cupons de desconto</h1>
           <p className="text-sm text-gray-500 mt-1">Crie cupons por porcentagem, valor fixo ou frete grátis, com validade e regras de uso.</p>
         </div>
-        <button onClick={openNew} className="inline-flex items-center gap-2 bg-brand text-white px-4 py-2.5 rounded-xl text-sm font-semibold shadow-sm hover:opacity-90 active:scale-[0.98] transition">
-          <Plus size={16} /> Novo cupom
-        </button>
+        <Button variant="primary" icon={Plus} onClick={openNew} className="self-start sm:self-auto">
+          Novo cupom
+        </Button>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -294,9 +295,9 @@ export default function CouponsManager() {
           {coupons.length === 0 && (
             <>
               <p className="text-sm text-gray-500 mt-1 mb-4">Que tal um cupom de boas-vindas? Ex.: BEMVINDO10 — 10% na primeira compra.</p>
-              <button onClick={openNew} className="inline-flex items-center gap-2 bg-gray-900 text-white px-4 py-2 rounded-xl text-sm font-semibold">
-                <Plus size={15} /> Criar primeiro cupom
-              </button>
+              <Button variant="dark" size="sm" icon={Plus} onClick={openNew}>
+                Criar primeiro cupom
+              </Button>
             </>
           )}
         </div>
@@ -361,13 +362,13 @@ export default function CouponsManager() {
                   </div>
 
                   <div className="mt-auto flex items-center gap-1 pt-1">
-                    <button onClick={() => copy(link, `link-${c.id}`)} className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-600 px-2.5 py-1.5 rounded-lg ring-1 ring-gray-200 hover:bg-gray-50" title={link}>
-                      {copied === `link-${c.id}` ? <><Check size={13} className="text-emerald-600" /> Link copiado</> : <><Link2 size={13} /> Copiar link</>}
-                    </button>
-                    <div className="ml-auto flex items-center gap-0.5">
-                      <button onClick={() => toggleActive(c)} className="text-xs font-medium text-gray-600 px-2.5 py-1.5 rounded-lg hover:bg-gray-100">{c.active ? "Pausar" : "Ativar"}</button>
-                      <button onClick={() => openEdit(c)} className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-900" aria-label="Editar"><Pencil size={15} /></button>
-                      <button onClick={() => remove(c)} className="p-1.5 rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-600" aria-label="Excluir"><Trash2 size={15} /></button>
+                    <Button size="xs" icon={copied === `link-${c.id}` ? Check : Link2} onClick={() => copy(link, `link-${c.id}`)} title={link} className={copied === `link-${c.id}` ? "text-emerald-700" : undefined}>
+                      {copied === `link-${c.id}` ? "Link copiado" : "Copiar link"}
+                    </Button>
+                    <div className="ml-auto flex items-center gap-1">
+                      <Button variant="ghost" size="xs" onClick={() => toggleActive(c)}>{c.active ? "Pausar" : "Ativar"}</Button>
+                      <Button variant="ghost" size="iconSm" icon={Pencil} onClick={() => openEdit(c)} aria-label="Editar" />
+                      <Button variant="dangerGhost" size="iconSm" icon={Trash2} onClick={() => remove(c)} aria-label="Excluir" />
                     </div>
                   </div>
                 </div>
@@ -384,7 +385,7 @@ export default function CouponsManager() {
           <div className="relative w-full max-w-xl h-full bg-white shadow-2xl flex flex-col animate-fade-up [animation-duration:0.3s]">
             <div className="px-6 h-16 flex items-center justify-between border-b border-gray-100 shrink-0">
               <h2 className="text-lg font-semibold text-gray-900">{form.id ? `Editar ${form.code}` : "Novo cupom"}</h2>
-              <button onClick={() => setForm(null)} className="p-2 rounded-lg text-gray-400 hover:bg-gray-100" aria-label="Fechar"><X size={18} /></button>
+              <Button variant="ghost" size="icon" icon={X} onClick={() => setForm(null)} aria-label="Fechar" />
             </div>
 
             <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
@@ -400,7 +401,7 @@ export default function CouponsManager() {
                       maxLength={40}
                       className={`${inputCls} font-mono font-bold tracking-wider uppercase`}
                     />
-                    <button type="button" onClick={randomCode} className="shrink-0 px-3 rounded-xl ring-1 ring-gray-200 text-xs font-medium text-gray-600 hover:bg-gray-50">Gerar</button>
+                    <Button size="sm" icon={Sparkles} onClick={randomCode} className="shrink-0 self-center">Gerar</Button>
                   </div>
                 </div>
                 <div>
@@ -582,10 +583,10 @@ export default function CouponsManager() {
             <div className="px-6 py-4 border-t border-gray-100 shrink-0 space-y-2">
               {formError && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{formError}</p>}
               <div className="flex gap-2 justify-end">
-                <button onClick={() => setForm(null)} disabled={saving} className="px-4 py-2.5 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-100">Cancelar</button>
-                <button onClick={save} disabled={saving || !form.code} className="px-5 py-2.5 rounded-xl text-sm font-semibold bg-brand text-white shadow-sm hover:opacity-90 disabled:opacity-50">
-                  {saving ? "Salvando…" : form.id ? "Salvar alterações" : "Criar cupom"}
-                </button>
+                <Button variant="ghost" onClick={() => setForm(null)} disabled={saving}>Cancelar</Button>
+                <Button variant="primary" onClick={save} disabled={!form.code} loading={saving} loadingText="Salvando…">
+                  {form.id ? "Salvar alterações" : "Criar cupom"}
+                </Button>
               </div>
             </div>
           </div>

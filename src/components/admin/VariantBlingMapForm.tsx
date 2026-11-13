@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { Plus, Trash2 } from "lucide-react";
+import { Button } from "@/components/admin/ui/Button";
 
 interface VariantBlingMap {
   id: string;
@@ -170,14 +172,17 @@ export function VariantBlingMapForm({
             />
           </div>
           <div className="flex items-end">
-            <button
-              type="button"
+            <Button
+              variant="primary"
+              icon={Plus}
+              fullWidth
               onClick={handleAdd}
-              disabled={saving || !newSize || !newBlingId}
-              className="w-full bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+              loading={saving}
+              loadingText="Salvando..."
+              disabled={!newSize || !newBlingId}
             >
-              {saving ? "Salvando..." : "Adicionar"}
-            </button>
+              Adicionar
+            </Button>
           </div>
         </div>
       </div>
@@ -196,12 +201,13 @@ export function VariantBlingMapForm({
                 <span className="text-gray-500 mx-2">→</span>
                 <span className="font-mono text-blue-600">{m.blingProdutoId}</span>
               </div>
-              <button
+              <Button
+                variant="dangerGhost"
+                size="iconSm"
+                icon={Trash2}
                 onClick={() => handleDelete(m.size)}
-                className="text-red-600 hover:text-red-800 text-sm font-medium"
-              >
-                Remover
-              </button>
+                aria-label={`Remover mapeamento ${m.size}`}
+              />
             </div>
           ))
         )}

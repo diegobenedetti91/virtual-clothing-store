@@ -3,10 +3,11 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  AlertTriangle, CheckCircle2, Clock, Copy, ExternalLink, Info, Loader2, MapPin, Package, PackageCheck, PackageX, RefreshCw, Search, Truck, XCircle,
+  AlertTriangle, CheckCircle2, Clock, Copy, ExternalLink, Info, MapPin, Package, PackageCheck, PackageX, RefreshCw, Search, Truck, XCircle,
 } from "lucide-react";
 import { getCarrierTracking } from "@/lib/carrierTracking";
 import { KpiCard } from "@/components/admin/charts/Charts";
+import { Button, ButtonLink, buttonClasses } from "@/components/admin/ui/Button";
 
 interface ShippingStats {
   labelInvalid: number;
@@ -185,9 +186,9 @@ export default function TrackingDashboard() {
           <h1 className="text-2xl font-semibold tracking-tight text-gray-900">Rastreamento</h1>
           <p className="text-sm text-gray-500 mt-1">Situação de todas as etiquetas do Melhor Envio, do pagamento até a entrega.</p>
         </div>
-        <button onClick={refresh} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white ring-1 ring-gray-200 text-[13px] font-medium text-gray-600 hover:text-gray-900 self-start sm:self-auto">
-          <RefreshCw size={14} className={refreshing ? "animate-spin" : ""} /> Atualizar
-        </button>
+        <Button variant="secondary" icon={RefreshCw} onClick={refresh} loading={refreshing} className="self-start sm:self-auto">
+          Atualizar
+        </Button>
       </div>
 
       {!loaded ? (
@@ -207,7 +208,7 @@ export default function TrackingDashboard() {
         <div className={`flex items-start gap-2 rounded-xl px-4 py-3 text-sm ${notice.ok ? "bg-emerald-50 text-emerald-800" : "bg-red-50 text-red-800"}`}>
           {notice.ok ? <CheckCircle2 size={16} className="shrink-0 mt-0.5" /> : <AlertTriangle size={16} className="shrink-0 mt-0.5" />}
           <span className="flex-1 break-words">{notice.text}</span>
-          <button onClick={() => setNotice(null)} className="opacity-60 hover:opacity-100" aria-label="Fechar"><XCircle size={15} /></button>
+          <Button variant="ghost" size="iconSm" icon={XCircle} onClick={() => setNotice(null)} aria-label="Fechar" className="-my-1 -mr-1 shrink-0 text-current opacity-60 hover:bg-black/5 hover:text-current hover:opacity-100" />
         </div>
       )}
 
@@ -219,9 +220,9 @@ export default function TrackingDashboard() {
               <h2 className="text-sm font-semibold text-red-800 flex items-center gap-2"><PackageX size={16} /> Pedidos pagos sem etiqueta ({shipmentErrors.length})</h2>
               <p className="text-xs text-red-700/80 mt-0.5">A geração automática falhou. Corrija a causa (saldo, CEP ou endereço) e gere de novo.</p>
             </div>
-            <button onClick={handleRetryAll} disabled={isRetrying} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-red-600 text-white text-xs font-semibold hover:bg-red-700 disabled:opacity-50 self-start sm:self-auto">
-              {isRetrying ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />} Retentar todos
-            </button>
+            <Button variant="danger" size="sm" icon={RefreshCw} onClick={handleRetryAll} loading={isRetrying} className="self-start sm:self-auto">
+              Retentar todos
+            </Button>
           </header>
           <ul className="divide-y divide-gray-100">
             {shipmentErrors.map((o) => (
@@ -231,11 +232,11 @@ export default function TrackingDashboard() {
                   <p className="text-xs text-red-600 break-words">{o.retryable && <b>[Saldo] </b>}{o.error || "Erro desconhecido"}</p>
                   {o.lastAttempt && now > 0 && <p className="text-[11px] text-gray-400">Última tentativa {ago(o.lastAttempt, now)}</p>}
                 </div>
-                <div className="flex gap-2 shrink-0">
-                  <button onClick={() => handleRetryShipment(o.id)} disabled={retryingId === o.id || isRetrying} className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-gray-900 text-white hover:bg-gray-800 disabled:opacity-50">
-                    {retryingId === o.id ? <Loader2 size={13} className="animate-spin" /> : <Package size={13} />} Gerar etiqueta
-                  </button>
-                  <Link href={`/admin/pedidos/${o.id}`} className="text-xs px-3 py-1.5 rounded-lg ring-1 ring-gray-200 text-gray-700 hover:bg-gray-50">Ver pedido</Link>
+                <div className="flex gap-1 shrink-0">
+                  <Button variant="dark" size="sm" icon={Package} onClick={() => handleRetryShipment(o.id)} loading={retryingId === o.id} disabled={isRetrying}>
+                    Gerar etiqueta
+                  </Button>
+                  <ButtonLink href={`/admin/pedidos/${o.id}`} variant="secondary" size="sm">Ver pedido</ButtonLink>
                 </div>
               </li>
             ))}
@@ -300,9 +301,9 @@ export default function TrackingDashboard() {
                     {o.trackingCode ? (
                       <div className="flex items-center gap-1.5">
                         <a href={tr?.url} target="_blank" rel="noopener noreferrer" className="font-mono text-[13px] text-gray-900 hover:underline truncate">{o.trackingCode}</a>
-                        <button onClick={() => copy(o.trackingCode!, o.id)} className="p-1 text-gray-400 hover:text-gray-700 shrink-0" aria-label="Copiar rastreio">
-                          {copied === o.id ? <CheckCircle2 size={13} className="text-emerald-600" /> : <Copy size={13} />}
-                        </button>
+                        <Button variant="ghost" size="iconSm" onClick={() => copy(o.trackingCode!, o.id)} aria-label="Copiar rastreio" className="shrink-0 text-gray-400">
+                          {copied === o.id ? <CheckCircle2 className="text-emerald-600" /> : <Copy />}
+                        </Button>
                       </div>
                     ) : <span className="text-xs text-gray-400">Ainda sem código</span>}
                     {tr?.carrier && <p className="text-[11px] text-gray-400">{tr.carrier}</p>}
@@ -319,16 +320,16 @@ export default function TrackingDashboard() {
                       </div>
                     ) : <span className="text-xs text-gray-400">Nenhum evento ainda</span>}
                   </div>
-                  <div className="flex items-center lg:justify-end gap-1.5">
+                  <div className="flex items-center lg:justify-end gap-1">
                     {invalid && (
-                      <button onClick={() => handleRetryShipment(o.id)} disabled={retryingId === o.id} className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 whitespace-nowrap">
-                        {retryingId === o.id ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />} Recriar
-                      </button>
+                      <Button variant="danger" size="xs" icon={RefreshCw} onClick={() => handleRetryShipment(o.id)} loading={retryingId === o.id}>
+                        Recriar
+                      </Button>
                     )}
                     {tr?.url && (
-                      <a href={tr.url} target="_blank" rel="noopener noreferrer" className="p-1.5 rounded-lg text-gray-400 hover:text-gray-900 hover:bg-gray-100" aria-label="Rastrear na transportadora" title="Rastrear na transportadora"><Truck size={15} /></a>
+                      <a href={tr.url} target="_blank" rel="noopener noreferrer" className={buttonClasses({ variant: "ghost", size: "iconSm", className: "text-gray-400" })} aria-label="Rastrear na transportadora" title="Rastrear na transportadora"><Truck /></a>
                     )}
-                    <Link href={`/admin/pedidos/${o.id}`} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-900 hover:bg-gray-100" aria-label="Abrir pedido" title="Abrir pedido"><ExternalLink size={15} /></Link>
+                    <ButtonLink href={`/admin/pedidos/${o.id}`} variant="ghost" size="iconSm" icon={ExternalLink} aria-label="Abrir pedido" title="Abrir pedido" className="text-gray-400" />
                   </div>
                 </li>
               );

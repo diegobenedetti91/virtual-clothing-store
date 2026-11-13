@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Send, ShoppingBag } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
+import { Button } from "@/components/admin/ui/Button";
 
 interface AbandonedCart {
   id: string; email: string; cartItems: string; createdAt: string; updatedAt: string;
@@ -66,14 +67,17 @@ export default function CarrinhosManager() {
                     </div>
                     <p className="mt-2 text-sm font-bold text-gray-900">Total: {formatCurrency(total)}</p>
                   </div>
-                  <button
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    icon={Send}
                     onClick={() => handleSend(cart.id)}
-                    disabled={sending === cart.id}
-                    className="shrink-0 flex items-center gap-2 px-4 py-2.5 bg-brand text-white rounded-xl text-sm font-bold hover:opacity-90 transition-colors disabled:opacity-60"
+                    loading={sending === cart.id}
+                    loadingText="Enviando..."
+                    className="shrink-0"
                   >
-                    <Send size={14} />
-                    {sending === cart.id ? "Enviando..." : "Enviar lembrete"}
-                  </button>
+                    Enviar lembrete
+                  </Button>
                 </div>
               </div>
             );

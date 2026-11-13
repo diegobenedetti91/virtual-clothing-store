@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
+import { Button, ButtonLink } from "@/components/admin/ui/Button";
 import { useRouter } from "next/navigation";
 import {
   AlertTriangle, ChevronRight, Eye, EyeOff, ExternalLink, Layers, MoreHorizontal, Package, Pencil, Search, Star, Trash2, X, Zap,
@@ -182,9 +183,9 @@ export default function ProductsTable({ products, flashSaleProductIds = [] }: Pr
           </select>
         )}
         {hasFilters && (
-          <button type="button" onClick={() => { setSearchQuery(""); setCategoryFilter(""); }} className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-gray-900 px-2 py-2">
-            <X size={13} /> Limpar
-          </button>
+          <Button variant="ghost" size="sm" icon={X} onClick={() => { setSearchQuery(""); setCategoryFilter(""); }}>
+            Limpar
+          </Button>
         )}
       </div>
 
@@ -260,14 +261,19 @@ export default function ProductsTable({ products, flashSaleProductIds = [] }: Pr
                   </div>
 
                   {/* Ações */}
-                  <div className="flex items-center justify-end gap-0.5" onClick={(e) => e.stopPropagation()}>
-                    <Link href={`/admin/produtos/${product.id}`} className="p-2 rounded-lg text-gray-500 hover:text-gray-900 hover:bg-gray-100" aria-label="Editar" title="Editar">
-                      <Pencil size={15} />
-                    </Link>
+                  <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                    <ButtonLink href={`/admin/produtos/${product.id}`} variant="ghost" size="iconSm" icon={Pencil} aria-label="Editar" title="Editar" />
                     <div className="relative">
-                      <button type="button" onClick={() => setMenuFor(menuFor === product.id ? null : product.id)} className="p-2 rounded-lg text-gray-500 hover:bg-gray-100" aria-label="Mais ações">
-                        <MoreHorizontal size={16} />
-                      </button>
+                      <Button
+                        variant="ghost"
+                        size="iconSm"
+                        icon={MoreHorizontal}
+                        onClick={() => setMenuFor(menuFor === product.id ? null : product.id)}
+                        aria-label="Mais ações"
+                        aria-expanded={menuFor === product.id}
+                        aria-haspopup="menu"
+                        className={menuFor === product.id ? "bg-gray-100 text-gray-900" : undefined}
+                      />
                       {menuFor === product.id && (
                         <>
                           <div className="fixed inset-0 z-10" onClick={() => setMenuFor(null)} />
@@ -305,7 +311,7 @@ export default function ProductsTable({ products, flashSaleProductIds = [] }: Pr
           {filteredProducts.length > limit && (
             <div className="px-4 py-3 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500">
               <span>Mostrando {limit} de {filteredProducts.length}</span>
-              <button type="button" onClick={() => setLimit((l) => l + 50)} className="font-medium text-gray-700 hover:text-gray-900">Ver mais</button>
+              <Button variant="secondary" size="xs" onClick={() => setLimit((l) => l + 50)}>Ver mais</Button>
             </div>
           )}
         </div>

@@ -3,10 +3,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
-  AlertTriangle, ArrowRight, Check, CheckCircle2, Clock, CreditCard, GripVertical, Loader2, MoreHorizontal, Package,
+  AlertTriangle, ArrowRight, Check, CheckCircle2, Clock, CreditCard, GripVertical, MoreHorizontal, Package,
   PackageCheck, RefreshCw, Search, Store, Tag, Truck, X, XCircle,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
+import { Button } from "@/components/admin/ui/Button";
 
 type Status = "PENDING" | "CONFIRMED" | "PRONTO_PARA_RETIRADA" | "SHIPPED" | "RETIRADO" | "DELIVERED" | "CANCELLED";
 
@@ -248,14 +249,13 @@ export default function EsteiraPage() {
           </label>
           <button
             onClick={() => setOnlyAttention((v) => !v)}
-            className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-[13px] font-medium ring-1 transition ${onlyAttention ? "bg-amber-50 text-amber-800 ring-amber-300" : "bg-white text-gray-600 ring-gray-200 hover:bg-gray-50"}`}
+            aria-pressed={onlyAttention}
+            className={`inline-flex items-center gap-1.5 h-9 px-3 rounded-lg text-[13px] font-medium ring-1 transition ${onlyAttention ? "bg-amber-50 text-amber-800 ring-amber-300" : "bg-white text-gray-600 ring-gray-200 hover:bg-gray-50"}`}
           >
             <AlertTriangle size={14} /> Precisa de atenção
             {attentionCount > 0 && <span className="ml-0.5 text-[11px] font-semibold bg-amber-500 text-white rounded-full px-1.5 tabular-nums">{attentionCount}</span>}
           </button>
-          <button onClick={refresh} className="p-2 rounded-xl bg-white ring-1 ring-gray-200 text-gray-500 hover:text-gray-900" title="Atualizar" aria-label="Atualizar">
-            <RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />
-          </button>
+          <Button size="icon" icon={RefreshCw} onClick={refresh} loading={refreshing} aria-label="Atualizar" className="h-9 w-9" />
         </div>
       </div>
 
@@ -264,11 +264,11 @@ export default function EsteiraPage() {
         <div className="sticky top-16 z-10 flex flex-wrap items-center gap-2 rounded-2xl bg-gray-900 text-white px-4 py-2.5 shadow-lg animate-fade-up [animation-duration:0.25s]">
           <span className="text-sm font-semibold mr-2">{selected.size} selecionado{selected.size > 1 ? "s" : ""}</span>
           {(["CONFIRMED", "SHIPPED", "PRONTO_PARA_RETIRADA", "DELIVERED", "RETIRADO"] as Status[]).map((s) => (
-            <button key={s} onClick={() => bulk(s)} className="text-xs font-medium px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20">
-              → {LABEL[s]}
-            </button>
+            <Button key={s} variant="ghost" size="xs" icon={ArrowRight} onClick={() => bulk(s)} className="text-white bg-white/10 hover:bg-white/20 hover:text-white focus-visible:ring-offset-gray-900">
+              {LABEL[s]}
+            </Button>
           ))}
-          <button onClick={() => setSelected(new Set())} className="ml-auto text-xs text-white/70 hover:text-white">Limpar seleção</button>
+          <Button variant="ghost" size="xs" icon={X} onClick={() => setSelected(new Set())} className="ml-auto text-white/70 hover:bg-white/10 hover:text-white focus-visible:ring-offset-gray-900">Limpar seleção</Button>
         </div>
       )}
 
@@ -378,19 +378,13 @@ export default function EsteiraPage() {
                         {(step || others.length > 0) && (
                           <div className="mt-2.5 flex items-center gap-1.5">
                             {step && (
-                              <button
-                                onClick={() => request(o, step)}
-                                className="flex-1 inline-flex items-center justify-center gap-1.5 text-xs font-semibold py-1.5 rounded-lg bg-gray-900 text-white hover:bg-gray-800 active:scale-[0.98] transition"
-                              >
-                                {busy === o.id ? <Loader2 size={13} className="animate-spin" /> : <ArrowRight size={13} />}
+                              <Button variant="dark" size="xs" icon={ArrowRight} loading={busy === o.id} onClick={() => request(o, step)} className="flex-1">
                                 {ACTION_LABEL[step]}
-                              </button>
+                              </Button>
                             )}
                             {others.length > 0 && (
                               <div className="relative">
-                                <button onClick={() => setMenuFor(menuFor === o.id ? null : o.id)} className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100" aria-label="Mais ações">
-                                  <MoreHorizontal size={16} />
-                                </button>
+                                <Button variant="ghost" size="iconSm" icon={MoreHorizontal} onClick={() => setMenuFor(menuFor === o.id ? null : o.id)} aria-label="Mais ações" aria-expanded={menuFor === o.id} />
                                 {menuFor === o.id && (
                                   <>
                                     <div className="fixed inset-0 z-10" onClick={() => setMenuFor(null)} />
@@ -432,7 +426,7 @@ export default function EsteiraPage() {
           <div className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm shadow-xl ${toast.ok ? "bg-gray-900 text-white" : "bg-red-600 text-white"}`}>
             {toast.ok ? <Check size={16} /> : <AlertTriangle size={16} />}
             {toast.text}
-            <button onClick={() => setToast(null)} className="ml-2 opacity-70 hover:opacity-100" aria-label="Fechar"><X size={14} /></button>
+            <Button variant="ghost" size="iconSm" icon={X} onClick={() => setToast(null)} aria-label="Fechar" className="ml-1 -mr-1.5 text-white/70 hover:bg-white/15 hover:text-white" />
           </div>
         </div>
       )}
@@ -481,13 +475,14 @@ function ActionModal({ action, onClose, onConfirm }: { action: PendingAction; on
         )}
 
         <div className="mt-6 flex justify-end gap-2">
-          <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-100">Voltar</button>
-          <button
+          <Button variant="ghost" onClick={onClose}>Voltar</Button>
+          <Button
+            variant={cancel ? "danger" : "dark"}
+            icon={cancel ? XCircle : Truck}
             onClick={() => onConfirm(cancel ? { reason: reason === "Outro" ? custom.trim() || "Outro" : reason } : { trackingCode: tracking })}
-            className={`px-4 py-2 rounded-xl text-sm font-semibold text-white ${cancel ? "bg-red-600 hover:bg-red-700" : "bg-gray-900 hover:bg-gray-800"}`}
           >
             {cancel ? "Cancelar pedido" : "Confirmar envio"}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

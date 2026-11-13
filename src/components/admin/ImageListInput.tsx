@@ -2,6 +2,7 @@
 
 import { useState, useRef } from "react";
 import { Upload, Plus, X, Link as LinkIcon } from "lucide-react";
+import { Button } from "@/components/admin/ui/Button";
 
 interface ImageListInputProps {
   images: string[];
@@ -57,13 +58,14 @@ export default function ImageListInput({ images, onChange, aspect = "portrait" }
                 className="w-full h-full object-cover"
                 onError={(e) => { (e.target as HTMLImageElement).src = "/placeholder-product.svg"; }}
               />
-              <button
-                type="button"
+              <Button
+                variant="danger"
+                size="iconSm"
+                icon={X}
                 onClick={() => remove(i)}
-                className="absolute top-1.5 right-1.5 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity shadow"
-              >
-                <X size={13} />
-              </button>
+                aria-label="Remover imagem"
+                className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 shadow"
+              />
             </div>
           ))}
 
@@ -131,13 +133,14 @@ export default function ImageListInput({ images, onChange, aspect = "portrait" }
             placeholder="Ou cole uma URL de imagem"
           />
         </div>
-        <button
-          type="button"
+        <Button
+          variant="secondary"
+          size="icon"
+          icon={Plus}
           onClick={addUrl}
-          className="px-3 py-2 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors"
-        >
-          <Plus size={16} />
-        </button>
+          aria-label="Adicionar URL"
+          className="h-9 w-9"
+        />
       </div>
     </div>
   );

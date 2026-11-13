@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import { Button, ButtonLink } from "./ui/Button";
 import { HelpCircle, Lightbulb, MessageCircle, Settings } from "lucide-react";
 import { BarList } from "@/components/admin/charts/Charts";
 import { fmt } from "@/components/admin/charts/theme";
@@ -57,9 +57,9 @@ export default function AiInsightsCard() {
             <h2 className="text-[15px] font-semibold text-gray-900 flex items-center gap-2"><HelpCircle size={16} className="text-gray-400" /> Perguntas que o atendente não soube responder</h2>
             <p className="text-xs text-gray-500 mt-0.5">Cada item é uma informação que falta. Escreva a resposta nas políticas e o atendente passa a responder sozinho.</p>
           </div>
-          <Link href="/admin/configuracoes" className="shrink-0 inline-flex items-center gap-1.5 text-xs font-medium text-gray-600 px-2.5 py-1.5 rounded-lg ring-1 ring-gray-200 hover:bg-gray-50">
-            <Settings size={13} /> Editar políticas
-          </Link>
+          <ButtonLink href="/admin/configuracoes" size="sm" icon={Settings} className="shrink-0">
+            Editar políticas
+          </ButtonLink>
         </div>
         {data.gaps.length === 0 ? (
           <div className="mt-4 flex items-center gap-2 rounded-xl bg-emerald-50 text-emerald-800 text-sm px-4 py-3">
@@ -83,9 +83,9 @@ export default function AiInsightsCard() {
               ))}
             </ul>
             {data.gaps.length > 5 && (
-              <button onClick={() => setShowAll((v) => !v)} className="mt-2 text-xs font-medium text-gray-600 hover:text-gray-900">
+              <Button variant="ghost" size="xs" onClick={() => setShowAll((v) => !v)} className="mt-2 -ml-2">
                 {showAll ? "Mostrar menos" : `Ver todas (${data.gaps.length})`}
-              </button>
+              </Button>
             )}
           </>
         )}

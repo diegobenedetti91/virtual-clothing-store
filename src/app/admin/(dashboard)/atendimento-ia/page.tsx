@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { ButtonLink } from "@/components/admin/ui/Button";
 import { Bot, Cpu, DollarSign, Headset, MessageSquare, Settings } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { AI_MODELS, estimateAiCostUsd } from "@/lib/aiModels";
@@ -96,9 +96,10 @@ export default async function AtendimentoIaPage() {
           <h1 className="text-2xl font-semibold tracking-tight text-gray-900">Atendimento com IA</h1>
           <p className="text-sm text-gray-500 mt-1">Uso do assistente virtual da loja e as conversas com os clientes.</p>
         </div>
-        <Link href="/admin/configuracoes" className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl ring-1 ring-gray-200 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">
-          <Settings size={15} /> Configurar assistente
-        </Link>
+        {/* Página de servidor: o ícone vai como filho (não dá para passar componente como prop para o ButtonLink, que é client) */}
+        <ButtonLink href="/admin/configuracoes" className="shrink-0">
+          <Settings /> Configurar assistente
+        </ButtonLink>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">

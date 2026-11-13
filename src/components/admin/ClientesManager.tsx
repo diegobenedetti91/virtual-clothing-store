@@ -6,6 +6,7 @@ import {
   Users, UserPlus, ShoppingBag, Repeat, Search, X, Mail, Phone, MapPin, Heart, MessageCircle, ArrowRight, Copy, Check, Download,
   ChevronRight, XCircle, Clock,
 } from "lucide-react";
+import { Button, buttonClasses } from "@/components/admin/ui/Button";
 import { KpiCard } from "@/components/admin/charts/Charts";
 import { fmt } from "@/components/admin/charts/theme";
 import { ORDER_STATUS } from "@/lib/utils";
@@ -119,7 +120,7 @@ export default function ClientesManager({ customers }: { customers: CustomerRow[
 
       <div className="border-b border-gray-200 flex gap-1 overflow-x-auto [scrollbar-width:none]">
         {TABS.map((t) => (
-          <button key={t.key} onClick={() => { setFilter(t.key); setLimit(50); }} className={`relative inline-flex items-center gap-1.5 px-3 py-2.5 text-[13px] font-medium whitespace-nowrap transition-colors ${filter === t.key ? "text-gray-900" : "text-gray-500 hover:text-gray-800"}`}>
+          <button key={t.key} type="button" onClick={() => { setFilter(t.key); setLimit(50); }} className={`relative inline-flex items-center gap-1.5 px-3 py-2.5 text-[13px] font-medium whitespace-nowrap transition-colors ${filter === t.key ? "text-gray-900" : "text-gray-500 hover:text-gray-800"}`}>
             {t.label}
             <span className="text-[11px] font-semibold rounded-full px-1.5 tabular-nums bg-gray-100 text-gray-600">{counts[t.key]}</span>
             <span className={`absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-gray-900 transition-transform ${filter === t.key ? "scale-x-100" : "scale-x-0"}`} />
@@ -132,9 +133,9 @@ export default function ClientesManager({ customers }: { customers: CustomerRow[
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar por nome, e-mail, telefone ou cidade" className="w-full pl-8 pr-3 py-2 text-[13px] rounded-xl border border-gray-200 bg-white" />
         </label>
-        <button onClick={exportCsv} disabled={visible.length === 0} className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-600 px-3 py-2 rounded-xl bg-white ring-1 ring-gray-200 hover:bg-gray-50 disabled:opacity-40">
-          <Download size={13} /> Exportar CSV
-        </button>
+        <Button size="sm" icon={Download} onClick={exportCsv} disabled={visible.length === 0}>
+          Exportar CSV
+        </Button>
       </div>
 
       {customers.length === 0 ? (
@@ -153,7 +154,7 @@ export default function ClientesManager({ customers }: { customers: CustomerRow[
           <ul className="divide-y divide-gray-100">
             {visible.slice(0, limit).map((c) => (
               <li key={c.id}>
-                <button onClick={() => setOpen(c)} className="group w-full text-left grid grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,0.8fr)_minmax(0,1fr)_minmax(0,1fr)_32px] gap-1 lg:gap-3 items-center px-4 py-3 hover:bg-gray-50/80 transition-colors">
+                <button type="button" onClick={() => setOpen(c)} className="group w-full text-left grid grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,0.8fr)_minmax(0,1fr)_minmax(0,1fr)_32px] gap-1 lg:gap-3 items-center px-4 py-3 hover:bg-gray-50/80 transition-colors">
                   <span className="flex items-center gap-3 min-w-0">
                     <span className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${avatarColor(c.id)}`}>{initials(c.name)}</span>
                     <span className="min-w-0">
@@ -180,7 +181,7 @@ export default function ClientesManager({ customers }: { customers: CustomerRow[
           {visible.length > limit && (
             <div className="px-4 py-3 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500">
               <span>Mostrando {limit} de {visible.length}</span>
-              <button onClick={() => setLimit((l) => l + 50)} className="font-medium text-gray-700 hover:text-gray-900">Ver mais</button>
+              <Button variant="ghost" size="xs" onClick={() => setLimit((l) => l + 50)}>Ver mais</Button>
             </div>
           )}
         </div>
@@ -218,7 +219,7 @@ function CustomerPanel({ c, isNew, onClose }: { c: CustomerRow; isNew: boolean; 
               {c.inBling && " · no Bling"}
             </p>
           </div>
-          <button onClick={onClose} className="p-2 -mr-2 rounded-lg text-gray-400 hover:bg-gray-100" aria-label="Fechar"><X size={18} /></button>
+          <Button variant="ghost" size="icon" icon={X} onClick={onClose} aria-label="Fechar" className="-mr-2 text-gray-400" />
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
@@ -235,14 +236,14 @@ function CustomerPanel({ c, isNew, onClose }: { c: CustomerRow; isNew: boolean; 
             ))}
           </div>
 
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-1.5">
             {wa && (
-              <a href={wa} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#25D366] text-white text-sm font-semibold hover:brightness-95">
-                <MessageCircle size={15} /> WhatsApp
+              <a href={wa} target="_blank" rel="noopener noreferrer" className={buttonClasses({ variant: "success", size: "sm", className: "bg-[#25D366] hover:bg-[#25D366] hover:brightness-95" })}>
+                <MessageCircle /> WhatsApp
               </a>
             )}
-            <a href={`mailto:${c.email}`} className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl ring-1 ring-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50">
-              <Mail size={15} /> E-mail
+            <a href={`mailto:${c.email}`} className={buttonClasses({ variant: "secondary", size: "sm" })}>
+              <Mail /> E-mail
             </a>
           </div>
 
@@ -262,9 +263,7 @@ function CustomerPanel({ c, isNew, onClose }: { c: CustomerRow; isNew: boolean; 
                     <dd className={`break-words ${value ? "text-gray-900" : "text-gray-300 italic"}`}>{value || "não informado"}</dd>
                   </div>
                   {value && (
-                    <button onClick={() => copy(value, key)} className="p-1 text-gray-300 hover:text-gray-700" aria-label={`Copiar ${label}`}>
-                      {copied === key ? <Check size={13} className="text-emerald-600" /> : <Copy size={13} />}
-                    </button>
+                    <Button variant="ghost" size="iconSm" icon={copied === key ? Check : Copy} onClick={() => copy(value, key)} aria-label={`Copiar ${label}`} className={`-my-1 ${copied === key ? "text-emerald-600 hover:text-emerald-600" : "text-gray-300"}`} />
                   )}
                 </div>
               ))}

@@ -2,12 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
-  AlertTriangle, Bot, Check, CheckCircle2, CreditCard, Loader2, Palette, Plug, RotateCcw, Save, Store, Truck,
+  AlertTriangle, Bot, Check, CheckCircle2, CreditCard, LockOpen, Palette, Plug, RotateCcw, Save, Store, Truck,
 } from "lucide-react";
 import { AI_MODELS, DEFAULT_AI_MODEL } from "@/lib/aiModels";
 import { CompanySettings } from "@/types";
 import { formatCurrency } from "@/lib/utils";
 import { BRAZILIAN_REGIONS } from "@/lib/regions";
+import { Button } from "./ui/Button";
 import ImageUpload from "./ImageUpload";
 import ImageListInput from "./ImageListInput";
 import {
@@ -354,9 +355,7 @@ export default function SettingsForm({ initialSettings }: Props) {
                         <input type="color" value={form[k]} onChange={(e) => set(k, e.target.value)} className="w-9 h-9 rounded-lg cursor-pointer border-0 p-0 bg-transparent" aria-label={label} />
                         <span className="text-sm text-gray-700 font-mono">{form[k]}</span>
                         {k !== "primaryColor" && form[k] !== form.primaryColor && (
-                          <button type="button" onClick={() => set(k, form.primaryColor)} className="ml-auto text-[11px] text-gray-400 hover:text-gray-700" title="Usar a cor principal">
-                            <RotateCcw size={13} />
-                          </button>
+                          <Button variant="ghost" size="iconSm" icon={RotateCcw} onClick={() => set(k, form.primaryColor)} aria-label="Usar a cor principal" className="ml-auto text-gray-400" />
                         )}
                       </div>
                       <p className="text-xs text-gray-400 mt-1">{hint}</p>
@@ -455,7 +454,7 @@ export default function SettingsForm({ initialSettings }: Props) {
               </IntegrationCard>
 
               <IntegrationCard title="Pedido pelo WhatsApp" icon="💬" description="O cliente envia o pedido pelo WhatsApp e vocês combinam pagamento e entrega." status={st.whatsapp} on={form.whatsappAtivo} onToggle={(v) => set("whatsappAtivo", v)}>
-                {!form.whatsapp.replace(/\D/g, "") && <Hint tone="amber">Cadastre o WhatsApp da loja na seção <button type="button" onClick={() => goTo("loja")} className="underline font-medium">Loja</button>.</Hint>}
+                {!form.whatsapp.replace(/\D/g, "") && <Hint tone="amber">Cadastre o WhatsApp da loja na seção <button type="button" onClick={() => goTo("loja")} className="underline font-medium cursor-pointer rounded hover:text-amber-950">Loja</button>.</Hint>}
                 <Field label="Mensagem inicial (opcional)">
                   <textarea value={form.checkoutMessage} onChange={(e) => set("checkoutMessage", e.target.value)} rows={2} className={inputClass} placeholder="Ex.: Olá! Gostaria de fazer um pedido:" />
                 </Field>
@@ -626,16 +625,17 @@ export default function SettingsForm({ initialSettings }: Props) {
                 <div className="flex flex-wrap items-center gap-3">
                   <StatusBadge status={blingAuthorized ? "active" : "missing"} label={blingAuthorized ? "Conta autorizada" : "Falta autorizar"} />
                   {form.blingClientId && form.blingClientSecret && (
-                    <button
-                      type="button"
+                    <Button
+                      variant={blingAuthorized ? "secondary" : "primary"}
+                      size="sm"
+                      icon={LockOpen}
                       onClick={() => {
                         if (dirty && !confirm("Salve as configurações antes de autorizar, senão as chaves novas não serão usadas. Continuar mesmo assim?")) return;
                         window.location.href = "/api/settings/bling/authorize";
                       }}
-                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold transition"
                     >
-                      🔓 {blingAuthorized ? "Autorizar de novo" : "Autorizar com o Bling"}
-                    </button>
+                      {blingAuthorized ? "Autorizar de novo" : "Autorizar com o Bling"}
+                    </Button>
                   )}
                 </div>
               </IntegrationCard>
@@ -699,10 +699,8 @@ export default function SettingsForm({ initialSettings }: Props) {
       <div className={`fixed bottom-0 inset-x-0 md:left-64 z-30 transition-transform duration-300 ${dirty || loading ? "translate-y-0" : "translate-y-full"}`}>
         <div className="mx-4 md:mx-8 mb-4 rounded-2xl bg-gray-900 text-white shadow-2xl px-4 py-3 flex items-center gap-3">
           <span className="text-sm flex-1 min-w-0 truncate">Você tem mudanças não salvas</span>
-          <button type="button" onClick={discard} disabled={loading} className="text-sm text-white/70 hover:text-white px-3 py-1.5 rounded-lg">Descartar</button>
-          <button type="submit" disabled={loading} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-60" style={{ backgroundColor: "var(--brand)" }}>
-            {loading ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />} {loading ? "Salvando…" : "Salvar alterações"}
-          </button>
+          <Button variant="ghost" size="sm" onClick={discard} disabled={loading} className="text-white/70 hover:bg-white/10 hover:text-white focus-visible:ring-offset-gray-900">Descartar</Button>
+          <Button type="submit" variant="primary" icon={Save} loading={loading} loadingText="Salvando…" className="focus-visible:ring-offset-gray-900">Salvar alterações</Button>
         </div>
       </div>
     </form>

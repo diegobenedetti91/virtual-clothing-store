@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, X, ArrowLeft, ChevronDown, ChevronUp, Check, ImageIcon, Info, Layers, Loader2, Package, Store, Tag, TrendingUp, Truck, Eye, Star, AlertCircle } from "lucide-react";
-import Link from "next/link";
+import { Plus, X, ArrowLeft, ChevronDown, ChevronUp, Check, ImageIcon, Info, Layers, Package, Store, Tag, TrendingUp, Truck, Eye, Star, AlertCircle } from "lucide-react";
+import { Button, ButtonLink } from "@/components/admin/ui/Button";
 import { Category, PackagePreset, Product, ProductAttribute } from "@/types";
 import { NormalizedVariant, generateCombinations, getProductAttributes, normalizeVariantStock } from "@/lib/variantUtils";
 import ImageListInput from "./ImageListInput";
@@ -287,17 +287,12 @@ export default function ProductForm({ productId, product, categories, navItems =
 
   const saveButtons = (
     <>
-      <Link href="/admin/produtos" className="px-4 py-2.5 text-sm font-medium text-gray-600 rounded-xl hover:bg-gray-100 transition-colors">
+      <ButtonLink href="/admin/produtos" variant="ghost">
         Cancelar
-      </Link>
-      <button
-        type="submit"
-        disabled={loading}
-        className="inline-flex items-center justify-center gap-1.5 px-5 py-2.5 text-white text-sm font-semibold rounded-xl bg-brand shadow-sm hover:opacity-90 disabled:opacity-60 transition"
-      >
-        {loading ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />}
-        {loading ? "Salvando…" : isEditing ? "Salvar alterações" : "Cadastrar produto"}
-      </button>
+      </ButtonLink>
+      <Button type="submit" variant="primary" icon={Check} loading={loading} loadingText="Salvando…">
+        {isEditing ? "Salvar alterações" : "Cadastrar produto"}
+      </Button>
     </>
   );
 
@@ -305,9 +300,7 @@ export default function ProductForm({ productId, product, categories, navItems =
     <form onSubmit={handleSubmit} noValidate className="pb-24 lg:pb-0">
       {/* Cabeçalho */}
       <div className="flex items-center gap-3 mb-6">
-        <Link href="/admin/produtos" className="p-2 text-gray-500 hover:text-gray-900 rounded-xl hover:bg-white ring-1 ring-transparent hover:ring-gray-200 transition" aria-label="Voltar para produtos">
-          <ArrowLeft size={18} />
-        </Link>
+        <ButtonLink href="/admin/produtos" variant="ghost" size="icon" icon={ArrowLeft} aria-label="Voltar para produtos" title="Voltar para produtos" className="shrink-0" />
         <div className="min-w-0">
           <h1 className="text-2xl font-semibold tracking-tight text-gray-900">{isEditing ? "Editar produto" : "Novo produto"}</h1>
           <p className="text-sm text-gray-500 mt-0.5 truncate">{isEditing ? product!.name : "Preencha as informações e publique na loja"}</p>
@@ -437,9 +430,9 @@ export default function ProductForm({ productId, product, categories, navItems =
                     className={inputClass}
                     placeholder="Nome da variação — ex.: Tamanho, Cor, Estampa"
                   />
-                  <button type="button" onClick={addCustomAttribute} disabled={!newAttrName.trim()} className="shrink-0 inline-flex items-center gap-1 px-3.5 rounded-xl bg-gray-900 text-white text-sm font-medium disabled:opacity-40">
-                    <Plus size={15} /> Criar
-                  </button>
+                  <Button variant="dark" icon={Plus} onClick={addCustomAttribute} disabled={!newAttrName.trim()} className="shrink-0 h-auto">
+                    Criar
+                  </Button>
                 </div>
               </div>
 
@@ -454,9 +447,7 @@ export default function ProductForm({ productId, product, categories, navItems =
                       <span className="text-sm font-semibold text-gray-900">{attr.name}</span>
                       <span className="text-xs text-gray-400">{attr.values.length} opç{attr.values.length !== 1 ? "ões" : "ão"}</span>
                     </div>
-                    <button type="button" onClick={(e) => { e.stopPropagation(); removeAttribute(attrIdx); }} className="p-1 rounded-md text-gray-400 hover:text-red-600 hover:bg-red-50" aria-label={`Remover ${attr.name}`}>
-                      <X size={15} />
-                    </button>
+                    <Button variant="dangerGhost" size="iconSm" icon={X} onClick={(e) => { e.stopPropagation(); removeAttribute(attrIdx); }} aria-label={`Remover ${attr.name}`} />
                   </div>
                   {!collapsedAttrs[attrIdx] && (
                     <div className="p-4 space-y-3">
@@ -479,9 +470,7 @@ export default function ProductForm({ productId, product, categories, navItems =
                           placeholder={`Nova opção de ${attr.name.toLowerCase()} e Enter — ex.: ${/cor/i.test(attr.name) ? "Preto" : /tam/i.test(attr.name) ? "M" : "Opção 1"}`}
                           onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addAttrValue(attrIdx); } }}
                         />
-                        <button type="button" onClick={() => addAttrValue(attrIdx)} className="shrink-0 px-3 rounded-xl ring-1 ring-gray-200 text-gray-600 hover:bg-gray-50" aria-label="Adicionar opção">
-                          <Plus size={16} />
-                        </button>
+                        <Button variant="secondary" size="icon" icon={Plus} onClick={() => addAttrValue(attrIdx)} aria-label="Adicionar opção" className="shrink-0 h-auto w-10" />
                       </div>
                     </div>
                   )}

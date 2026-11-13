@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, ExternalLink, Eye, EyeOff, Loader2, Lock, Mail, Store, AlertCircle } from "lucide-react";
+import { ArrowRight, ExternalLink, Eye, EyeOff, Lock, Mail, Store, AlertCircle } from "lucide-react";
+import { Button } from "./ui/Button";
 
 interface Props {
   storeName: string;
@@ -163,14 +164,14 @@ export default function AdminLoginForm({ storeName, logo, description, heroImage
                   className="w-full border border-gray-200 rounded-xl pl-10 pr-11 py-3 text-sm bg-white transition"
                   placeholder="Sua senha"
                 />
-                <button
-                  type="button"
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  icon={showPwd ? EyeOff : Eye}
                   onClick={() => setShowPwd(!showPwd)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 active:scale-100"
                   aria-label={showPwd ? "Ocultar senha" : "Mostrar senha"}
-                >
-                  {showPwd ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
+                />
               </div>
               {capsLock && <p className="mt-1.5 text-xs text-amber-700">Caps Lock está ligado.</p>}
             </div>
@@ -186,19 +187,22 @@ export default function AdminLoginForm({ storeName, logo, description, heroImage
               </p>
             )}
 
-            <button
+            <Button
               type="submit"
-              disabled={loading}
-              className="group w-full inline-flex items-center justify-center gap-2 bg-brand text-white py-3 rounded-xl font-semibold shadow-[0_10px_24px_-10px_color-mix(in_srgb,var(--brand)_70%,transparent)] hover:-translate-y-0.5 transition-all disabled:opacity-60 disabled:hover:translate-y-0"
+              variant="primary"
+              size="lg"
+              fullWidth
+              iconRight={ArrowRight}
+              loading={loading}
+              loadingText="Entrando…"
+              className="group [&_svg:last-child]:transition-transform hover:[&_svg:last-child]:translate-x-0.5"
             >
-              {loading ? <Loader2 size={18} className="animate-spin" /> : null}
-              {loading ? "Entrando…" : "Entrar no painel"}
-              {!loading && <ArrowRight size={17} className="group-hover:translate-x-0.5 transition-transform" />}
-            </button>
+              Entrar no painel
+            </Button>
           </form>
 
           <div className="mt-10 flex items-center justify-between text-xs text-gray-400">
-            <a href="/" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 hover:text-gray-700">
+            <a href="/" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 rounded font-medium text-gray-500 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)]">
               <ExternalLink size={12} /> Ver a loja
             </a>
             <span>Acesso restrito à equipe da loja</span>

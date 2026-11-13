@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Box, Info, Pencil, Plus, Search, Trash2, X } from "lucide-react";
 import { PackagePreset } from "@/types";
 import { KpiCard } from "@/components/admin/charts/Charts";
+import { Button } from "@/components/admin/ui/Button";
 
 type Pkg = PackagePreset & { active?: boolean; _count?: { products: number } };
 
@@ -156,9 +157,9 @@ export default function EmbalagensManager() {
           <h1 className="text-2xl font-semibold tracking-tight text-gray-900">Embalagens</h1>
           <p className="text-sm text-gray-500 mt-1">Caixas e envelopes que você usa. Servem para sugerir a embalagem de cada pedido e calcular peso e volume do envio.</p>
         </div>
-        <button onClick={openNew} className="inline-flex items-center gap-2 bg-brand text-white px-4 py-2.5 rounded-xl text-sm font-semibold shadow-sm hover:opacity-90 active:scale-[0.98] transition shrink-0">
-          <Plus size={16} /> Nova embalagem
-        </button>
+        <Button variant="primary" icon={Plus} onClick={openNew} className="shrink-0">
+          Nova embalagem
+        </Button>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
@@ -181,7 +182,7 @@ export default function EmbalagensManager() {
           <Box size={32} className="mx-auto text-gray-300 mb-3" />
           <p className="font-medium text-gray-700">Nenhuma embalagem cadastrada</p>
           <p className="text-sm text-gray-500 mt-1 mb-4">Comece pelas que você mais usa, ex.: envelope 30×25×3 cm e caixa 30×20×15 cm.</p>
-          <button onClick={openNew} className="inline-flex items-center gap-2 bg-gray-900 text-white px-4 py-2 rounded-xl text-sm font-semibold"><Plus size={15} /> Cadastrar embalagem</button>
+          <Button variant="dark" size="sm" icon={Plus} onClick={openNew}>Cadastrar embalagem</Button>
         </div>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -215,9 +216,9 @@ export default function EmbalagensManager() {
                     {count > 0 && <span className="px-1.5 py-0.5 rounded-md bg-blue-50 text-blue-700">{count} produto{count !== 1 ? "s" : ""}</span>}
                     {off && <span className="px-1.5 py-0.5 rounded-md bg-gray-100 text-gray-500">inativa</span>}
                   </div>
-                  <div className="mt-2 flex justify-end gap-0.5">
-                    <button onClick={() => openEdit(p)} className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-900" aria-label="Editar"><Pencil size={15} /></button>
-                    <button onClick={() => remove(p)} className="p-1.5 rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-600" aria-label="Excluir"><Trash2 size={15} /></button>
+                  <div className="mt-2 flex justify-end gap-1">
+                    <Button variant="ghost" size="iconSm" icon={Pencil} onClick={() => openEdit(p)} aria-label="Editar" />
+                    <Button variant="dangerGhost" size="iconSm" icon={Trash2} onClick={() => remove(p)} aria-label="Excluir" />
                   </div>
                 </div>
               </div>
@@ -233,7 +234,7 @@ export default function EmbalagensManager() {
           <div className="relative w-full max-w-lg h-full bg-white shadow-2xl flex flex-col animate-fade-up [animation-duration:0.3s]">
             <div className="px-6 h-16 flex items-center justify-between border-b border-gray-100 shrink-0">
               <h2 className="text-lg font-semibold text-gray-900">{form.id ? "Editar embalagem" : "Nova embalagem"}</h2>
-              <button onClick={() => setForm(null)} className="p-2 rounded-lg text-gray-400 hover:bg-gray-100" aria-label="Fechar"><X size={18} /></button>
+              <Button variant="ghost" size="icon" icon={X} onClick={() => setForm(null)} aria-label="Fechar" />
             </div>
             <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
               {!form.id && (
@@ -241,14 +242,15 @@ export default function EmbalagensManager() {
                   <p className={labelCls}>Começar de um modelo</p>
                   <div className="flex flex-wrap gap-1.5">
                     {PRESETS.map((p) => (
-                      <button
+                      <Button
                         key={p.name}
-                        type="button"
+                        variant="secondary"
+                        size="xs"
                         onClick={() => setForm((f) => (f ? { ...f, name: p.name, comprimento: String(p.comprimento), largura: String(p.largura), altura: String(p.altura), pesoGramas: String(p.pesoGramas) } : f))}
-                        className="text-xs px-2.5 py-1.5 rounded-full ring-1 ring-gray-200 text-gray-600 hover:bg-gray-50"
+                        className="rounded-full font-medium"
                       >
                         {p.name} · {p.comprimento}×{p.largura}×{p.altura}
-                      </button>
+                      </Button>
                     ))}
                   </div>
                 </div>
@@ -304,10 +306,10 @@ export default function EmbalagensManager() {
             <div className="px-6 py-4 border-t border-gray-100 shrink-0 space-y-2">
               {error && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
               <div className="flex gap-2 justify-end">
-                <button onClick={() => setForm(null)} disabled={saving} className="px-4 py-2.5 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-100">Cancelar</button>
-                <button onClick={save} disabled={saving} className="px-5 py-2.5 rounded-xl text-sm font-semibold bg-brand text-white shadow-sm hover:opacity-90 disabled:opacity-50">
-                  {saving ? "Salvando…" : form.id ? "Salvar alterações" : "Cadastrar"}
-                </button>
+                <Button variant="ghost" onClick={() => setForm(null)} disabled={saving}>Cancelar</Button>
+                <Button variant="primary" onClick={save} loading={saving} loadingText="Salvando…">
+                  {form.id ? "Salvar alterações" : "Cadastrar"}
+                </Button>
               </div>
             </div>
           </div>

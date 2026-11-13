@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { Button } from "@/components/admin/ui/Button";
 import { Check, Clock, ExternalLink, MessageSquare, Package, Star, Trash2, X } from "lucide-react";
 
 interface Review {
@@ -187,17 +188,15 @@ export default function AvaliacoesManager({ productImages = {} }: Props) {
 
                 <div className="mt-auto pt-3 flex items-center gap-1.5">
                   {!r.approved ? (
-                    <button onClick={() => handleApprove(r.id, true)} className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-gray-900 text-white hover:bg-gray-800">
-                      <Check size={13} /> Aprovar e publicar
-                    </button>
+                    <Button variant="success" size="sm" icon={Check} onClick={() => handleApprove(r.id, true)}>
+                      Aprovar e publicar
+                    </Button>
                   ) : (
-                    <button onClick={() => handleApprove(r.id, false)} className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg ring-1 ring-gray-200 text-gray-600 hover:bg-gray-50">
-                      <X size={13} /> Tirar do ar
-                    </button>
+                    <Button variant="secondary" size="sm" icon={X} onClick={() => handleApprove(r.id, false)}>
+                      Tirar do ar
+                    </Button>
                   )}
-                  <button onClick={() => handleDelete(r.id)} className="ml-auto p-1.5 rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-600" aria-label="Excluir avaliação" title="Excluir">
-                    <Trash2 size={15} />
-                  </button>
+                  <Button variant="dangerGhost" size="iconSm" icon={Trash2} onClick={() => handleDelete(r.id)} aria-label="Excluir avaliação" className="ml-auto" />
                 </div>
               </article>
             );
@@ -210,7 +209,7 @@ export default function AvaliacoesManager({ productImages = {} }: Props) {
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" onClick={() => setZoom(null)}>
           <div className="absolute inset-0 bg-gray-900/70 backdrop-blur-sm" />
           <img src={zoom} alt="Foto da avaliação" className="relative max-h-[85vh] max-w-full rounded-2xl shadow-2xl animate-fade-up [animation-duration:0.25s]" />
-          <button className="absolute top-4 right-4 p-2 rounded-xl bg-white/90 text-gray-700" aria-label="Fechar"><X size={18} /></button>
+          <Button variant="secondary" size="icon" icon={X} aria-label="Fechar" className="absolute top-4 right-4 bg-white/90" />
         </div>
       )}
     </div>

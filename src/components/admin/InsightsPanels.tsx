@@ -155,7 +155,7 @@ export default function InsightsPanels({ tab, from, to }: { tab: InsightsTab; fr
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <ChartCard title="Demanda sem estoque" subtitle="Lista de espera ainda não avisada × preço" action={<Link href="/admin/lista-de-espera" className="text-xs text-gray-500 hover:text-gray-900">Ver lista</Link>}>
+            <ChartCard title="Demanda sem estoque" subtitle="Lista de espera ainda não avisada × preço" action={<Link href="/admin/lista-de-espera" className="text-xs font-medium text-gray-500 hover:text-gray-900">Ver lista</Link>}>
               <BarList items={L.waitlist.items.map((w) => ({ label: `${w.name}${w.variant !== "—" ? ` · ${w.variant}` : ""}`, value: w.value, sub: `${w.people} pessoa${w.people === 1 ? "" : "s"}` }))} empty="Ninguém na lista de espera" />
               <div className="mt-3"><Note>É venda que só acontece se o produto voltar ao estoque — boa referência para a próxima compra.</Note></div>
             </ChartCard>
@@ -204,7 +204,7 @@ export default function InsightsPanels({ tab, from, to }: { tab: InsightsTab; fr
             </ChartCard>
           </div>
 
-          <ChartCard title="Retorno dos cupons" subtitle="Quanto cada cupom trouxe de venda para cada real de desconto" action={<Link href="/admin/cupons" className="text-xs text-gray-500 hover:text-gray-900 inline-flex items-center gap-1"><Tag size={12} /> Cupons</Link>}>
+          <ChartCard title="Retorno dos cupons" subtitle="Quanto cada cupom trouxe de venda para cada real de desconto" action={<Link href="/admin/cupons" className="text-xs font-medium text-gray-500 hover:text-gray-900 inline-flex items-center gap-1"><Tag size={12} /> Cupons</Link>}>
             <DataTable
               rows={G.coupons}
               rowKey={(r) => r.code}

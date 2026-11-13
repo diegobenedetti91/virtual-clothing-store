@@ -12,6 +12,7 @@ import { fmt } from "@/components/admin/charts/theme";
 import { ProfitWaterfall, type ProfitTotalsView } from "@/components/admin/charts/ProfitWaterfall";
 import { GoalCard, type GoalView } from "@/components/admin/charts/GoalCard";
 import { Delta } from "@/components/admin/charts/Charts";
+import { Button } from "@/components/admin/ui/Button";
 
 interface KPI { cur: number; prev: number }
 interface Group { label: string; value: number; count: number }
@@ -162,14 +163,7 @@ export default function DashboardBI({ storeName }: { storeName?: string | null }
               aria-label="Data final"
             />
           </div>
-          <button
-            onClick={load}
-            className="p-2 rounded-xl bg-white ring-1 ring-gray-200 shadow-sm text-gray-500 hover:text-gray-900 transition-colors"
-            aria-label="Atualizar"
-            title="Atualizar"
-          >
-            <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
-          </button>
+          <Button size="icon" icon={RefreshCw} onClick={load} loading={loading} aria-label="Atualizar" className="h-9 w-9" />
         </div>
       </div>
 
@@ -266,14 +260,15 @@ export default function DashboardBI({ storeName }: { storeName?: string | null }
                   </button>
                 ))}
               </div>
-              <button
+              <Button
+                variant={showTable ? "dark" : "ghost"}
+                size="iconSm"
+                icon={showTable ? BarChart3 : Table2}
                 onClick={() => setShowTable((v) => !v)}
-                className={`p-1.5 rounded-lg transition-colors ${showTable ? "bg-gray-900 text-white" : "text-gray-400 hover:bg-gray-100 hover:text-gray-700"}`}
-                title={showTable ? "Ver gráfico" : "Ver tabela"}
                 aria-label={showTable ? "Ver gráfico" : "Ver tabela"}
-              >
-                {showTable ? <BarChart3 size={15} /> : <Table2 size={15} />}
-              </button>
+                aria-pressed={showTable}
+                className={showTable ? undefined : "text-gray-400"}
+              />
             </div>
           }
         >

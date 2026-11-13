@@ -163,3 +163,17 @@ html {
   20%, 60% { transform: translateX(-6px); }
   40%, 80% { transform: translateX(6px); }
 }
+
+/* ───────────── Admin: base para todos os botões e links ─────────────
+   O Tailwind v4 não põe mais cursor de "mãozinha" em <button>. No admin,
+   todo botão/link clicável ganha cursor e foco visível pelo teclado
+   (vale também para botões que ainda não usam o componente Button). */
+.admin-root button:not(:disabled),
+.admin-root [role="button"],
+.admin-root summary { cursor: pointer; }
+.admin-root button:disabled { cursor: not-allowed; }
+.admin-root :is(button, a, [role="button"], summary, select):focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+  border-radius: 10px;
+}

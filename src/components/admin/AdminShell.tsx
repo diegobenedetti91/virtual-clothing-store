@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState, ViewTransition } from "react";
 import { signOut } from "next-auth/react";
 import { ChevronDown, ChevronRight, CornerDownLeft, ExternalLink, LogOut, Menu, Search, Store, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button, ButtonLink } from "./ui/Button";
 import type { AdminBadges } from "@/lib/adminAlerts";
 import { ADMIN_NAV, ALL_LINKS, findActive, type NavLink } from "./adminNav";
 
@@ -91,14 +92,16 @@ export default function AdminShell({ user, badges, storeName, logo, children }: 
       </div>
 
       <div className="px-3 pt-3 shrink-0">
-        <button
+        <Button
+          size="sm"
+          fullWidth
+          icon={Search}
           onClick={() => { setPaletteOpen(true); setMobileOpen(false); }}
-          className="w-full flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-50 ring-1 ring-gray-200/70 text-[13px] text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+          className="justify-start bg-gray-50 font-normal text-gray-400 ring-gray-200/70 shadow-none hover:bg-gray-100 hover:text-gray-600"
         >
-          <Search size={14} />
           Buscar página…
           <kbd className="ml-auto text-[10px] font-medium text-gray-400 bg-white ring-1 ring-gray-200 rounded px-1.5 py-0.5">Ctrl K</kbd>
-        </button>
+        </Button>
       </div>
 
       <div className="flex-1 overflow-y-auto py-3 px-3 space-y-4 [scrollbar-width:thin]">
@@ -109,6 +112,8 @@ export default function AdminShell({ user, badges, storeName, logo, children }: 
             <div key={group.title}>
               {group.title !== "Início" && (
                 <button
+                  type="button"
+                  aria-expanded={!isCollapsed}
                   onClick={() => toggleGroup(group.title)}
                   className="w-full flex items-center gap-1 px-3 mb-1 text-[11px] font-semibold uppercase tracking-wider text-gray-400 hover:text-gray-600 transition-colors"
                 >
@@ -160,21 +165,20 @@ export default function AdminShell({ user, badges, storeName, logo, children }: 
             <p className="text-xs font-semibold text-gray-900 truncate">{user.name || "Administrador"}</p>
             <p className="text-[11px] text-gray-500 truncate">{user.email}</p>
           </div>
-          <button
+          <Button
+            variant="dangerGhost"
+            size="icon"
+            icon={LogOut}
             onClick={() => signOut({ callbackUrl: "/admin/login" })}
-            className="p-2 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-            title="Sair"
             aria-label="Sair"
-          >
-            <LogOut size={16} />
-          </button>
+          />
         </div>
       </div>
     </nav>
   );
 
   return (
-    <div className="min-h-screen bg-[#f6f7f9]">
+    <div className="admin-root min-h-screen bg-[#f6f7f9]">
       {/* Sidebar desktop */}
       <aside className="hidden md:block fixed inset-y-0 left-0 w-64 bg-white border-r border-gray-200/70 z-30">{sidebar}</aside>
 
@@ -190,9 +194,7 @@ export default function AdminShell({ user, badges, storeName, logo, children }: 
             mobileOpen ? "translate-x-0" : "-translate-x-full"
           )}
         >
-          <button onClick={() => setMobileOpen(false)} className="absolute top-4 right-3 p-1.5 rounded-lg text-gray-400 hover:bg-gray-100" aria-label="Fechar menu">
-            <X size={18} />
-          </button>
+          <Button variant="ghost" size="icon" icon={X} onClick={() => setMobileOpen(false)} aria-label="Fechar menu" className="absolute top-4 right-3 z-10 text-gray-400" />
           {sidebar}
         </aside>
       </div>
@@ -201,9 +203,7 @@ export default function AdminShell({ user, badges, storeName, logo, children }: 
         {/* Barra superior */}
         <header className="sticky top-0 z-20 h-16 bg-[#f6f7f9]/80 backdrop-blur-md border-b border-gray-200/60">
           <div className="h-full px-4 md:px-8 flex items-center gap-3">
-            <button onClick={() => setMobileOpen(true)} className="md:hidden p-2 -ml-1 rounded-xl text-gray-600 hover:bg-white" aria-label="Abrir menu">
-              <Menu size={20} />
-            </button>
+            <Button variant="ghost" size="icon" icon={Menu} onClick={() => setMobileOpen(true)} aria-label="Abrir menu" className="md:hidden -ml-1 hover:bg-white [&_svg]:size-5" />
             <nav aria-label="Você está em" className="flex items-center gap-1.5 text-[13px] min-w-0">
               {active && active.group !== "Início" && (
                 <>
@@ -215,20 +215,10 @@ export default function AdminShell({ user, badges, storeName, logo, children }: 
               {active && <span className="hidden lg:inline text-gray-400 truncate">· {active.description}</span>}
             </nav>
             <div className="ml-auto flex items-center gap-2">
-              <button
-                onClick={() => setPaletteOpen(true)}
-                className="md:hidden p-2 rounded-xl text-gray-600 hover:bg-white"
-                aria-label="Buscar página"
-              >
-                <Search size={18} />
-              </button>
-              <Link
-                href="/"
-                target="_blank"
-                className="inline-flex items-center gap-1.5 text-[13px] font-medium text-gray-600 bg-white ring-1 ring-gray-200 px-3 py-1.5 rounded-xl hover:text-gray-900 hover:shadow-sm transition-all"
-              >
-                <ExternalLink size={14} /> <span className="hidden sm:inline">Ver loja</span>
-              </Link>
+              <Button variant="ghost" size="icon" icon={Search} onClick={() => setPaletteOpen(true)} aria-label="Buscar página" className="md:hidden hover:bg-white" />
+              <ButtonLink href="/" target="_blank" size="sm" icon={ExternalLink} aria-label="Ver loja" className="max-sm:w-8 max-sm:px-0">
+                <span className="hidden sm:inline">Ver loja</span>
+              </ButtonLink>
             </div>
           </div>
         </header>
@@ -294,6 +284,7 @@ function CommandPalette({ badges, onClose, onGo }: { badges: AdminBadges; onClos
             return (
               <li key={l.href}>
                 <button
+                  type="button"
                   onMouseEnter={() => setSel(i)}
                   onClick={() => onGo(l.href)}
                   className={cn("w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-colors", i === sel ? "bg-gray-100" : "")}

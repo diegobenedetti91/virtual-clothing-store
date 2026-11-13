@@ -4,12 +4,13 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
-  AlertTriangle, ArrowLeft, Check, CheckCircle2, Clock, Copy, CreditCard, ExternalLink, FileText, Globe, Loader2, Mail,
+  AlertTriangle, ArrowLeft, Check, CheckCircle2, Clock, Copy, CreditCard, ExternalLink, FileText, Globe, Mail,
   MapPin, MessageCircle, Package, PackageCheck, Phone, RefreshCw, Receipt, Store, Tag, Truck, User, XCircle,
 } from "lucide-react";
 import { formatCurrency, needsMelhorEnvioLabel, ORDER_STATUS } from "@/lib/utils";
 import { getCarrierTracking } from "@/lib/carrierTracking";
 import { attributesLabel } from "@/lib/variantUtils";
+import { Button, ButtonLink, buttonClasses } from "@/components/admin/ui/Button";
 
 interface OrderItem {
   id: string;
@@ -193,7 +194,7 @@ export default function OrderDetailsPage() {
       <div className="max-w-md mx-auto text-center py-20">
         <XCircle size={40} className="mx-auto text-gray-300 mb-3" />
         <p className="font-medium text-gray-800">{loadError}</p>
-        <Link href="/admin/pedidos" className="inline-flex items-center gap-1 mt-4 text-sm text-gray-600 hover:text-gray-900"><ArrowLeft size={14} /> Voltar para pedidos</Link>
+        <ButtonLink href="/admin/pedidos" variant="secondary" size="sm" icon={ArrowLeft} className="mt-4">Voltar para pedidos</ButtonLink>
       </div>
     );
   }
@@ -233,12 +234,10 @@ export default function OrderDetailsPage() {
       <div className="bg-white rounded-2xl border border-gray-200/70 shadow-[0_1px_2px_rgba(0,0,0,0.04)] p-5">
         <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
           <div>
-            <Link href="/admin/pedidos" className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-gray-900 mb-2"><ArrowLeft size={13} /> Pedidos</Link>
+            <Link href="/admin/pedidos" className="inline-flex items-center gap-1 text-xs font-medium text-gray-500 hover:text-gray-900 mb-2"><ArrowLeft size={13} /> Pedidos</Link>
             <div className="flex flex-wrap items-center gap-2.5">
               <h1 className="text-2xl font-semibold tracking-tight text-gray-900">{order.orderNumber}</h1>
-              <button onClick={() => copy(order.orderNumber, "num")} className="p-1 rounded-md text-gray-400 hover:text-gray-700" aria-label="Copiar número">
-                {copied === "num" ? <Check size={14} className="text-emerald-600" /> : <Copy size={14} />}
-              </button>
+              <Button variant="ghost" size="iconSm" icon={copied === "num" ? Check : Copy} onClick={() => copy(order.orderNumber, "num")} aria-label="Copiar número" className={copied === "num" ? "text-emerald-600" : "text-gray-400"} />
               <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${status.color}`}>{status.label}</span>
             </div>
             <p className="text-sm text-gray-500 mt-1">
@@ -305,9 +304,7 @@ export default function OrderDetailsPage() {
                         <>
                           <a href={order.trackingUrl || tracking?.url} target="_blank" rel="noopener noreferrer" className="font-mono font-semibold text-gray-900 hover:underline">{order.trackingCode}</a>
                           {tracking?.carrier && <span className="text-xs text-gray-400">{tracking.carrier}</span>}
-                          <button onClick={() => copy(order.trackingCode!, "trk")} className="ml-auto p-1 text-gray-400 hover:text-gray-700" aria-label="Copiar rastreio">
-                            {copied === "trk" ? <Check size={13} className="text-emerald-600" /> : <Copy size={13} />}
-                          </button>
+                          <Button variant="ghost" size="iconSm" icon={copied === "trk" ? Check : Copy} onClick={() => copy(order.trackingCode!, "trk")} aria-label="Copiar rastreio" className={`ml-auto -my-1 ${copied === "trk" ? "text-emerald-600" : "text-gray-400"}`} />
                         </>
                       ) : <span className="text-gray-400">Ainda não gerado pela transportadora</span>}
                     </dd>
@@ -319,19 +316,19 @@ export default function OrderDetailsPage() {
                 </dl>
                 <div className="flex flex-wrap gap-2">
                   {order.etiquetaUrl && (
-                    <a href={order.etiquetaUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gray-900 text-white text-sm font-semibold hover:bg-gray-800">
-                      <FileText size={15} /> Imprimir etiqueta
+                    <a href={order.etiquetaUrl} target="_blank" rel="noopener noreferrer" className={buttonClasses({ variant: "dark", size: "sm" })}>
+                      <FileText /> Imprimir etiqueta
                     </a>
                   )}
                   {order.trackingCode && (
-                    <a href={order.trackingUrl || tracking?.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl ring-1 ring-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50">
-                      <ExternalLink size={15} /> Rastrear
+                    <a href={order.trackingUrl || tracking?.url} target="_blank" rel="noopener noreferrer" className={buttonClasses({ variant: "secondary", size: "sm" })}>
+                      <ExternalLink /> Rastrear
                     </a>
                   )}
                   {order.labelValid === false && isPaid && (
-                    <button onClick={generateLabel} disabled={labelBusy} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-orange-600 text-white text-sm font-semibold hover:bg-orange-700 disabled:opacity-50">
-                      {labelBusy ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />} Recriar etiqueta
-                    </button>
+                    <Button variant="dark" size="sm" icon={RefreshCw} onClick={generateLabel} loading={labelBusy} className="bg-orange-600 hover:bg-orange-700">
+                      Recriar etiqueta
+                    </Button>
                   )}
                 </div>
               </div>
@@ -353,9 +350,9 @@ export default function OrderDetailsPage() {
                   </div>
                 </div>
                 {isPaid && (
-                  <button onClick={generateLabel} disabled={labelBusy} className="mt-3 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gray-900 text-white text-sm font-semibold hover:bg-gray-800 disabled:opacity-50">
-                    {labelBusy ? <Loader2 size={15} className="animate-spin" /> : <Package size={15} />} {labelBusy ? "Gerando…" : "Gerar etiqueta"}
-                  </button>
+                  <Button variant="dark" size="sm" icon={Package} onClick={generateLabel} loading={labelBusy} loadingText="Gerando…" className="mt-3">
+                    Gerar etiqueta
+                  </Button>
                 )}
               </div>
             )}
@@ -375,9 +372,7 @@ export default function OrderDetailsPage() {
                       {order.blingIntegratedAt && ` · enviado em ${new Date(order.blingIntegratedAt).toLocaleString("pt-BR")}`}
                     </p>
                   </div>
-                  <button onClick={() => copy(order.blingPedidoId!, "bling")} className="ml-auto p-1 text-emerald-600/60 hover:text-emerald-800" aria-label="Copiar ID do Bling">
-                    {copied === "bling" ? <Check size={14} /> : <Copy size={14} />}
-                  </button>
+                  <Button variant="ghost" size="iconSm" icon={copied === "bling" ? Check : Copy} onClick={() => copy(order.blingPedidoId!, "bling")} aria-label="Copiar ID do Bling" className="ml-auto -my-1 text-emerald-600/70 hover:bg-emerald-100 hover:text-emerald-800" />
                 </div>
               ) : !isPaid ? (
                 <div className="flex items-center gap-3 rounded-xl bg-gray-50 px-4 py-3 text-sm text-gray-600">
@@ -394,9 +389,9 @@ export default function OrderDetailsPage() {
                       <p className="text-xs text-gray-600 mt-1">Ao reenviar, o pedido é criado no Bling com os itens, o frete e os descontos. Se já existir, não duplica.</p>
                     </div>
                   </div>
-                  <button onClick={sendToBling} disabled={blingBusy} className="mt-3 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gray-900 text-white text-sm font-semibold hover:bg-gray-800 disabled:opacity-50">
-                    {blingBusy ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />} {blingBusy ? "Enviando…" : "Enviar ao Bling"}
-                  </button>
+                  <Button variant="dark" size="sm" icon={RefreshCw} onClick={sendToBling} loading={blingBusy} loadingText="Enviando…" className="mt-3">
+                    Enviar ao Bling
+                  </Button>
                 </div>
               )}
               <Note msg={blingMsg} />
@@ -460,9 +455,9 @@ export default function OrderDetailsPage() {
                 href={`https://wa.me/${phoneDigits.length <= 11 ? "55" : ""}${phoneDigits}?text=${encodeURIComponent(`Olá, ${order.customerName.split(" ")[0]}! Sobre o seu pedido ${order.orderNumber}:`)}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-3 inline-flex w-full items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-[#25D366] text-white text-sm font-semibold hover:brightness-95"
+                className={buttonClasses({ variant: "success", size: "sm", fullWidth: true, className: "mt-3 bg-[#25D366] hover:bg-[#25D366] hover:brightness-95" })}
               >
-                <MessageCircle size={15} /> Conversar no WhatsApp
+                <MessageCircle /> Conversar no WhatsApp
               </a>
             )}
           </Card>
@@ -474,12 +469,15 @@ export default function OrderDetailsPage() {
                 {order.neighborhood && <><br />{order.neighborhood}</>}
                 {order.zipCode && <><br />CEP {order.zipCode}</>}
               </p>
-              <button
+              <Button
+                variant="ghost"
+                size="xs"
+                icon={copied === "addr" ? Check : Copy}
                 onClick={() => copy([order.customerName, order.address, order.streetNumber, order.neighborhood, order.zipCode && `CEP ${order.zipCode}`].filter(Boolean).join(", "), "addr")}
-                className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-gray-900"
+                className={`mt-3 -ml-2 ${copied === "addr" ? "text-emerald-700" : "text-gray-500"}`}
               >
-                {copied === "addr" ? <><Check size={13} className="text-emerald-600" /> Copiado</> : <><Copy size={13} /> Copiar endereço</>}
-              </button>
+                {copied === "addr" ? "Copiado" : "Copiar endereço"}
+              </Button>
             </Card>
           )}
 

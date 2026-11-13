@@ -3,6 +3,7 @@
 import { Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { Button } from "@/components/admin/ui/Button";
 
 interface Props {
   id: string;
@@ -22,12 +23,13 @@ export default function DeleteProductButton({ id, name }: Props) {
   };
 
   return (
-    <button
+    <Button
+      variant="dangerGhost"
+      size="iconSm"
+      icon={Trash2}
       onClick={handleDelete}
-      disabled={loading}
-      className="p-1.5 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50"
-    >
-      <Trash2 size={15} />
-    </button>
+      loading={loading}
+      aria-label={`Excluir ${name}`}
+    />
   );
 }

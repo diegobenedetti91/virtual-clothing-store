@@ -6,6 +6,7 @@ import { formatCurrency, formatDate, ORDER_STATUS } from "@/lib/utils";
 import Link from "next/link";
 import { Search, X, AlertCircle, Truck, Upload, Package, ArrowRight, ChevronRight, ClipboardList, DollarSign, Download, MoreHorizontal, Receipt } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { Button, ButtonLink } from "@/components/admin/ui/Button";
 
 const ALLOWED_TRANSITIONS: Record<string, string[]> = {
   PENDING:                    ["CONFIRMED", "CANCELLED"],
@@ -307,13 +308,13 @@ export default function OrdersManager({ initialOrders, blingEnabled = false }: P
               </p>
             )}
 
-            <div className="flex gap-3">
-              <button onClick={() => setConfirm(null)} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors">
+            <div className="flex gap-2">
+              <Button className="flex-1" onClick={() => setConfirm(null)}>
                 Cancelar
-              </button>
-              <button onClick={confirmStatusChange} className="flex-1 py-2.5 rounded-xl bg-brand text-white text-sm font-semibold hover:opacity-90 transition-colors">
+              </Button>
+              <Button variant={confirm.newStatus === "CANCELLED" ? "danger" : "primary"} className="flex-1" onClick={confirmStatusChange}>
                 Confirmar
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -364,17 +365,13 @@ export default function OrdersManager({ initialOrders, blingEnabled = false }: P
               )}
             </div>
 
-            <div className="flex gap-3 mt-5">
-              <button onClick={() => setShippingModal(null)} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors">
+            <div className="flex gap-2 mt-5">
+              <Button className="flex-1" onClick={() => setShippingModal(null)}>
                 Cancelar
-              </button>
-              <button
-                onClick={confirmShipping}
-                disabled={uploading}
-                className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors disabled:opacity-60"
-              >
-                {uploading ? "Enviando..." : "Confirmar envio"}
-              </button>
+              </Button>
+              <Button variant="dark" icon={Truck} className="flex-1" onClick={confirmShipping} loading={uploading} loadingText="Enviando...">
+                Confirmar envio
+              </Button>
             </div>
           </div>
         </div>
@@ -423,10 +420,10 @@ export default function OrdersManager({ initialOrders, blingEnabled = false }: P
           <span className="text-xs text-gray-400">até</span>
           <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="text-[13px] bg-transparent outline-none w-[118px]" aria-label="Até" />
         </div>
-        {hasFilters && <button onClick={clearFilters} className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-gray-900 px-2 py-2"><X size={13} /> Limpar</button>}
-        <button onClick={exportCsv} disabled={visible.length === 0} className="ml-auto inline-flex items-center gap-1.5 text-xs font-medium text-gray-600 px-3 py-2 rounded-xl bg-white ring-1 ring-gray-200 hover:bg-gray-50 disabled:opacity-40">
-          <Download size={13} /> Exportar CSV
-        </button>
+        {hasFilters && <Button variant="ghost" size="sm" icon={X} onClick={clearFilters}>Limpar</Button>}
+        <Button size="sm" icon={Download} onClick={exportCsv} disabled={visible.length === 0} className="ml-auto">
+          Exportar CSV
+        </Button>
       </div>
 
       {blingRetryMessage && (
@@ -437,7 +434,7 @@ export default function OrdersManager({ initialOrders, blingEnabled = false }: P
         <div className="bg-white rounded-2xl border border-dashed border-gray-300 py-16 text-center">
           <ClipboardList size={32} className="mx-auto text-gray-300 mb-3" />
           <p className="font-medium text-gray-700">Nenhum pedido encontrado</p>
-          {hasFilters && <button onClick={clearFilters} className="mt-2 text-sm text-gray-500 hover:text-gray-900 underline">Limpar filtros</button>}
+          {hasFilters && <Button size="sm" icon={X} onClick={clearFilters} className="mt-3">Limpar filtros</Button>}
         </div>
       ) : (
         <div className="bg-white rounded-2xl border border-gray-200/70 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
@@ -499,13 +496,13 @@ export default function OrdersManager({ initialOrders, blingEnabled = false }: P
                   <p className="text-sm font-semibold text-gray-900 lg:text-right tabular-nums">{formatCurrency(order.total)}</p>
                   <div className="flex items-center lg:justify-end gap-1" onClick={(e) => e.stopPropagation()}>
                     {nextTo && (
-                      <button onClick={() => requestStatusChange(order, nextTo.to)} className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-gray-900 text-white hover:bg-gray-800 whitespace-nowrap">
-                        <ArrowRight size={12} /> {nextTo.label}
-                      </button>
+                      <Button variant="dark" size="xs" icon={ArrowRight} onClick={() => requestStatusChange(order, nextTo.to)}>
+                        {nextTo.label}
+                      </Button>
                     )}
                     {(
                       <div className="relative">
-                        <button onClick={() => setMenuFor(menuFor === order.id ? null : order.id)} className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100" aria-label="Mais ações"><MoreHorizontal size={16} /></button>
+                        <Button variant="ghost" size="iconSm" icon={MoreHorizontal} onClick={() => setMenuFor(menuFor === order.id ? null : order.id)} aria-label="Mais ações" aria-expanded={menuFor === order.id} />
                         {menuFor === order.id && (
                           <>
                             <div className="fixed inset-0 z-10" onClick={() => setMenuFor(null)} />
@@ -521,14 +518,14 @@ export default function OrdersManager({ initialOrders, blingEnabled = false }: P
                         )}
                       </div>
                     )}
-                    <Link
+                    <ButtonLink
                       href={`/admin/pedidos/${order.id}`}
-                      className="p-1.5 rounded-lg text-gray-400 hover:text-gray-900 hover:bg-gray-100"
+                      variant="ghost"
+                      size="iconSm"
+                      icon={ChevronRight}
                       aria-label={`Abrir pedido ${order.orderNumber}`}
                       title="Abrir pedido"
-                    >
-                      <ChevronRight size={16} />
-                    </Link>
+                    />
                   </div>
                 </li>
               );
@@ -537,7 +534,7 @@ export default function OrdersManager({ initialOrders, blingEnabled = false }: P
           {visible.length > limit && (
             <div className="px-4 py-3 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500">
               <span>Mostrando {limit} de {visible.length}</span>
-              <button onClick={() => setLimit((l) => l + 40)} className="font-medium text-gray-700 hover:text-gray-900">Ver mais</button>
+              <Button variant="ghost" size="xs" onClick={() => setLimit((l) => l + 40)}>Ver mais</Button>
             </div>
           )}
         </div>

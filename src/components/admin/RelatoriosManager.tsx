@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { TrendingUp, ShoppingCart, DollarSign, MapPin, Tag, ChevronDown, XCircle, Percent, Calendar, Globe, Megaphone, Wallet, RotateCcw, BarChart3, Coins, Scale, TrendingDown, Sparkles } from "lucide-react";
+import { Button } from "@/components/admin/ui/Button";
 import { BarList, ChartCard, ColumnChart, KpiCard } from "@/components/admin/charts/Charts";
 import DataTable, { type Column } from "@/components/admin/charts/DataTable";
 import { fmt } from "@/components/admin/charts/theme";
@@ -266,16 +267,17 @@ export default function RelatoriosManager() {
           </Select>
         )}
 
-        <div className="ml-auto flex items-center gap-3">
+        <div className="ml-auto flex items-center gap-2">
           {loading && <div className="w-4 h-4 border-2 border-brand border-t-transparent rounded-full animate-spin" />}
           {hasActiveFilters && (
-            <button
-              type="button"
+            <Button
+              variant="ghost"
+              size="xs"
+              icon={RotateCcw}
               onClick={() => { setStateFilter(""); setStatuses(DEFAULT_STATUSES); setFilterMode("period"); setDateFrom(""); setDateTo(""); setMonth(0); }}
-              className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-gray-900"
             >
-              <RotateCcw size={12} /> Limpar filtros
-            </button>
+              Limpar filtros
+            </Button>
           )}
         </div>
       </div>
@@ -310,6 +312,7 @@ export default function RelatoriosManager() {
             {TABS.map(({ key, label, icon: Icon }) => (
               <button
                 key={key}
+                type="button"
                 onClick={() => setTab(key)}
                 className={`relative inline-flex items-center gap-1.5 px-3 py-2.5 text-[13px] font-medium whitespace-nowrap transition-colors ${tab === key ? "text-gray-900" : "text-gray-500 hover:text-gray-800"}`}
               >

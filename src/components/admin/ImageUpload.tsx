@@ -2,6 +2,7 @@
 
 import { useState, useRef } from "react";
 import { Upload, X, Link as LinkIcon, ChevronDown } from "lucide-react";
+import { Button } from "@/components/admin/ui/Button";
 
 interface ImageUploadProps {
   value: string;
@@ -61,21 +62,13 @@ export default function ImageUpload({
             className={`w-full object-cover ${aspectClass}`}
             onError={(e) => { (e.target as HTMLImageElement).src = "/placeholder-product.svg"; }}
           />
-          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-            <button
-              type="button"
-              onClick={() => inputRef.current?.click()}
-              className="bg-white text-gray-900 px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 hover:bg-gray-100 transition-colors"
-            >
-              <Upload size={13} /> Trocar
-            </button>
-            <button
-              type="button"
-              onClick={() => onChange("")}
-              className="bg-red-500 text-white px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 hover:bg-red-600 transition-colors"
-            >
-              <X size={13} /> Remover
-            </button>
+          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity flex items-center justify-center gap-1.5">
+            <Button variant="secondary" size="sm" icon={Upload} onClick={() => inputRef.current?.click()}>
+              Trocar
+            </Button>
+            <Button variant="danger" size="sm" icon={X} onClick={() => onChange("")}>
+              Remover
+            </Button>
           </div>
         </div>
       ) : (
@@ -112,15 +105,17 @@ export default function ImageUpload({
         onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ""; }}
       />
 
-      <button
-        type="button"
+      <Button
+        variant="ghost"
+        size="xs"
+        icon={LinkIcon}
         onClick={() => setShowUrl((v) => !v)}
-        className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors"
+        aria-expanded={showUrl}
+        className="-ml-2 font-medium text-gray-500"
       >
-        <LinkIcon size={11} />
         Usar URL em vez de upload
-        <ChevronDown size={11} className={`transition-transform ${showUrl ? "rotate-180" : ""}`} />
-      </button>
+        <ChevronDown className={`transition-transform ${showUrl ? "rotate-180" : ""}`} />
+      </Button>
 
       {showUrl && (
         <input

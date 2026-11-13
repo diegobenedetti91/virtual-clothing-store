@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import Link from "next/link";
+import { ButtonLink } from "@/components/admin/ui/Button";
 import { Plus, Package } from "lucide-react";
 import ProductsTable from "@/components/admin/ProductsTable";
 import BlingProductSyncButton from "@/components/admin/BlingProductSyncButton";
@@ -32,12 +32,10 @@ export default async function AdminProductsPage() {
         </div>
         <div className="flex gap-2 shrink-0">
           {settings?.blingAtivo && <BlingProductSyncButton />}
-          <Link
-            href="/admin/produtos/novo"
-            className="inline-flex items-center gap-2 bg-brand text-white px-4 py-2.5 rounded-xl text-sm font-semibold shadow-sm hover:opacity-90 active:scale-[0.98] transition"
-          >
-            <Plus size={16} /> Novo produto
-          </Link>
+          {/* Página de servidor: o ícone vai como filho (componente não pode ser passado como prop para um Client Component) */}
+          <ButtonLink href="/admin/produtos/novo" variant="primary">
+            <Plus /> Novo produto
+          </ButtonLink>
         </div>
       </div>
 
@@ -46,9 +44,9 @@ export default async function AdminProductsPage() {
           <Package size={32} className="mx-auto text-gray-300 mb-3" />
           <p className="font-medium text-gray-700">Nenhum produto cadastrado ainda</p>
           <p className="text-sm text-gray-500 mt-1 mb-4">Cadastre o primeiro produto com fotos, preço e variações.</p>
-          <Link href="/admin/produtos/novo" className="inline-flex items-center gap-2 bg-gray-900 text-white px-4 py-2 rounded-xl text-sm font-semibold">
-            <Plus size={15} /> Cadastrar produto
-          </Link>
+          <ButtonLink href="/admin/produtos/novo" variant="dark" size="sm">
+            <Plus /> Cadastrar produto
+          </ButtonLink>
         </div>
       ) : (
         <ProductsTable products={products} flashSaleProductIds={flashIds} />

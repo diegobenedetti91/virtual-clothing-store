@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, Box, CheckCircle2, ChevronDown, Clock, ExternalLink, Loader2, MapPin, Package, RefreshCw, Search, Truck, Weight, X } from "lucide-react";
+import { AlertTriangle, Box, CheckCircle2, ChevronDown, Clock, ExternalLink, MapPin, Package, RefreshCw, Search, Truck, Weight, X } from "lucide-react";
 import { KpiCard } from "@/components/admin/charts/Charts";
+import { Button, ButtonLink } from "@/components/admin/ui/Button";
 
 interface ItemInfo {
   productId: string;
@@ -144,10 +145,8 @@ export default function EnviosManager() {
           <p className="text-sm text-gray-500 mt-1">Pedidos pagos esperando envio, com a embalagem sugerida, o peso e o volume de cada um.</p>
         </div>
         <div className="flex items-center gap-2">
-          <Link href="/admin/embalagens" className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white ring-1 ring-gray-200 text-[13px] font-medium text-gray-600 hover:text-gray-900"><Box size={14} /> Embalagens</Link>
-          <button onClick={refresh} className="p-2 rounded-xl bg-white ring-1 ring-gray-200 text-gray-500 hover:text-gray-900" aria-label="Atualizar" title="Atualizar">
-            <RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />
-          </button>
+          <ButtonLink href="/admin/embalagens" variant="secondary" icon={Box}>Embalagens</ButtonLink>
+          <Button variant="secondary" size="icon" icon={RefreshCw} onClick={refresh} loading={refreshing} aria-label="Atualizar" className="h-9 w-9" />
         </div>
       </div>
 
@@ -221,14 +220,14 @@ export default function EnviosManager() {
                     {kind === "none" ? <AlertTriangle size={14} /> : <Box size={14} />}
                     <span className="max-w-[260px] truncate" title={o.sugestao.observacao}>{kind === "none" ? o.sugestao.observacao : `${boxes.length > 1 ? `${boxes.length}× ` : ""}${uniqueBoxes[0]?.name}`}</span>
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    <button onClick={() => openShip(o)} className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg bg-gray-900 text-white hover:bg-gray-800 whitespace-nowrap">
-                      <Truck size={14} /> Marcar enviado
-                    </button>
-                    <Link href={`/admin/pedidos/${o.id}`} className="p-2 rounded-lg text-gray-400 hover:text-gray-900 hover:bg-gray-100" aria-label="Abrir pedido" title="Abrir pedido (etiqueta e Bling)"><ExternalLink size={15} /></Link>
-                    <button onClick={() => toggle(o.id)} className="p-2 rounded-lg text-gray-400 hover:text-gray-900 hover:bg-gray-100" aria-label={isOpen ? "Recolher" : "Ver itens"}>
-                      <ChevronDown size={16} className={`transition-transform ${isOpen ? "rotate-180" : ""}`} />
-                    </button>
+                  <div className="flex items-center gap-1">
+                    <Button variant="dark" size="sm" icon={Truck} onClick={() => openShip(o)}>
+                      Marcar enviado
+                    </Button>
+                    <ButtonLink href={`/admin/pedidos/${o.id}`} variant="ghost" size="icon" icon={ExternalLink} aria-label="Abrir pedido" title="Abrir pedido (etiqueta e Bling)" />
+                    <Button variant="ghost" size="icon" onClick={() => toggle(o.id)} aria-label={isOpen ? "Recolher" : "Ver itens"} aria-expanded={isOpen}>
+                      <ChevronDown className={`transition-transform ${isOpen ? "rotate-180" : ""}`} />
+                    </Button>
                   </div>
                 </div>
 
@@ -267,7 +266,7 @@ export default function EnviosManager() {
                           })}
                         </ul>
                       ) : (
-                        <p className="text-sm text-amber-800">Nenhuma embalagem ativa cadastrada. <Link href="/admin/embalagens" className="underline font-medium">Cadastrar embalagens</Link></p>
+                        <p className="text-sm text-amber-800">Nenhuma embalagem ativa cadastrada. <Link href="/admin/embalagens" className="underline font-medium hover:text-amber-950">Cadastrar embalagens</Link></p>
                       )}
                       <p className={`mt-2 text-xs ${kind === "none" ? "text-amber-800" : "text-gray-600"}`}>{o.sugestao.observacao}</p>
                     </div>
@@ -286,7 +285,7 @@ export default function EnviosManager() {
           <div className="relative w-full max-w-md h-full bg-white shadow-2xl flex flex-col animate-fade-up [animation-duration:0.3s]">
             <div className="px-6 h-16 flex items-center justify-between border-b border-gray-100 shrink-0">
               <h2 className="text-lg font-semibold text-gray-900">Enviar {shipFor.orderNumber}</h2>
-              <button onClick={() => setShipFor(null)} className="p-2 rounded-lg text-gray-400 hover:bg-gray-100" aria-label="Fechar"><X size={18} /></button>
+              <Button variant="ghost" size="icon" icon={X} onClick={() => setShipFor(null)} aria-label="Fechar" />
             </div>
             <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
               <div className="rounded-xl bg-gray-50 px-4 py-3 text-sm">
@@ -303,10 +302,10 @@ export default function EnviosManager() {
             <div className="px-6 py-4 border-t border-gray-100 shrink-0 space-y-2">
               {shipError && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{shipError}</p>}
               <div className="flex gap-2 justify-end">
-                <button onClick={() => setShipFor(null)} disabled={saving} className="px-4 py-2.5 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-100">Cancelar</button>
-                <button onClick={confirmShip} disabled={saving} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-sm font-semibold bg-brand text-white shadow-sm hover:opacity-90 disabled:opacity-50">
-                  {saving ? <Loader2 size={15} className="animate-spin" /> : <Truck size={15} />} Confirmar envio
-                </button>
+                <Button variant="ghost" onClick={() => setShipFor(null)} disabled={saving}>Cancelar</Button>
+                <Button variant="primary" icon={Truck} onClick={confirmShip} loading={saving}>
+                  Confirmar envio
+                </Button>
               </div>
             </div>
           </div>

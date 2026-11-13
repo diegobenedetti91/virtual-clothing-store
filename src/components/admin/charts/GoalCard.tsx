@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { ButtonLink } from "@/components/admin/ui/Button";
 import { Flag, Settings } from "lucide-react";
 import { INK, SERIES, fmt } from "./theme";
 
@@ -28,9 +28,9 @@ export function GoalCard({ goal }: { goal: GoalView }) {
             Até agora: <b className="text-gray-700 tabular-nums">{fmt.brl(goal.revenue)}</b> · no ritmo atual, o mês fecha em <b className="text-gray-700 tabular-nums">{fmt.brl(goal.projected)}</b>.
           </p>
         </div>
-        <Link href="/admin/configuracoes" className="inline-flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-xl bg-gray-900 text-white hover:bg-gray-800 shrink-0">
-          <Settings size={14} /> Definir meta
-        </Link>
+        <ButtonLink href="/admin/configuracoes" variant="dark" size="sm" icon={Settings} className="shrink-0 self-start sm:self-auto">
+          Definir meta
+        </ButtonLink>
       </section>
     );
   }

@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Package, Check, X, Loader2, Upload, Truck, Send, ExternalLink, ArrowRight, Clock, Inbox, CheckCircle2, XCircle } from "lucide-react";
+import { Package, Check, X, Upload, Truck, Send, ExternalLink, ArrowRight, Clock, Inbox, CheckCircle2, XCircle } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { getCarrierTracking } from "@/lib/carrierTracking";
+import { Button } from "@/components/admin/ui/Button";
 
 interface Return {
   id: string;
@@ -278,7 +279,7 @@ export default function DevolucoesPage() {
       {notice && (
         <div className={`flex justify-between items-start gap-3 rounded-xl px-4 py-3 ring-1 ${notice.ok ? "bg-emerald-50 ring-emerald-200 text-emerald-800" : "bg-red-50 ring-red-200 text-red-800"}`}>
           <p className="text-sm font-medium">{notice.message}</p>
-          <button onClick={() => setNotice(null)} className="opacity-60 hover:opacity-100" aria-label="Fechar"><X size={16} /></button>
+          <Button variant="ghost" size="iconSm" icon={X} onClick={() => setNotice(null)} aria-label="Fechar" className="-my-1 -mr-2 text-current opacity-60 hover:opacity-100 hover:bg-black/5 hover:text-current" />
         </div>
       )}
 
@@ -382,9 +383,7 @@ export default function DevolucoesPage() {
                 </div>
                 <p className="text-sm text-gray-500 mt-1">Solicitada em {new Date(selectedReturn.createdAt).toLocaleDateString("pt-BR")}</p>
               </div>
-              <button onClick={closeModal} className="text-gray-400 hover:text-gray-600 transition shrink-0">
-                <X size={22} />
-              </button>
+              <Button variant="ghost" size="icon" icon={X} onClick={closeModal} aria-label="Fechar" className="shrink-0 text-gray-400" />
             </div>
 
             <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
@@ -452,19 +451,14 @@ export default function DevolucoesPage() {
                       placeholder="Ex: AD984698169BR"
                       className="flex-1 border border-gray-300 rounded-lg px-3 py-2 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent"
                     />
-                    <button
-                      onClick={handleSendTracking}
-                      disabled={processingId === selectedReturn.id}
-                      className="px-4 py-2 bg-brand text-white text-sm font-semibold rounded-lg hover:opacity-90 disabled:opacity-60 flex items-center justify-center gap-2 transition"
-                    >
-                      {processingId === selectedReturn.id ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                    <Button variant="primary" icon={Send} onClick={handleSendTracking} loading={processingId === selectedReturn.id}>
                       Enviar ao cliente
-                    </button>
+                    </Button>
                   </div>
                   {selectedReturn.status === "AWAITING_RETURN" && (
-                    <button onClick={() => { setEditingTracking(false); setTrackingCode(selectedReturn.trackingCode || ""); }} className="text-xs text-gray-500 hover:text-gray-700 hover:underline mt-2">
+                    <Button variant="ghost" size="xs" onClick={() => { setEditingTracking(false); setTrackingCode(selectedReturn.trackingCode || ""); }} className="mt-2">
                       Cancelar alteração
-                    </button>
+                    </Button>
                   )}
                 </section>
               )}
@@ -482,9 +476,9 @@ export default function DevolucoesPage() {
                       )}
                     </div>
                     {selectedReturn.status === "AWAITING_RETURN" && (
-                      <button onClick={() => setEditingTracking(true)} className="text-sm text-gray-600 hover:text-gray-900 hover:underline">
+                      <Button size="sm" onClick={() => setEditingTracking(true)}>
                         Alterar código
-                      </button>
+                      </Button>
                     )}
                   </div>
                 </section>
@@ -569,31 +563,23 @@ export default function DevolucoesPage() {
             </div>
 
             <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 px-6 py-4 border-t border-gray-100">
-              <button
-                onClick={closeModal}
-                className="px-4 py-2 text-sm font-semibold text-gray-700 rounded-lg hover:bg-gray-100 transition"
-              >
+              <Button variant="ghost" onClick={closeModal}>
                 Fechar
-              </button>
+              </Button>
               {(selectedReturn.status === "PENDING" || selectedReturn.status === "AWAITING_RETURN") && (
-                <button
+                <Button
+                  icon={X}
                   onClick={() => handleDecision("REJECTED")}
-                  disabled={processingId === selectedReturn.id}
-                  className="px-4 py-2 text-sm font-semibold text-red-700 border border-red-200 rounded-lg hover:bg-red-50 disabled:opacity-60 flex items-center justify-center gap-2 transition"
+                  loading={processingId === selectedReturn.id}
+                  className="text-red-700 ring-red-200 hover:bg-red-50 hover:text-red-800 hover:ring-red-300"
                 >
-                  {processingId === selectedReturn.id ? <Loader2 size={16} className="animate-spin" /> : <X size={16} />}
                   Recusar
-                </button>
+                </Button>
               )}
               {selectedReturn.status === "AWAITING_RETURN" && (
-                <button
-                  onClick={() => handleDecision("APPROVED")}
-                  disabled={processingId === selectedReturn.id}
-                  className="px-4 py-2 text-sm font-semibold text-white bg-brand rounded-lg hover:opacity-90 disabled:opacity-60 flex items-center justify-center gap-2 transition"
-                >
-                  {processingId === selectedReturn.id ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
+                <Button variant="success" icon={Check} onClick={() => handleDecision("APPROVED")} loading={processingId === selectedReturn.id}>
                   Aprovar e estornar
-                </button>
+                </Button>
               )}
             </div>
           </div>
