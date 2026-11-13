@@ -3,7 +3,7 @@ import { Bot, Cpu, DollarSign, Headset, MessageSquare, Settings } from "lucide-r
 import { prisma } from "@/lib/prisma";
 import { AI_MODELS, estimateAiCostUsd } from "@/lib/aiModels";
 import { usageDay } from "@/lib/aiAssistant";
-import { ColumnChart } from "@/components/admin/charts/Charts";
+import AiUsageChart from "@/components/admin/AiUsageChart";
 import AiConversationsPanel, { type AiConversationView } from "@/components/admin/AiConversationsPanel";
 import AiInsightsCard from "@/components/admin/AiInsightsCard";
 
@@ -138,7 +138,7 @@ export default async function AtendimentoIaPage() {
           {chart.length === 0 ? (
             <p className="text-sm text-gray-400 text-center py-10">Nenhuma mensagem ainda.</p>
           ) : (
-            <ColumnChart data={chart} format={(v) => `${v} mensagens`} formatAxis={(v) => String(Math.round(v))} height={200} />
+            <AiUsageChart data={chart} />
           )}
           {usage.length > 0 && (
             <details className="mt-3 group">
