@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useMemo, useRef } from "react";
-import Link from "next/link";
 import { Order } from "@/types";
 import { formatCurrency, formatDate, ORDER_STATUS } from "@/lib/utils";
-import { Search, ChevronDown, ChevronUp, X, AlertCircle, User, Truck, Upload, Package, Zap } from "lucide-react";
+import { Search, X, AlertCircle, Truck, Upload, Package, ArrowRight, ChevronRight, ClipboardList, DollarSign, Download, MoreHorizontal, Receipt } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 const ALLOWED_TRANSITIONS: Record<string, string[]> = {
   PENDING:                    ["CONFIRMED", "CANCELLED"],
@@ -15,17 +15,6 @@ const ALLOWED_TRANSITIONS: Record<string, string[]> = {
   DELIVERED:                  ["CANCELLED"],
   CANCELLED:                  [],
 };
-
-const STATUS_OPTIONS = [
-  { value: "", label: "Todos os status" },
-  { value: "PENDING", label: "Aguardando" },
-  { value: "CONFIRMED", label: "Confirmado" },
-  { value: "SHIPPED", label: "Enviado" },
-  { value: "PRONTO_PARA_RETIRADA", label: "Pronto para Retirada" },
-  { value: "RETIRADO", label: "Retirado" },
-  { value: "DELIVERED", label: "Entregue" },
-  { value: "CANCELLED", label: "Cancelado" },
-];
 
 const CANCEL_REASONS = [
   "Cliente desistiu",
@@ -57,12 +46,12 @@ interface ShippingState {
 }
 
 export default function OrdersManager({ initialOrders, blingEnabled = false }: Props) {
+  const router = useRouter();
   const [orders, setOrders] = useState(initialOrders);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
-  const [expanded, setExpanded] = useState<string | null>(null);
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<ConfirmState | null>(null);
   const [cancelReason, setCancelReason] = useState("");
@@ -76,28 +65,8 @@ export default function OrdersManager({ initialOrders, blingEnabled = false }: P
   const [blingRetryMessage, setBlingRetryMessage] = useState<{ orderId: string; type: "success" | "error"; text: string } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const filtered = useMemo(() => {
-    return orders.filter((order) => {
-      if (statusFilter && order.status !== statusFilter) return false;
-      if (search) {
-        const q = search.toLowerCase();
-        if (
-          !order.orderNumber.toLowerCase().includes(q) &&
-          !order.customerName.toLowerCase().includes(q) &&
-          !((order.customerEmail || "").toLowerCase().includes(q))
-        ) return false;
-      }
-      if (dateFrom && new Date(order.createdAt) < new Date(dateFrom)) return false;
-      if (dateTo) {
-        const end = new Date(dateTo);
-        end.setHours(23, 59, 59, 999);
-        if (new Date(order.createdAt) > end) return false;
-      }
-      return true;
-    });
-  }, [orders, search, statusFilter, dateFrom, dateTo]);
 
-  const totalFiltered = filtered.filter((o) => o.status !== "CANCELLED").reduce((s, o) => s + o.total, 0);
+
 
   const requestStatusChange = (order: Order, newStatus: string) => {
     if (order.status === newStatus) return;
@@ -239,14 +208,63 @@ export default function OrdersManager({ initialOrders, blingEnabled = false }: P
 
   const clearFilters = () => { setSearch(""); setStatusFilter(""); setDateFrom(""); setDateTo(""); };
   const hasFilters = search || statusFilter || dateFrom || dateTo;
-  const inputClass = "border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand transition bg-white";
+
+  // Contadores por aba (respeitam busca e datas, não o status)
+  const baseFiltered = useMemo(() => {
+    return orders.filter((order) => {
+      if (search) {
+        const q = search.toLowerCase();
+        if (!order.orderNumber.toLowerCase().includes(q) && !order.customerName.toLowerCase().includes(q) && !((order.customerEmail || "").toLowerCase().includes(q))) return false;
+      }
+      if (dateFrom && new Date(order.createdAt) < new Date(dateFrom)) return false;
+      if (dateTo) { const end = new Date(dateTo); end.setHours(23, 59, 59, 999); if (new Date(order.createdAt) > end) return false; }
+      return true;
+    });
+  }, [orders, search, dateFrom, dateTo]);
+  const countOf = (st: string) => (st ? baseFiltered.filter((o) => st.split(",").includes(o.status)).length : baseFiltered.length);
+  const visible = statusFilter ? baseFiltered.filter((o) => statusFilter.split(",").includes(o.status)) : baseFiltered;
+  const [limit, setLimit] = useState(40);
+  const [menuFor, setMenuFor] = useState<string | null>(null);
+  const paidVisible = visible.filter((o) => o.status !== "CANCELLED" && o.status !== "PENDING");
+  const revenue = paidVisible.reduce((s, o) => s + o.total, 0);
+
+  const TABS = [
+    { value: "", label: "Todos" },
+    { value: "PENDING", label: "Aguardando pagamento" },
+    { value: "CONFIRMED", label: "Pagos · a enviar" },
+    { value: "PRONTO_PARA_RETIRADA", label: "Pronto p/ retirada" },
+    { value: "SHIPPED", label: "Enviados" },
+    { value: "DELIVERED,RETIRADO", label: "Concluídos" },
+    { value: "CANCELLED", label: "Cancelados" },
+  ];
+
+  const NEXT: Record<string, { to: string; label: string }> = {
+    PENDING: { to: "CONFIRMED", label: "Confirmar pagamento" },
+    CONFIRMED: { to: "SHIPPED", label: "Marcar enviado" },
+    PRONTO_PARA_RETIRADA: { to: "RETIRADO", label: "Cliente retirou" },
+    SHIPPED: { to: "DELIVERED", label: "Marcar entregue" },
+  };
+
+  const exportCsv = () => {
+    const head = ["Pedido", "Data", "Cliente", "E-mail", "Telefone", "Status", "Pagamento", "Itens", "Total", "Cupom", "Rastreio"];
+    const lines = visible.map((o) => {
+      const x = o as unknown as Ext;
+      return [o.orderNumber, new Date(o.createdAt).toLocaleString("pt-BR"), o.customerName, o.customerEmail || "", o.customerPhone, ORDER_STATUS[o.status]?.label || o.status, o.paymentMethod || "", o.items.reduce((s, i) => s + i.quantity, 0), String(o.total).replace(".", ","), x.couponCode || "", x.trackingCode || ""]
+        .map((v) => { const t = String(v ?? ""); return /[";\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t; }).join(";");
+    });
+    const blob = new Blob([`﻿${head.join(";")}\n${lines.join("\n")}`], { type: "text/csv;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `pedidos-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+  };
 
   return (
     <div className="space-y-5">
       {/* Generic confirm modal */}
       {confirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ background: "rgba(0,0,0,0.4)" }}>
-          <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ background: "rgba(17,24,39,0.4)", backdropFilter: "blur(4px)" }}>
+          <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm animate-fade-up [animation-duration:0.25s]">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center shrink-0">
                 <AlertCircle size={20} className="text-yellow-600" />
@@ -302,8 +320,8 @@ export default function OrdersManager({ initialOrders, blingEnabled = false }: P
 
       {/* Shipping modal */}
       {shippingModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ background: "rgba(0,0,0,0.4)" }}>
-          <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ background: "rgba(17,24,39,0.4)", backdropFilter: "blur(4px)" }}>
+          <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm animate-fade-up [animation-duration:0.25s]">
             <div className="flex items-center gap-3 mb-5">
               <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center shrink-0">
                 <Truck size={20} className="text-blue-600" />
@@ -361,254 +379,170 @@ export default function OrdersManager({ initialOrders, blingEnabled = false }: P
         </div>
       )}
 
-      {/* Filters */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-        <div className="flex flex-wrap gap-3 items-end">
-          <div className="flex-1 min-w-[200px]">
-            <label className="block text-xs font-medium text-gray-500 mb-1">Buscar</label>
-            <div className="relative">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input value={search} onChange={(e) => setSearch(e.target.value)} className={`${inputClass} pl-8 w-full`} placeholder="Nº pedido, nome ou e-mail" />
-            </div>
+
+      {/* Indicadores */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {[
+          { label: "Pedidos na lista", value: String(visible.length), icon: ClipboardList },
+          { label: "Faturamento (pagos)", value: formatCurrency(revenue), icon: DollarSign },
+          { label: "Ticket médio", value: paidVisible.length ? formatCurrency(revenue / paidVisible.length) : "—", icon: Receipt },
+          { label: "Pagos para enviar", value: String(countOf("CONFIRMED")), icon: Package, highlight: countOf("CONFIRMED") > 0 },
+        ].map(({ label, value, icon: Icon, highlight }) => (
+          <div key={label} className={`bg-white rounded-2xl border p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)] ${highlight ? "border-blue-200" : "border-gray-200/70"}`}>
+            <p className="text-[13px] text-gray-500 flex items-center gap-1.5"><Icon size={14} className="text-gray-400" />{label}</p>
+            <p className="mt-1 text-xl font-semibold text-gray-900 tabular-nums">{value}</p>
           </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Status</label>
-            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className={inputClass}>
-              {STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">De</label>
-            <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className={inputClass} />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Até</label>
-            <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className={inputClass} />
-          </div>
-          {hasFilters && (
-            <button onClick={clearFilters} className="flex items-center gap-1 text-sm text-gray-500 hover:text-red-500 transition-colors px-2 py-2 rounded-xl hover:bg-red-50">
-              <X size={14} /> Limpar
+        ))}
+      </div>
+
+      {/* Abas por status */}
+      <div className="border-b border-gray-200 flex gap-1 overflow-x-auto [scrollbar-width:none]">
+        {TABS.map((t) => {
+          const n = countOf(t.value);
+          const active = statusFilter === t.value;
+          return (
+            <button key={t.value || "all"} onClick={() => { setStatusFilter(t.value); setLimit(40); }} className={`relative inline-flex items-center gap-1.5 px-3 py-2.5 text-[13px] font-medium whitespace-nowrap transition-colors ${active ? "text-gray-900" : "text-gray-500 hover:text-gray-800"}`}>
+              {t.label}
+              <span className={`text-[11px] font-semibold rounded-full px-1.5 tabular-nums ${t.value === "CONFIRMED" && n > 0 ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-600"}`}>{n}</span>
+              <span className={`absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-gray-900 transition-transform ${active ? "scale-x-100" : "scale-x-0"}`} />
             </button>
-          )}
+          );
+        })}
+      </div>
+
+      {/* Busca e datas */}
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="relative flex-1 min-w-[220px]">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} className="w-full pl-8 pr-3 py-2 text-[13px] rounded-xl border border-gray-200 bg-white" placeholder="Buscar por nº do pedido, nome ou e-mail" />
+        </label>
+        <div className="inline-flex items-center gap-1.5 rounded-xl bg-white px-2.5 py-1.5 ring-1 ring-gray-200">
+          <span className="text-xs text-gray-400">De</span>
+          <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="text-[13px] bg-transparent outline-none w-[118px]" aria-label="De" />
+          <span className="text-xs text-gray-400">até</span>
+          <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="text-[13px] bg-transparent outline-none w-[118px]" aria-label="Até" />
         </div>
+        {hasFilters && <button onClick={clearFilters} className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-gray-900 px-2 py-2"><X size={13} /> Limpar</button>}
+        <button onClick={exportCsv} disabled={visible.length === 0} className="ml-auto inline-flex items-center gap-1.5 text-xs font-medium text-gray-600 px-3 py-2 rounded-xl bg-white ring-1 ring-gray-200 hover:bg-gray-50 disabled:opacity-40">
+          <Download size={13} /> Exportar CSV
+        </button>
       </div>
 
-      <div className="flex items-center justify-between text-sm text-gray-500 px-1">
-        <span>{filtered.length} pedido{filtered.length !== 1 ? "s" : ""}</span>
-        <span className="font-semibold text-gray-900">Total: {formatCurrency(totalFiltered)}</span>
-      </div>
+      {blingRetryMessage && (
+        <div className={`text-sm rounded-xl px-4 py-2.5 ${blingRetryMessage.type === "success" ? "bg-emerald-50 text-emerald-800" : "bg-red-50 text-red-800"}`}>{blingRetryMessage.text}</div>
+      )}
 
-      {filtered.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-16 text-center text-gray-400">Nenhum pedido encontrado.</div>
+      {visible.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-dashed border-gray-300 py-16 text-center">
+          <ClipboardList size={32} className="mx-auto text-gray-300 mb-3" />
+          <p className="font-medium text-gray-700">Nenhum pedido encontrado</p>
+          {hasFilters && <button onClick={clearFilters} className="mt-2 text-sm text-gray-500 hover:text-gray-900 underline">Limpar filtros</button>}
+        </div>
       ) : (
-        <div className="space-y-3">
-          {filtered.map((order) => {
-            const status = ORDER_STATUS[order.status] || ORDER_STATUS.PENDING;
-            const isExpanded = expanded === order.id;
-            const linkedCustomer = (order as unknown as { customer?: { id: string; name: string; email: string } }).customer;
-            const ext = order as unknown as { cancelReason?: string; trackingCode?: string; shippingProof?: string };
-            return (
-              <div key={order.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                <div
-                  className="flex flex-wrap items-center gap-3 p-4 cursor-pointer hover:bg-gray-50 transition-colors"
-                  onClick={() => setExpanded(isExpanded ? null : order.id)}
+        <div className="bg-white rounded-2xl border border-gray-200/70 shadow-[0_1px_2px_rgba(0,0,0,0.04)] overflow-hidden">
+          <div className="hidden lg:grid grid-cols-[minmax(0,1.1fr)_minmax(0,1.3fr)_minmax(0,0.9fr)_minmax(0,1.6fr)_minmax(0,0.8fr)_210px] gap-3 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-gray-400 border-b border-gray-100 bg-gray-50/60">
+            <span>Pedido</span><span>Cliente</span><span>Itens</span><span>Situação</span><span className="text-right">Total</span><span className="text-right">Ações</span>
+          </div>
+          <ul className="divide-y divide-gray-100">
+            {visible.slice(0, limit).map((order) => {
+              const st = ORDER_STATUS[order.status] || ORDER_STATUS.PENDING;
+              const x = order as unknown as Ext;
+              const units = order.items.reduce((s, i) => s + i.quantity, 0);
+              const next = NEXT[order.status];
+              const nextTo = next && order.status === "CONFIRMED" && x.shippingMethod === "retirada" ? { to: "PRONTO_PARA_RETIRADA", label: "Pronto p/ retirada" } : next;
+              const others = (ALLOWED_TRANSITIONS[order.status] || []).filter((s2) => s2 !== nextTo?.to);
+              const usesLabel = !!x.shippingMethod && /^\d+$/.test(x.shippingMethod);
+              const paid = order.status !== "PENDING" && order.status !== "CANCELLED";
+              return (
+                <li
+                  key={order.id}
+                  onClick={() => router.push(`/admin/pedidos/${order.id}`)}
+                  className={`group grid grid-cols-1 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1.3fr)_minmax(0,0.9fr)_minmax(0,1.6fr)_minmax(0,0.8fr)_210px] gap-2 lg:gap-3 px-4 py-3.5 cursor-pointer hover:bg-gray-50/80 transition-colors ${updatingStatus === order.id ? "opacity-60 pointer-events-none" : ""}`}
                 >
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-bold text-brand">{order.orderNumber}</span>
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${status.color}`}>{status.label}</span>
-                      {linkedCustomer && (
-                        <span className="flex items-center gap-1 text-[10px] text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full font-semibold">
-                          <User size={10} /> Cadastrado
-                        </span>
-                      )}
-                      {ext.trackingCode && (
-                        <span className="flex items-center gap-1 text-[10px] text-green-700 bg-green-50 px-2 py-0.5 rounded-full font-semibold">
-                          <Package size={10} /> {ext.trackingCode}
-                        </span>
-                      )}
-                      {(order as unknown as { returnStatus?: string }).returnStatus && (
-                        <span className={`flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-semibold ${
-                          (order as unknown as { returnStatus?: string }).returnStatus === "FULL_RETURN"
-                            ? "text-red-700 bg-red-50"
-                            : "text-orange-700 bg-orange-50"
-                        }`}>
-                          🔄 {(order as unknown as { returnStatus?: string }).returnStatus === "FULL_RETURN" ? "Devolvido Total" : "Devolvido Parcial"}
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-sm text-gray-700 mt-0.5">{order.customerName}</p>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-gray-900 group-hover:text-brand">{order.orderNumber}</p>
                     <p className="text-xs text-gray-400">{formatDate(order.createdAt)}</p>
                   </div>
-                  <div className="text-right shrink-0">
-                    <p className="font-bold text-gray-900">{formatCurrency(order.total)}</p>
-                    <p className="text-xs text-gray-500">{order.items.length} item{order.items.length !== 1 ? "s" : ""}</p>
+                  <div className="min-w-0">
+                    <p className="text-sm text-gray-800 truncate">{order.customerName}</p>
+                    <p className="text-xs text-gray-400 truncate">{x.customer?.email || order.customerEmail || order.customerPhone}</p>
                   </div>
-                  {isExpanded ? <ChevronUp size={16} className="text-gray-400 shrink-0" /> : <ChevronDown size={16} className="text-gray-400 shrink-0" />}
-                </div>
-
-                {isExpanded && (
-                  <div className="border-t border-gray-100 p-4 space-y-5">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                      <div>
-                        <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Cliente</h4>
-                        <div className="flex items-center gap-2 mb-1">
-                          <p className="text-sm text-gray-900 font-medium">{order.customerName}</p>
-                          {linkedCustomer && <span className="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full font-semibold">conta vinculada</span>}
-                        </div>
-                        <p className="text-sm text-gray-600">{linkedCustomer?.email || order.customerEmail || "—"}</p>
-                        <p className="text-sm text-gray-600">{order.customerPhone}</p>
-                      </div>
-                      <div>
-                        <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Entrega</h4>
-                        <p className="text-sm text-gray-600">{order.address || "—"}</p>
-                        <p className="text-sm text-gray-600">{order.city}{order.state ? ` - ${order.state}` : ""}</p>
-                        {order.zipCode && <p className="text-sm text-gray-600">CEP: {order.zipCode}</p>}
-                        {ext.trackingCode && (
-                          <p className="text-sm font-bold text-green-700 mt-1">Rastreio: {ext.trackingCode}</p>
-                        )}
-                        {ext.shippingProof && (
-                          <a href={ext.shippingProof} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline mt-1 inline-block">
-                            Ver comprovante de despacho
-                          </a>
-                        )}
-                      </div>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="flex -space-x-2">
+                      {order.items.slice(0, 3).map((it) => {
+                        let img: string | null = null;
+                        try { img = (JSON.parse(it.product?.images || "[]") as string[])[0] ?? null; } catch {}
+                        return <span key={it.id} className="w-8 h-8 rounded-lg ring-2 ring-white bg-gray-100 overflow-hidden shrink-0">{img ? <img src={img} alt="" className="w-full h-full object-cover" /> : null}</span>;
+                      })}
                     </div>
-
-                    {ext.cancelReason && (
-                      <div className="bg-red-50 border border-red-100 rounded-xl p-3">
-                        <p className="text-xs font-semibold text-red-600 mb-0.5">Motivo do cancelamento</p>
-                        <p className="text-sm text-red-800">{ext.cancelReason}</p>
-                      </div>
-                    )}
-
-                    <div>
-                      <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Itens</h4>
-                      <div className="space-y-2">
-                        {order.items.map((item) => (
-                          <div key={item.id} className="flex items-center gap-3 text-sm">
-                            <div className="w-10 h-10 rounded-lg bg-gray-100 overflow-hidden shrink-0">
-                              {(() => {
-                                const imgs = JSON.parse(item.product?.images || "[]") as string[];
-                                return imgs[0]
-                                  ? <img src={imgs[0]} alt="" className="w-full h-full object-cover" />
-                                  : <div className="w-full h-full flex items-center justify-center text-sm">👗</div>;
-                              })()}
-                            </div>
-                            <div className="flex-1">
-                              <p className="font-medium text-gray-900">{item.product?.name}</p>
-                              <p className="text-xs text-gray-500">
-                                {(() => {
-                                  if (item.selectedAttributes) {
-                                    try {
-                                      const attrs = JSON.parse(item.selectedAttributes) as Record<string, string>;
-                                      return Object.entries(attrs).map(([k, v]) => `${k}: ${v}`).join(" · ");
-                                    } catch { /* fall through */ }
-                                  }
-                                  return [item.size && `Tam: ${item.size}`, item.color && `Cor: ${item.color}`].filter(Boolean).join(" · ");
-                                })()}
-                              </p>
-                            </div>
-                            <p className="text-gray-700 shrink-0">{item.quantity}× {formatCurrency(item.price)}</p>
-                          </div>
-                        ))}
-                      </div>
-                      <div className="border-t border-gray-100 mt-3 pt-3 flex justify-end">
-                        <span className="font-bold text-gray-900">{formatCurrency(order.total)}</span>
-                      </div>
-                    </div>
-
-                    {order.notes && (
-                      <div>
-                        <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Observações</h4>
-                        <p className="text-sm text-gray-600 bg-gray-50 rounded-xl p-3">{order.notes}</p>
-                      </div>
-                    )}
-
-                    {blingEnabled && (order.blingIntegrationStatus === "success" || order.blingIntegrationStatus === "error" || (order.status !== "PENDING" && order.status !== "CANCELLED")) && (
-                      <div>
-                        <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Integração Bling</h4>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          {order.blingIntegrationStatus === "success" && order.blingPedidoId && (
-                            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-green-50 border border-green-200">
-                              <Zap size={14} className="text-green-600" />
-                              <span className="text-xs text-green-700 font-semibold">Integrado ({order.blingPedidoId})</span>
-                            </div>
-                          )}
-                          {order.blingIntegrationStatus !== "success" && (
-                            <>
-                              <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-yellow-50 border border-yellow-200">
-                                <AlertCircle size={14} className="text-yellow-600" />
-                                <span className="text-xs text-yellow-700 font-semibold">
-                                  {order.blingIntegrationStatus === "error" ? "Erro na integração" : "Não enviado ao Bling"}
-                                </span>
-                              </div>
-                              <button
-                                onClick={() => retryBlingIntegration(order.id)}
-                                disabled={retryingBling === order.id}
-                                className="px-3 py-2 rounded-xl bg-orange-50 border border-orange-200 text-xs text-orange-700 font-semibold hover:bg-orange-100 transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-1"
-                              >
-                                <Zap size={12} />
-                                {retryingBling === order.id ? "Enviando..." : order.blingIntegrationStatus === "error" ? "Reintegrar agora" : "Enviar ao Bling"}
-                              </button>
-                            </>
-                          )}
-                          {blingRetryMessage?.orderId === order.id && (
-                            <div
-                              className={`text-xs font-semibold px-3 py-2 rounded-xl ${
-                                blingRetryMessage.type === "success"
-                                  ? "bg-green-50 text-green-700"
-                                  : "bg-red-50 text-red-700"
-                              }`}
-                            >
-                              {blingRetryMessage.text}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    <Link
-                      href={`/admin/pedidos/${order.id}`}
-                      className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:underline"
-                    >
-                      <Package size={12} /> Ver detalhes, etiqueta e Bling
-                    </Link>
-
-                    <div>
-                      <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Alterar status</h4>
-                      {order.status === "CANCELLED" ? (
-                        <p className="text-xs text-red-500 bg-red-50 border border-red-100 rounded-xl px-3 py-2">
-                          Pedido cancelado não pode ter o status alterado.
-                        </p>
-                      ) : (
-                        <div className="flex gap-2 flex-wrap">
-                          {Object.entries(ORDER_STATUS).map(([key, { label, color }]) => {
-                            const isCurrent = order.status === key;
-                            const isAllowed = ALLOWED_TRANSITIONS[order.status]?.includes(key) ?? false;
-                            return (
-                              <button
-                                key={key}
-                                disabled={isCurrent || !isAllowed || updatingStatus === order.id}
-                                onClick={() => requestStatusChange(order, key)}
-                                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
-                                  isCurrent ? color + " ring-2 ring-offset-1 ring-brand" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                                }`}
-                              >
-                                {label}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
+                    <span className="text-xs text-gray-500">{units} {units === 1 ? "peça" : "peças"}</span>
                   </div>
-                )}
-              </div>
-            );
-          })}
+                  <div className="flex flex-wrap items-center gap-1 text-[10.5px] font-medium">
+                    <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold ${st.color}`}>{st.label}</span>
+                    {order.paymentMethod && <span className="px-1.5 py-0.5 rounded-md bg-gray-100 text-gray-600">{order.paymentMethod}</span>}
+                    {usesLabel && paid && order.status === "CONFIRMED" && (
+                      x.melhorEnvioShipmentId && x.labelValid !== false
+                        ? <span className="px-1.5 py-0.5 rounded-md bg-emerald-50 text-emerald-700">Etiqueta ok</span>
+                        : <span className="px-1.5 py-0.5 rounded-md bg-red-50 text-red-700" title={x.shipmentRetryError || undefined}>{x.shipmentRetryError ? "Erro na etiqueta" : "Sem etiqueta"}</span>
+                    )}
+                    {blingEnabled && paid && (
+                      order.blingPedidoId
+                        ? <span className="px-1.5 py-0.5 rounded-md bg-emerald-50 text-emerald-700">Bling ✓</span>
+                        : <button onClick={(e) => { e.stopPropagation(); retryBlingIntegration(order.id); }} className="px-1.5 py-0.5 rounded-md bg-red-50 text-red-700 hover:bg-red-100" title="Enviar ao Bling agora">{retryingBling === order.id ? "Enviando…" : "Fora do Bling ↻"}</button>
+                    )}
+                    {x.couponCode && <span className="px-1.5 py-0.5 rounded-md bg-violet-50 text-violet-700">{x.couponCode}</span>}
+                    {x.trackingCode && order.status === "SHIPPED" && <span className="px-1.5 py-0.5 rounded-md bg-gray-100 text-gray-600 font-mono">{x.trackingCode}</span>}
+                    {x.returnStatus && <span className="px-1.5 py-0.5 rounded-md bg-orange-50 text-orange-700">{x.returnStatus === "FULL_RETURN" ? "Devolvido" : "Devolução parcial"}</span>}
+                  </div>
+                  <p className="text-sm font-semibold text-gray-900 lg:text-right tabular-nums">{formatCurrency(order.total)}</p>
+                  <div className="flex items-center lg:justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                    {nextTo && (
+                      <button onClick={() => requestStatusChange(order, nextTo.to)} className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-gray-900 text-white hover:bg-gray-800 whitespace-nowrap">
+                        <ArrowRight size={12} /> {nextTo.label}
+                      </button>
+                    )}
+                    {others.length > 0 && (
+                      <div className="relative">
+                        <button onClick={() => setMenuFor(menuFor === order.id ? null : order.id)} className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100" aria-label="Mais ações"><MoreHorizontal size={16} /></button>
+                        {menuFor === order.id && (
+                          <>
+                            <div className="fixed inset-0 z-10" onClick={() => setMenuFor(null)} />
+                            <div className="absolute right-0 top-full mt-1 z-20 w-48 rounded-xl bg-white shadow-xl ring-1 ring-black/10 py-1">
+                              {others.map((s2) => (
+                                <button key={s2} onClick={() => { setMenuFor(null); requestStatusChange(order, s2); }} className={`w-full text-left px-3 py-2 text-[13px] hover:bg-gray-50 ${s2 === "CANCELLED" ? "text-red-600" : "text-gray-700"}`}>
+                                  {s2 === "CANCELLED" ? "Cancelar pedido" : `Mover para ${ORDER_STATUS[s2]?.label || s2}`}
+                                </button>
+                              ))}
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    )}
+                    <ChevronRight size={16} className="hidden lg:block text-gray-300 group-hover:text-gray-500" />
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+          {visible.length > limit && (
+            <div className="px-4 py-3 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500">
+              <span>Mostrando {limit} de {visible.length}</span>
+              <button onClick={() => setLimit((l) => l + 40)} className="font-medium text-gray-700 hover:text-gray-900">Ver mais</button>
+            </div>
+          )}
         </div>
       )}
     </div>
   );
+}
+
+interface Ext {
+  shippingMethod?: string | null;
+  melhorEnvioShipmentId?: string | null;
+  labelValid?: boolean | null;
+  shipmentRetryError?: string | null;
+  couponCode?: string | null;
+  trackingCode?: string | null;
+  returnStatus?: string | null;
+  customer?: { email: string } | null;
 }

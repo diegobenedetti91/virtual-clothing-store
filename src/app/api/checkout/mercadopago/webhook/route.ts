@@ -7,6 +7,7 @@ import { trackServer } from "@/lib/analyticsServer";
 import { sendMetaPurchase } from "@/lib/metaCapi";
 import { integrarPedidoBling } from "@/lib/blingService";
 import { MP_TRANSPARENT_LABEL } from "@/lib/mercadoPagoTransparent";
+import { extractMpPaymentDetails } from "@/lib/mercadoPagoPayment";
 
 // Exempt from all protections - webhook from external service
 export const dynamic = "force-dynamic";
@@ -102,6 +103,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true });
   }
 
+  // Já estava confirmado (aviso repetido): só completa taxa/forma de pagamento se ainda não tiver
+  if (order && order.status === newStatus && newStatus === "CONFIRMED" && (order as { paymentNetAmount?: number | null }).paymentNetAmount == null) {
+    const details = extractMpPaymentDetails(payment);
+    await prisma.order
+      .update({
+        where: { orderNumber },
+        data: { paymentFee: details.fee, paymentNetAmount: details.net, paymentType: details.paymentType, paymentInstallments: details.installments },
+      })
+      .catch(console.error);
+  }
+
   // Order was already created with PENDING status, just update it
   if (order && order.status !== newStatus) {
     console.log("[MP WEBHOOK] Updating order status:", { orderNumber, from: order.status, to: newStatus });
@@ -115,16 +127,20 @@ export async function POST(req: NextRequest) {
         paymentMethod: order.paymentMethod === MP_TRANSPARENT_LABEL ? MP_TRANSPARENT_LABEL : "Mercado Pago",
       };
 
-      // Save fee and payment method when confirmed
-      if (newStatus === "CONFIRMED" && payment.fee) {
-        updateData.paymentFee = payment.fee;
+      // Taxa real (fee_details), líquido e forma de pagamento — o MP não tem campo "fee"
+      if (newStatus === "CONFIRMED") {
+        const details = extractMpPaymentDetails(payment);
+        updateData.paymentFee = details.fee;
+        updateData.paymentNetAmount = details.net;
+        updateData.paymentType = details.paymentType;
+        updateData.paymentInstallments = details.installments;
       }
 
       await prisma.order.update({
         where: { orderNumber },
         data: updateData,
       });
-      console.log("[MP WEBHOOK] Order updated successfully", { paymentFee: payment.fee });
+      console.log("[MP WEBHOOK] Order updated successfully", { paymentFee: updateData.paymentFee });
     } catch (updateErr) {
       console.error("[MP WEBHOOK] Error updating order:", updateErr);
       // Continue anyway, at least update status

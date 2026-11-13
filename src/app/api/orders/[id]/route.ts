@@ -67,6 +67,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 
   const updateData: Record<string, unknown> = { status };
+  // Início do prazo de devolução (7 dias a partir do recebimento)
+  if (status === "DELIVERED" || status === "RETIRADO") updateData.deliveredAt = new Date();
   if (cancelReason !== undefined) updateData.cancelReason = cancelReason;
   if (trackingCode !== undefined) updateData.trackingCode = trackingCode;
   if (shippingProof !== undefined) updateData.shippingProof = shippingProof;

@@ -148,6 +148,13 @@ model Order {
   paymentId        String?
   paymentMethod    String?
   paymentFee       Float         @default(0)
+  /** pix | credit_card | debit_card | boleto | account_money (quando o gateway informa) */
+  paymentType      String?
+  paymentInstallments Int?
+  /** Valor líquido recebido, informado pelo gateway (null = taxa não conferida) */
+  paymentNetAmount Float?
+  /** Quando o pedido foi entregue/retirado — base do prazo de devolução (CDC art. 49) */
+  deliveredAt      DateTime?
   refundedAt       DateTime?
   returnStatus     String?       // PARTIAL_RETURN, FULL_RETURN
   reviewEmailSentAt DateTime?

@@ -17,9 +17,9 @@ export default async function AdminOrdersPage() {
 
     return (
       <div>
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">Pedidos</h1>
-          <p className="text-gray-500 text-sm mt-1">Gerencie todos os pedidos da loja</p>
+        <div className="mb-6">
+          <h1 className="text-2xl font-semibold tracking-tight text-gray-900">Pedidos</h1>
+          <p className="text-gray-500 text-sm mt-1">Clique em um pedido para ver detalhes, etiqueta e Bling. Use o botão de cada linha para avançar o status.</p>
         </div>
         <OrdersManager
           initialOrders={orders as unknown as Order[]}

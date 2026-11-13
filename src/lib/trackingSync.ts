@@ -58,7 +58,7 @@ export async function applyShipmentUpdate(orderId: string, update: ShipmentUpdat
   if (newOrderStatus) {
     const result = await prisma.order.updateMany({
       where: { id: order.id, status: order.status },
-      data: { status: newOrderStatus },
+      data: { status: newOrderStatus, ...(newOrderStatus === "DELIVERED" ? { deliveredAt: new Date() } : {}) },
     });
     orderStatusChanged = result.count > 0;
     if (orderStatusChanged) {
