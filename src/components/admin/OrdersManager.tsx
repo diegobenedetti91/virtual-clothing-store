@@ -3,6 +3,7 @@
 import { useState, useMemo, useRef } from "react";
 import { Order } from "@/types";
 import { formatCurrency, formatDate, ORDER_STATUS } from "@/lib/utils";
+import Link from "next/link";
 import { Search, X, AlertCircle, Truck, Upload, Package, ArrowRight, ChevronRight, ClipboardList, DollarSign, Download, MoreHorizontal, Receipt } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -439,12 +440,13 @@ export default function OrdersManager({ initialOrders, blingEnabled = false }: P
           {hasFilters && <button onClick={clearFilters} className="mt-2 text-sm text-gray-500 hover:text-gray-900 underline">Limpar filtros</button>}
         </div>
       ) : (
-        <div className="bg-white rounded-2xl border border-gray-200/70 shadow-[0_1px_2px_rgba(0,0,0,0.04)] overflow-hidden">
-          <div className="hidden lg:grid grid-cols-[minmax(0,1.1fr)_minmax(0,1.3fr)_minmax(0,0.9fr)_minmax(0,1.6fr)_minmax(0,0.8fr)_210px] gap-3 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-gray-400 border-b border-gray-100 bg-gray-50/60">
+        <div className="bg-white rounded-2xl border border-gray-200/70 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+          <div className="hidden lg:grid grid-cols-[minmax(0,1.1fr)_minmax(0,1.3fr)_minmax(0,0.9fr)_minmax(0,1.6fr)_minmax(0,0.8fr)_210px] gap-3 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-gray-400 border-b border-gray-100 bg-gray-50/60 rounded-t-2xl">
             <span>Pedido</span><span>Cliente</span><span>Itens</span><span>Situação</span><span className="text-right">Total</span><span className="text-right">Ações</span>
           </div>
           <ul className="divide-y divide-gray-100">
-            {visible.slice(0, limit).map((order) => {
+            {visible.slice(0, limit).map((order, rowIndex, arr) => {
+              const openUp = arr.length > 2 && rowIndex >= arr.length - 2;
               const st = ORDER_STATUS[order.status] || ORDER_STATUS.PENDING;
               const x = order as unknown as Ext;
               const units = order.items.reduce((s, i) => s + i.quantity, 0);
@@ -501,13 +503,14 @@ export default function OrdersManager({ initialOrders, blingEnabled = false }: P
                         <ArrowRight size={12} /> {nextTo.label}
                       </button>
                     )}
-                    {others.length > 0 && (
+                    {(
                       <div className="relative">
                         <button onClick={() => setMenuFor(menuFor === order.id ? null : order.id)} className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100" aria-label="Mais ações"><MoreHorizontal size={16} /></button>
                         {menuFor === order.id && (
                           <>
                             <div className="fixed inset-0 z-10" onClick={() => setMenuFor(null)} />
-                            <div className="absolute right-0 top-full mt-1 z-20 w-48 rounded-xl bg-white shadow-xl ring-1 ring-black/10 py-1">
+                            <div className={`absolute right-0 z-30 w-52 rounded-xl bg-white shadow-xl ring-1 ring-black/10 py-1 animate-fade-up [animation-duration:0.15s] ${openUp ? "bottom-full mb-1" : "top-full mt-1"}`}>
+                              <Link href={`/admin/pedidos/${order.id}`} className="block px-3 py-2 text-[13px] text-gray-700 hover:bg-gray-50 border-b border-gray-100">Abrir pedido (etiqueta e Bling)</Link>
                               {others.map((s2) => (
                                 <button key={s2} onClick={() => { setMenuFor(null); requestStatusChange(order, s2); }} className={`w-full text-left px-3 py-2 text-[13px] hover:bg-gray-50 ${s2 === "CANCELLED" ? "text-red-600" : "text-gray-700"}`}>
                                   {s2 === "CANCELLED" ? "Cancelar pedido" : `Mover para ${ORDER_STATUS[s2]?.label || s2}`}
@@ -518,7 +521,14 @@ export default function OrdersManager({ initialOrders, blingEnabled = false }: P
                         )}
                       </div>
                     )}
-                    <ChevronRight size={16} className="hidden lg:block text-gray-300 group-hover:text-gray-500" />
+                    <Link
+                      href={`/admin/pedidos/${order.id}`}
+                      className="p-1.5 rounded-lg text-gray-400 hover:text-gray-900 hover:bg-gray-100"
+                      aria-label={`Abrir pedido ${order.orderNumber}`}
+                      title="Abrir pedido"
+                    >
+                      <ChevronRight size={16} />
+                    </Link>
                   </div>
                 </li>
               );

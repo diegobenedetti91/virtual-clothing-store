@@ -1,13 +1,23 @@
+import { prisma } from "@/lib/prisma";
 import AvaliacoesManager from "@/components/admin/AvaliacoesManager";
 
-export default function AvaliacoesPage() {
-  return (
-    <div className="max-w-4xl">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Avaliações</h1>
-        <p className="text-gray-500 text-sm mt-1">Modere as avaliações dos clientes antes de publicá-las nos produtos.</p>
-      </div>
-      <AvaliacoesManager />
-    </div>
+export const dynamic = "force-dynamic";
+
+export default async function AvaliacoesPage() {
+  // Foto de cada produto avaliado (a API de avaliações só traz nome e slug)
+  const products = await prisma.product
+    .findMany({ where: { reviews: { some: {} } }, select: { id: true, images: true } })
+    .catch(() => []);
+  const productImages = Object.fromEntries(
+    products.map((p) => {
+      try {
+        const imgs = JSON.parse(p.images || "[]");
+        return [p.id, Array.isArray(imgs) ? (imgs[0] as string) ?? null : null];
+      } catch {
+        return [p.id, null];
+      }
+    })
   );
+
+  return <AvaliacoesManager productImages={productImages} />;
 }

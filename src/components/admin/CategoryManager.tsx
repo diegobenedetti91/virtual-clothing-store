@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { Plus, Pencil, Trash2, Check, X } from "lucide-react";
+import { useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { AlertTriangle, Check, ExternalLink, Pencil, Plus, Search, Tag, Trash2, X } from "lucide-react";
 import { Category } from "@/types";
 import ImageUpload from "./ImageUpload";
 
@@ -10,172 +11,253 @@ interface Props {
   initialCategories: Category[];
 }
 
+interface FormState {
+  id?: string;
+  name: string;
+  image: string;
+  active: boolean;
+}
+
+// Mesmas cores usadas na home para categorias sem imagem
+const CATEGORY_BG = ["#6366f1", "#ec4899", "#14b8a6", "#f59e0b", "#8b5cf6", "#ef4444"];
+
+function slugPreview(name: string) {
+  return name
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+}
+
+function Toggle({ checked, onChange, label }: { checked: boolean; onChange: () => void; label: string }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      title={label}
+      onClick={onChange}
+      className={`relative w-9 h-5 rounded-full shrink-0 transition-colors ${checked ? "bg-brand" : "bg-gray-300"}`}
+    >
+      <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${checked ? "translate-x-4" : ""}`} />
+    </button>
+  );
+}
+
 export default function CategoryManager({ initialCategories }: Props) {
   const router = useRouter();
   const [categories, setCategories] = useState(initialCategories);
-  const [editing, setEditing] = useState<string | null>(null);
-  const [adding, setAdding] = useState(false);
-  const [form, setForm] = useState({ name: "", image: "" });
-  const [editForm, setEditForm] = useState({ name: "", image: "" });
-  const [loading, setLoading] = useState(false);
+  const [query, setQuery] = useState("");
+  const [form, setForm] = useState<FormState | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
-  const inputClass = "border border-gray-300 rounded-xl px-3 py-2 text-sm text-gray-900 bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand transition";
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return q ? categories.filter((c) => c.name.toLowerCase().includes(q) || c.slug.toLowerCase().includes(q)) : categories;
+  }, [categories, query]);
 
-  const handleAdd = async () => {
-    if (!form.name.trim()) return;
-    setLoading(true);
-    const res = await fetch("/api/categories", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: form.name, image: form.image }),
-    });
-    const cat = await res.json();
-    setCategories([...categories, cat]);
-    setForm({ name: "", image: "" });
-    setAdding(false);
-    setLoading(false);
-    router.refresh();
+  const totalProducts = categories.reduce((s, c) => s + (c._count?.products || 0), 0);
+  const indexOf = (id: string) => Math.max(0, categories.findIndex((c) => c.id === id));
+
+  const openNew = () => { setFormError(null); setForm({ name: "", image: "", active: true }); };
+  const openEdit = (c: Category) => { setFormError(null); setForm({ id: c.id, name: c.name, image: c.image || "", active: c.active !== false }); };
+
+  const save = async () => {
+    if (!form) return;
+    if (!form.name.trim()) { setFormError("Dê um nome para a categoria"); return; }
+    setSaving(true);
+    setFormError(null);
+    try {
+      const res = await fetch(form.id ? `/api/categories/${form.id}` : "/api/categories", {
+        method: form.id ? "PUT" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: form.name.trim(), image: form.image, active: form.active }),
+      });
+      if (!res.ok) throw new Error("Não foi possível salvar a categoria");
+      const cat = (await res.json()) as Category;
+      setCategories((prev) =>
+        (form.id ? prev.map((c) => (c.id === form.id ? cat : c)) : [...prev, cat]).sort((a, b) => a.name.localeCompare(b.name, "pt-BR"))
+      );
+      setForm(null);
+      router.refresh();
+    } catch (e) {
+      setFormError(e instanceof Error ? e.message : "Erro ao salvar");
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleEdit = async (id: string) => {
-    setLoading(true);
-    const res = await fetch(`/api/categories/${id}`, {
+  // Ativar/desativar sem abrir o formulário (a API exige nome e imagem no PUT)
+  const toggleActive = async (c: Category) => {
+    const next = c.active === false;
+    setCategories((prev) => prev.map((x) => (x.id === c.id ? { ...x, active: next } : x)));
+    const res = await fetch(`/api/categories/${c.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: editForm.name, image: editForm.image }),
+      body: JSON.stringify({ name: c.name, image: c.image || "", active: next }),
     });
-    const cat = await res.json();
-    setCategories(categories.map((c) => (c.id === id ? cat : c)));
-    setEditing(null);
-    setLoading(false);
+    if (!res.ok) {
+      setCategories((prev) => prev.map((x) => (x.id === c.id ? { ...x, active: !next } : x)));
+      setNotice("Não foi possível alterar a categoria. Tente novamente.");
+      return;
+    }
     router.refresh();
   };
 
-  const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`Excluir categoria "${name}"? Isso pode afetar os produtos associados.`)) return;
-    setLoading(true);
-    await fetch(`/api/categories/${id}`, { method: "DELETE" });
-    setCategories(categories.filter((c) => c.id !== id));
-    setLoading(false);
+  const remove = async (c: Category) => {
+    const count = c._count?.products || 0;
+    if (count > 0) {
+      // Todo produto precisa de uma categoria: o banco não deixa excluir enquanto houver produtos nela
+      setNotice(`"${c.name}" tem ${count} produto${count !== 1 ? "s" : ""}. Mova-os para outra categoria ou desative a categoria para escondê-la da loja.`);
+      return;
+    }
+    if (!confirm(`Excluir a categoria "${c.name}"?`)) return;
+    const res = await fetch(`/api/categories/${c.id}`, { method: "DELETE" });
+    if (!res.ok) {
+      setNotice(`Não foi possível excluir "${c.name}". Verifique se ainda há produtos nela.`);
+      return;
+    }
+    setCategories((prev) => prev.filter((x) => x.id !== c.id));
     router.refresh();
   };
 
-  const startEdit = (cat: Category) => {
-    setEditing(cat.id);
-    setEditForm({ name: cat.name, image: cat.image || "" });
-  };
+  const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setForm((f) => (f ? { ...f, [k]: v } : f));
+  const previewColor = CATEGORY_BG[(form?.id ? indexOf(form.id) : categories.length) % CATEGORY_BG.length];
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="font-semibold text-gray-900">Categorias ({categories.length})</h2>
-          <button
-            onClick={() => { setAdding(true); setForm({ name: "", image: "" }); }}
-            className="flex items-center gap-1.5 bg-brand text-white px-3 py-1.5 rounded-xl text-sm font-medium hover:opacity-90 transition-colors"
-          >
-            <Plus size={14} /> Nova
-          </button>
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-gray-900">Categorias</h1>
+          <p className="text-sm text-gray-500 mt-1">
+            Organize os produtos da loja. Categorias ativas aparecem em &ldquo;Compre por categoria&rdquo;, no menu e nos filtros.
+          </p>
         </div>
+        <button onClick={openNew} className="inline-flex items-center gap-2 bg-brand text-white px-4 py-2.5 rounded-xl text-sm font-semibold shadow-sm hover:opacity-90 active:scale-[0.98] transition shrink-0">
+          <Plus size={16} /> Nova categoria
+        </button>
+      </div>
 
-        {adding && (
-          <div className="bg-brand-light border border-pink-100 rounded-xl p-4 mb-4 space-y-3">
-            <p className="text-sm font-medium text-pink-800">Nova categoria</p>
-            <input
-              autoFocus
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              className={`${inputClass} w-full`}
-              placeholder="Nome da categoria"
-              onKeyDown={(e) => e.key === "Enter" && handleAdd()}
-            />
-            <ImageUpload value={form.image} onChange={(url) => setForm({ ...form, image: url })} label="Imagem (opcional)" aspect="square" />
-            <div className="flex gap-2">
-              <button onClick={handleAdd} disabled={loading} className="flex items-center gap-1 bg-brand text-white px-3 py-1.5 rounded-xl text-sm hover:opacity-90 transition-colors disabled:opacity-60">
-                <Check size={14} /> Salvar
-              </button>
-              <button onClick={() => setAdding(false)} className="flex items-center gap-1 text-gray-600 px-3 py-1.5 rounded-xl text-sm border border-gray-200 hover:border-gray-300 transition-colors">
-                <X size={14} /> Cancelar
-              </button>
+      {notice && (
+        <div className="flex items-start gap-2.5 rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3 text-sm text-amber-900">
+          <AlertTriangle size={16} className="shrink-0 mt-0.5 text-amber-600" />
+          <p className="flex-1">{notice}</p>
+          <button onClick={() => setNotice(null)} className="text-amber-700/70 hover:text-amber-900" aria-label="Fechar"><X size={15} /></button>
+        </div>
+      )}
+
+      {categories.length > 0 && (
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="relative flex-1 min-w-[220px] max-w-sm">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar categoria…" className="w-full pl-8 pr-3 py-2 text-[13px] rounded-xl border border-gray-200 bg-white" />
+          </label>
+          <p className="text-xs text-gray-500">
+            {categories.length} categoria{categories.length !== 1 ? "s" : ""} · {totalProducts} produto{totalProducts !== 1 ? "s" : ""}
+          </p>
+        </div>
+      )}
+
+      {categories.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-dashed border-gray-300 py-16 text-center px-4">
+          <Tag size={32} className="mx-auto text-gray-300 mb-3" />
+          <p className="font-medium text-gray-700">Nenhuma categoria ainda</p>
+          <p className="text-sm text-gray-500 mt-1 mb-4">Ex.: Vestidos, Blusas, Calças, Acessórios — com uma foto para o círculo da home.</p>
+          <button onClick={openNew} className="inline-flex items-center gap-2 bg-gray-900 text-white px-4 py-2 rounded-xl text-sm font-semibold"><Plus size={15} /> Criar categoria</button>
+        </div>
+      ) : filtered.length === 0 ? (
+        <p className="text-sm text-gray-500 text-center py-10">Nenhuma categoria encontrada para &ldquo;{query}&rdquo;.</p>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {filtered.map((c) => {
+            const count = c._count?.products || 0;
+            const active = c.active !== false;
+            return (
+              <div key={c.id} className={`group bg-white rounded-2xl border border-gray-200/70 shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:shadow-md transition-shadow p-4 flex items-center gap-4 ${active ? "" : "opacity-70"}`}>
+                <span className="w-16 h-16 rounded-full overflow-hidden shrink-0 ring-2 ring-gray-100 flex items-center justify-center" style={c.image ? undefined : { background: CATEGORY_BG[indexOf(c.id) % CATEGORY_BG.length] }}>
+                  {c.image ? <img src={c.image} alt={c.name} className="w-full h-full object-cover" /> : <span className="text-white font-black text-xl">{c.name[0]?.toUpperCase()}</span>}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className="font-semibold text-gray-900 truncate">{c.name}</p>
+                    {!active && <span className="text-[10px] font-semibold bg-gray-100 text-gray-500 rounded-full px-1.5 py-0.5">oculta</span>}
+                  </div>
+                  <p className="text-xs text-gray-400 truncate font-mono">/{c.slug}</p>
+                  <p className="text-xs text-gray-600 mt-1">{count} produto{count !== 1 ? "s" : ""}</p>
+                </div>
+                <div className="flex flex-col items-end gap-2 shrink-0">
+                  <Toggle checked={active} onChange={() => toggleActive(c)} label={active ? "Ocultar da loja" : "Mostrar na loja"} />
+                  <div className="flex items-center gap-0.5">
+                    <Link href={`/produtos?category=${c.slug}`} target="_blank" className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-900" aria-label="Ver na loja" title="Ver na loja"><ExternalLink size={14} /></Link>
+                    <button onClick={() => openEdit(c)} className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-900" aria-label="Editar" title="Editar"><Pencil size={14} /></button>
+                    <button onClick={() => remove(c)} className="p-1.5 rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-600" aria-label="Excluir" title="Excluir"><Trash2 size={14} /></button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Formulário (painel lateral) */}
+      {form && (
+        <div className="fixed inset-0 z-[60] flex justify-end">
+          <div className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm" onClick={() => !saving && setForm(null)} />
+          <div className="relative w-full max-w-lg h-full bg-white shadow-2xl flex flex-col animate-fade-up [animation-duration:0.3s]">
+            <div className="px-6 h-16 flex items-center justify-between border-b border-gray-100 shrink-0">
+              <h2 className="text-lg font-semibold text-gray-900">{form.id ? "Editar categoria" : "Nova categoria"}</h2>
+              <button onClick={() => setForm(null)} className="p-2 rounded-lg text-gray-400 hover:bg-gray-100" aria-label="Fechar"><X size={18} /></button>
+            </div>
+            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Nome</label>
+                <input
+                  autoFocus
+                  value={form.name}
+                  onChange={(e) => set("name", e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); save(); } }}
+                  placeholder="Ex.: Vestidos"
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white"
+                />
+                {form.name.trim() && <p className="text-[11px] text-gray-400 mt-1 font-mono">Endereço: /produtos?category={slugPreview(form.name)}</p>}
+              </div>
+
+              <ImageUpload value={form.image} onChange={(url) => set("image", url)} label="Foto da categoria (opcional)" aspect="square" />
+
+              <label className="flex items-start gap-3 cursor-pointer select-none">
+                <Toggle checked={form.active} onChange={() => set("active", !form.active)} label="Mostrar na loja" />
+                <span>
+                  <span className="block text-sm font-medium text-gray-900">Mostrar na loja</span>
+                  <span className="block text-xs text-gray-500">Desligado: a categoria some do menu e da home, mas os produtos continuam nela.</span>
+                </span>
+              </label>
+
+              {/* Prévia do círculo da home */}
+              <div className="rounded-2xl bg-gray-50 ring-1 ring-gray-200/70 p-5 text-center">
+                <p className="text-[11px] uppercase tracking-wider text-gray-400 mb-3">Como aparece em &ldquo;Compre por categoria&rdquo;</p>
+                <span className="mx-auto w-28 h-28 rounded-full overflow-hidden border-2 border-gray-200 flex items-center justify-center shadow-sm" style={form.image ? undefined : { background: previewColor }}>
+                  {form.image ? <img src={form.image} alt="" className="w-full h-full object-cover object-top" /> : <span className="text-white font-black text-2xl">{form.name.trim()[0]?.toUpperCase() || "?"}</span>}
+                </span>
+                <p className="mt-3 text-sm font-medium text-gray-700">{form.name.trim() || "Nome da categoria"}</p>
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t border-gray-100 shrink-0 space-y-2">
+              {formError && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{formError}</p>}
+              <div className="flex gap-2 justify-end">
+                <button onClick={() => setForm(null)} disabled={saving} className="px-4 py-2.5 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-100">Cancelar</button>
+                <button onClick={save} disabled={saving || !form.name.trim()} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-sm font-semibold bg-brand text-white shadow-sm hover:opacity-90 disabled:opacity-50">
+                  <Check size={15} /> {saving ? "Salvando…" : form.id ? "Salvar" : "Criar categoria"}
+                </button>
+              </div>
             </div>
           </div>
-        )}
-
-        {categories.length === 0 ? (
-          <p className="text-gray-400 text-sm text-center py-8">Nenhuma categoria criada.</p>
-        ) : (
-          <ul className="space-y-2">
-            {categories.map((cat) => (
-              <li key={cat.id} className="border border-gray-100 rounded-xl overflow-hidden">
-                {editing === cat.id ? (
-                  <div className="p-3 space-y-2">
-                    <input
-                      autoFocus
-                      value={editForm.name}
-                      onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                      className={`${inputClass} w-full`}
-                      onKeyDown={(e) => e.key === "Enter" && handleEdit(cat.id)}
-                    />
-                    <ImageUpload value={editForm.image} onChange={(url) => setEditForm({ ...editForm, image: url })} label="Imagem" aspect="square" />
-                    <div className="flex gap-2">
-                      <button onClick={() => handleEdit(cat.id)} disabled={loading} className="flex items-center gap-1 bg-brand text-white px-3 py-1.5 rounded-lg text-sm hover:opacity-90 transition-colors disabled:opacity-60">
-                        <Check size={13} /> Salvar
-                      </button>
-                      <button onClick={() => setEditing(null)} className="flex items-center gap-1 text-gray-600 px-3 py-1.5 rounded-lg text-sm border border-gray-200 hover:border-gray-300 transition-colors">
-                        <X size={13} /> Cancelar
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-3 p-3">
-                    <div className="w-10 h-10 rounded-lg overflow-hidden bg-gray-100 shrink-0">
-                      {cat.image ? (
-                        <img src={cat.image} alt={cat.name} className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-lg">👗</div>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-gray-900">{cat.name}</p>
-                      <p className="text-xs text-gray-500">{cat._count?.products || 0} produto{(cat._count?.products || 0) !== 1 ? "s" : ""}</p>
-                    </div>
-                    <div className="flex gap-1">
-                      <button onClick={() => startEdit(cat)} className="p-1.5 text-gray-400 hover:text-blue-600 rounded-lg hover:bg-blue-50 transition-colors">
-                        <Pencil size={14} />
-                      </button>
-                      <button onClick={() => handleDelete(cat.id, cat.name)} className="p-1.5 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors">
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-        <h2 className="font-semibold text-gray-900 mb-4">Dicas</h2>
-        <ul className="space-y-3 text-sm text-gray-600">
-          <li className="flex items-start gap-2">
-            <span className="text-brand font-bold mt-0.5">•</span>
-            <span>Crie categorias como "Vestidos", "Blusas", "Calças", "Acessórios"</span>
-          </li>
-          <li className="flex items-start gap-2">
-            <span className="text-brand font-bold mt-0.5">•</span>
-            <span>Adicione uma URL de imagem para deixar a categoria mais visual na loja</span>
-          </li>
-          <li className="flex items-start gap-2">
-            <span className="text-brand font-bold mt-0.5">•</span>
-            <span>Cada categoria aparece como um carrossel separado na página inicial</span>
-          </li>
-          <li className="flex items-start gap-2">
-            <span className="text-brand font-bold mt-0.5">•</span>
-            <span>Ao excluir uma categoria, os produtos associados ficam sem categoria</span>
-          </li>
-        </ul>
-      </div>
+        </div>
+      )}
     </div>
   );
 }

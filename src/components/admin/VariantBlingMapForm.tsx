@@ -44,7 +44,8 @@ export function VariantBlingMapForm({
         `/api/admin/products/variant-bling-map?productId=${productId}`
       );
       const data = await res.json();
-      setMappings(data);
+      // A rota devolve uma lista; em caso de erro vem um objeto — não deixar a página quebrar
+      setMappings(Array.isArray(data) ? data : []);
     } catch (err) {
       setError("Erro ao carregar mapeamentos");
     } finally {

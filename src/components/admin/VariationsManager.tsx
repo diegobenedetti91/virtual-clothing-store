@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, X, Pencil, Check, Trash2, Layers } from "lucide-react";
+import { Check, Layers, Pencil, Plus, Trash2, X } from "lucide-react";
+import { isColorAttribute, swatchBackground } from "@/lib/colorSwatch";
 
 interface VariationTemplate {
   id: string;
@@ -14,84 +15,91 @@ interface Props {
   initialTemplates: VariationTemplate[];
 }
 
+interface FormState {
+  id?: string;
+  name: string;
+  values: string[];
+}
+
+// Atalhos para montar modelos comuns mais rápido
+const QUICK: { label: string; name?: string; values: string[] }[] = [
+  { label: "Tamanhos P–GG", name: "Tamanho", values: ["PP", "P", "M", "G", "GG"] },
+  { label: "Numeração 36–46", name: "Tamanho", values: ["36", "38", "40", "42", "44", "46"] },
+  { label: "Tamanho único", name: "Tamanho", values: ["Único"] },
+  { label: "Cores básicas", name: "Cor", values: ["Preto", "Branco", "Off-white", "Bege", "Cinza", "Marrom"] },
+  { label: "Cores vivas", name: "Cor", values: ["Vermelho", "Rosa", "Azul", "Verde", "Amarelo", "Lilás"] },
+];
+
+const parseValues = (raw: string) => {
+  try { const v = JSON.parse(raw || "[]"); return Array.isArray(v) ? (v as string[]) : []; } catch { return []; }
+};
+
+function Chip({ value, color, onRemove }: { value: string; color: boolean; onRemove?: () => void }) {
+  const swatch = color ? swatchBackground(value) : null;
+  return (
+    <span className={`inline-flex items-center gap-1.5 rounded-full bg-gray-100 text-gray-700 text-xs font-medium ${swatch ? "pl-1 pr-2.5" : "px-2.5"} py-1`}>
+      {swatch && <span className="w-4 h-4 rounded-full ring-1 ring-black/10" style={{ background: swatch }} />}
+      {value}
+      {onRemove && (
+        <button type="button" onClick={onRemove} className="-mr-1 p-0.5 rounded-full text-gray-400 hover:text-red-500 hover:bg-white" aria-label={`Remover ${value}`}>
+          <X size={11} />
+        </button>
+      )}
+    </span>
+  );
+}
+
 export default function VariationsManager({ initialTemplates }: Props) {
   const [templates, setTemplates] = useState(initialTemplates);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editName, setEditName] = useState("");
-  const [editValues, setEditValues] = useState<string[]>([]);
-  const [editNewValue, setEditNewValue] = useState("");
-
-  // New template form
-  const [newName, setNewName] = useState("");
-  const [newValues, setNewValues] = useState<string[]>([]);
-  const [newValue, setNewValue] = useState("");
-  const [creating, setCreating] = useState(false);
+  const [form, setForm] = useState<FormState | null>(null);
+  const [draft, setDraft] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  const inputClass = "w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm text-gray-900 bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand transition";
+  const openNew = () => { setError(""); setDraft(""); setForm({ name: "", values: [] }); };
+  const openEdit = (t: VariationTemplate) => { setError(""); setDraft(""); setForm({ id: t.id, name: t.name, values: parseValues(t.values) }); };
 
-  // ---- New template ----
-  const addNewValue = () => {
-    const v = newValue.trim();
-    if (v && !newValues.includes(v)) { setNewValues((p) => [...p, v]); setNewValue(""); }
+  // Enter, vírgula ou ponto e vírgula adicionam; aceita colar "P, M, G"
+  const addValues = (text: string) => {
+    const parts = text.split(/[,;\n]/).map((v) => v.trim()).filter(Boolean);
+    if (!parts.length) return;
+    setForm((f) => (f ? { ...f, values: [...f.values, ...parts.filter((p) => !f.values.some((x) => x.toLowerCase() === p.toLowerCase()))] } : f));
+    setDraft("");
   };
 
-  const handleCreate = async () => {
-    if (!newName.trim()) { setError("Informe o nome da variação"); return; }
-    setSaving(true); setError("");
-    try {
-      const res = await fetch("/api/admin/variations", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newName.trim(), values: newValues }),
-      });
-      if (!res.ok) { const d = await res.json(); setError(d.error || "Erro ao salvar"); return; }
-      const created = await res.json();
-      setTemplates((p) => [...p, created].sort((a, b) => a.name.localeCompare(b.name)));
-      setNewName(""); setNewValues([]); setCreating(false);
-    } finally {
-      setSaving(false);
-    }
-  };
+  const applyQuick = (q: (typeof QUICK)[number]) =>
+    setForm((f) => (f ? { name: f.name.trim() ? f.name : q.name || f.name, id: f.id, values: [...f.values, ...q.values.filter((v) => !f.values.includes(v))] } : f));
 
-  // ---- Edit template ----
-  const startEdit = (t: VariationTemplate) => {
-    setEditingId(t.id);
-    setEditName(t.name);
-    setEditValues(JSON.parse(t.values || "[]"));
-    setEditNewValue("");
-  };
-
-  const addEditValue = () => {
-    const v = editNewValue.trim();
-    if (v && !editValues.includes(v)) { setEditValues((p) => [...p, v]); setEditNewValue(""); }
-  };
-
-  const handleSaveEdit = async () => {
-    if (!editName.trim() || !editingId) return;
+  const save = async () => {
+    if (!form) return;
+    const pending = draft.trim();
+    const values = pending ? [...form.values, ...pending.split(/[,;]/).map((v) => v.trim()).filter((v) => v && !form.values.includes(v))] : form.values;
+    if (!form.name.trim()) { setError("Informe o nome da variação"); return; }
     setSaving(true);
+    setError("");
     try {
       const res = await fetch("/api/admin/variations", {
-        method: "PUT",
+        method: form.id ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: editingId, name: editName.trim(), values: editValues }),
+        body: JSON.stringify(form.id ? { id: form.id, name: form.name.trim(), values } : { name: form.name.trim(), values }),
       });
-      if (!res.ok) return;
-      const updated = await res.json();
-      setTemplates((p) =>
-        p.map((t) => (t.id === editingId ? updated : t)).sort((a, b) => a.name.localeCompare(b.name))
-      );
-      setEditingId(null);
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        setError(d.error || "Erro ao salvar");
+        return;
+      }
+      const saved = (await res.json()) as VariationTemplate;
+      setTemplates((p) => (form.id ? p.map((t) => (t.id === form.id ? saved : t)) : [...p, saved]).sort((a, b) => a.name.localeCompare(b.name, "pt-BR")));
+      setForm(null);
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`Remover a variação "${name}"? Produtos já criados não serão afetados.`)) return;
-    await fetch(`/api/admin/variations?id=${id}`, { method: "DELETE" });
-    setTemplates((p) => p.filter((t) => t.id !== id));
+  const handleDelete = async (t: VariationTemplate) => {
+    if (!confirm(`Remover a variação "${t.name}"? Produtos já criados não serão afetados.`)) return;
+    await fetch(`/api/admin/variations?id=${t.id}`, { method: "DELETE" });
+    setTemplates((p) => p.filter((x) => x.id !== t.id));
   };
 
   const handleToggleActive = async (t: VariationTemplate) => {
@@ -106,168 +114,160 @@ export default function VariationsManager({ initialTemplates }: Props) {
     }
   };
 
+  const moveValue = (i: number, dir: -1 | 1) =>
+    setForm((f) => {
+      if (!f) return f;
+      const j = i + dir;
+      if (j < 0 || j >= f.values.length) return f;
+      const values = [...f.values];
+      [values[i], values[j]] = [values[j], values[i]];
+      return { ...f, values };
+    });
+
+  const isColor = form ? isColorAttribute(form.name) : false;
+
   return (
-    <div className="max-w-2xl space-y-4">
-      {/* Template list */}
-      {templates.length === 0 && !creating && (
-        <div className="text-center py-16 bg-white rounded-2xl border border-gray-100">
-          <Layers size={40} className="mx-auto text-gray-200 mb-3" />
-          <p className="text-gray-500 font-medium">Nenhuma variação cadastrada</p>
-          <p className="text-xs text-gray-400 mt-1">Crie a primeira para agilizar o cadastro de produtos</p>
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-gray-900">Variações</h1>
+          <p className="text-sm text-gray-500 mt-1">Modelos reutilizáveis de tamanhos, cores e outros atributos. No cadastro do produto, é só escolher e aplicar.</p>
+        </div>
+        <button onClick={openNew} className="inline-flex items-center gap-2 bg-brand text-white px-4 py-2.5 rounded-xl text-sm font-semibold shadow-sm hover:opacity-90 active:scale-[0.98] transition shrink-0">
+          <Plus size={16} /> Nova variação
+        </button>
+      </div>
+
+      {templates.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-dashed border-gray-300 py-16 text-center px-4">
+          <Layers size={32} className="mx-auto text-gray-300 mb-3" />
+          <p className="font-medium text-gray-700">Nenhuma variação cadastrada</p>
+          <p className="text-sm text-gray-500 mt-1 mb-4">Ex.: &ldquo;Tamanho&rdquo; com P, M, G, GG ou &ldquo;Cor&rdquo; com Preto, Branco, Bege.</p>
+          <button onClick={openNew} className="inline-flex items-center gap-2 bg-gray-900 text-white px-4 py-2 rounded-xl text-sm font-semibold"><Plus size={15} /> Criar variação</button>
+        </div>
+      ) : (
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {templates.map((t) => {
+            const values = parseValues(t.values);
+            const color = isColorAttribute(t.name);
+            return (
+              <div key={t.id} className={`bg-white rounded-2xl border border-gray-200/70 shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:shadow-md transition-shadow p-4 flex flex-col ${t.active ? "" : "opacity-70"}`}>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="font-semibold text-gray-900 truncate">{t.name}</p>
+                      {!t.active && <span className="text-[10px] font-semibold bg-gray-100 text-gray-500 rounded-full px-1.5 py-0.5">inativa</span>}
+                    </div>
+                    <p className="text-xs text-gray-500">{values.length} {values.length === 1 ? "opção" : "opções"}</p>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={t.active}
+                    onClick={() => handleToggleActive(t)}
+                    title={t.active ? "Desativar" : "Ativar"}
+                    className={`relative w-9 h-5 rounded-full shrink-0 transition-colors ${t.active ? "bg-brand" : "bg-gray-300"}`}
+                  >
+                    <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${t.active ? "translate-x-4" : ""}`} />
+                  </button>
+                </div>
+                <div className="mt-3 flex flex-wrap content-start items-start gap-1.5 flex-1">
+                  {values.length > 0 ? values.slice(0, 14).map((v) => <Chip key={v} value={v} color={color} />) : <span className="text-xs text-gray-400 italic">Sem valores cadastrados</span>}
+                  {values.length > 14 && <span className="text-xs text-gray-500 self-center">+{values.length - 14}</span>}
+                </div>
+                <div className="mt-3 pt-2 border-t border-gray-100 flex justify-end gap-0.5">
+                  <button onClick={() => openEdit(t)} className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-900" aria-label="Editar"><Pencil size={15} /></button>
+                  <button onClick={() => handleDelete(t)} className="p-1.5 rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-600" aria-label="Remover"><Trash2 size={15} /></button>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 
-      {templates.map((t) => {
-        const values = JSON.parse(t.values || "[]") as string[];
-        const isEditing = editingId === t.id;
+      {/* Editor (painel lateral) */}
+      {form && (
+        <div className="fixed inset-0 z-[60] flex justify-end">
+          <div className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm" onClick={() => !saving && setForm(null)} />
+          <div className="relative w-full max-w-lg h-full bg-white shadow-2xl flex flex-col animate-fade-up [animation-duration:0.3s]">
+            <div className="px-6 h-16 flex items-center justify-between border-b border-gray-100 shrink-0">
+              <h2 className="text-lg font-semibold text-gray-900">{form.id ? `Editar ${form.name || "variação"}` : "Nova variação"}</h2>
+              <button onClick={() => setForm(null)} className="p-2 rounded-lg text-gray-400 hover:bg-gray-100" aria-label="Fechar"><X size={18} /></button>
+            </div>
+            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Nome da variação</label>
+                <input
+                  autoFocus
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); document.getElementById("variation-value-input")?.focus(); } }}
+                  placeholder="Ex.: Tamanho, Cor, Estampa"
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white"
+                />
+                {isColor && <p className="text-[11px] text-gray-500 mt-1">Variação de cor: a loja mostra uma bolinha com a cor de cada opção.</p>}
+              </div>
 
-        return (
-          <div key={t.id} className={`bg-white rounded-2xl border shadow-sm overflow-hidden transition-all ${isEditing ? "border-brand" : "border-gray-100"}`}>
-            {isEditing ? (
-              <div className="p-5 space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Nome da variação</label>
-                  <input
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
-                    className={inputClass}
-                    placeholder="Ex: Sabor, Tamanho, Cor"
-                  />
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Opções</label>
+                <input
+                  id="variation-value-input"
+                  value={draft}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (/[,;]/.test(v)) addValues(v);
+                    else setDraft(v);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") { e.preventDefault(); addValues(draft); }
+                    else if (e.key === "Backspace" && !draft && form.values.length) setForm({ ...form, values: form.values.slice(0, -1) });
+                  }}
+                  onPaste={(e) => {
+                    const text = e.clipboardData.getData("text");
+                    if (/[,;\n]/.test(text)) { e.preventDefault(); addValues(text); }
+                  }}
+                  placeholder={isColor ? "Digite uma cor e tecle Enter (ex.: Marrom com azul)" : "Digite e tecle Enter ou vírgula (ex.: P, M, G)"}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white"
+                />
+                <div className="mt-3 flex flex-wrap content-start items-start gap-1.5 min-h-8">
+                  {form.values.length === 0 && <span className="text-xs text-gray-400 italic">Nenhuma opção ainda — você também pode ajustar no produto.</span>}
+                  {form.values.map((v, i) => (
+                    <span key={v} className="inline-flex items-center gap-0.5">
+                      {form.values.length > 1 && (
+                        <button type="button" onClick={() => moveValue(i, -1)} disabled={i === 0} className="text-gray-300 hover:text-gray-600 disabled:opacity-0 text-xs px-0.5" aria-label={`Mover ${v} para a esquerda`}>‹</button>
+                      )}
+                      <Chip value={v} color={isColor} onRemove={() => setForm({ ...form, values: form.values.filter((x) => x !== v) })} />
+                      {form.values.length > 1 && (
+                        <button type="button" onClick={() => moveValue(i, 1)} disabled={i === form.values.length - 1} className="text-gray-300 hover:text-gray-600 disabled:opacity-0 text-xs px-0.5" aria-label={`Mover ${v} para a direita`}>›</button>
+                      )}
+                    </span>
+                  ))}
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Valores</label>
-                  <div className="flex gap-2 mb-2">
-                    <input
-                      value={editNewValue}
-                      onChange={(e) => setEditNewValue(e.target.value)}
-                      className={inputClass}
-                      placeholder="Adicionar valor"
-                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addEditValue(); } }}
-                    />
-                    <button type="button" onClick={addEditValue} className="px-3 py-2 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors">
-                      <Plus size={16} />
+                {form.values.length > 1 && <p className="text-[11px] text-gray-400 mt-2">Use ‹ › para mudar a ordem em que as opções aparecem na loja.</p>}
+              </div>
+
+              <div>
+                <p className="text-xs font-medium text-gray-600 mb-2">Atalhos</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {QUICK.map((q) => (
+                    <button key={q.label} type="button" onClick={() => applyQuick(q)} className="inline-flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-full ring-1 ring-gray-200 text-gray-600 hover:bg-gray-50 hover:ring-gray-300">
+                      <Plus size={11} /> {q.label}
                     </button>
-                  </div>
-                  <div className="flex gap-2 flex-wrap">
-                    {editValues.map((v) => (
-                      <span key={v} className="flex items-center gap-1 bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm">
-                        {v}
-                        <button type="button" onClick={() => setEditValues((p) => p.filter((x) => x !== v))} className="text-gray-400 hover:text-red-500">
-                          <X size={12} />
-                        </button>
-                      </span>
-                    ))}
-                    {editValues.length === 0 && <span className="text-xs text-gray-400 italic">Nenhum valor</span>}
-                  </div>
-                </div>
-                <div className="flex gap-2 pt-1">
-                  <button onClick={handleSaveEdit} disabled={saving} className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white rounded-xl disabled:opacity-60 transition-colors" style={{ backgroundColor: "var(--brand)" }}>
-                    <Check size={15} /> Salvar
-                  </button>
-                  <button onClick={() => setEditingId(null)} className="px-4 py-2 text-sm font-semibold text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors">
-                    Cancelar
-                  </button>
+                  ))}
                 </div>
               </div>
-            ) : (
-              <div className="flex items-center gap-4 px-5 py-4">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className={`font-semibold text-sm ${t.active ? "text-gray-900" : "text-gray-400 line-through"}`}>{t.name}</p>
-                    {!t.active && <span className="text-xs bg-gray-100 text-gray-400 px-2 py-0.5 rounded-full">inativo</span>}
-                  </div>
-                  {values.length > 0 ? (
-                    <div className="flex gap-1.5 flex-wrap mt-1.5">
-                      {values.map((v) => (
-                        <span key={v} className="bg-gray-50 border border-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded-full">{v}</span>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-xs text-gray-400 mt-0.5 italic">Sem valores cadastrados</p>
-                  )}
-                </div>
-                <div className="flex items-center gap-1 shrink-0">
-                  <button
-                    onClick={() => handleToggleActive(t)}
-                    className="p-2 text-xs text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                    title={t.active ? "Desativar" : "Ativar"}
-                  >
-                    <div className={`w-8 h-4 rounded-full transition-colors relative ${t.active ? "" : "bg-gray-200"}`} style={t.active ? { backgroundColor: "var(--brand)" } : {}}>
-                      <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full shadow transition-transform ${t.active ? "translate-x-4 left-0.5" : "left-0.5"}`} />
-                    </div>
-                  </button>
-                  <button onClick={() => startEdit(t)} className="p-2 text-gray-400 hover:text-brand hover:bg-gray-100 rounded-lg transition-colors" aria-label="Editar">
-                    <Pencil size={15} />
-                  </button>
-                  <button onClick={() => handleDelete(t.id, t.name)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" aria-label="Remover">
-                    <Trash2 size={15} />
-                  </button>
-                </div>
+            </div>
+            <div className="px-6 py-4 border-t border-gray-100 shrink-0 space-y-2">
+              {error && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
+              <div className="flex gap-2 justify-end">
+                <button onClick={() => setForm(null)} disabled={saving} className="px-4 py-2.5 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-100">Cancelar</button>
+                <button onClick={save} disabled={saving || !form.name.trim()} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-sm font-semibold bg-brand text-white shadow-sm hover:opacity-90 disabled:opacity-50">
+                  <Check size={15} /> {saving ? "Salvando…" : form.id ? "Salvar" : "Criar variação"}
+                </button>
               </div>
-            )}
-          </div>
-        );
-      })}
-
-      {/* Create new */}
-      {creating ? (
-        <div className="bg-white rounded-2xl border-2 border-brand shadow-sm p-5 space-y-4">
-          <h3 className="font-semibold text-gray-900 text-sm">Nova variação</h3>
-          {error && <p className="text-xs text-red-500 font-medium">{error}</p>}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Nome *</label>
-            <input
-              autoFocus
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              className={inputClass}
-              placeholder="Ex: Sabor, Tamanho, Cor, Recheio..."
-              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); document.getElementById("new-value-input")?.focus(); } }}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Valores</label>
-            <div className="flex gap-2 mb-2">
-              <input
-                id="new-value-input"
-                value={newValue}
-                onChange={(e) => setNewValue(e.target.value)}
-                className={inputClass}
-                placeholder="Ex: Chocolate, Baunilha, Morango..."
-                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addNewValue(); } }}
-              />
-              <button type="button" onClick={addNewValue} className="px-3 py-2 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors">
-                <Plus size={16} />
-              </button>
             </div>
-            <div className="flex gap-2 flex-wrap">
-              {newValues.map((v) => (
-                <span key={v} className="flex items-center gap-1 bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm">
-                  {v}
-                  <button type="button" onClick={() => setNewValues((p) => p.filter((x) => x !== v))} className="text-gray-400 hover:text-red-500">
-                    <X size={12} />
-                  </button>
-                </span>
-              ))}
-              {newValues.length === 0 && <span className="text-xs text-gray-400 italic">Adicione valores acima — você poderá editar no produto</span>}
-            </div>
-          </div>
-          <div className="flex gap-2 pt-1">
-            <button onClick={handleCreate} disabled={saving} className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white rounded-xl disabled:opacity-60 transition-colors" style={{ backgroundColor: "var(--brand)" }}>
-              <Check size={15} /> {saving ? "Salvando..." : "Criar variação"}
-            </button>
-            <button onClick={() => { setCreating(false); setNewName(""); setNewValues([]); setError(""); }} className="px-4 py-2 text-sm font-semibold text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors">
-              Cancelar
-            </button>
           </div>
         </div>
-      ) : (
-        <button
-          onClick={() => setCreating(true)}
-          className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl border-2 border-dashed border-gray-200 text-sm font-semibold text-gray-500 hover:border-brand hover:text-brand transition-colors"
-        >
-          <Plus size={16} /> Nova variação
-        </button>
       )}
     </div>
   );
