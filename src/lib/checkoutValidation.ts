@@ -2,6 +2,8 @@ import type { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCustomerFromRequest } from "@/lib/customerAuth";
 import { resolveShippingCost } from "@/lib/shippingCalc";
+import { evaluateCoupon, normalizeCouponCode } from "@/lib/coupons";
+import { applyFlashSales } from "@/lib/flashSales";
 
 // Everything that decides how much the customer pays is computed here, on the
 // server. The browser only says WHAT it wants (products, quantities, shipping
@@ -22,7 +24,15 @@ export interface ValidatedCheckout {
   productMap: Map<string, Product>;
   subtotal: number;
   shippingCost: number;
+  /** Desconto total (Pix + cupom, incluindo frete grátis). total = subtotal + shippingCost - discountAmount */
   discountAmount: number;
+  pixDiscount: number;
+  /** Parte do cupom (produtos + frete) */
+  couponDiscount: number;
+  coupon: { code: string; type: string } | null;
+  couponMessage: string | null;
+  /** Só no modo "quote": motivo de o cupom não ter sido aplicado */
+  couponError: string | null;
   customerId: string | null;
 }
 
@@ -59,14 +69,27 @@ function parseItems(raw: unknown): CheckoutItem[] | null {
 
 export async function validateCheckout(
   req: NextRequest,
-  input: { items: unknown; zipCode?: string | null; shippingMethod?: string | null; pixOnly?: unknown }
+  input: {
+    items: unknown;
+    zipCode?: string | null;
+    shippingMethod?: string | null;
+    pixOnly?: unknown;
+    couponCode?: unknown;
+    customerEmail?: unknown;
+    cpfCnpj?: unknown;
+    /** "order" (padrão): cupom inválido bloqueia o pedido. "quote": só informa o erro. */
+    mode?: "order" | "quote";
+  }
 ): Promise<ValidatedCheckout | { error: string }> {
   const items = parseItems(input.items);
   if (!items) return { error: "Itens do pedido inválidos" };
 
-  const products = await prisma.product.findMany({
-    where: { id: { in: [...new Set(items.map((i) => i.productId))] }, active: true },
-  });
+  // Preço com promoção relâmpago já aplicada: vale para subtotal, itens do pedido, gateways e Bling
+  const products = await applyFlashSales(
+    await prisma.product.findMany({
+      where: { id: { in: [...new Set(items.map((i) => i.productId))] }, active: true },
+    })
+  );
   const productMap = new Map(products.map((p) => [p.id, p]));
   if (items.some((i) => !productMap.has(i.productId))) return { error: "Produto indisponível" };
 
@@ -77,14 +100,76 @@ export async function validateCheckout(
 
   const settings = await prisma.companySettings.findFirst({ orderBy: { updatedAt: "desc" } });
   const pixPercent = settings?.pixDiscountEnabled ? settings.pixDiscountPercent ?? 0 : 0;
-  const discountAmount = input.pixOnly === true && pixPercent > 0 ? round2((subtotal * pixPercent) / 100) : 0;
+  const wantsPix = input.pixOnly === true && pixPercent > 0;
+  const customerId = getCustomerFromRequest(req)?.id ?? null;
+  const mode = input.mode ?? "order";
 
+  // ─── Cupom ───
+  let couponItem = 0;
+  let couponShipping = 0;
+  let coupon: ValidatedCheckout["coupon"] = null;
+  let couponMessage: string | null = null;
+  let couponError: string | null = null;
+  let stackWithPix = true;
+  const code = normalizeCouponCode(input.couponCode);
+  if (code) {
+    const result = await evaluateCoupon({
+      code,
+      lines: items.map((i) => {
+        const p = productMap.get(i.productId)!;
+        return { productId: p.id, categoryId: p.categoryId ?? null, price: p.price, quantity: i.quantity };
+      }),
+      shippingCost,
+      shippingChosen: !!input.shippingMethod,
+      customer: {
+        id: customerId,
+        email: typeof input.customerEmail === "string" ? input.customerEmail : null,
+        cpfCnpj: typeof input.cpfCnpj === "string" ? input.cpfCnpj : null,
+      },
+      strict: mode === "order",
+    });
+    if (!result.ok) {
+      if (mode === "order") return { error: result.error };
+      couponError = result.error;
+    } else {
+      couponItem = result.itemDiscount;
+      couponShipping = result.shippingDiscount;
+      coupon = { code: result.coupon.code, type: result.coupon.type };
+      couponMessage = result.message;
+      stackWithPix = result.coupon.stackWithPix;
+    }
+  }
+
+  // ─── Pix ───
+  let pixDiscount = wantsPix ? round2(((subtotal - couponItem) * pixPercent) / 100) : 0;
+  if (coupon && wantsPix && !stackWithPix) {
+    // Não acumula: vale o maior desconto para o cliente
+    const pixAlone = round2((subtotal * pixPercent) / 100);
+    if (pixAlone > couponItem + couponShipping) {
+      couponMessage = null;
+      couponError = `Este cupom não acumula com o desconto do Pix. Aplicamos o desconto Pix, que é maior.`;
+      coupon = null;
+      couponItem = 0;
+      couponShipping = 0;
+      pixDiscount = pixAlone;
+    } else {
+      couponMessage = `${couponMessage} · não acumula com o desconto do Pix`;
+      pixDiscount = 0;
+    }
+  }
+
+  const couponDiscount = round2(couponItem + couponShipping);
   return {
     items,
     productMap,
     subtotal,
     shippingCost,
-    discountAmount,
-    customerId: getCustomerFromRequest(req)?.id ?? null,
+    discountAmount: round2(pixDiscount + couponDiscount),
+    pixDiscount,
+    couponDiscount,
+    coupon,
+    couponMessage,
+    couponError,
+    customerId,
   };
 }

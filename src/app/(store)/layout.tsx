@@ -14,6 +14,8 @@ import { MetaPixelPageView } from "@/components/store/MetaPixel";
 import { CookieConsentBanner } from "@/components/store/CookieConsent";
 import TrafficSourceTracker from "@/components/store/TrafficSourceTracker";
 import ScrollReveal from "@/components/store/ScrollReveal";
+import BrandStyle from "@/components/BrandStyle";
+import CouponLinkCatcher from "@/components/store/CouponLinkCatcher";
 
 export default async function StoreLayout({ children }: { children: React.ReactNode }) {
   await cookies();
@@ -26,12 +28,14 @@ export default async function StoreLayout({ children }: { children: React.ReactN
 
   return (
     <div className="min-h-screen flex flex-col" style={{ "--brand": brandColor, "--menu": menuColor } as React.CSSProperties}>
+      <BrandStyle brand={brandColor} menu={menuColor} />
       <CustomerInit />
       <CartSyncer />
       <TrafficSourceTracker />
       <MetaPixelPageView pixelId={settings?.metaPixelId ?? null} />
       <Header settings={settings} navItems={navItems} />
       <ScrollReveal />
+      <CouponLinkCatcher />
       <ViewTransition name="store-page">
         <main className="flex-1">{children}</main>
       </ViewTransition>

@@ -48,16 +48,16 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { customerName, customerEmail, customerPhone, address, streetNumber, neighborhood, city, state, zipCode, cpfCnpj, items: rawItems, notes, shippingMethod } = body;
+  const { customerName, customerEmail, customerPhone, address, streetNumber, neighborhood, city, state, zipCode, cpfCnpj, items: rawItems, notes, shippingMethod, couponCode } = body;
 
   if (!customerName || !customerPhone) {
     return NextResponse.json({ error: "Dados incompletos" }, { status: 400 });
   }
 
   // Prices, shipping and owner come from the server, never from the request body
-  const checked = await validateCheckout(req, { items: rawItems, zipCode, shippingMethod, pixOnly: false });
+  const checked = await validateCheckout(req, { items: rawItems, zipCode, shippingMethod, pixOnly: false, couponCode, customerEmail, cpfCnpj });
   if ("error" in checked) return NextResponse.json({ error: checked.error }, { status: 400 });
-  const { items, productMap, subtotal, shippingCost: shipping, customerId } = checked;
+  const { items, productMap, subtotal, shippingCost: shipping, discountAmount, customerId } = checked;
 
 
   const orderNumber = generateOrderNumber();
@@ -82,7 +82,9 @@ export async function POST(req: NextRequest) {
         subtotal,
         shippingCost: shipping,
         shippingMethod: shippingMethod || null,
-        total: subtotal + shipping,
+        total: Math.round((subtotal + shipping - discountAmount) * 100) / 100,
+        couponCode: checked.coupon?.code ?? null,
+        couponDiscount: checked.couponDiscount,
         notes: notes || null,
         customerId: customerId || null,
         ...getTrafficOrderContext(req),

@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
   if (!body) return NextResponse.json({ error: "Requisição inválida" }, { status: 400 });
   const {
     customerName, customerEmail, customerPhone, address, streetNumber, neighborhood, city, state, zipCode, cpfCnpj, notes,
-    items: rawItems, shippingMethod,
+    items: rawItems, shippingMethod, couponCode,
   } = body;
 
   if (!customerName || !customerPhone) {
@@ -30,10 +30,10 @@ export async function POST(req: NextRequest) {
   }
 
   // NuPay has no Pix: the Pix discount never applies here
-  const checked = await validateCheckout(req, { items: rawItems, zipCode, shippingMethod, pixOnly: false });
+  const checked = await validateCheckout(req, { items: rawItems, zipCode, shippingMethod, pixOnly: false, couponCode, customerEmail, cpfCnpj });
   if ("error" in checked) return NextResponse.json({ error: checked.error }, { status: 400 });
-  const { items, productMap, subtotal, shippingCost, customerId } = checked;
-  const total = Math.round((subtotal + shippingCost) * 100) / 100;
+  const { items, productMap, subtotal, shippingCost, discountAmount, customerId } = checked;
+  const total = Math.round((subtotal + shippingCost - discountAmount) * 100) / 100;
 
   const orderNumber = generateOrderNumber();
   const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
@@ -59,6 +59,8 @@ export async function POST(req: NextRequest) {
       shippingCost,
       shippingMethod: shippingMethod || null,
       total,
+      couponCode: checked.coupon?.code ?? null,
+      couponDiscount: checked.couponDiscount,
       status: "PENDING",
       paymentGateway: "nupay",
       paymentMethod: "NuPay",

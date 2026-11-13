@@ -171,6 +171,10 @@ model Order {
   shipmentRetryError       String?       @db.Text
   shipmentRetryableError   Boolean?      @default(false)
 
+  // Cupom de desconto (valor total do cupom, incluindo frete grátis)
+  couponCode               String?
+  couponDiscount           Float         @default(0)
+
   // Bling integration
   blingPedidoId            String?
   blingIntegrationStatus   String?       @default("pending")
@@ -197,6 +201,8 @@ model Order {
 
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
+
+  @@index([couponCode])
 }
 
 model OrderItem {
@@ -447,4 +453,33 @@ model AiUsageDay {
   outputTokens     Int    @default(0)
   cacheReadTokens  Int    @default(0)
   cacheWriteTokens Int    @default(0)
+}
+
+model Coupon {
+  id                String    @id @default(cuid())
+  /** Sempre em maiúsculas; o cliente pode digitar de qualquer jeito */
+  code              String    @unique
+  description       String?
+  /** PERCENT | FIXED | FREE_SHIPPING */
+  type              String    @default("PERCENT")
+  value             Float     @default(0)
+  /** Teto do desconto para cupons de porcentagem */
+  maxDiscount       Float?
+  minOrderValue     Float?
+  startsAt          DateTime?
+  endsAt            DateTime?
+  /** Usos totais (pedidos pagos + reservas recentes); null = ilimitado */
+  usageLimit        Int?
+  /** Usos por cliente (CPF/e-mail/conta); null = ilimitado */
+  perCustomerLimit  Int?      @default(1)
+  firstPurchaseOnly Boolean   @default(false)
+  stackWithPix      Boolean   @default(false)
+  /** JSON com ids; vazio/null = vale para tudo */
+  productIds        String?   @db.Text
+  categoryIds       String?   @db.Text
+  active            Boolean   @default(true)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([active])
 }

@@ -254,6 +254,15 @@ async function enviarPedidoBling(orderId: string): Promise<BlingIntegrationResul
       })),
     };
 
+    // Desconto total (Pix + cupom): o valor no Bling precisa bater com o que o cliente pagou
+    const totalDiscount = Math.round(((order.subtotal || 0) + (order.shippingCost || 0) - (order.total || 0)) * 100) / 100;
+    if (totalDiscount > 0) {
+      blingData.desconto = { valor: totalDiscount, unidade: "REAL" };
+    }
+    if (order.couponCode) {
+      blingData.observacoes = `${blingData.observacoes} | Cupom: ${order.couponCode}`;
+    }
+
     if (order.shippingCost && order.shippingCost > 0) {
       blingData.transporte = {
         frete: order.shippingCost,

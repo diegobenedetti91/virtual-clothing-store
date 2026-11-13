@@ -65,18 +65,12 @@ export default function ProductCard({ product, flashSale }: ProductCardProps) {
   const colorValues = allColors.slice(0, 5);
   const extraColors = allColors.length > 5 ? allColors.length - 5 : 0;
 
-  // Flash sale discount
-  let flashDiscount = 0;
-  if (flashSale) {
-    flashDiscount = flashSale.discountType === "PERCENT" ? flashSale.discountValue : (flashSale.discountValue / product.price) * 100;
-  }
-
+  // Promoção relâmpago: o servidor já aplicou o preço (price) e o preço "de" (comparePrice)
+  const activeFlash = flashSale ?? product.flashSale;
   const discount =
-    flashDiscount > 0
-      ? Math.round(flashDiscount)
-      : product.comparePrice && product.comparePrice > product.price
-        ? Math.round(((product.comparePrice - product.price) / product.comparePrice) * 100)
-        : 0;
+    product.comparePrice && product.comparePrice > product.price
+      ? Math.round(((product.comparePrice - product.price) / product.comparePrice) * 100)
+      : 0;
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -146,12 +140,12 @@ export default function ProductCard({ product, flashSale }: ProductCardProps) {
 
         {/* Badges */}
         <div className="absolute top-3 left-3 flex flex-col gap-1.5">
-          {flashSale && (
+          {activeFlash && (
             <span className="bg-red-600/85 backdrop-blur-md ring-1 ring-white/25 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-sm tracking-wide uppercase flex items-center gap-1">
               <Zap size={10} fill="white" /> Flash
             </span>
           )}
-          {product.featured && !flashSale && (
+          {product.featured && !activeFlash && (
             <span
               className="backdrop-blur-md ring-1 ring-white/25 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-sm tracking-wide uppercase"
               style={{ background: "color-mix(in srgb, var(--brand) 85%, transparent)" }}
@@ -159,7 +153,7 @@ export default function ProductCard({ product, flashSale }: ProductCardProps) {
               Destaque
             </span>
           )}
-          {isNew && !product.featured && !flashSale && (
+          {isNew && !product.featured && !activeFlash && (
             <span className="bg-emerald-500/85 backdrop-blur-md ring-1 ring-white/25 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-sm tracking-wide uppercase">
               Novo
             </span>

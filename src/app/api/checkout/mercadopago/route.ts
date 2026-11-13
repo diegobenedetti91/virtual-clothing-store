@@ -7,13 +7,13 @@ import { generateOrderNumber } from "@/lib/utils";
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { customerName, customerEmail, customerPhone, address, streetNumber, neighborhood, city, state, zipCode, cpfCnpj, notes, items: rawItems, shippingMethod, pixOnly = false } = body;
+  const { customerName, customerEmail, customerPhone, address, streetNumber, neighborhood, city, state, zipCode, cpfCnpj, notes, items: rawItems, shippingMethod, pixOnly = false, couponCode } = body;
 
   if (!customerName || !customerPhone) {
     return NextResponse.json({ error: "Dados incompletos" }, { status: 400 });
   }
 
-  const checked = await validateCheckout(req, { items: rawItems, zipCode, shippingMethod, pixOnly });
+  const checked = await validateCheckout(req, { items: rawItems, zipCode, shippingMethod, pixOnly, couponCode, customerEmail, cpfCnpj });
   if ("error" in checked) return NextResponse.json({ error: checked.error }, { status: 400 });
   const { items, productMap, subtotal, shippingCost, discountAmount, customerId } = checked;
 
@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
   }
 
 
-  const mpItems = items.map((item: { productId: string; quantity: number; size?: string; color?: string }) => {
+  let mpItems = items.map((item: { productId: string; quantity: number; size?: string; color?: string }) => {
     const product = productMap.get(item.productId);
     if (!product) throw new Error(`Produto não encontrado: ${item.productId}`);
     return {
@@ -37,21 +37,32 @@ export async function POST(req: NextRequest) {
     };
   });
 
-  const total = subtotal + shippingCost - discountAmount;
-
-  // Add shipping as a separate item to display in MP checkout
-  // Apply discount to shipping cost if available
-  const shippingWithDiscount = Math.max(0, (shippingCost || 0) - (discountAmount || 0));
-  if (shippingCost && shippingCost > 0) {
-    mpItems.push({
-      id: "frete",
-      title: `Frete${shippingMethod ? ` (${shippingMethod})` : ""}`,
-      quantity: 1,
-      unit_price: shippingWithDiscount,
-      currency_id: "BRL",
-    });
-  }
+  const total = Math.round((subtotal + shippingCost - discountAmount) * 100) / 100;
   const orderNumber = generateOrderNumber();
+
+  // O MP não aceita item negativo. Desconto até o valor do frete sai do frete;
+  // acima disso, cobra o pedido como uma linha só com o total exato.
+  if (discountAmount > (shippingCost || 0)) {
+    const units = items.reduce((s: number, i: { quantity: number }) => s + i.quantity, 0);
+    mpItems = [{
+      id: orderNumber,
+      title: `Pedido ${orderNumber} (${units} ${units === 1 ? "item" : "itens"})`,
+      quantity: 1,
+      unit_price: total,
+      currency_id: "BRL",
+    }];
+  } else if (shippingCost && shippingCost > 0) {
+    const shippingWithDiscount = Math.round((shippingCost - (discountAmount || 0)) * 100) / 100;
+    if (shippingWithDiscount > 0) {
+      mpItems.push({
+        id: "frete",
+        title: `Frete${shippingMethod ? ` (${shippingMethod})` : ""}`,
+        quantity: 1,
+        unit_price: shippingWithDiscount,
+        currency_id: "BRL",
+      });
+    }
+  }
 
   const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
 
@@ -180,6 +191,8 @@ export async function POST(req: NextRequest) {
       shippingCost: shippingCost || 0,
       shippingMethod: shippingMethod || null,
       total,
+      couponCode: checked.coupon?.code ?? null,
+      couponDiscount: checked.couponDiscount,
       status: "PENDING",
       paymentMethod: "Mercado Pago",
       ...getMetaOrderContext(req),

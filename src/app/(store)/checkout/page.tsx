@@ -13,6 +13,17 @@ import { useRouter } from "next/navigation";
 import { CompanySettings } from "@/types";
 import { isValidCPFOrCNPJ } from "@/lib/utils";
 import MercadoPagoTransparentCheckout from "@/components/store/MercadoPagoTransparentCheckout";
+import CouponBox from "@/components/store/CouponBox";
+import { PENDING_COUPON_KEY } from "@/components/store/CouponLinkCatcher";
+
+interface QuoteResult {
+  pixDiscount: number;
+  couponDiscount: number;
+  coupon: { code: string; type: string } | null;
+  couponMessage: string | null;
+  couponError: string | null;
+  total: number;
+}
 
 interface ShippingOption {
   servico: string;
@@ -190,8 +201,75 @@ export default function CheckoutPage() {
 
   // NuPay has no Pix, so the Pix discount never applies to it
   const pixDiscountApplies = applyPixDiscount && selectedPayment !== "nupay";
-  const discountAmount = pixDiscountApplies ? (total() * pixDiscount) / 100 : 0;
-  const finalTotal = total() + (selectedShipping?.valor || 0) - discountAmount;
+
+  // ─── Cupom: o servidor valida e calcula (mesma regra usada ao criar o pedido) ───
+  const [couponCode, setCouponCode] = useState<string | null>(null);
+  const [quote, setQuote] = useState<QuoteResult | null>(null);
+  const [quoteKey, setQuoteKey] = useState<string | null>(null);
+
+  // Cupom vindo de link (?cupom=CODIGO), guardado pelo CouponLinkCatcher
+  useEffect(() => {
+    try {
+      const pending = localStorage.getItem(PENDING_COUPON_KEY);
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- leitura única do localStorage após a hidratação
+      if (pending) setCouponCode(pending);
+    } catch {}
+  }, []);
+
+  const quoteItems = items.map((item) => ({
+    productId: item.productId,
+    quantity: item.quantity,
+    size: item.size,
+    color: item.color,
+    selectedAttributes: item.selectedAttributes,
+  }));
+  const quoteBody = couponCode
+    ? JSON.stringify({
+        items: quoteItems,
+        // Sem frete escolhido, cota só os produtos
+        zipCode: selectedShipping ? zipCode : null,
+        shippingMethod: selectedShipping?.codigo || null,
+        pixOnly: pixDiscountApplies,
+        couponCode,
+        customerEmail: email || customer?.email || null,
+        cpfCnpj: cpfCnpj || null,
+      })
+    : null;
+  const couponLoading = !!quoteBody && quoteKey !== quoteBody;
+
+  useEffect(() => {
+    if (!quoteBody) return;
+    let cancelled = false;
+    // Pequeno atraso para não cotar a cada tecla do CPF/e-mail
+    const t = setTimeout(() => {
+      fetch("/api/checkout/quote", { method: "POST", headers: { "Content-Type": "application/json" }, body: quoteBody })
+        .then((r) => r.json())
+        .then((data) => {
+          if (cancelled) return;
+          setQuote(data && typeof data.total === "number" ? data : null);
+          setQuoteKey(quoteBody);
+        })
+        .catch(() => !cancelled && setQuoteKey(quoteBody));
+    }, 350);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [quoteBody]);
+
+  const applyCoupon = (code: string) => {
+    const c = code.trim().toUpperCase();
+    setCouponCode(c);
+    try { localStorage.setItem(PENDING_COUPON_KEY, c); } catch {}
+  };
+  const removeCoupon = () => {
+    setCouponCode(null);
+    setQuote(null);
+    try { localStorage.removeItem(PENDING_COUPON_KEY); } catch {}
+  };
+
+  const couponActive = !!(couponCode && quote?.coupon);
+  const couponDiscount = couponActive ? quote!.couponDiscount : 0;
+  // Parte do Pix: com cupom, vem do servidor (pode não acumular)
+  const discountAmount = couponCode && quote ? quote.pixDiscount : pixDiscountApplies ? (total() * pixDiscount) / 100 : 0;
+  const finalTotal = Math.max(0, total() + (selectedShipping?.valor || 0) - discountAmount - couponDiscount);
 
   const fullAddress = collectAddress && street
     ? `${street}, ${number}${neighborhood ? ` - ${neighborhood}` : ""}, ${city}${state ? `/${state}` : ""}${zipCode ? ` - CEP: ${zipCode}` : ""}`
@@ -255,7 +333,8 @@ export default function CheckoutPage() {
       ``,
       `💰 *Subtotal:* ${formatCurrency(total())}`,
       `🚚 *Frete:* ${freteTexto}`,
-      `💳 *Total:* ${formatCurrency(total() + (selectedShipping?.valor || 0))}`,
+      ...(couponActive ? [`🏷️ *Cupom ${couponCode}:* -${formatCurrency(couponDiscount)}`] : []),
+      `💳 *Total:* ${formatCurrency(finalTotal)}`,
       ``,
       `_Pedido gerado em ${new Date().toLocaleString("pt-BR")}_`,
     ];
@@ -286,6 +365,7 @@ export default function CheckoutPage() {
         customerId: customer?.id || null,
         shippingCost: selectedShipping?.valor || 0,
         shippingMethod: selectedShipping?.codigo || null,
+        couponCode: couponActive ? couponCode : null,
         items: items.map((item) => ({
           productId: item.productId,
           quantity: item.quantity,
@@ -330,6 +410,7 @@ const handleNuPaySubmit = async () => {
         state: state || null,
         zipCode: zipCode || null,
         shippingMethod: selectedShipping?.codigo || null,
+        couponCode: couponActive ? couponCode : null,
         items: items.map((item) => ({
           productId: item.productId,
           quantity: item.quantity,
@@ -403,6 +484,7 @@ const handleNuPaySubmit = async () => {
         customerId: customer?.id || null,
         shippingCost: selectedShipping?.valor || 0,
         shippingMethod: selectedShipping?.codigo || null,
+        couponCode: couponActive ? couponCode : null,
         discountAmount: discountAmount,
         pixOnly: forcePixOnly,
         items: items.map((item) => ({
@@ -438,6 +520,7 @@ const handleNuPaySubmit = async () => {
     state: state || null,
     zipCode: zipCode || null,
     shippingMethod: selectedShipping?.codigo || null,
+    couponCode: couponActive ? couponCode : null,
     pixOnly: applyPixDiscount,
     items: items.map((item) => ({
       productId: item.productId,
@@ -459,7 +542,10 @@ const handleNuPaySubmit = async () => {
     const res = await fetch("/api/checkout/quote", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ items: payload.items, zipCode: payload.zipCode, shippingMethod: payload.shippingMethod, pixOnly: payload.pixOnly }),
+      body: JSON.stringify({
+        items: payload.items, zipCode: payload.zipCode, shippingMethod: payload.shippingMethod, pixOnly: payload.pixOnly,
+        couponCode: payload.couponCode, customerEmail: payload.customerEmail, cpfCnpj: payload.cpfCnpj,
+      }),
     });
     const data = await res.json();
     if (!res.ok) {
@@ -492,6 +578,7 @@ const handleNuPaySubmit = async () => {
         customerName: name,
         customerEmail: email || null,
         customerPhone: phone,
+        cpfCnpj: cpfCnpj || null,
         address: fullAddress || null,
         city: city || null,
         state: state || null,
@@ -499,6 +586,7 @@ const handleNuPaySubmit = async () => {
         customerId: customer?.id || null,
         shippingCost: selectedShipping?.valor || 0,
         shippingMethod: selectedShipping?.codigo || null,
+        couponCode: couponActive ? couponCode : null,
         discountAmount: discountAmount,
         pixOnly: applyPixDiscount,
         items: items.map((item) => ({
@@ -811,12 +899,28 @@ const handleNuPaySubmit = async () => {
                               : zipCode.replace(/\D/g, "").length < 8 ? "Informe o CEP" : "A combinar"}
                     </span>
                   </div>
+                  {couponActive && couponDiscount > 0 && (
+                    <div className="flex justify-between text-sm text-green-600 font-semibold">
+                      <span>Cupom {couponCode}</span>
+                      <span>-{formatCurrency(couponDiscount)}</span>
+                    </div>
+                  )}
                   {discountAmount > 0 && (
                     <div className="flex justify-between text-sm text-green-600 font-semibold">
                       <span>Desconto PIX ({pixDiscount}%)</span>
                       <span>-{formatCurrency(discountAmount)}</span>
                     </div>
                   )}
+                  <div className="pt-1">
+                    <CouponBox
+                      code={couponCode}
+                      loading={couponLoading}
+                      message={quote?.couponMessage ?? null}
+                      error={couponCode && quote && !quote.coupon ? quote.couponError || "Cupom inválido" : null}
+                      onApply={applyCoupon}
+                      onRemove={removeCoupon}
+                    />
+                  </div>
                   <div className="flex justify-between font-black text-gray-900 text-lg pt-2 border-t border-gray-100">
                     <span>Total</span>
                     <span>{formatCurrency(finalTotal)}</span>

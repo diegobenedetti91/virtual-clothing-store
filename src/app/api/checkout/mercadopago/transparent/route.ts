@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
 
   const {
     customerName, customerEmail, customerPhone, address, streetNumber, neighborhood, city, state, zipCode, cpfCnpj, notes,
-    items: rawItems, shippingMethod, pixOnly = false,
+    items: rawItems, shippingMethod, pixOnly = false, couponCode,
   } = body;
   const formData: BrickFormData = body.formData && typeof body.formData === "object" ? body.formData : {};
 
@@ -47,7 +47,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ status: "error", message: "Pagamento no site indisponível" }, { status: 400 });
   }
 
-  const checked = await validateCheckout(req, { items: rawItems, zipCode, shippingMethod, pixOnly: pixOnly === true });
+  const checked = await validateCheckout(req, {
+    items: rawItems, zipCode, shippingMethod, pixOnly: pixOnly === true, couponCode,
+    customerEmail: customerEmail || body.formData?.payer?.email, cpfCnpj: cpfCnpj || body.formData?.payer?.identification?.number,
+  });
   if ("error" in checked) return NextResponse.json({ status: "error", message: checked.error }, { status: 400 });
   const { items, productMap, subtotal, shippingCost, discountAmount, customerId } = checked;
   const total = round2(subtotal + shippingCost - discountAmount);
@@ -104,6 +107,8 @@ export async function POST(req: NextRequest) {
       shippingCost,
       shippingMethod: shippingMethod || null,
       total,
+      couponCode: checked.coupon?.code ?? null,
+      couponDiscount: checked.couponDiscount,
       status: "PENDING",
       paymentGateway: "mercadopago",
       paymentMethod: MP_TRANSPARENT_LABEL,

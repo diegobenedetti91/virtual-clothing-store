@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { auth } from "@/lib/auth";
 import AdminShell from "@/components/admin/AdminShell";
+import BrandStyle from "@/components/BrandStyle";
 import { getCompanySettings } from "@/lib/company";
 import { getAdminAlerts, type AdminBadges } from "@/lib/adminAlerts";
 
@@ -22,6 +23,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   return (
     <div style={{ "--brand": brandColor } as React.CSSProperties}>
+      <BrandStyle brand={brandColor} />
       <AdminShell user={user} badges={alertData?.badges ?? NO_BADGES} storeName={settings?.name} logo={settings?.logo}>
         {children}
       </AdminShell>

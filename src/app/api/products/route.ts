@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { slugify } from "@/lib/utils";
 import { sincronizarProdutoComBling } from "@/lib/blingSync";
+import { applyFlashSales } from "@/lib/flashSales";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -26,11 +27,13 @@ export async function GET(req: NextRequest) {
     ];
   }
 
-  const products = await prisma.product.findMany({
+  const raw = await prisma.product.findMany({
     where,
     include: { category: true, navItems: { select: { id: true, label: true } } },
     orderBy: { createdAt: "desc" },
   });
+  // Vitrine recebe o preço da promoção relâmpago; o admin vê o preço cadastrado
+  const products = adminView ? raw : await applyFlashSales(raw);
 
   // costPrice (purchase cost / margin) is admin-only information
   return NextResponse.json(isAdmin ? products : products.map(({ costPrice: _cost, ...p }) => p));

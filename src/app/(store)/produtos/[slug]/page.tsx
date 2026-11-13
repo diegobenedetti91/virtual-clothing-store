@@ -8,6 +8,8 @@ import ProductGallery from "@/components/store/ProductGallery";
 import ProductActions from "@/components/store/ProductActions";
 import ProductReviews from "@/components/store/ProductReviews";
 import { MetaViewContent } from "@/components/store/MetaPixel";
+import { applyFlashSales } from "@/lib/flashSales";
+import { FlashSaleTimer } from "@/components/store/FlashSaleTimer";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -23,7 +25,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
 
   if (!raw || !raw.active) notFound();
 
-  const product = raw as unknown as Product;
+  const product = (await applyFlashSales([raw]))[0] as unknown as Product;
   const images = JSON.parse(product.images || "[]") as string[];
   const attributes = getProductAttributes({
     attributes: product.attributes || "[]",
@@ -103,6 +105,12 @@ export default async function ProductDetailPage({ params }: PageProps) {
               <p className="text-gray-500 leading-relaxed text-base">
                 {product.description}
               </p>
+            )}
+
+            {product.flashSale && (
+              <FlashSaleTimer
+                flashSale={{ id: product.flashSale.id, title: product.flashSale.title, endAt: product.flashSale.endAt, discountType: "", discountValue: 0 }}
+              />
             )}
 
             {/* Divider */}

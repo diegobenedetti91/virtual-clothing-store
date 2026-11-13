@@ -1,5 +1,5 @@
 import {
-  LayoutDashboard, Kanban, ClipboardList, Undo2, ShoppingBag, Package, Tag, Layers, Zap, Star,
+  LayoutDashboard, Kanban, TicketPercent, ClipboardList, Undo2, ShoppingBag, Package, Tag, Layers, Zap, Star,
   Truck, MapPin, Box, Users, Bell, Bot, BarChart3, Receipt, Navigation, Settings,
 } from "lucide-react";
 import type { AdminBadges } from "@/lib/adminAlerts";
@@ -34,6 +34,7 @@ export const ADMIN_NAV: NavGroup[] = [
       { href: "/admin/esteira", label: "Esteira de pedidos", description: "Acompanhe cada pedido do pagamento à entrega", icon: Kanban, badge: "esteira", badgeTone: "neutral", keywords: "kanban fluxo separar enviar" },
       { href: "/admin/pedidos", label: "Todos os pedidos", description: "Lista completa, status, Bling e etiquetas", icon: ClipboardList, badge: "pedidos", badgeTone: "critical", keywords: "vendas bling nota" },
       { href: "/admin/devolucoes", label: "Devoluções", description: "Trocas e devoluções solicitadas pelos clientes", icon: Undo2, badge: "devolucoes", badgeTone: "critical", keywords: "troca reembolso estorno" },
+      { href: "/admin/cupons", label: "Cupons", description: "Cupons de desconto, frete grátis e primeira compra", icon: TicketPercent, keywords: "desconto promocao codigo voucher" },
       { href: "/admin/carrinhos", label: "Carrinhos abandonados", description: "Clientes que não finalizaram a compra", icon: ShoppingBag, keywords: "recuperar lembrete" },
     ],
   },

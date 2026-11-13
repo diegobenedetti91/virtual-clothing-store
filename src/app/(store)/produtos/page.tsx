@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { applyFlashSales } from "@/lib/flashSales";
 import ProductCard from "@/components/store/ProductCard";
 import Link from "next/link";
 import { Search, LayoutGrid } from "lucide-react";
@@ -27,7 +28,7 @@ export default async function ProductsPage({ searchParams }: PageProps) {
     }),
     menu ? prisma.navItem.findUnique({ where: { id: menu } }) : null,
   ]);
-  const products = productsRaw as unknown as Product[];
+  const products = (await applyFlashSales(productsRaw)) as unknown as Product[];
   const activeCategory = categories.find((c) => c.slug === category);
 
   return (

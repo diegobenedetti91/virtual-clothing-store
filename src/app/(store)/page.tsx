@@ -6,6 +6,7 @@ import HeroBanner from "@/components/store/HeroBanner";
 import ProductCard from "@/components/store/ProductCard";
 import NewArrivalsSection from "@/components/store/NewArrivalsSection";
 import Link from "next/link";
+import { applyFlashSales } from "@/lib/flashSales";
 import { ArrowRight, Sparkles, ShieldCheck, Truck, RefreshCcw, MessageCircle } from "lucide-react";
 
 
@@ -36,8 +37,8 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
     }),
   ]);
 
-  const featured = featuredRaw as unknown as Product[];
-  const newArrivals = newArrivalsRaw as unknown as Product[];
+  const featured = (await applyFlashSales(featuredRaw)) as unknown as Product[];
+  const newArrivals = (await applyFlashSales(newArrivalsRaw)) as unknown as Product[];
   const categories = categoriesRaw as unknown as Category[];
 
   const shippingLabel = settings?.freteAtivo && settings?.freteTipo === "local"

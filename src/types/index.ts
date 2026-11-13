@@ -49,6 +49,8 @@ export interface Product {
   slug: string;
   createdAt: string;
   updatedAt: string;
+  /** Promoção relâmpago ativa (preço já aplicado em `price`) */
+  flashSale?: { id: string; title: string; endAt: string };
 }
 
 export interface Category {

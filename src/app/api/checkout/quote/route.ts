@@ -5,8 +5,10 @@ import { validateCheckout } from "@/lib/checkoutValidation";
 // payment form is initialised with this amount, the same one the payment is
 // charged with (see /api/checkout/mercadopago/transparent).
 export async function POST(req: NextRequest) {
-  const { items, zipCode, shippingMethod, pixOnly } = await req.json().catch(() => ({}));
-  const checked = await validateCheckout(req, { items, zipCode, shippingMethod, pixOnly: pixOnly === true });
+  const { items, zipCode, shippingMethod, pixOnly, couponCode, customerEmail, cpfCnpj } = await req.json().catch(() => ({}));
+  const checked = await validateCheckout(req, {
+    items, zipCode, shippingMethod, pixOnly: pixOnly === true, couponCode, customerEmail, cpfCnpj, mode: "quote",
+  });
   if ("error" in checked) return NextResponse.json({ error: checked.error }, { status: 400 });
 
   const total = Math.round((checked.subtotal + checked.shippingCost - checked.discountAmount) * 100) / 100;
@@ -14,6 +16,11 @@ export async function POST(req: NextRequest) {
     subtotal: checked.subtotal,
     shippingCost: checked.shippingCost,
     discountAmount: checked.discountAmount,
+    pixDiscount: checked.pixDiscount,
+    couponDiscount: checked.couponDiscount,
+    coupon: checked.coupon,
+    couponMessage: checked.couponMessage,
+    couponError: checked.couponError,
     total,
   });
 }

@@ -8,13 +8,13 @@ import { generateOrderNumber } from "@/lib/utils";
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { customerName, customerEmail, customerPhone, address, city, state, zipCode, notes, items: rawItems, shippingMethod, pixOnly = false } = body;
+  const { customerName, customerEmail, customerPhone, address, city, state, zipCode, notes, items: rawItems, shippingMethod, pixOnly = false, couponCode, cpfCnpj } = body;
 
   if (!customerName || !customerPhone) {
     return NextResponse.json({ error: "Dados incompletos" }, { status: 400 });
   }
 
-  const checked = await validateCheckout(req, { items: rawItems, zipCode, shippingMethod, pixOnly });
+  const checked = await validateCheckout(req, { items: rawItems, zipCode, shippingMethod, pixOnly, couponCode, customerEmail, cpfCnpj });
   if ("error" in checked) return NextResponse.json({ error: checked.error }, { status: 400 });
   const { items, productMap, subtotal, shippingCost, discountAmount, customerId } = checked;
 
@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
   }
 
 
-  const ipItems = items.map((item: { productId: string; quantity: number; size?: string; color?: string }) => {
+  let ipItems = items.map((item: { productId: string; quantity: number; size?: string; color?: string }) => {
     const product = productMap.get(item.productId);
     if (!product) throw new Error(`Produto não encontrado: ${item.productId}`);
     return {
@@ -37,18 +37,23 @@ export async function POST(req: NextRequest) {
     };
   });
 
-  const total = subtotal + shippingCost - discountAmount;
+  const total = Math.round((subtotal + shippingCost - discountAmount) * 100) / 100;
   const orderNumber = generateOrderNumber();
   const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
 
-  // Adicionar frete como item se houver
-  if (shippingCost && shippingCost > 0) {
-    const shippingWithDiscount = Math.max(0, shippingCost - (discountAmount || 0));
-    ipItems.push({
-      price: Math.round(shippingWithDiscount * 100),
-      quantity: 1,
-      description: `Frete${shippingMethod ? ` (${shippingMethod})` : ""}`,
-    });
+  // Sem item negativo: desconto até o frete sai do frete; acima disso, uma linha com o total exato
+  if (discountAmount > (shippingCost || 0)) {
+    const units = items.reduce((s: number, i: { quantity: number }) => s + i.quantity, 0);
+    ipItems = [{ price: Math.round(total * 100), quantity: 1, description: `Pedido ${orderNumber} (${units} ${units === 1 ? "item" : "itens"})` }];
+  } else if (shippingCost && shippingCost > 0) {
+    const shippingWithDiscount = Math.round((shippingCost - (discountAmount || 0)) * 100) / 100;
+    if (shippingWithDiscount > 0) {
+      ipItems.push({
+        price: Math.round(shippingWithDiscount * 100),
+        quantity: 1,
+        description: `Frete${shippingMethod ? ` (${shippingMethod})` : ""}`,
+      });
+    }
   }
 
   const payload: Record<string, any> = {
@@ -146,6 +151,8 @@ export async function POST(req: NextRequest) {
         shippingCost: shippingCost || 0,
         shippingMethod: shippingMethod || null,
         total,
+        couponCode: checked.coupon?.code ?? null,
+        couponDiscount: checked.couponDiscount,
         status: "PENDING",
         paymentMethod: "Infinity Pay",
         ...getMetaOrderContext(req),
