@@ -2,11 +2,11 @@ import RelatoriosManager from "@/components/admin/RelatoriosManager";
 
 export default function RelatoriosPage() {
   return (
-    <div className="max-w-5xl">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Relatórios</h1>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight text-gray-900">Relatórios</h1>
         <p className="text-gray-500 text-sm mt-1">
-          Acompanhe o faturamento, desempenho por estado e por categoria para tomar decisões estratégicas.
+          Faturamento, lucro, origem das vendas e cancelamentos — filtre o período e exporte qualquer tabela para o Excel.
         </p>
       </div>
       <RelatoriosManager />

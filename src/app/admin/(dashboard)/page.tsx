@@ -1,64 +1,34 @@
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
-import { Package, ShoppingCart, Tag, TrendingUp, Plus, ExternalLink } from "lucide-react";
+import { ArrowRight, ShoppingCart } from "lucide-react";
 import { formatCurrency, formatDate, ORDER_STATUS } from "@/lib/utils";
+import { getCompanySettings } from "@/lib/company";
+import DashboardBI from "@/components/admin/DashboardBI";
 
 export default async function AdminDashboard() {
-  const [productCount, categoryCount, orders, recentOrders] = await Promise.all([
-    prisma.product.count({ where: { active: true } }),
-    prisma.category.count({ where: { active: true } }),
-    prisma.order.findMany({ orderBy: { createdAt: "desc" } }),
+  const [recentOrders, settings] = await Promise.all([
     prisma.order.findMany({
       orderBy: { createdAt: "desc" },
-      take: 5,
-      include: { items: true },
+      take: 8,
+      select: { id: true, orderNumber: true, customerName: true, createdAt: true, total: true, status: true },
     }),
+    getCompanySettings(),
   ]);
 
-  const totalRevenue = orders.filter((o) => o.status === "DELIVERED" || o.status === "RETIRADO").reduce((s, o) => s + o.total, 0);
-  const pendingOrders = orders.filter((o) => o.status === "PENDING").length;
-
-  const stats = [
-    { label: "Produtos ativos", value: productCount, icon: Package, color: "bg-blue-100 text-blue-600", href: "/admin/produtos" },
-    { label: "Categorias", value: categoryCount, icon: Tag, color: "bg-purple-100 text-purple-600", href: "/admin/categorias" },
-    { label: "Pedidos aguardando", value: pendingOrders, icon: ShoppingCart, color: "bg-yellow-100 text-yellow-600", href: "/admin/pedidos" },
-    { label: "Receita total", value: formatCurrency(totalRevenue), icon: TrendingUp, color: "bg-green-100 text-green-600", href: "/admin/pedidos" },
-  ];
-
   return (
-    <div>
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-gray-500 text-sm mt-1">Bem-vinda ao painel da sua loja</p>
-        </div>
-        <div className="flex gap-3">
-          <Link href="/" target="_blank" className="flex items-center gap-2 text-sm text-gray-600 border border-gray-200 px-3 py-2 rounded-xl hover:border-gray-300 transition-colors">
-            <ExternalLink size={14} /> Ver loja
-          </Link>
-          <Link href="/admin/produtos/novo" className="flex items-center gap-2 text-sm bg-brand text-white px-4 py-2 rounded-xl hover:opacity-90 transition-colors">
-            <Plus size={14} /> Novo produto
-          </Link>
-        </div>
-      </div>
+    <div className="space-y-6">
+      <DashboardBI storeName={settings?.name} />
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
-        {stats.map(({ label, value, icon: Icon, color, href }) => (
-          <Link key={label} href={href} className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm hover:shadow-md transition-shadow">
-            <div className={`inline-flex p-2.5 rounded-xl ${color} mb-3`}>
-              <Icon size={20} />
-            </div>
-            <p className="text-2xl font-bold text-gray-900">{value}</p>
-            <p className="text-sm text-gray-500 mt-0.5">{label}</p>
+      <section className="bg-white rounded-2xl border border-gray-200/70 shadow-[0_1px_2px_rgba(0,0,0,0.04)] p-5">
+        <header className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="text-[15px] font-semibold text-gray-900">Pedidos recentes</h3>
+            <p className="text-xs text-gray-500 mt-0.5">Os últimos pedidos que chegaram</p>
+          </div>
+          <Link href="/admin/pedidos" className="text-xs font-medium text-gray-500 hover:text-gray-900 inline-flex items-center gap-1">
+            Ver todos <ArrowRight size={12} />
           </Link>
-        ))}
-      </div>
-
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-        <div className="flex items-center justify-between mb-5">
-          <h2 className="text-lg font-bold text-gray-900">Pedidos recentes</h2>
-          <Link href="/admin/pedidos" className="text-sm text-pink-600 hover:underline">Ver todos</Link>
-        </div>
+        </header>
 
         {recentOrders.length === 0 ? (
           <div className="text-center py-10 text-gray-400">
@@ -66,30 +36,32 @@ export default async function AdminDashboard() {
             <p>Nenhum pedido ainda</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+          <div className="overflow-x-auto -mx-1">
+            <table className="w-full text-[13px]">
               <thead>
-                <tr className="border-b border-gray-100">
-                  <th className="text-left py-2 px-2 font-semibold text-gray-500">Pedido</th>
-                  <th className="text-left py-2 px-2 font-semibold text-gray-500">Cliente</th>
-                  <th className="text-left py-2 px-2 font-semibold text-gray-500">Data</th>
-                  <th className="text-left py-2 px-2 font-semibold text-gray-500">Total</th>
-                  <th className="text-left py-2 px-2 font-semibold text-gray-500">Status</th>
+                <tr className="border-b border-gray-100 text-left text-gray-500">
+                  <th className="py-2 px-2 font-medium">Pedido</th>
+                  <th className="py-2 px-2 font-medium">Cliente</th>
+                  <th className="py-2 px-2 font-medium">Data</th>
+                  <th className="py-2 px-2 font-medium text-right">Total</th>
+                  <th className="py-2 px-2 font-medium">Status</th>
                 </tr>
               </thead>
               <tbody>
                 {recentOrders.map((order) => {
                   const status = ORDER_STATUS[order.status] || ORDER_STATUS.PENDING;
                   return (
-                    <tr key={order.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                      <td className="py-3 px-2">
-                        <Link href="/admin/pedidos" className="font-medium text-pink-600 hover:underline">{order.orderNumber}</Link>
+                    <tr key={order.id} className="border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors">
+                      <td className="py-2.5 px-2">
+                        <Link href={`/admin/pedidos/${order.id}`} className="font-medium text-gray-900 hover:text-brand">
+                          {order.orderNumber}
+                        </Link>
                       </td>
-                      <td className="py-3 px-2 text-gray-700">{order.customerName}</td>
-                      <td className="py-3 px-2 text-gray-500">{formatDate(order.createdAt)}</td>
-                      <td className="py-3 px-2 font-semibold text-gray-900">{formatCurrency(order.total)}</td>
-                      <td className="py-3 px-2">
-                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${status.color}`}>{status.label}</span>
+                      <td className="py-2.5 px-2 text-gray-700">{order.customerName}</td>
+                      <td className="py-2.5 px-2 text-gray-500 tabular-nums">{formatDate(order.createdAt)}</td>
+                      <td className="py-2.5 px-2 font-semibold text-gray-900 text-right tabular-nums">{formatCurrency(order.total)}</td>
+                      <td className="py-2.5 px-2">
+                        <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold ${status.color}`}>{status.label}</span>
                       </td>
                     </tr>
                   );
@@ -98,7 +70,7 @@ export default async function AdminDashboard() {
             </table>
           </div>
         )}
-      </div>
+      </section>
     </div>
   );
 }

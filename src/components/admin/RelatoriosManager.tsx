@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { TrendingUp, ShoppingCart, DollarSign, MapPin, Tag, ChevronDown, XCircle, Percent, Calendar, Filter, Globe, Megaphone } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
+import { useEffect, useMemo, useState } from "react";
+import { TrendingUp, ShoppingCart, DollarSign, MapPin, Tag, ChevronDown, XCircle, Percent, Calendar, Globe, Megaphone, Wallet, RotateCcw, BarChart3, Coins } from "lucide-react";
+import { BarList, ChartCard, ColumnChart, KpiCard } from "@/components/admin/charts/Charts";
+import DataTable, { type Column } from "@/components/admin/charts/DataTable";
+import { fmt } from "@/components/admin/charts/theme";
 
 interface MonthData { month: number; label: string; revenue: number; orders: number }
 interface StateData { state: string; revenue: number; orders: number }
@@ -51,527 +53,358 @@ const MONTHS = [
   { value: 10, label: "Outubro" }, { value: 11, label: "Novembro" }, { value: 12, label: "Dezembro" },
 ];
 
-function BarChart({ data, valueKey, labelKey, colorClass = "bg-brand" }: {
-  data: Record<string, unknown>[];
-  valueKey: string;
-  labelKey: string;
-  colorClass?: string;
-}) {
-  if (data.length === 0) return <p className="text-gray-400 text-sm text-center py-8">Sem dados no período.</p>;
-  const max = Math.max(...data.map((d) => d[valueKey] as number), 1);
+type Tab = "vendas" | "lucro" | "marketing" | "cancelamentos";
+const TABS: { key: Tab; label: string; icon: React.ComponentType<{ size?: number }> }[] = [
+  { key: "vendas", label: "Vendas", icon: BarChart3 },
+  { key: "lucro", label: "Lucro e margem", icon: Coins },
+  { key: "marketing", label: "Marketing e origem", icon: Megaphone },
+  { key: "cancelamentos", label: "Cancelamentos", icon: XCircle },
+];
+
+function MarginPill({ margin }: { margin: number | null }) {
+  if (margin == null) return <span className="text-gray-300 text-xs">sem custo</span>;
+  const tone = margin >= 20 ? "bg-emerald-50 text-emerald-700 ring-emerald-200" : margin >= 0 ? "bg-amber-50 text-amber-700 ring-amber-200" : "bg-red-50 text-red-700 ring-red-200";
+  return <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold ring-1 ${tone}`}>{fmt.pct(margin)}</span>;
+}
+
+const profitCell = (v: number | null) =>
+  v == null ? <span className="text-gray-300">—</span> : <span className={`font-semibold ${v >= 0 ? "text-emerald-700" : "text-red-600"}`}>{fmt.brl(v)}</span>;
+
+function Select({ value, onChange, children, label }: { value: string | number; onChange: (v: string) => void; children: React.ReactNode; label: string }) {
   return (
-    <div className="space-y-2.5">
-      {data.map((d, i) => {
-        const val = d[valueKey] as number;
-        const pct = (val / max) * 100;
-        return (
-          <div key={i} className="flex items-center gap-3">
-            <span className="text-xs text-gray-500 w-4 text-right shrink-0">{i + 1}</span>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-xs font-semibold text-gray-700 truncate">{d[labelKey] as string}</span>
-                <span className="text-xs font-bold text-gray-900 ml-2 shrink-0">{formatCurrency(val)}</span>
-              </div>
-              <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                <div
-                  className={`h-full rounded-full transition-all duration-500 ${colorClass}`}
-                  style={{ width: `${pct}%` }}
-                />
-              </div>
-            </div>
-          </div>
-        );
-      })}
-    </div>
+    <label className="relative" aria-label={label}>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="border border-gray-200 rounded-lg pl-3 pr-8 py-1.5 text-[13px] text-gray-900 bg-white transition appearance-none cursor-pointer"
+      >
+        {children}
+      </select>
+      <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+    </label>
   );
 }
 
-const BAR_AREA_HEIGHT = 140;
-
-function MonthlyChart({ data }: { data: MonthData[] }) {
-  const max = Math.max(...data.map((d) => d.revenue), 1);
-  return (
-    <div className="flex items-end gap-1.5">
-      {data.map((d) => {
-        const heightPx = d.revenue > 0 ? Math.max((d.revenue / max) * BAR_AREA_HEIGHT, 6) : 4;
-        const hasData = d.revenue > 0;
-        return (
-          <div key={d.month} className="flex-1 flex flex-col items-center gap-1 group relative">
-            {hasData && (
-              <div className="absolute left-1/2 -translate-x-1/2 bg-gray-900 text-white text-[10px] px-1.5 py-0.5 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10" style={{ bottom: `calc(${heightPx}px + 20px)` }}>
-                {formatCurrency(d.revenue)}
-              </div>
-            )}
-            <div
-              className={`w-full rounded-t-md transition-all duration-500 ${hasData ? "bg-brand hover:opacity-90" : "bg-gray-100"}`}
-              style={{ height: `${heightPx}px` }}
-            />
-            <span className="text-[10px] text-gray-400 font-medium">{d.label}</span>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
+const DEFAULT_STATUSES = "DELIVERED,RETIRADO";
 
 export default function RelatoriosManager() {
   const [data, setData] = useState<AnalyticsData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
+  const [loadedKey, setLoadedKey] = useState<string | null>(null);
   const [year, setYear] = useState(new Date().getFullYear());
   const [month, setMonth] = useState(0);
   const [filterMode, setFilterMode] = useState<"period" | "range">("period");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
-  const [statuses, setStatuses] = useState("DELIVERED,RETIRADO");
+  const [statuses, setStatuses] = useState(DEFAULT_STATUSES);
   const [stateFilter, setStateFilter] = useState("");
+  const [tab, setTab] = useState<Tab>("vendas");
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams({ statuses });
-      if (filterMode === "range") {
-        if (dateFrom) params.set("dateFrom", dateFrom);
-        if (dateTo) params.set("dateTo", dateTo);
-      } else {
-        params.set("year", String(year));
-        params.set("month", String(month));
-      }
-      if (stateFilter) params.set("state", stateFilter);
-      const res = await fetch(`/api/admin/analytics?${params}`);
-      setData(await res.json());
-    } finally {
-      setLoading(false);
+  const query = useMemo(() => {
+    const params = new URLSearchParams({ statuses });
+    if (filterMode === "range") {
+      if (dateFrom) params.set("dateFrom", dateFrom);
+      if (dateTo) params.set("dateTo", dateTo);
+    } else {
+      params.set("year", String(year));
+      params.set("month", String(month));
     }
+    if (stateFilter) params.set("state", stateFilter);
+    return params.toString();
   }, [year, month, filterMode, dateFrom, dateTo, statuses, stateFilter]);
+  const loading = loadedKey !== query;
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/admin/analytics?${query}`)
+      .then((res) => {
+        if (!res.ok) throw new Error();
+        return res.json();
+      })
+      .then((json: AnalyticsData) => {
+        if (cancelled) return;
+        setData(json);
+        setFailed(false);
+      })
+      .catch(() => !cancelled && setFailed(true))
+      .finally(() => !cancelled && setLoadedKey(query));
+    return () => { cancelled = true; };
+  }, [query]);
 
-  const selectClass = "border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-brand transition appearance-none pr-8 cursor-pointer";
-  const inputClass = "border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-brand transition cursor-pointer";
+  const inputClass = "border border-gray-200 rounded-lg px-2.5 py-1.5 text-[13px] text-gray-900 bg-white transition cursor-pointer";
+  const hasActiveFilters = stateFilter || statuses !== DEFAULT_STATUSES || (filterMode === "range" && (dateFrom || dateTo)) || month !== 0;
 
-  const hasActiveFilters = stateFilter || statuses !== "DELIVERED,RETIRADO" || (filterMode === "range" && (dateFrom || dateTo));
+  const periodTitle =
+    filterMode === "range" && (dateFrom || dateTo)
+      ? `${dateFrom ? new Date(dateFrom + "T12:00:00").toLocaleDateString("pt-BR") : "início"} até ${dateTo ? new Date(dateTo + "T12:00:00").toLocaleDateString("pt-BR") : "hoje"}`
+      : month > 0
+        ? `${MONTHS[month].label} de ${year}`
+        : String(year);
+
+  // Lucro bruto do período (somente produtos com custo cadastrado)
+  const profit = useMemo(() => {
+    if (!data) return null;
+    const withCost = data.byProduct.filter((p) => p.cost != null);
+    const revenue = withCost.reduce((s, p) => s + p.revenue, 0);
+    const value = withCost.reduce((s, p) => s + (p.profit ?? 0), 0);
+    const coverage = data.byProduct.length ? (withCost.length / data.byProduct.length) * 100 : 0;
+    return { value, margin: revenue ? (value / revenue) * 100 : null, coverage, missing: data.byProduct.length - withCost.length };
+  }, [data]);
+
+  const productCols: Column<ProductMarginData>[] = [
+    { key: "name", header: "Produto", value: (r) => r.name, className: "font-medium text-gray-900 max-w-[240px] truncate" },
+    { key: "quantity", header: "Qtd.", value: (r) => r.quantity, align: "right" },
+    { key: "revenue", header: "Receita", value: (r) => r.revenue, render: (r) => fmt.brl(r.revenue), align: "right", className: "text-gray-900" },
+    { key: "cost", header: "Custo", value: (r) => r.cost, render: (r) => (r.cost != null ? fmt.brl(r.cost) : <span className="text-gray-300">—</span>), align: "right" },
+    { key: "profit", header: "Lucro", value: (r) => r.profit, render: (r) => profitCell(r.profit), align: "right" },
+    { key: "margin", header: "Margem", value: (r) => r.margin, render: (r) => <MarginPill margin={r.margin} />, align: "right" },
+  ];
+  const orderCols: Column<OrderMarginData>[] = [
+    { key: "orderNumber", header: "Pedido", value: (r) => r.orderNumber, className: "font-mono text-xs font-semibold text-gray-700" },
+    { key: "customerName", header: "Cliente", value: (r) => r.customerName, className: "text-gray-700 max-w-[160px] truncate" },
+    { key: "createdAt", header: "Data", value: (r) => r.createdAt, render: (r) => new Date(r.createdAt).toLocaleDateString("pt-BR"), className: "text-gray-500" },
+    { key: "revenue", header: "Receita", value: (r) => r.revenue, render: (r) => fmt.brl(r.revenue), align: "right", className: "text-gray-900" },
+    { key: "cost", header: "Custo", value: (r) => r.cost, render: (r) => (r.cost != null ? fmt.brl(r.cost) : <span className="text-gray-300">—</span>), align: "right" },
+    { key: "profit", header: "Lucro", value: (r) => r.profit, render: (r) => profitCell(r.profit), align: "right" },
+    { key: "margin", header: "Margem", value: (r) => r.margin, render: (r) => <MarginPill margin={r.margin} />, align: "right" },
+  ];
+  const stateCols: Column<StateData>[] = [
+    { key: "state", header: "Estado", value: (r) => r.state, className: "font-medium text-gray-900" },
+    { key: "orders", header: "Pedidos", value: (r) => r.orders, align: "right" },
+    { key: "revenue", header: "Faturamento", value: (r) => r.revenue, render: (r) => fmt.brl(r.revenue), align: "right", className: "text-gray-900 font-semibold" },
+    { key: "ticket", header: "Ticket médio", value: (r) => (r.orders ? r.revenue / r.orders : 0), render: (r) => fmt.brl(r.orders ? r.revenue / r.orders : 0), align: "right" },
+    { key: "share", header: "% do total", value: (r) => (data?.summary.revenue ? (r.revenue / data.summary.revenue) * 100 : 0), render: (r) => fmt.pct(data?.summary.revenue ? (r.revenue / data.summary.revenue) * 100 : 0), align: "right", className: "text-gray-500" },
+  ];
+  const sourceCols: Column<SourceData>[] = [
+    { key: "channel", header: "Canal", value: (r) => r.channel, className: "font-medium text-gray-900" },
+    { key: "visits", header: "Visitas", value: (r) => r.visits, render: (r) => fmt.num(r.visits), align: "right" },
+    { key: "orders", header: "Pedidos", value: (r) => r.orders, align: "right" },
+    { key: "conversion", header: "Conversão", value: (r) => r.conversion, render: (r) => (r.conversion != null ? fmt.pct(r.conversion) : <span className="text-gray-300">—</span>), align: "right" },
+    { key: "revenue", header: "Faturamento", value: (r) => r.revenue, render: (r) => fmt.brl(r.revenue), align: "right", className: "text-gray-900 font-semibold" },
+    { key: "ticket", header: "Ticket médio", value: (r) => (r.orders ? r.revenue / r.orders : null), render: (r) => (r.orders ? fmt.brl(r.revenue / r.orders) : <span className="text-gray-300">—</span>), align: "right" },
+  ];
+  const campaignCols: Column<CampaignData>[] = [
+    { key: "campaign", header: "Campanha", value: (r) => r.campaign, className: "font-medium text-gray-900 max-w-[220px] truncate" },
+    { key: "source", header: "Origem / mídia", value: (r) => `${r.source} / ${r.medium}`, className: "text-gray-500" },
+    { key: "visits", header: "Visitas", value: (r) => r.visits, align: "right" },
+    { key: "orders", header: "Pedidos", value: (r) => r.orders, align: "right" },
+    { key: "conversion", header: "Conversão", value: (r) => (r.visits ? (r.orders / r.visits) * 100 : null), render: (r) => (r.visits ? fmt.pct((r.orders / r.visits) * 100) : <span className="text-gray-300">—</span>), align: "right" },
+    { key: "revenue", header: "Faturamento", value: (r) => r.revenue, render: (r) => fmt.brl(r.revenue), align: "right", className: "text-gray-900 font-semibold" },
+  ];
+
+  const cancelledTotal = data?.byCancelReason.reduce((s, r) => s + r.total, 0) ?? 0;
 
   return (
     <div className="space-y-6">
-      {/* Filters */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Filter size={15} className="text-gray-400" />
-            <span className="text-sm font-semibold text-gray-700">Filtros</span>
-            {hasActiveFilters && (
-              <span className="bg-brand text-white text-[10px] font-bold px-2 py-0.5 rounded-full">ativos</span>
-            )}
-          </div>
-          {hasActiveFilters && (
-            <button
-              type="button"
-              onClick={() => { setStateFilter(""); setStatuses("DELIVERED,RETIRADO"); setFilterMode("period"); setDateFrom(""); setDateTo(""); }}
-              className="text-xs text-gray-400 hover:text-gray-600 underline"
-            >
-              Limpar filtros
-            </button>
-          )}
-        </div>
-
-        {/* Period mode toggle */}
-        <div className="flex gap-2">
+      {/* Filtros — uma linha, acima de tudo */}
+      <div className="bg-white rounded-2xl border border-gray-200/70 shadow-[0_1px_2px_rgba(0,0,0,0.04)] p-3 flex flex-wrap items-center gap-2">
+        <div className="inline-flex rounded-lg bg-gray-100 p-0.5">
           <button
             type="button"
             onClick={() => setFilterMode("period")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${filterMode === "period" ? "border-brand bg-brand/5 text-brand" : "border-gray-200 text-gray-500 hover:border-gray-300"}`}
+            className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${filterMode === "period" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500"}`}
           >
-            Ano / Mês
+            Ano / mês
           </button>
           <button
             type="button"
             onClick={() => setFilterMode("range")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${filterMode === "range" ? "border-brand bg-brand/5 text-brand" : "border-gray-200 text-gray-500 hover:border-gray-300"}`}
+            className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all inline-flex items-center gap-1 ${filterMode === "range" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500"}`}
           >
-            <Calendar size={13} />
-            Intervalo de datas
+            <Calendar size={12} /> Intervalo
           </button>
         </div>
 
-        <div className="flex flex-wrap items-end gap-3">
-          {filterMode === "period" ? (
-            <>
-              <div className="flex flex-col gap-1">
-                <label className="text-xs text-gray-500 font-medium">Ano</label>
-                <div className="relative">
-                  <select value={year} onChange={(e) => setYear(Number(e.target.value))} className={selectClass}>
-                    {(data?.years ?? [year]).map((y) => (
-                      <option key={y} value={y}>{y}</option>
-                    ))}
-                  </select>
-                  <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-                </div>
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-xs text-gray-500 font-medium">Mês</label>
-                <div className="relative">
-                  <select value={month} onChange={(e) => setMonth(Number(e.target.value))} className={selectClass}>
-                    {MONTHS.map((m) => (
-                      <option key={m.value} value={m.value}>{m.label}</option>
-                    ))}
-                  </select>
-                  <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-                </div>
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="flex flex-col gap-1">
-                <label className="text-xs text-gray-500 font-medium">Data início</label>
-                <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className={inputClass} />
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-xs text-gray-500 font-medium">Data fim</label>
-                <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className={inputClass} />
-              </div>
-            </>
-          )}
+        {filterMode === "period" ? (
+          <>
+            <Select label="Ano" value={year} onChange={(v) => setYear(Number(v))}>
+              {(data?.years ?? [year]).map((y) => <option key={y} value={y}>{y}</option>)}
+            </Select>
+            <Select label="Mês" value={month} onChange={(v) => setMonth(Number(v))}>
+              {MONTHS.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
+            </Select>
+          </>
+        ) : (
+          <>
+            <input type="date" aria-label="Data início" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className={inputClass} />
+            <span className="text-gray-300">–</span>
+            <input type="date" aria-label="Data fim" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className={inputClass} />
+          </>
+        )}
 
-          <div className="flex flex-col gap-1">
-            <label className="text-xs text-gray-500 font-medium">Status dos pedidos</label>
-            <div className="relative">
-              <select value={statuses} onChange={(e) => setStatuses(e.target.value)} className={selectClass}>
-                {STATUS_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
-              </select>
-              <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-            </div>
-          </div>
+        <Select label="Status dos pedidos" value={statuses} onChange={setStatuses}>
+          {STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </Select>
 
-          {(data?.allStates ?? []).length > 1 && (
-            <div className="flex flex-col gap-1">
-              <label className="text-xs text-gray-500 font-medium">Estado (UF)</label>
-              <div className="relative">
-                <select value={stateFilter} onChange={(e) => setStateFilter(e.target.value)} className={selectClass}>
-                  <option value="">Todos os estados</option>
-                  {(data?.allStates ?? []).map((s) => (
-                    <option key={s} value={s}>{s}</option>
-                  ))}
-                </select>
-                <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-              </div>
-            </div>
-          )}
+        {(data?.allStates ?? []).length > 1 && (
+          <Select label="Estado" value={stateFilter} onChange={setStateFilter}>
+            <option value="">Todos os estados</option>
+            {(data?.allStates ?? []).map((s) => <option key={s} value={s}>{s}</option>)}
+          </Select>
+        )}
 
-          {loading && (
-            <div className="w-4 h-4 border-2 border-brand border-t-transparent rounded-full animate-spin mb-2" />
+        <div className="ml-auto flex items-center gap-3">
+          {loading && <div className="w-4 h-4 border-2 border-brand border-t-transparent rounded-full animate-spin" />}
+          {hasActiveFilters && (
+            <button
+              type="button"
+              onClick={() => { setStateFilter(""); setStatuses(DEFAULT_STATUSES); setFilterMode("period"); setDateFrom(""); setDateTo(""); setMonth(0); }}
+              className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-gray-900"
+            >
+              <RotateCcw size={12} /> Limpar filtros
+            </button>
           )}
         </div>
       </div>
 
-      {/* Summary cards */}
-      {data && (
-        <>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            {[
-              { label: "Faturamento", value: formatCurrency(data.summary.revenue), icon: DollarSign, color: "bg-green-100 text-green-600" },
-              { label: "Pedidos", value: data.summary.orders, icon: ShoppingCart, color: "bg-blue-100 text-blue-600" },
-              { label: "Ticket médio", value: formatCurrency(data.summary.ticket), icon: TrendingUp, color: "bg-purple-100 text-purple-600" },
-              { label: "Cancelamentos", value: data.summary.cancelled, icon: XCircle, color: "bg-red-100 text-red-600" },
-            ].map(({ label, value, icon: Icon, color }) => (
-              <div key={label} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-                <div className={`inline-flex p-2.5 rounded-xl ${color} mb-3`}>
-                  <Icon size={18} />
-                </div>
-                <p className="text-2xl font-bold text-gray-900">{value}</p>
-                <p className="text-sm text-gray-500 mt-0.5">{label}</p>
-              </div>
+      {failed && !data && <div className="text-center py-20 text-gray-400">Erro ao carregar dados.</div>}
+
+      {!data ? (
+        !failed && (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {Array.from({ length: 4 }).map((_, i) => <div key={i} className="img-skeleton rounded-2xl h-[110px]" />)}
+          </div>
+        )
+      ) : (
+        <div className={`space-y-6 transition-opacity ${loading ? "opacity-60" : ""}`}>
+          {/* KPIs */}
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+            <KpiCard icon={DollarSign} label="Faturamento" value={fmt.brlCompact(data.summary.revenue)} current={data.summary.revenue} />
+            <KpiCard icon={ShoppingCart} label="Pedidos" value={fmt.num(data.summary.orders)} current={data.summary.orders} />
+            <KpiCard icon={TrendingUp} label="Ticket médio" value={fmt.brl(data.summary.ticket)} current={data.summary.ticket} />
+            <KpiCard
+              icon={Wallet}
+              label="Lucro bruto"
+              value={profit ? fmt.brlCompact(profit.value) : "—"}
+              current={profit?.value ?? 0}
+              hint={profit?.missing ? `${profit.missing} produto(s) sem preço de custo não entram no cálculo` : "Receita menos custo dos produtos"}
+            />
+            <KpiCard icon={XCircle} label="Cancelamentos" value={fmt.num(data.summary.cancelled)} current={data.summary.cancelled} />
+          </div>
+
+          {/* Abas */}
+          <div className="border-b border-gray-200 flex gap-1 overflow-x-auto [scrollbar-width:none]">
+            {TABS.map(({ key, label, icon: Icon }) => (
+              <button
+                key={key}
+                onClick={() => setTab(key)}
+                className={`relative inline-flex items-center gap-1.5 px-3 py-2.5 text-[13px] font-medium whitespace-nowrap transition-colors ${tab === key ? "text-gray-900" : "text-gray-500 hover:text-gray-800"}`}
+              >
+                <Icon size={15} /> {label}
+                {key === "cancelamentos" && data.summary.cancelled > 0 && (
+                  <span className="ml-0.5 text-[11px] bg-gray-100 text-gray-600 rounded-full px-1.5 tabular-nums">{data.summary.cancelled}</span>
+                )}
+                <span className={`absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-gray-900 transition-transform origin-center ${tab === key ? "scale-x-100" : "scale-x-0"}`} />
+              </button>
             ))}
           </div>
 
-          {/* Monthly chart */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-            <h2 className="text-base font-bold text-gray-900 mb-1">
-              {filterMode === "range" && (dateFrom || dateTo)
-                ? `Faturamento — ${dateFrom ? new Date(dateFrom + "T12:00:00").toLocaleDateString("pt-BR") : "início"} até ${dateTo ? new Date(dateTo + "T12:00:00").toLocaleDateString("pt-BR") : "hoje"}`
-                : `Faturamento mensal — ${year}`}
-            </h2>
-            <p className="text-xs text-gray-400 mb-5">Passe o mouse sobre as barras para ver o valor exato</p>
-            <MonthlyChart data={data.monthlyRevenue} />
-          </div>
+          <div key={tab} className="space-y-4 animate-fade-up [animation-duration:0.4s]">
+            {tab === "vendas" && (
+              <>
+                <ChartCard
+                  title={filterMode === "range" && (dateFrom || dateTo) ? `Faturamento por mês de ${year}` : `Faturamento mensal — ${year}`}
+                  subtitle="Passe o mouse sobre as colunas para ver o valor e o número de pedidos"
+                >
+                  <ColumnChart data={data.monthlyRevenue.map((m) => ({ label: m.label, value: m.revenue, sub: `${m.orders} pedido${m.orders === 1 ? "" : "s"}` }))} />
+                </ChartCard>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <ChartCard title="Vendas por estado" subtitle={periodTitle} action={<MapPin size={16} className="text-gray-300" />}>
+                    <BarList items={data.byState.map((s) => ({ label: s.state, value: s.revenue, sub: `${s.orders} ped.` }))} />
+                  </ChartCard>
+                  <ChartCard title="Vendas por categoria" subtitle={periodTitle} action={<Tag size={16} className="text-gray-300" />}>
+                    <BarList items={data.byCategory.map((c) => ({ label: c.category, value: c.revenue, sub: `${c.items} un.` }))} />
+                  </ChartCard>
+                </div>
+                <ChartCard title="Detalhes por estado" subtitle="Clique no cabeçalho para ordenar">
+                  <DataTable rows={data.byState} columns={stateCols} rowKey={(r) => r.state} defaultSort={{ key: "revenue", dir: "desc" }} exportName={`vendas-por-estado-${periodTitle}`} />
+                </ChartCard>
+              </>
+            )}
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* By state */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-              <div className="flex items-center gap-2 mb-1">
-                <MapPin size={16} className="text-brand" />
-                <h2 className="text-base font-bold text-gray-900">Vendas por estado</h2>
-              </div>
-              <p className="text-xs text-gray-400 mb-5">Ordenado por faturamento (maior → menor)</p>
-              <BarChart
-                data={data.byState as unknown as Record<string, unknown>[]}
-                valueKey="revenue"
-                labelKey="state"
-                colorClass="bg-brand"
-              />
-            </div>
+            {tab === "lucro" && (
+              <>
+                {profit && profit.missing > 0 && (
+                  <div className="rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3 text-[13px] text-amber-800">
+                    <b>{profit.missing}</b> produto(s) vendidos no período não têm preço de custo cadastrado ({fmt.pct(100 - profit.coverage, 0)} dos produtos).
+                    Cadastre o custo em <b>Produtos</b> para o lucro ficar completo.
+                  </div>
+                )}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <ChartCard title="Produtos que mais dão lucro" subtitle="Lucro bruto (receita − custo)">
+                    <BarList
+                      items={data.byProduct.filter((p) => p.profit != null && p.profit > 0).sort((a, b) => (b.profit ?? 0) - (a.profit ?? 0)).map((p) => ({ label: p.name, value: p.profit ?? 0, sub: p.margin != null ? fmt.pct(p.margin, 0) : undefined }))}
+                      empty="Cadastre o preço de custo dos produtos para ver o lucro"
+                    />
+                  </ChartCard>
+                  <ChartCard title="Produtos que mais vendem" subtitle="Por quantidade de peças">
+                    <BarList
+                      items={[...data.byProduct].sort((a, b) => b.quantity - a.quantity).map((p) => ({ label: p.name, value: p.quantity, sub: fmt.brlCompact(p.revenue) }))}
+                      format={(v) => `${fmt.num(v)} un.`}
+                    />
+                  </ChartCard>
+                </div>
+                <ChartCard title="Margem por produto" subtitle="Margem ≥ 20% em verde, entre 0 e 20% em amarelo, negativa em vermelho">
+                  <DataTable rows={data.byProduct} columns={productCols} rowKey={(r) => r.productId} defaultSort={{ key: "profit", dir: "desc" }} searchable exportName={`margem-por-produto-${periodTitle}`} />
+                </ChartCard>
+                <ChartCard title="Margem por pedido" subtitle="Só pedidos em que todos os itens têm custo cadastrado mostram margem">
+                  <DataTable rows={data.byOrder} columns={orderCols} rowKey={(r) => r.orderNumber} defaultSort={{ key: "createdAt", dir: "desc" }} searchable exportName={`margem-por-pedido-${periodTitle}`} />
+                </ChartCard>
+              </>
+            )}
 
-            {/* By category */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-              <div className="flex items-center gap-2 mb-1">
-                <Tag size={16} className="text-purple-500" />
-                <h2 className="text-base font-bold text-gray-900">Vendas por categoria</h2>
-              </div>
-              <p className="text-xs text-gray-400 mb-5">Ordenado por faturamento (maior → menor)</p>
-              <BarChart
-                data={data.byCategory as unknown as Record<string, unknown>[]}
-                valueKey="revenue"
-                labelKey="category"
-                colorClass="bg-purple-500"
-              />
-            </div>
-          </div>
+            {tab === "marketing" && (
+              <>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <ChartCard title="Faturamento por canal" subtitle="Última origem identificada até 30 dias antes da compra" action={<Globe size={16} className="text-gray-300" />}>
+                    <BarList items={data.bySource.filter((s) => s.revenue > 0).map((s) => ({ label: s.channel, value: s.revenue, sub: `${s.orders} ped.` }))} />
+                  </ChartCard>
+                  <ChartCard title="Visitas por canal" subtitle="Sessões iniciadas no período">
+                    <BarList items={[...data.bySource].filter((s) => s.visits > 0).sort((a, b) => b.visits - a.visits).map((s) => ({ label: s.channel, value: s.visits, sub: s.conversion != null ? `${fmt.pct(s.conversion)} conv.` : undefined }))} format={fmt.num} />
+                  </ChartCard>
+                </div>
+                <ChartCard title="Origem do tráfego" subtitle="Visitas, pedidos e conversão por canal">
+                  <DataTable rows={data.bySource} columns={sourceCols} rowKey={(r) => r.channel} defaultSort={{ key: "revenue", dir: "desc" }} exportName={`origem-trafego-${periodTitle}`} />
+                </ChartCard>
+                <ChartCard title="Campanhas (UTM)" subtitle="Links com utm_campaign, ex.: ?utm_source=instagram&utm_medium=stories&utm_campaign=black-friday">
+                  <DataTable
+                    rows={data.byCampaign}
+                    columns={campaignCols}
+                    rowKey={(r) => `${r.source}|${r.medium}|${r.campaign}`}
+                    defaultSort={{ key: "revenue", dir: "desc" }}
+                    searchable
+                    exportName={`campanhas-${periodTitle}`}
+                    empty="Nenhuma campanha com UTM no período"
+                  />
+                </ChartCard>
+              </>
+            )}
 
-          {/* Traffic source */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-            <div className="flex items-center gap-2 mb-1">
-              <Globe size={16} className="text-sky-500" />
-              <h2 className="text-base font-bold text-gray-900">Origem do tráfego</h2>
-            </div>
-            <p className="text-xs text-gray-400 mb-5">
-              De onde vieram as visitas e os pedidos do período (última origem identificada nos 30 dias anteriores à compra).
-              Pedidos com o status selecionado no filtro.
-            </p>
-            {(data.bySource ?? []).length === 0 ? (
-              <p className="text-gray-400 text-sm text-center py-8">Sem dados no período.</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-gray-100 text-left">
-                      <th className="pb-2 px-2 font-semibold text-gray-500">Canal</th>
-                      <th className="pb-2 px-2 font-semibold text-gray-500 text-right">Visitas</th>
-                      <th className="pb-2 px-2 font-semibold text-gray-500 text-right">Pedidos</th>
-                      <th className="pb-2 px-2 font-semibold text-gray-500 text-right">Conversão</th>
-                      <th className="pb-2 px-2 font-semibold text-gray-500 text-right">Faturamento</th>
-                      <th className="pb-2 px-2 font-semibold text-gray-500 text-right">Ticket médio</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data.bySource.map((row) => (
-                      <tr key={row.channel} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                        <td className="py-2.5 px-2 font-semibold text-gray-800">{row.channel}</td>
-                        <td className="py-2.5 px-2 text-gray-600 text-right">{row.visits}</td>
-                        <td className="py-2.5 px-2 text-gray-600 text-right">{row.orders}</td>
-                        <td className="py-2.5 px-2 text-gray-600 text-right">
-                          {row.conversion != null ? `${row.conversion.toFixed(1)}%` : <span className="text-gray-300">—</span>}
-                        </td>
-                        <td className="py-2.5 px-2 font-bold text-gray-900 text-right">{formatCurrency(row.revenue)}</td>
-                        <td className="py-2.5 px-2 text-gray-600 text-right">
-                          {row.orders > 0 ? formatCurrency(row.revenue / row.orders) : <span className="text-gray-300">—</span>}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+            {tab === "cancelamentos" && (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <ChartCard title="Motivos de cancelamento" subtitle="Quantidade de pedidos por motivo" className="lg:col-span-2">
+                  <BarList
+                    items={data.byCancelReason.map((r) => ({ label: r.reason, value: r.count, sub: fmt.brlCompact(r.total) }))}
+                    format={(v) => `${v} pedido${v === 1 ? "" : "s"}`}
+                    color="#e34948"
+                    empty="Nenhum cancelamento no período 🎉"
+                  />
+                </ChartCard>
+                <div className="space-y-3">
+                  <KpiCard icon={XCircle} label="Pedidos cancelados" value={fmt.num(data.summary.cancelled)} current={data.summary.cancelled} />
+                  <KpiCard icon={DollarSign} label="Valor cancelado" value={fmt.brl(cancelledTotal)} current={cancelledTotal} />
+                  <KpiCard
+                    icon={Percent}
+                    label="Taxa de cancelamento"
+                    value={fmt.pct(data.summary.orders + data.summary.cancelled ? (data.summary.cancelled / (data.summary.orders + data.summary.cancelled)) * 100 : 0)}
+                    current={0}
+                    hint="Cancelados ÷ (pedidos do filtro + cancelados)"
+                  />
+                </div>
               </div>
             )}
           </div>
-
-          {/* Campaigns (UTM) */}
-          {(data.byCampaign ?? []).length > 0 && (
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-              <div className="flex items-center gap-2 mb-1">
-                <Megaphone size={16} className="text-orange-500" />
-                <h2 className="text-base font-bold text-gray-900">Campanhas (UTM)</h2>
-              </div>
-              <p className="text-xs text-gray-400 mb-5">Links com utm_campaign, ex.: ?utm_source=instagram&amp;utm_medium=stories&amp;utm_campaign=black-friday</p>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-gray-100 text-left">
-                      <th className="pb-2 px-2 font-semibold text-gray-500">Campanha</th>
-                      <th className="pb-2 px-2 font-semibold text-gray-500">Origem / Mídia</th>
-                      <th className="pb-2 px-2 font-semibold text-gray-500 text-right">Visitas</th>
-                      <th className="pb-2 px-2 font-semibold text-gray-500 text-right">Pedidos</th>
-                      <th className="pb-2 px-2 font-semibold text-gray-500 text-right">Faturamento</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data.byCampaign.map((row) => (
-                      <tr key={`${row.source}|${row.medium}|${row.campaign}`} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                        <td className="py-2.5 px-2 font-semibold text-gray-800 max-w-[200px] truncate">{row.campaign}</td>
-                        <td className="py-2.5 px-2 text-gray-600">{row.source} / {row.medium}</td>
-                        <td className="py-2.5 px-2 text-gray-600 text-right">{row.visits}</td>
-                        <td className="py-2.5 px-2 text-gray-600 text-right">{row.orders}</td>
-                        <td className="py-2.5 px-2 font-bold text-gray-900 text-right">{formatCurrency(row.revenue)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {/* Cancellations by reason */}
-          {data.byCancelReason.length > 0 && (
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-              <div className="flex items-center gap-2 mb-1">
-                <XCircle size={16} className="text-red-500" />
-                <h2 className="text-base font-bold text-gray-900">Cancelamentos por motivo</h2>
-              </div>
-              <p className="text-xs text-gray-400 mb-5">Ordenado por quantidade (maior → menor)</p>
-              <div className="space-y-3">
-                {data.byCancelReason.map((row, i) => {
-                  const max = data.byCancelReason[0].count;
-                  return (
-                    <div key={i} className="flex items-center gap-3">
-                      <span className="text-xs text-gray-500 w-4 text-right shrink-0">{i + 1}</span>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs font-semibold text-gray-700 truncate">{row.reason}</span>
-                          <span className="text-xs font-bold text-gray-900 ml-2 shrink-0">{row.count} pedido{row.count !== 1 ? "s" : ""}</span>
-                        </div>
-                        <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                          <div className="h-full rounded-full bg-red-400 transition-all duration-500" style={{ width: `${(row.count / max) * 100}%` }} />
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* State detail table */}
-          {data.byState.length > 0 && (
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-              <h2 className="text-base font-bold text-gray-900 mb-4">Detalhes por estado</h2>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-gray-100 text-left">
-                      <th className="pb-2 px-2 font-semibold text-gray-500">#</th>
-                      <th className="pb-2 px-2 font-semibold text-gray-500">Estado</th>
-                      <th className="pb-2 px-2 font-semibold text-gray-500 text-right">Pedidos</th>
-                      <th className="pb-2 px-2 font-semibold text-gray-500 text-right">Faturamento</th>
-                      <th className="pb-2 px-2 font-semibold text-gray-500 text-right">Ticket médio</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data.byState.map((row, i) => (
-                      <tr key={row.state} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                        <td className="py-2.5 px-2 text-gray-400 font-medium">{i + 1}</td>
-                        <td className="py-2.5 px-2 font-semibold text-gray-800">{row.state}</td>
-                        <td className="py-2.5 px-2 text-gray-600 text-right">{row.orders}</td>
-                        <td className="py-2.5 px-2 font-bold text-gray-900 text-right">{formatCurrency(row.revenue)}</td>
-                        <td className="py-2.5 px-2 text-gray-600 text-right">{formatCurrency(row.revenue / row.orders)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {/* Profit margin by product */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-            <div className="flex items-center gap-2 mb-1">
-              <Percent size={16} className="text-emerald-500" />
-              <h2 className="text-base font-bold text-gray-900">Margem de lucro por produto</h2>
-            </div>
-            <p className="text-xs text-gray-400 mb-5">Produtos sem valor de compra cadastrado são exibidos sem margem calculada</p>
-            {data.byProduct.length === 0 ? (
-              <p className="text-gray-400 text-sm text-center py-8">Sem dados no período.</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-gray-100 text-left">
-                      <th className="pb-2 px-2 font-semibold text-gray-500">#</th>
-                      <th className="pb-2 px-2 font-semibold text-gray-500">Produto</th>
-                      <th className="pb-2 px-2 font-semibold text-gray-500 text-right">Qtd vendida</th>
-                      <th className="pb-2 px-2 font-semibold text-gray-500 text-right">Receita</th>
-                      <th className="pb-2 px-2 font-semibold text-gray-500 text-right">Custo total</th>
-                      <th className="pb-2 px-2 font-semibold text-gray-500 text-right">Lucro</th>
-                      <th className="pb-2 px-2 font-semibold text-gray-500 text-right">Margem</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data.byProduct.map((row, i) => (
-                      <tr key={row.productId} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                        <td className="py-2.5 px-2 text-gray-400 font-medium">{i + 1}</td>
-                        <td className="py-2.5 px-2 font-semibold text-gray-800 max-w-[200px] truncate">{row.name}</td>
-                        <td className="py-2.5 px-2 text-gray-600 text-right">{row.quantity}</td>
-                        <td className="py-2.5 px-2 text-gray-900 text-right font-medium">{formatCurrency(row.revenue)}</td>
-                        <td className="py-2.5 px-2 text-gray-600 text-right">{row.cost != null ? formatCurrency(row.cost) : <span className="text-gray-300">—</span>}</td>
-                        <td className={`py-2.5 px-2 text-right font-bold ${row.profit != null ? (row.profit >= 0 ? "text-emerald-600" : "text-red-500") : "text-gray-300"}`}>
-                          {row.profit != null ? formatCurrency(row.profit) : "—"}
-                        </td>
-                        <td className="py-2.5 px-2 text-right">
-                          {row.margin != null ? (
-                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold ${row.margin >= 20 ? "bg-emerald-100 text-emerald-700" : row.margin >= 0 ? "bg-yellow-100 text-yellow-700" : "bg-red-100 text-red-600"}`}>
-                              {row.margin.toFixed(1)}%
-                            </span>
-                          ) : <span className="text-gray-300 text-xs">sem custo</span>}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-
-          {/* Profit margin by order */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-            <div className="flex items-center gap-2 mb-1">
-              <Percent size={16} className="text-blue-500" />
-              <h2 className="text-base font-bold text-gray-900">Margem de lucro por pedido</h2>
-            </div>
-            <p className="text-xs text-gray-400 mb-5">Apenas pedidos em que todos os itens têm valor de compra exibem margem calculada</p>
-            {data.byOrder.length === 0 ? (
-              <p className="text-gray-400 text-sm text-center py-8">Sem dados no período.</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-gray-100 text-left">
-                      <th className="pb-2 px-2 font-semibold text-gray-500">Pedido</th>
-                      <th className="pb-2 px-2 font-semibold text-gray-500">Cliente</th>
-                      <th className="pb-2 px-2 font-semibold text-gray-500">Data</th>
-                      <th className="pb-2 px-2 font-semibold text-gray-500 text-right">Receita</th>
-                      <th className="pb-2 px-2 font-semibold text-gray-500 text-right">Custo</th>
-                      <th className="pb-2 px-2 font-semibold text-gray-500 text-right">Lucro</th>
-                      <th className="pb-2 px-2 font-semibold text-gray-500 text-right">Margem</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data.byOrder.map((row) => (
-                      <tr key={row.orderNumber} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                        <td className="py-2.5 px-2 font-mono text-xs text-gray-700 font-semibold">{row.orderNumber}</td>
-                        <td className="py-2.5 px-2 text-gray-700 max-w-[150px] truncate">{row.customerName}</td>
-                        <td className="py-2.5 px-2 text-gray-500 text-xs">{new Date(row.createdAt).toLocaleDateString("pt-BR")}</td>
-                        <td className="py-2.5 px-2 text-gray-900 text-right font-medium">{formatCurrency(row.revenue)}</td>
-                        <td className="py-2.5 px-2 text-gray-600 text-right">{row.cost != null ? formatCurrency(row.cost) : <span className="text-gray-300">—</span>}</td>
-                        <td className={`py-2.5 px-2 text-right font-bold ${row.profit != null ? (row.profit >= 0 ? "text-emerald-600" : "text-red-500") : "text-gray-300"}`}>
-                          {row.profit != null ? formatCurrency(row.profit) : "—"}
-                        </td>
-                        <td className="py-2.5 px-2 text-right">
-                          {row.margin != null ? (
-                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold ${row.margin >= 20 ? "bg-emerald-100 text-emerald-700" : row.margin >= 0 ? "bg-yellow-100 text-yellow-700" : "bg-red-100 text-red-600"}`}>
-                              {row.margin.toFixed(1)}%
-                            </span>
-                          ) : <span className="text-gray-300 text-xs">sem custo</span>}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        </>
-      )}
-
-      {!data && !loading && (
-        <div className="text-center py-20 text-gray-400">Erro ao carregar dados.</div>
+        </div>
       )}
     </div>
   );
