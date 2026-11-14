@@ -2,7 +2,7 @@ import { cache } from "react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Ruler, Star, Truck, Zap, Store, RefreshCw, CreditCard, ShieldCheck } from "lucide-react";
+import { AlignLeft, ChevronDown, ChevronRight, Ruler, Star, Truck, Zap, Store, RefreshCw, CreditCard, ShieldCheck } from "lucide-react";
 import { getPublicCompanySettings } from "@/lib/company";
 import { storePerks, type PerkIcon } from "@/lib/storePerks";
 import { prisma } from "@/lib/prisma";
@@ -52,6 +52,20 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     },
     twitter: { card: "summary_large_image", title: p.name, description, ...(image ? { images: [absoluteUrl(image)] } : {}) },
   };
+}
+
+/** Seção que abre e fecha (descrição, medidas, entrega). */
+function Detail({ title, icon: Icon, open, children }: { title: string; icon: React.ComponentType<{ size?: number; className?: string }>; open?: boolean; children: React.ReactNode }) {
+  return (
+    <details className="group" open={open}>
+      <summary className="flex items-center gap-2.5 cursor-pointer list-none py-3.5 text-sm font-semibold text-gray-900 [&::-webkit-details-marker]:hidden">
+        <Icon size={16} className="text-gray-400" />
+        {title}
+        <ChevronDown size={16} className="ml-auto text-gray-400 transition-transform group-open:rotate-180" />
+      </summary>
+      <div className="pb-4 -mt-0.5">{children}</div>
+    </details>
+  );
 }
 
 export default async function ProductDetailPage({ params }: PageProps) {
@@ -123,81 +137,46 @@ export default async function ProductDetailPage({ params }: PageProps) {
     ],
   };
 
-  const discount =
-    product.comparePrice && product.comparePrice > product.price
-      ? Math.round(((product.comparePrice - product.price) / product.comparePrice) * 100)
-      : 0;
 
   return (
     <div className="bg-white min-h-screen">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd).replace(/</g, "\\u003c") }} />
       <TrackProductView productId={product.id} />
-      {/* Breadcrumb */}
-      <div className="border-b border-gray-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
-          <div className="flex items-center gap-1.5 text-xs text-gray-400">
-            <Link href="/" className="hover:text-gray-700 transition-colors">Início</Link>
-            <ChevronRight size={12} />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-10">
+        {/* Caminho */}
+        <nav aria-label="Você está em" className="flex items-center gap-1.5 text-xs text-gray-400 mb-5 min-w-0">
+          <Link href="/" className="hover:text-gray-700 transition-colors">Início</Link>
+          <ChevronRight size={12} className="shrink-0" />
+          {product.category ? (
+            <Link href={`/produtos?category=${product.category.slug}`} className="hover:text-gray-700 transition-colors truncate">{product.category.name}</Link>
+          ) : (
             <Link href="/produtos" className="hover:text-gray-700 transition-colors">Produtos</Link>
-            {product.category && (
-              <>
-                <ChevronRight size={12} />
-                <Link href={`/produtos?category=${product.category.slug}`} className="hover:text-gray-700 transition-colors">
-                  {product.category.name}
-                </Link>
-              </>
-            )}
-            <ChevronRight size={12} />
-            <span className="text-gray-700 font-semibold truncate max-w-[160px]">{product.name}</span>
-          </div>
-        </div>
-      </div>
+          )}
+          <ChevronRight size={12} className="shrink-0" />
+          <span className="text-gray-600 truncate">{product.name}</span>
+        </nav>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 xl:gap-16">
-
-          {/* Gallery */}
+          {/* Galeria */}
           <ProductGallery images={images} name={product.name} />
 
-          {/* Info panel */}
+          {/* Informações e compra */}
           <div className="flex flex-col gap-5 lg:sticky lg:top-32 lg:self-start">
-
-            {/* Category + badges */}
-            <div className="flex items-center gap-2 flex-wrap">
-              {product.category && (
-                <Link
-                  href={`/produtos?category=${product.category.slug}`}
-                  className="text-xs font-bold text-brand uppercase tracking-widest hover:opacity-80 transition-opacity"
-                >
-                  {product.category.name}
-                </Link>
-              )}
-              {product.featured && (
-                <span className="bg-brand-light text-brand text-xs font-bold px-2.5 py-1 rounded-full border border-brand">
-                  ★ Destaque
-                </span>
-              )}
-              {discount > 0 && (
-                <span className="bg-red-50 text-red-600 text-xs font-bold px-2.5 py-1 rounded-full border border-red-100">
-                  -{discount}% OFF
-                </span>
-              )}
-            </div>
-
-            {/* Title */}
             <div>
-              <h1 className="text-2xl sm:text-[28px] font-bold text-gray-900 leading-tight tracking-tight">
-                {product.name}
-              </h1>
+              <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                {product.category && (
+                  <Link href={`/produtos?category=${product.category.slug}`} className="text-[11px] font-semibold text-brand uppercase tracking-widest hover:opacity-80">
+                    {product.category.name}
+                  </Link>
+                )}
+              </div>
+              <h1 className="text-2xl sm:text-[28px] font-semibold text-gray-900 leading-tight tracking-tight">{product.name}</h1>
               {reviewCount > 0 && (
                 <a href="#avaliacoes" className="mt-1.5 inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-900">
                   <Star size={14} className="text-amber-400" fill="currentColor" />
                   {reviewCount} avaliação{reviewCount !== 1 ? "ões" : ""}
                 </a>
-              )}
-              {product.description && (
-                <p className="mt-3 text-[15px] text-gray-600 leading-relaxed">{product.description}</p>
               )}
             </div>
 
@@ -207,12 +186,9 @@ export default async function ProductDetailPage({ params }: PageProps) {
               />
             )}
 
-            {/* Divider */}
-            <div className="border-t border-gray-100" />
-
             <MetaViewContent productId={product.id} name={product.name} price={product.price} />
 
-            {/* Actions (price, size, color, add to cart) */}
+            {/* Preço, tamanho/cor e comprar */}
             <ProductActions
               productId={product.id}
               name={product.name}
@@ -227,40 +203,42 @@ export default async function ProductDetailPage({ params }: PageProps) {
             />
 
             {cashbackPct > 0 && (
-              <p className="flex items-center gap-2 rounded-xl bg-brand-light ring-1 ring-black/5 px-3 py-2 text-[13px] text-brand">
-                <span aria-hidden>🎁</span>
-                <span>
-                  Ganhe <b>{formatCurrency(Math.round(product.price * cashbackPct) / 100)}</b> de cashback ({cashbackPct.toLocaleString("pt-BR")}%) para usar na próxima compra
-                </span>
+              <p className="-mt-1 text-[13px] text-gray-600">
+                <span className="text-brand font-semibold">+ {formatCurrency(Math.round(product.price * cashbackPct) / 100)} de cashback</span> para usar na próxima compra
               </p>
             )}
 
-            {product.measurements?.trim() && (
-              <details className="group rounded-2xl ring-1 ring-gray-200 bg-white open:shadow-sm transition">
-                <summary className="flex items-center gap-2 cursor-pointer list-none px-4 py-3 text-sm font-semibold text-gray-900 [&::-webkit-details-marker]:hidden">
-                  <Ruler size={16} className="text-gray-500" />
-                  Medidas e caimento
-                  <ChevronRight size={16} className="ml-auto text-gray-400 transition-transform group-open:rotate-90" />
-                </summary>
-                <p className="px-4 pb-4 -mt-1 text-sm text-gray-600 leading-relaxed whitespace-pre-line">{product.measurements.trim()}</p>
-              </details>
-            )}
-
-            {/* Vantagens da loja (vindas das configurações) */}
-            <ul className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
-              {perks.map((p) => {
-                const Icon = PERK_ICONS[p.icon];
-                return (
-                  <li key={p.title} className="flex items-center gap-2.5 rounded-xl bg-gray-50 px-3 py-2.5">
-                    <Icon size={16} className="text-gray-500 shrink-0" />
-                    <span className="leading-tight">
-                      <span className="block text-xs font-semibold text-gray-800">{p.title}</span>
-                      <span className="block text-[11px] text-gray-500">{p.desc}</span>
-                    </span>
-                  </li>
-                );
-              })}
-            </ul>
+            {/* Detalhes que abrem e fecham */}
+            <div className="divide-y divide-gray-100 border-y border-gray-100">
+              {product.description && (
+                <Detail title="Descrição" icon={AlignLeft} open>
+                  <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">{product.description}</p>
+                </Detail>
+              )}
+              {product.measurements?.trim() && (
+                <Detail title="Medidas e caimento" icon={Ruler}>
+                  <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">{product.measurements.trim()}</p>
+                </Detail>
+              )}
+              {perks.length > 0 && (
+                <Detail title="Entrega, trocas e pagamento" icon={Truck}>
+                  <ul className="space-y-2.5">
+                    {perks.map((p) => {
+                      const Icon = PERK_ICONS[p.icon];
+                      return (
+                        <li key={p.title} className="flex items-start gap-2.5">
+                          <Icon size={16} className="text-gray-400 shrink-0 mt-0.5" />
+                          <span className="text-sm leading-snug">
+                            <span className="font-medium text-gray-800">{p.title}</span>
+                            <span className="text-gray-500"> · {p.desc}</span>
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </Detail>
+              )}
+            </div>
           </div>
         </div>
 
@@ -279,16 +257,6 @@ export default async function ProductDetailPage({ params }: PageProps) {
 
         <RecentlyViewed excludeId={product.id} className="mt-16" />
 
-        {/* Back */}
-        <div className="mt-10 pt-8 border-t border-gray-100">
-          <Link
-            href="/produtos"
-            className="inline-flex items-center gap-2 text-sm font-semibold text-gray-400 hover:text-brand transition-colors"
-          >
-            <ChevronLeft size={16} />
-            Voltar para produtos
-          </Link>
-        </div>
       </div>
     </div>
   );

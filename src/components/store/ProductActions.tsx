@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ShoppingBag, Check, Heart, Minus, Plus, Loader2, Zap, Bell, AlertCircle } from "lucide-react";
 import { useCart } from "@/hooks/useCart";
 import { useWishlist } from "@/hooks/useWishlist";
@@ -140,6 +140,17 @@ export default function ProductActions({ productId, name, price, comparePrice, i
             : "Adicionar ao carrinho";
   const ctaDisabled = adding || (fullySelected && isOutOfStock) || totallyOut;
 
+  // Barra fixa do celular: aparece quando a linha de comprar sai da tela
+  const ctaRef = useRef<HTMLDivElement>(null);
+  const [showSticky, setShowSticky] = useState(false);
+  useEffect(() => {
+    const el = ctaRef.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver(([e]) => setShowSticky(!e.isIntersecting), { rootMargin: "0px 0px -40px 0px" });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+
   return (
     <div className="space-y-5">
       {/* Preço */}
@@ -235,7 +246,7 @@ export default function ProductActions({ productId, name, price, comparePrice, i
       )}
 
       {/* Quantidade + comprar + favoritar */}
-      <div className="flex items-stretch gap-2.5">
+      <div ref={ctaRef} className="flex items-stretch gap-2.5">
         {!isOutOfStock && !totallyOut && (
           <div className="flex items-center rounded-2xl border border-gray-200 bg-white h-12 shrink-0">
             <button type="button" onClick={() => changeQty(-1)} disabled={quantity <= 1} className="w-10 h-full flex items-center justify-center text-gray-600 disabled:opacity-30" aria-label="Diminuir quantidade">
@@ -267,7 +278,7 @@ export default function ProductActions({ productId, name, price, comparePrice, i
         <button
           onClick={() => toggle({ productId, name, price, image, slug })}
           className={`w-12 h-12 rounded-2xl border flex items-center justify-center transition-all active:scale-90 shrink-0 ${
-            inWishlist ? "text-white border-transparent" : "border-gray-200 text-gray-500 hover:text-[var(--brand)] hover:border-[var(--brand)]"
+            inWishlist ? "text-on-button border-transparent" : "border-gray-200 text-gray-500 hover:text-[var(--brand)] hover:border-[var(--brand)]"
           }`}
           style={inWishlist ? { backgroundColor: "var(--button)" } : undefined}
           aria-label={inWishlist ? "Remover dos favoritos" : "Adicionar aos favoritos"}
@@ -282,6 +293,25 @@ export default function ProductActions({ productId, name, price, comparePrice, i
 
       {(showWaitlist || (totallyOut && attributes.length === 0)) && (
         <WaitlistForm productId={productId} selectedAttributes={selected} />
+      )}
+
+      {/* Celular: barra fixa com preço e "Adicionar" quando o botão principal sai da tela */}
+      {showSticky && !totallyOut && (
+        <div className="lg:hidden fixed inset-x-0 bottom-0 z-40 bg-white/95 backdrop-blur-md border-t border-gray-200 px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] flex items-center gap-3 animate-fade-up [animation-duration:0.2s]">
+          <div className="min-w-0">
+            <p className="text-[11px] text-gray-500 truncate">{name}</p>
+            <p className="text-lg font-semibold text-gray-900 tabular-nums leading-tight">{formatCurrency(price)}</p>
+          </div>
+          <button
+            type="button"
+            onClick={handleAddToCart}
+            disabled={ctaDisabled}
+            className={`ml-auto flex-1 max-w-[230px] h-11 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 disabled:opacity-60 ${added ? "bg-emerald-500 text-white" : "bg-brand text-on-button"}`}
+          >
+            {added ? <Check size={16} /> : adding ? <Loader2 size={16} className="animate-spin" /> : <ShoppingBag size={16} />}
+            {added ? "Adicionado!" : !fullySelected ? `Escolher ${missing[0].name.toLowerCase()}` : isOutOfStock ? "Esgotado" : "Adicionar"}
+          </button>
+        </div>
       )}
     </div>
   );
