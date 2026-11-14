@@ -115,10 +115,10 @@ export default function AiChatWidget({ storeName, whatsapp }: { storeName: strin
           type="button"
           onClick={() => setOpen(true)}
           aria-label="Abrir atendimento"
-          className="fixed bottom-6 right-6 z-50 flex items-center gap-2 bg-brand text-on-button pl-4 pr-5 py-3 rounded-full shadow-xl hover:shadow-2xl hover:opacity-95 transition-all"
+          className="support-float fixed right-4 sm:right-6 z-40 flex items-center justify-center gap-2 bg-brand text-on-button w-12 h-12 sm:w-auto sm:h-auto sm:pl-4 sm:pr-5 sm:py-3 rounded-full shadow-xl hover:shadow-2xl hover:opacity-95 transition-all"
         >
           <MessageCircle size={20} />
-          <span className="text-sm font-semibold">Precisa de ajuda?</span>
+          <span className="hidden sm:inline text-sm font-semibold">Precisa de ajuda?</span>
         </button>
       )}
 

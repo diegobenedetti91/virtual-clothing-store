@@ -198,3 +198,12 @@ html {
   outline-offset: 2px;
   border-radius: 10px;
 }
+
+/* ───────────── Botão flutuante de atendimento (loja) ─────────────
+   Sobe acima das barras fixas do celular (produto/carrinho) e some enquanto o aviso de cookies está aberto. */
+.support-float { bottom: calc(1rem + env(safe-area-inset-bottom)); }
+@media (min-width: 640px) { .support-float { bottom: 1.5rem; } }
+@media (max-width: 1023px) {
+  body:has([data-mobile-bar]) .support-float { bottom: calc(5.25rem + env(safe-area-inset-bottom)); }
+}
+body:has([data-cookie-banner]) .support-float { display: none; }

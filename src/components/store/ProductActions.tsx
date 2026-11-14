@@ -297,7 +297,7 @@ export default function ProductActions({ productId, name, price, comparePrice, i
 
       {/* Celular: barra fixa com preço e "Adicionar" quando o botão principal sai da tela */}
       {showSticky && !totallyOut && (
-        <div className="lg:hidden fixed inset-x-0 bottom-0 z-40 bg-white/95 backdrop-blur-md border-t border-gray-200 px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] flex items-center gap-3 animate-fade-up [animation-duration:0.2s]">
+        <div data-mobile-bar className="lg:hidden fixed inset-x-0 bottom-0 z-40 bg-white/95 backdrop-blur-md border-t border-gray-200 px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] flex items-center gap-3 animate-fade-up [animation-duration:0.2s]">
           <div className="min-w-0">
             <p className="text-[11px] text-gray-500 truncate">{name}</p>
             <p className="text-lg font-semibold text-gray-900 tabular-nums leading-tight">{formatCurrency(price)}</p>

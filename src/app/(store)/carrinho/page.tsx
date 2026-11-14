@@ -259,7 +259,7 @@ export default function CartPage() {
       </div>
 
       {/* Barra fixa no celular */}
-      <div className="lg:hidden fixed inset-x-0 bottom-0 z-40 bg-white/95 backdrop-blur-md border-t border-gray-200 px-4 py-3 flex items-center gap-3">
+      <div data-mobile-bar className="lg:hidden fixed inset-x-0 bottom-0 z-40 bg-white/95 backdrop-blur-md border-t border-gray-200 px-4 py-3 flex items-center gap-3">
         <div className="min-w-0">
           <p className="text-xs text-gray-500">Total</p>
           <p className="text-lg font-bold text-gray-900 tabular-nums leading-tight">{formatCurrency(subtotal)}</p>
