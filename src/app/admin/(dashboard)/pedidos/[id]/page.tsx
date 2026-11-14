@@ -6,7 +6,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
   AlertTriangle, ArrowLeft, Check, CheckCircle2, Clock, Copy, CreditCard, ExternalLink, FileText, Globe, Mail,
-  MapPin, MessageCircle, Package, PackageCheck, Phone, Printer, RefreshCw, Receipt, Store, Tag, Truck, User, XCircle,
+  MapPin, MessageCircle, Package, PackageCheck, Phone, Printer, RefreshCw, Receipt, Search, Store, Tag, Truck, User, XCircle,
 } from "lucide-react";
 import { formatCurrency, needsMelhorEnvioLabel, ORDER_STATUS } from "@/lib/utils";
 import { getCarrierTracking } from "@/lib/carrierTracking";
@@ -127,6 +127,7 @@ export default function OrderDetailsPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [blingEnabled, setBlingEnabled] = useState(false);
   const [labelBusy, setLabelBusy] = useState(false);
+  const [labelSyncing, setLabelSyncing] = useState(false);
   const [labelMsg, setLabelMsg] = useState<Msg>(null);
   const [blingBusy, setBlingBusy] = useState(false);
   const [blingMsg, setBlingMsg] = useState<Msg>(null);
@@ -153,6 +154,23 @@ export default function OrderDetailsPage() {
     navigator.clipboard?.writeText(text).catch(() => {});
     setCopied(key);
     setTimeout(() => setCopied(null), 1500);
+  };
+
+  const syncLabel = async () => {
+    if (!order) return;
+    setLabelSyncing(true);
+    setLabelMsg(null);
+    try {
+      const res = await fetch(`/api/admin/pedidos/${order.id}/etiqueta`, { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      const fresh = await fetch(`/api/orders/${order.id}`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+      if (fresh) setOrder((o) => (o ? { ...o, ...fresh } : o));
+      setLabelMsg({ type: res.ok ? "success" : "error", text: data.message || (res.ok ? "Etiqueta atualizada" : "Não foi possível consultar") });
+    } catch {
+      setLabelMsg({ type: "error", text: "Erro de conexão" });
+    } finally {
+      setLabelSyncing(false);
+    }
   };
 
   const generateLabel = async () => {
@@ -227,6 +245,9 @@ export default function OrderDetailsPage() {
 
   const status = ORDER_STATUS[order.status] || { label: order.status, color: "bg-gray-100 text-gray-700" };
   const isPaid = !["PENDING", "CANCELLED"].includes(order.status);
+  // Etiquetas antigas (geradas direto no Melhor Envio) não têm labelGeneratedAt, mas têm o status
+  const labelShipped = ["posted", "in_transit", "delivered", "undelivered"].includes(order.shipmentStatus || "");
+  const labelReady = !!order.labelGeneratedAt || labelShipped || order.shipmentStatus === "generated";
   const usesLabel = needsMelhorEnvioLabel(order.shippingMethod);
   const isPickup = order.shippingMethod === "retirada";
   const blingOk = order.blingIntegrationStatus === "success" && !!order.blingPedidoId;
@@ -331,7 +352,7 @@ export default function OrderDetailsPage() {
                       Tentar de novo
                     </Button>
                   </div>
-                ) : !order.labelGeneratedAt ? (
+                ) : !labelReady ? (
                   <div className="rounded-xl px-4 py-3 bg-sky-50">
                     <div className="flex items-start gap-3">
                       <Clock size={18} className="text-sky-600 shrink-0 mt-0.5" />
@@ -352,7 +373,7 @@ export default function OrderDetailsPage() {
                         {["posted", "in_transit", "delivered"].includes(order.shipmentStatus || "") ? SHIPMENT_STATUS[order.shipmentStatus || ""] : "Etiqueta pronta para imprimir"}
                       </p>
                       <p className="text-xs text-emerald-700 mt-0.5">
-                        {order.labelPrintedAt ? `Impressa em ${new Date(order.labelPrintedAt).toLocaleString("pt-BR")}` : "Ainda não impressa"}
+                        {labelShipped ? "Pacote já está com a transportadora" : order.labelPrintedAt ? `Impressa em ${new Date(order.labelPrintedAt).toLocaleString("pt-BR")}` : "Ainda não impressa"}
                       </p>
                     </div>
                   </div>
@@ -367,7 +388,7 @@ export default function OrderDetailsPage() {
                           {tracking?.carrier && <span className="text-xs text-gray-400">{tracking.carrier}</span>}
                           <Button variant="ghost" size="iconSm" icon={copied === "trk" ? Check : Copy} onClick={() => copy(order.trackingCode!, "trk")} aria-label="Copiar rastreio" className={`ml-auto -my-1 ${copied === "trk" ? "text-emerald-600" : "text-gray-400"}`} />
                         </>
-                      ) : <span className="text-gray-400">{order.labelGeneratedAt ? "A transportadora ainda vai informar" : "Sai quando a etiqueta for gerada"}</span>}
+                      ) : <span className="text-gray-400">{labelReady ? "A transportadora ainda vai informar" : "Sai quando a etiqueta for gerada"}</span>}
                     </dd>
                   </div>
                   <div className="rounded-xl ring-1 ring-gray-100 px-3 py-2.5 min-w-0">
@@ -376,7 +397,7 @@ export default function OrderDetailsPage() {
                   </div>
                 </dl>
                 <div className="flex flex-wrap items-center gap-2">
-                  {order.labelGeneratedAt && order.labelValid !== false && (
+                  {labelReady && order.labelValid !== false && !labelShipped && (
                     <a
                       href={`/api/admin/pedidos/${order.id}/etiqueta`}
                       target="_blank"
@@ -397,8 +418,14 @@ export default function OrderDetailsPage() {
                       Recriar etiqueta
                     </Button>
                   )}
+                  {/* Busca no Melhor Envio a situação, o rastreio e o PDF de uma etiqueta já gerada (não paga nem gera outra) */}
+                  {order.labelValid !== false && (
+                    <Button variant="ghost" size="sm" icon={Search} onClick={syncLabel} loading={labelSyncing} loadingText="Consultando…">
+                      Consultar no Melhor Envio
+                    </Button>
+                  )}
                 </div>
-                {order.labelGeneratedAt && order.labelValid !== false && (
+                {labelReady && order.labelValid !== false && !labelShipped && (
                   <p className="text-[11px] text-gray-400">Impressora térmica: escolha o papel 10×15 cm (100×150 mm) e escala 100% (sem “ajustar à página”).</p>
                 )}
               </div>

@@ -24,6 +24,8 @@ export const LABEL_DIR = process.env.PERSISTENT_UPLOAD_DIR
   : path.join(process.cwd(), ".data", "etiquetas");
 
 const GENERATED = new Set(["generated", "posted", "in_transit", "delivered", "undelivered"]);
+/** Já saiu com a transportadora: imprimir não é mais necessário */
+const SHIPPED = new Set(["posted", "in_transit", "delivered", "undelivered"]);
 const DEAD = new Set(["canceled", "cancelled", "expired"]);
 
 export interface LabelResult {
@@ -81,7 +83,7 @@ async function savePdf(orderNumber: string, url: string): Promise<string | null>
 export async function obterEtiquetaParaImprimir(orderId: string): Promise<{ pdf?: Buffer; url?: string; filename: string } | { error: string }> {
   const order = await prisma.order.findUnique({
     where: { id: orderId },
-    select: { orderNumber: true, melhorEnvioShipmentId: true, labelFile: true, labelGeneratedAt: true },
+    select: { orderNumber: true, melhorEnvioShipmentId: true, labelFile: true, labelGeneratedAt: true, shipmentStatus: true },
   });
   if (!order?.melhorEnvioShipmentId) return { error: "Pedido sem etiqueta" };
   const filename = `etiqueta-${order.orderNumber}.pdf`;
@@ -89,7 +91,8 @@ export async function obterEtiquetaParaImprimir(orderId: string): Promise<{ pdf?
     const buf = await readLabelFile(order.labelFile);
     if (buf) return { pdf: buf, filename };
   }
-  if (!order.labelGeneratedAt) return { error: "A etiqueta ainda não foi gerada. Use “Preparar etiqueta”." };
+  // Etiquetas antigas (geradas direto no Melhor Envio) não têm labelGeneratedAt, mas têm o status
+  if (!order.labelGeneratedAt && !GENERATED.has(order.shipmentStatus || "")) return { error: "A etiqueta ainda não foi gerada. Use “Preparar etiqueta”." };
   const settings = await prisma.companySettings.findFirst({ orderBy: { updatedAt: "desc" }, select: { melhorEnvioApiToken: true } });
   if (!settings?.melhorEnvioApiToken) return { error: "Token do Melhor Envio não configurado" };
   try {
@@ -194,9 +197,16 @@ export function prepararEtiqueta(orderId: string): Promise<LabelResult> {
       // 4) PDF para imprimir (se o link não for PDF, fica o link público como alternativa)
       let labelFile = order.labelFile;
       let labelPrintUrl = order.labelPrintUrl;
+      let note = "";
       if (!labelFile) {
-        labelPrintUrl = await printMeShipments(token, [shipmentId]);
-        labelFile = await savePdf(order.orderNumber, labelPrintUrl);
+        try {
+          labelPrintUrl = await printMeShipments(token, [shipmentId]);
+          labelFile = await savePdf(order.orderNumber, labelPrintUrl);
+        } catch (e) {
+          // Pacote já postado/entregue: o Melhor Envio pode não liberar mais a impressão — não é erro
+          if (!SHIPPED.has(me.status)) throw e;
+          note = " (pacote já despachado; o Melhor Envio não liberou o PDF)";
+        }
       }
 
       await prisma.order.update({
@@ -231,7 +241,9 @@ export function prepararEtiqueta(orderId: string): Promise<LabelResult> {
       return {
         ok: true,
         stage: "ready",
-        message: `Etiqueta pronta${me.tracking ? ` · rastreio ${me.tracking}` : ""}${labelFile ? "" : " (abra pelo link do Melhor Envio)"}`,
+        message: SHIPPED.has(me.status)
+          ? `Atualizado do Melhor Envio: ${me.status === "delivered" ? "entregue" : me.status === "undelivered" ? "não entregue" : "já postado"}${me.tracking ? ` · rastreio ${me.tracking}` : ""}${labelFile ? " · PDF salvo" : note}`
+          : `Etiqueta pronta${me.tracking ? ` · rastreio ${me.tracking}` : ""}${labelFile ? "" : " (abra pelo link do Melhor Envio)"}`,
       };
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
