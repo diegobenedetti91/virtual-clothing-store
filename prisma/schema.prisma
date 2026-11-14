@@ -186,6 +186,8 @@ model Order {
   labelStepError           String?       @db.Text
   labelStepAttempts        Int           @default(0)
   labelLastAttemptAt       DateTime?
+  /** Quando o dono da loja viu o pedido no aviso de "novos pedidos" do admin (null = novo) */
+  adminSeenAt              DateTime?
   trackingEvents           TrackingEvent[]
   labelValidatedAt         DateTime?
   labelValid               Boolean?
@@ -252,6 +254,7 @@ model Order {
   @@index([createdAt])
   @@index([customerEmail])
   @@index([nfeStatus])
+  @@index([adminSeenAt, status])
 }
 
 model OrderItem {

@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { Button, ButtonLink } from "./ui/Button";
 import type { AdminBadges } from "@/lib/adminAlerts";
 import { ADMIN_NAV, ALL_LINKS, findActive, type NavLink } from "./adminNav";
+import NewOrdersCenter from "./NewOrdersCenter";
 
 interface Props {
   user: { name?: string | null; email?: string | null };
@@ -216,6 +217,7 @@ export default function AdminShell({ user, badges, storeName, logo, children }: 
             </nav>
             <div className="ml-auto flex items-center gap-2">
               <Button variant="ghost" size="icon" icon={Search} onClick={() => setPaletteOpen(true)} aria-label="Buscar página" className="md:hidden hover:bg-white" />
+              <NewOrdersCenter />
               <ButtonLink href="/" target="_blank" size="sm" icon={ExternalLink} aria-label="Ver loja" className="max-sm:w-8 max-sm:px-0">
                 <span className="hidden sm:inline">Ver loja</span>
               </ButtonLink>
