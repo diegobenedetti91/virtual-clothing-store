@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { AlertTriangle, Check, CheckCircle2, Clock, Copy, Download, FileText, Mail, RefreshCw, Send, XCircle } from "lucide-react";
+import { AlertTriangle, Check, CheckCircle2, Clock, Copy, Download, FileText, Mail, RefreshCw, Search, Send, XCircle } from "lucide-react";
 import { Button, buttonClasses } from "@/components/admin/ui/Button";
 
 export interface NfeFields {
@@ -14,6 +14,7 @@ export interface NfeFields {
   nfeAttempts?: number | null;
   nfeAuthorizedAt?: string | null;
   nfeEmailSentAt?: string | null;
+  nfeImportedAt?: string | null;
 }
 
 type Msg = { type: "success" | "error"; text: string } | null;
@@ -30,7 +31,7 @@ export default function NfeCard({ orderId, initial, inBling, orderCancelled = fa
     if (r.ok) setNfe(await r.json());
   };
 
-  const act = async (action: "emitir" | "consultar" | "email") => {
+  const act = async (action: "emitir" | "buscar" | "consultar" | "email") => {
     setBusy(action);
     setMsg(null);
     try {
@@ -67,11 +68,17 @@ export default function NfeCard({ orderId, initial, inBling, orderCancelled = fa
           <FileText size={18} className="text-gray-400 shrink-0 mt-0.5" />
           <div className="flex-1">
             <p>{inBling ? "Nota fiscal ainda não emitida." : "A nota é emitida depois que o pedido estiver no Bling."}</p>
-            {inBling && (
-              <Button variant="dark" size="sm" icon={Send} onClick={() => act("emitir")} loading={busy === "emitir"} loadingText="Emitindo…" className="mt-2.5">
-                Emitir nota fiscal
+            <div className="flex flex-wrap gap-2 mt-2.5">
+              {inBling && (
+                <Button variant="dark" size="sm" icon={Send} onClick={() => act("emitir")} loading={busy === "emitir"} loadingText="Emitindo…">
+                  Emitir nota fiscal
+                </Button>
+              )}
+              {/* Nota emitida antes, direto no Bling: só vincula (não emite outra nem manda e-mail) */}
+              <Button variant="secondary" size="sm" icon={Search} onClick={() => act("buscar")} loading={busy === "buscar"} loadingText="Buscando…">
+                Buscar nota já emitida
               </Button>
-            )}
+            </div>
           </div>
         </div>
       ) : authorized ? (
@@ -92,7 +99,11 @@ export default function NfeCard({ orderId, initial, inBling, orderCancelled = fa
               )}
               <p className="text-xs text-emerald-700 mt-1 flex items-center gap-1">
                 <Mail size={12} />
-                {nfe.nfeEmailSentAt ? `Enviada ao cliente em ${new Date(nfe.nfeEmailSentAt).toLocaleString("pt-BR")}` : "E-mail ao cliente ainda não enviado"}
+                {nfe.nfeEmailSentAt
+                  ? `Enviada ao cliente em ${new Date(nfe.nfeEmailSentAt).toLocaleString("pt-BR")}`
+                  : nfe.nfeImportedAt
+                    ? "Nota vinculada do Bling — o e-mail ao cliente só sai se você enviar"
+                    : "E-mail ao cliente ainda não enviado"}
               </p>
             </div>
           </div>

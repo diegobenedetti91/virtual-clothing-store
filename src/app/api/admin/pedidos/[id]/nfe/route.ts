@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/adminAuth";
 import { prisma } from "@/lib/prisma";
-import { acompanharNfe, baixarDocumentoNfe, consultarNfe, emitirNfe, sendNfeEmail } from "@/lib/blingNfe";
+import { acompanharNfe, baixarDocumentoNfe, buscarNfeExistente, consultarNfe, emitirNfe, sendNfeEmail } from "@/lib/blingNfe";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -24,7 +24,7 @@ export async function GET(req: NextRequest, { params }: Ctx) {
   });
 }
 
-/** Ações do admin: { action: "emitir" | "consultar" | "email" } */
+/** Ações do admin: { action: "emitir" | "buscar" | "consultar" | "email" } */
 export async function POST(req: NextRequest, { params }: Ctx) {
   const denied = await requireAdmin();
   if (denied) return denied;
@@ -34,6 +34,10 @@ export async function POST(req: NextRequest, { params }: Ctx) {
   if (action === "emitir") {
     const r = await emitirNfe(id);
     if (r.status === "processing" || r.status === "pending") acompanharNfe(id);
+    return NextResponse.json(r, { status: r.ok ? 200 : 422 });
+  }
+  if (action === "buscar") {
+    const r = await buscarNfeExistente(id);
     return NextResponse.json(r, { status: r.ok ? 200 : 422 });
   }
   if (action === "consultar") {

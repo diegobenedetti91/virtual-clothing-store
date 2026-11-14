@@ -101,9 +101,10 @@ const ORDER_SELECT = {
 } as const;
 
 /** Salva o que o Bling informou e, se autorizada, dispara o e-mail com a nota. */
-async function applyInfo(orderId: string, info: NfeInfo, extra: { error?: string | null } = {}): Promise<NfeResult> {
+async function applyInfo(orderId: string, info: NfeInfo, extra: { error?: string | null; imported?: boolean } = {}): Promise<NfeResult> {
   const status = statusFromSituacao(info.situacao);
-  const current = await prisma.order.findUnique({ where: { id: orderId }, select: { nfeAuthorizedAt: true, nfeError: true } });
+  const current = await prisma.order.findUnique({ where: { id: orderId }, select: { nfeAuthorizedAt: true, nfeError: true, nfeImportedAt: true } });
+  const imported = extra.imported || !!current?.nfeImportedAt;
   await prisma.order.update({
     where: { id: orderId },
     data: {
@@ -114,6 +115,7 @@ async function applyInfo(orderId: string, info: NfeInfo, extra: { error?: string
       nfeSerie: info.serie != null ? String(info.serie) : null,
       nfeChave: info.chaveAcesso || null,
       nfeLastCheckAt: new Date(),
+      ...(extra.imported ? { nfeImportedAt: new Date() } : {}),
       ...(status === "authorized"
         ? { nfeError: null, nfeAuthorizedAt: current?.nfeAuthorizedAt ?? new Date() }
         : extra.error !== undefined
@@ -121,7 +123,8 @@ async function applyInfo(orderId: string, info: NfeInfo, extra: { error?: string
           : {}),
     },
   });
-  if (status === "authorized") {
+  // Nota vinculada pelo admin (emitida antes, fora do site): o e-mail só sai pelo botão
+  if (status === "authorized" && !imported) {
     await sendNfeEmail(orderId).catch((e) => console.error("[NF-e] Falha ao enviar e-mail da nota:", e));
   }
   const message = status === "authorized" ? `Nota ${info.numero ?? ""} autorizada` : extra.error ?? current?.nfeError ?? NFE_STATUS_LABEL[status];
@@ -222,6 +225,65 @@ export function consultarNfe(orderId: string): Promise<NfeResult> {
       return applyInfo(orderId, again, { error: statusFromSituacao(again.situacao) === "authorized" ? null : reason ?? "Rejeitada pela SEFAZ (veja o motivo no Bling)" });
     }
     return applyInfo(orderId, info);
+  });
+}
+
+type NfeListItem = NfeInfo & { dataEmissao?: string; contato?: { numeroDocumento?: string } };
+
+const ymd = (d: Date) => d.toISOString().slice(0, 10);
+
+/**
+ * Procura no Bling uma nota JÁ emitida para o pedido e vincula ao site (sem gerar, sem enviar à SEFAZ, sem e-mail).
+ * Ordem: nota ligada ao pedido de venda → nota com o número do pedido da loja → nota de saída para o mesmo CPF/CNPJ
+ * emitida até 30 dias depois do pedido.
+ */
+export function buscarNfeExistente(orderId: string): Promise<NfeResult> {
+  return once(orderId, async () => {
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      select: { id: true, orderNumber: true, createdAt: true, cpfCnpj: true, blingPedidoId: true, nfeStatus: true },
+    });
+    if (!order) return { ok: false, message: "Pedido não encontrado" };
+    if (order.nfeStatus === "authorized") return { ok: true, status: "authorized", message: "Este pedido já tem nota vinculada" };
+    const token = await getBlingAccessToken();
+    if (!token) return { ok: false, message: "Bling não autorizado. Autorize em Configurações → Integrações." };
+
+    let found: NfeInfo | null = null;
+    let how = "";
+
+    if (order.blingPedidoId) {
+      const pedido = await bling<{ data?: { notaFiscal?: { id?: number } } }>(token, "GET", `/pedidos/vendas/${order.blingPedidoId}`);
+      const id = pedido.json?.data?.notaFiscal?.id;
+      if (id) { found = await getNfe(token, String(id)); how = "pelo pedido no Bling"; }
+    }
+
+    const usable = (n: NfeListItem) => n.situacao !== 2; // ignora canceladas
+    if (!found) {
+      const r = await bling<{ data?: NfeListItem[] }>(token, "GET", `/nfe?tipo=1&numeroLoja=${encodeURIComponent(order.orderNumber)}&limite=10`);
+      const hit = (r.json?.data || []).find(usable);
+      if (hit) { found = (await getNfe(token, String(hit.id))) ?? hit; how = "pelo número do pedido"; }
+    }
+
+    const doc = (order.cpfCnpj || "").replace(/\D/g, "");
+    if (!found && doc.length >= 11) {
+      const from = new Date(order.createdAt.getTime() - 86_400_000);
+      const to = new Date(order.createdAt.getTime() + 30 * 86_400_000);
+      const r = await bling<{ data?: NfeListItem[] }>(
+        token,
+        "GET",
+        `/nfe?tipo=1&limite=100&dataEmissaoInicial=${encodeURIComponent(`${ymd(from)} 00:00:00`)}&dataEmissaoFinal=${encodeURIComponent(`${ymd(to)} 23:59:59`)}`
+      );
+      const sameDoc = (r.json?.data || []).filter((n) => usable(n) && (n.contato?.numeroDocumento || "").replace(/\D/g, "") === doc);
+      // Mais próxima da data do pedido (o mesmo cliente pode ter outras compras)
+      sameDoc.sort((a, b) =>
+        Math.abs(new Date(a.dataEmissao || 0).getTime() - order.createdAt.getTime()) - Math.abs(new Date(b.dataEmissao || 0).getTime() - order.createdAt.getTime())
+      );
+      if (sameDoc[0]) { found = (await getNfe(token, String(sameDoc[0].id))) ?? sameDoc[0]; how = "pelo CPF/CNPJ do cliente"; }
+    }
+
+    if (!found) return { ok: false, message: "Nenhuma nota encontrada no Bling para este pedido. Se ainda não foi emitida, use “Emitir nota fiscal”." };
+    const r = await applyInfo(orderId, found, { imported: true });
+    return { ...r, message: `Nota ${found.numero ? `nº ${found.numero} ` : ""}encontrada ${how} (${NFE_STATUS_LABEL[statusFromSituacao(found.situacao)].toLowerCase()})` };
   });
 }
 
@@ -363,7 +425,7 @@ export async function processarNfesPendentes() {
   }
 
   const noEmail = await prisma.order.findMany({
-    where: { nfeStatus: "authorized", nfeEmailSentAt: null, nfeAuthorizedAt: { gte: sevenDaysAgo } },
+    where: { nfeStatus: "authorized", nfeEmailSentAt: null, nfeImportedAt: null, nfeAuthorizedAt: { gte: sevenDaysAgo } },
     select: { id: true },
     take: 10,
   });

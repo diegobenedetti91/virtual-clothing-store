@@ -175,6 +175,17 @@ model Order {
   shipmentStatus           String?       @default("pending")
   lastTrackingUpdate       DateTime?
   etiquetaUrl              String?
+  // Etiqueta pronta para imprimir (Melhor Envio: pagar → gerar → imprimir)
+  /** PDF da etiqueta salvo no servidor (pasta privada) */
+  labelFile                String?
+  /** Link público de impressão do Melhor Envio (alternativa ao PDF salvo) */
+  labelPrintUrl            String?       @db.Text
+  labelGeneratedAt         DateTime?
+  labelPrintedAt           DateTime?
+  /** Erro na etapa pagar/gerar/imprimir (ex.: saldo insuficiente) — some quando dá certo */
+  labelStepError           String?       @db.Text
+  labelStepAttempts        Int           @default(0)
+  labelLastAttemptAt       DateTime?
   trackingEvents           TrackingEvent[]
   labelValidatedAt         DateTime?
   labelValid               Boolean?
@@ -211,6 +222,8 @@ model Order {
   nfeAuthorizedAt          DateTime?
   nfeLastCheckAt           DateTime?
   nfeEmailSentAt           DateTime?
+  /** Nota já emitida no Bling e só vinculada ao pedido pelo admin (não envia e-mail sozinho) */
+  nfeImportedAt            DateTime?
 
   // Meta Ads (Pixel + Conversions API): browser context captured at checkout,
   // only when the buyer accepted marketing cookies (LGPD)

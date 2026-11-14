@@ -74,6 +74,7 @@ interface OrderDetails {
   nfeAttempts?: number | null;
   nfeAuthorizedAt?: string | null;
   nfeEmailSentAt?: string | null;
+  nfeImportedAt?: string | null;
   trafficChannel?: string | null;
   utmSource?: string | null;
   utmMedium?: string | null;
