@@ -155,7 +155,7 @@ export default function Header({ settings, navItems = [], categories = [] }: Hea
       <div className="sticky top-0 z-50">
         {/* Faixa de avisos */}
         {current && (
-          <div className="bg-gray-900 text-white">
+          <div className="bg-menu text-on-menu">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-8 flex items-center justify-center gap-6 text-[12px]">
               {/* Celular: um aviso por vez; desktop: todos */}
               <p key={perkIndex} className="md:hidden inline-flex items-center gap-1.5 animate-fade-up [animation-duration:0.4s]">
@@ -210,7 +210,7 @@ export default function Header({ settings, navItems = [], categories = [] }: Hea
                     placeholder="O que você procura hoje?"
                     className="w-full bg-gray-100/80 border border-transparent rounded-full pl-11 pr-24 py-2.5 text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:bg-white focus:border-brand focus:shadow-lg transition-all duration-200"
                   />
-                  <button type="submit" className="absolute right-1.5 top-1/2 -translate-y-1/2 px-4 py-1.5 rounded-full bg-gray-900 text-white text-xs font-semibold hover:bg-gray-800 transition">
+                  <button type="submit" className="absolute right-1.5 top-1/2 -translate-y-1/2 px-4 py-1.5 rounded-full bg-brand text-on-button hover:bg-brand-hover text-xs font-semibold transition">
                     Buscar
                   </button>
                 </form>
@@ -231,7 +231,7 @@ export default function Header({ settings, navItems = [], categories = [] }: Hea
                   className="hidden sm:flex items-center gap-2 pl-1.5 pr-3 py-1.5 rounded-full hover:bg-gray-100 transition-all active:scale-95"
                   aria-label="Minha conta"
                 >
-                  <span className={cn("w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0", customer ? "bg-brand text-white" : "bg-gray-100 text-gray-600")}>
+                  <span className={cn("w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0", customer ? "bg-brand text-on-button" : "bg-gray-100 text-gray-600")}>
                     {initials || <User size={16} />}
                   </span>
                   <span className="hidden lg:block text-left leading-tight">
@@ -243,7 +243,7 @@ export default function Header({ settings, navItems = [], categories = [] }: Hea
                 <Link href="/favoritos" className="relative p-2.5 rounded-xl text-gray-600 hover:text-menu hover:bg-menu-light transition-all active:scale-95" aria-label="Favoritos">
                   <Heart size={20} />
                   {wCount > 0 && (
-                    <span className="absolute top-1 right-1 bg-brand text-white text-[10px] font-black rounded-full min-w-4 h-4 px-1 flex items-center justify-center leading-none shadow-sm">
+                    <span className="absolute top-1 right-1 bg-brand text-on-button text-[10px] font-black rounded-full min-w-4 h-4 px-1 flex items-center justify-center leading-none shadow-sm">
                       {wCount > 9 ? "9+" : wCount}
                     </span>
                   )}
@@ -254,7 +254,7 @@ export default function Header({ settings, navItems = [], categories = [] }: Hea
                     <ShoppingBag size={20} />
                   </span>
                   {count > 0 && (
-                    <span key={cartBump} className={cn("absolute top-1 right-1 bg-brand text-white text-[10px] font-black rounded-full min-w-4 h-4 px-1 flex items-center justify-center leading-none shadow-sm", cartBump > 0 && "animate-bump")}>
+                    <span key={cartBump} className={cn("absolute top-1 right-1 bg-brand text-on-button text-[10px] font-black rounded-full min-w-4 h-4 px-1 flex items-center justify-center leading-none shadow-sm", cartBump > 0 && "animate-bump")}>
                       {count > 9 ? "9+" : count}
                     </span>
                   )}
@@ -292,7 +292,7 @@ export default function Header({ settings, navItems = [], categories = [] }: Hea
                   <Link
                     key={link.href}
                     href={link.href}
-                    className={cn("relative whitespace-nowrap px-3 py-2 text-[13px] font-semibold rounded-full transition-all", active ? "text-white bg-gray-900" : "text-gray-600 hover:text-gray-900 hover:bg-gray-100")}
+                    className={cn("relative whitespace-nowrap px-3 py-2 text-[13px] font-semibold rounded-full transition-all", active ? "text-on-menu bg-menu" : "text-gray-600 hover:text-gray-900 hover:bg-gray-100")}
                   >
                     {link.label}
                   </Link>
@@ -303,7 +303,7 @@ export default function Header({ settings, navItems = [], categories = [] }: Hea
                 <Link
                   key={c.id}
                   href={`/produtos?category=${c.slug}`}
-                  className={cn("whitespace-nowrap px-3 py-2 text-[13px] font-medium rounded-full transition-all", activeCategory === c.slug ? "text-white bg-gray-900" : "text-gray-500 hover:text-gray-900 hover:bg-gray-100")}
+                  className={cn("whitespace-nowrap px-3 py-2 text-[13px] font-medium rounded-full transition-all", activeCategory === c.slug ? "text-on-menu bg-menu" : "text-gray-500 hover:text-gray-900 hover:bg-gray-100")}
                 >
                   {c.name}
                 </Link>
@@ -372,7 +372,7 @@ export default function Header({ settings, navItems = [], categories = [] }: Hea
                 <Link key={label} href={href} onClick={close} className="relative flex flex-col items-center gap-1 rounded-2xl bg-white ring-1 ring-gray-200/70 py-3 text-[11px] font-medium text-gray-700 hover:text-menu hover:ring-gray-300 transition">
                   <Icon size={18} />
                   {label}
-                  {!!badge && badge > 0 && <span className="absolute top-1.5 right-2 bg-brand text-white text-[9px] font-black rounded-full min-w-4 h-4 px-1 flex items-center justify-center">{badge > 9 ? "9+" : badge}</span>}
+                  {!!badge && badge > 0 && <span className="absolute top-1.5 right-2 bg-brand text-on-button text-[9px] font-black rounded-full min-w-4 h-4 px-1 flex items-center justify-center">{badge > 9 ? "9+" : badge}</span>}
                 </Link>
               ))}
             </div>

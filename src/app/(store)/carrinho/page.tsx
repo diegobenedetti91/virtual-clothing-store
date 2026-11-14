@@ -110,7 +110,7 @@ export default function CartPage() {
         <h1 className="text-2xl font-semibold tracking-tight text-gray-900">Seu carrinho está vazio</h1>
         <p className="text-gray-500 mt-2 mb-8">Que tal dar uma olhada nas novidades?</p>
         <div className="flex flex-wrap gap-2 justify-center">
-          <Link href="/produtos" className="inline-flex items-center gap-2 bg-gray-900 text-white px-6 py-3 rounded-full text-sm font-semibold hover:bg-gray-800">Ver produtos <ArrowRight size={16} /></Link>
+          <Link href="/produtos" className="inline-flex items-center gap-2 bg-brand text-on-button hover:bg-brand-hover px-6 py-3 rounded-full text-sm font-semibold">Ver produtos <ArrowRight size={16} /></Link>
           <Link href="/favoritos" className="inline-flex items-center gap-2 bg-gray-100 text-gray-700 px-6 py-3 rounded-full text-sm font-semibold hover:bg-gray-200"><Heart size={15} /> Meus favoritos</Link>
         </div>
         </div>
@@ -234,15 +234,15 @@ export default function CartPage() {
                   </p>
                 )}
                 {cashbackPct > 0 && subtotal > 0 && (
-                  <p className="mt-3 flex items-center gap-1.5 rounded-lg bg-violet-50 px-2.5 py-1.5 text-[12.5px] text-violet-800">
-                    <span aria-hidden>💜</span> Você ganha até <b className="tabular-nums">{formatCurrency(Math.round(subtotal * cashbackPct) / 100)}</b> de cashback nesta compra
+                  <p className="mt-3 flex items-center gap-1.5 rounded-lg bg-brand-light px-2.5 py-1.5 text-[12.5px] text-brand">
+                    <span aria-hidden>🎁</span> Você ganha até <b className="tabular-nums">{formatCurrency(Math.round(subtotal * cashbackPct) / 100)}</b> de cashback nesta compra
                   </p>
                 )}
               </div>
               <button
                 onClick={handleCheckout}
                 disabled={customerLoading || blocked}
-                className="mt-5 w-full inline-flex items-center justify-center gap-2 bg-brand text-white py-3.5 rounded-xl font-semibold shadow-[0_10px_24px_-12px_color-mix(in_srgb,var(--brand)_70%,transparent)] hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:hover:translate-y-0"
+                className="mt-5 w-full inline-flex items-center justify-center gap-2 bg-brand text-on-button py-3.5 rounded-xl font-semibold shadow-[0_10px_24px_-12px_color-mix(in_srgb,var(--button)_70%,transparent)] hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:hover:translate-y-0"
               >
                 <Lock size={16} /> {customer || customerLoading ? "Finalizar compra" : "Entrar e finalizar"}
               </button>
@@ -264,7 +264,7 @@ export default function CartPage() {
           <p className="text-xs text-gray-500">Total</p>
           <p className="text-lg font-bold text-gray-900 tabular-nums leading-tight">{formatCurrency(subtotal)}</p>
         </div>
-        <button onClick={handleCheckout} disabled={customerLoading || blocked} className="ml-auto flex-1 max-w-[220px] inline-flex items-center justify-center gap-2 bg-brand text-white py-3 rounded-xl font-semibold disabled:opacity-50">
+        <button onClick={handleCheckout} disabled={customerLoading || blocked} className="ml-auto flex-1 max-w-[220px] inline-flex items-center justify-center gap-2 bg-brand text-on-button py-3 rounded-xl font-semibold disabled:opacity-50">
           <Lock size={15} /> Finalizar
         </button>
       </div>

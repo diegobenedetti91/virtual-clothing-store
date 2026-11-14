@@ -197,7 +197,7 @@ export default function CheckoutSucessoPage() {
         <div className="flex flex-col gap-3">
           <Link
             href="/conta"
-            className="w-full py-3 bg-brand text-white rounded-xl font-bold hover:opacity-90 transition-colors text-sm"
+            className="w-full py-3 bg-brand text-on-button rounded-xl font-bold hover:opacity-90 transition-colors text-sm"
           >
             Ver meus pedidos
           </Link>

@@ -30,10 +30,10 @@ export default function ProductRail({ title, subtitle, products, action, classNa
           {action}
           {products.length > 2 && (
             <div className="hidden sm:flex gap-1.5">
-              <button type="button" onClick={() => scroll(-1)} aria-label="Anteriores" className="w-9 h-9 rounded-full ring-1 ring-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-900 hover:text-white hover:ring-gray-900 transition">
+              <button type="button" onClick={() => scroll(-1)} aria-label="Anteriores" className="w-9 h-9 rounded-full ring-1 ring-gray-200 flex items-center justify-center text-gray-600 hover:bg-brand hover:text-on-button hover:ring-transparent transition">
                 <ChevronLeft size={18} />
               </button>
-              <button type="button" onClick={() => scroll(1)} aria-label="Próximos" className="w-9 h-9 rounded-full ring-1 ring-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-900 hover:text-white hover:ring-gray-900 transition">
+              <button type="button" onClick={() => scroll(1)} aria-label="Próximos" className="w-9 h-9 rounded-full ring-1 ring-gray-200 flex items-center justify-center text-gray-600 hover:bg-brand hover:text-on-button hover:ring-transparent transition">
                 <ChevronRight size={18} />
               </button>
             </div>

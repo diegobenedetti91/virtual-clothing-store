@@ -18,7 +18,7 @@ export async function StoreStats() {
 
   return (
     <div className="inline-flex items-center gap-3 rounded-2xl bg-white/5 ring-1 ring-white/10 px-4 py-3">
-      <span className="w-9 h-9 rounded-xl bg-brand flex items-center justify-center text-white shrink-0"><Truck size={17} /></span>
+      <span className="w-9 h-9 rounded-xl bg-brand flex items-center justify-center text-on-button shrink-0"><Truck size={17} /></span>
       <p className="text-sm leading-tight">
         <b className="text-white">+{deliveredOrders.toLocaleString("pt-BR")} pedidos entregues</b>
         <span className="block text-xs text-gray-500">{items.toLocaleString("pt-BR")} peças já foram para clientes felizes</span>

@@ -301,7 +301,7 @@ export default function OrderDetailsPage() {
               return (
                 <li key={s} className="relative flex flex-col items-center text-center">
                   {i > 0 && <span className={`absolute top-3.5 right-1/2 w-full h-0.5 -z-0 ${i <= stepIndex ? "bg-brand" : "bg-gray-200"}`} />}
-                  <span className={`relative z-10 w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold transition ${done ? "bg-brand text-white" : "bg-white text-gray-400 ring-2 ring-gray-200"} ${current ? "ring-4 ring-[color-mix(in_srgb,var(--brand)_25%,transparent)]" : ""}`}>
+                  <span className={`relative z-10 w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold transition ${done ? "bg-brand text-on-button" : "bg-white text-gray-400 ring-2 ring-gray-200"} ${current ? "ring-4 ring-[color-mix(in_srgb,var(--brand)_25%,transparent)]" : ""}`}>
                     {done ? <Check size={14} /> : i + 1}
                   </span>
                   <span className={`mt-1.5 text-[11px] sm:text-xs ${current ? "font-semibold text-gray-900" : done ? "text-gray-700" : "text-gray-400"}`}>{s}</span>

@@ -151,7 +151,7 @@ export default function LoginForm() {
         <button
           type="submit"
           disabled={loading}
-          className="group w-full inline-flex items-center justify-center gap-2 bg-brand text-white py-3 rounded-xl font-semibold shadow-[0_10px_24px_-10px_color-mix(in_srgb,var(--brand)_70%,transparent)] hover:-translate-y-0.5 transition-all disabled:opacity-60 disabled:hover:translate-y-0"
+          className="group w-full inline-flex items-center justify-center gap-2 bg-brand text-on-button py-3 rounded-xl font-semibold shadow-[0_10px_24px_-10px_color-mix(in_srgb,var(--button)_70%,transparent)] hover:-translate-y-0.5 transition-all disabled:opacity-60 disabled:hover:translate-y-0"
         >
           {loading && <Loader2 size={18} className="animate-spin" />}
           {loading ? "Entrando…" : "Entrar"}

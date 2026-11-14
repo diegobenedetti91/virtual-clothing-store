@@ -49,7 +49,7 @@ export function CookieConsentBanner() {
           </button>
           <button
             onClick={() => choose("accepted")}
-            className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl text-sm font-bold bg-brand text-white hover:opacity-90 transition-opacity"
+            className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl text-sm font-bold bg-brand text-on-button hover:opacity-90 transition-opacity"
           >
             Aceitar
           </button>

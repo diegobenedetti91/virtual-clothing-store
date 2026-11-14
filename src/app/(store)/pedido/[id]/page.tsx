@@ -210,7 +210,7 @@ export default function CustomerOrderPage() {
                 return (
                   <li key={s} className="relative flex flex-col items-center text-center">
                     {i > 0 && <span className={`absolute top-3.5 right-1/2 w-full h-0.5 ${i <= stepIndex ? "bg-brand" : "bg-gray-200"}`} />}
-                    <span className={`relative z-10 w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold ${done ? "bg-brand text-white" : "bg-white text-gray-400 ring-2 ring-gray-200"} ${current ? "ring-4 ring-[color-mix(in_srgb,var(--brand)_25%,transparent)]" : ""}`}>
+                    <span className={`relative z-10 w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold ${done ? "bg-brand text-on-button" : "bg-white text-gray-400 ring-2 ring-gray-200"} ${current ? "ring-4 ring-[color-mix(in_srgb,var(--brand)_25%,transparent)]" : ""}`}>
                       {done ? <Check size={14} /> : i + 1}
                     </span>
                     <span className={`mt-1.5 text-[11px] sm:text-xs leading-tight ${current ? "font-semibold text-gray-900" : done ? "text-gray-700" : "text-gray-400"}`}>{s}</span>
@@ -268,7 +268,7 @@ export default function CustomerOrderPage() {
                     </ol>
                   )}
                   <div className="flex flex-wrap gap-2">
-                    <Link href={`/pedido/${order.id}/rastreamento`} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gray-900 text-white text-sm font-semibold hover:bg-gray-800">
+                    <Link href={`/pedido/${order.id}/rastreamento`} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-brand text-on-button hover:bg-brand-hover text-sm font-semibold">
                       <Truck size={15} /> Ver rastreamento completo
                     </Link>
                     {trackUrl && (
@@ -321,11 +321,11 @@ export default function CustomerOrderPage() {
                 <div className="flex justify-between text-gray-600"><dt>Frete</dt><dd className="tabular-nums">{order.shippingCost > 0 ? formatCurrency(order.shippingCost) : isPickup ? "Retirada" : "Grátis"}</dd></div>
                 {couponDiscount > 0 && <div className="flex justify-between text-emerald-700"><dt className="inline-flex items-center gap-1"><Tag size={13} /> Cupom {order.couponCode}</dt><dd className="tabular-nums">−{formatCurrency(couponDiscount)}</dd></div>}
                 {pixDiscount > 0 && <div className="flex justify-between text-emerald-700"><dt>Desconto Pix</dt><dd className="tabular-nums">−{formatCurrency(pixDiscount)}</dd></div>}
-                {creditUsed > 0 && <div className="flex justify-between text-violet-700"><dt>Seu crédito (cashback)</dt><dd className="tabular-nums">−{formatCurrency(creditUsed)}</dd></div>}
+                {creditUsed > 0 && <div className="flex justify-between text-brand"><dt>Seu crédito (cashback)</dt><dd className="tabular-nums">−{formatCurrency(creditUsed)}</dd></div>}
                 <div className="flex justify-between font-semibold text-gray-900 text-base pt-1.5 border-t border-gray-100"><dt>Total</dt><dd className="tabular-nums">{formatCurrency(order.total)}</dd></div>
                 {(order.cashbackEarned || 0) > 0 && order.status !== "CANCELLED" && (
-                  <Link href="/conta?tab=credito" className="mt-1 flex justify-between items-center rounded-lg bg-violet-50 px-2.5 py-1.5 text-[12.5px] text-violet-800 hover:bg-violet-100">
-                    <span>💜 Cashback desta compra (libera após a entrega)</span>
+                  <Link href="/conta?tab=credito" className="mt-1 flex justify-between items-center rounded-lg bg-brand-light px-2.5 py-1.5 text-[12.5px] text-brand hover:bg-brand-muted">
+                    <span>🎁 Cashback desta compra (libera após a entrega)</span>
                     <b className="tabular-nums">+{formatCurrency(order.cashbackEarned!)}</b>
                   </Link>
                 )}
@@ -374,7 +374,7 @@ export default function CustomerOrderPage() {
                       <b>{order.returnDeadline ? new Date(order.returnDeadline).toLocaleDateString("pt-BR", { day: "2-digit", month: "long" }) : ""}</b>
                       {" "}({order.returnDaysLeft} dia{order.returnDaysLeft === 1 ? "" : "s"}) — o prazo de 7 dias conta a partir do recebimento.
                     </p>
-                    <button onClick={() => setReturnOpen(true)} className="mt-3 w-full inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-gray-900 text-white text-sm font-semibold hover:bg-gray-800">
+                    <button onClick={() => setReturnOpen(true)} className="mt-3 w-full inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-brand text-on-button hover:bg-brand-hover text-sm font-semibold">
                       <Undo2 size={15} /> Solicitar devolução
                     </button>
                   </div>
@@ -403,7 +403,7 @@ export default function CustomerOrderPage() {
                 <div className="mt-4 pt-4 border-t border-gray-100">
                   <p className="text-xs text-gray-500 mb-2 flex items-center gap-1.5"><FileText size={13} /> Nota fiscal{order.nfeNumero ? ` nº ${order.nfeNumero}` : ""}</p>
                   <div className="grid grid-cols-2 gap-2">
-                    <a href={`/api/customer/orders/${order.id}/nfe?formato=pdf`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-gray-900 text-white text-xs font-semibold hover:bg-gray-800">
+                    <a href={`/api/customer/orders/${order.id}/nfe?formato=pdf`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-brand text-on-button text-xs font-semibold hover:bg-brand-hover">
                       <Download size={14} /> Baixar PDF
                     </a>
                     <a href={`/api/customer/orders/${order.id}/nfe?formato=xml`} className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl ring-1 ring-gray-200 text-gray-700 text-xs font-semibold hover:bg-gray-50">
@@ -426,7 +426,7 @@ export default function CustomerOrderPage() {
         </div>
 
         <div className="text-center pt-2">
-          <Link href="/produtos" className="inline-flex items-center gap-2 bg-brand text-white px-6 py-3 rounded-xl text-sm font-semibold hover:opacity-90">Continuar comprando</Link>
+          <Link href="/produtos" className="inline-flex items-center gap-2 bg-brand text-on-button px-6 py-3 rounded-xl text-sm font-semibold hover:opacity-90">Continuar comprando</Link>
         </div>
       </div>
 

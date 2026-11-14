@@ -154,7 +154,7 @@ export function Stepper({ steps, current }: { steps: string[]; current: number }
         const active = i === current;
         return (
           <li key={s} className="flex items-center gap-2 flex-1 min-w-0">
-            <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 transition ${done ? "bg-brand text-white" : active ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-400"}`}>
+            <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 transition ${done ? "bg-brand text-on-button" : active ? "bg-menu text-on-menu" : "bg-gray-100 text-gray-400"}`}>
               {done ? <Check size={14} /> : i + 1}
             </span>
             <span className={`text-xs truncate ${active ? "font-semibold text-gray-900" : done ? "text-gray-600" : "text-gray-400"}`}>{s}</span>

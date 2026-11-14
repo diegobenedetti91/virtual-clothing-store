@@ -20,7 +20,7 @@ export default async function AdminLoginPage() {
 
   return (
     <>
-      <BrandStyle brand={s?.buttonColor || s?.primaryColor} />
+      <BrandStyle brand={s?.primaryColor} button={s?.buttonColor || s?.primaryColor} />
       <AdminLoginForm storeName={s?.name || "Minha loja"} logo={s?.logo || null} description={s?.description || null} heroImage={heroImage} />
     </>
   );

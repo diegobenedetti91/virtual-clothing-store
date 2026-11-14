@@ -19,11 +19,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     }),
   ]);
   const user = (session?.user ?? { name: null, email: null }) as { name?: string | null; email?: string | null };
-  const brandColor = settings?.buttonColor || settings?.primaryColor || "#ec4899";
+  const primaryColor = settings?.primaryColor || "#ec4899";
+  const buttonColor = settings?.buttonColor || primaryColor;
 
   return (
-    <div style={{ "--brand": brandColor } as React.CSSProperties}>
-      <BrandStyle brand={brandColor} />
+    <div style={{ "--brand": primaryColor, "--button": buttonColor } as React.CSSProperties}>
+      <BrandStyle brand={primaryColor} button={buttonColor} />
       <AdminShell user={user} badges={alertData?.badges ?? NO_BADGES} storeName={settings?.name} logo={settings?.logo}>
         {children}
       </AdminShell>

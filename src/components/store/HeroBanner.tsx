@@ -89,7 +89,7 @@ export default function HeroBanner({ settings }: HeroBannerProps) {
           <div className="animate-fade-up [animation-delay:360ms] flex flex-wrap gap-3">
             <Link
               href="/produtos"
-              className="group inline-flex items-center gap-2 bg-brand text-white px-8 py-4 rounded-2xl font-bold hover:-translate-y-0.5 hover:shadow-[0_12px_40px_color-mix(in_srgb,var(--brand)_40%,transparent)] transition-all shadow-lg active:scale-[0.97]"
+              className="group inline-flex items-center gap-2 bg-brand text-on-button px-8 py-4 rounded-2xl font-bold hover:-translate-y-0.5 hover:shadow-[0_12px_40px_color-mix(in_srgb,var(--button)_40%,transparent)] transition-all shadow-lg active:scale-[0.97]"
             >
               {primaryBtn} <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
             </Link>
@@ -142,7 +142,7 @@ export default function HeroBanner({ settings }: HeroBannerProps) {
       <div key={idx} className="absolute bottom-4 left-4 sm:bottom-8 sm:left-16 z-20 animate-fade-up [animation-delay:250ms]">
         <Link
           href="/produtos"
-          className="group inline-flex items-center gap-2 bg-white/90 backdrop-blur-md text-gray-900 px-4 py-2.5 text-sm sm:px-8 sm:py-4 sm:text-base rounded-xl sm:rounded-2xl font-bold hover:bg-brand hover:text-white hover:-translate-y-0.5 transition-all shadow-xl active:scale-[0.97]"
+          className="group inline-flex items-center gap-2 bg-white/90 backdrop-blur-md text-gray-900 px-4 py-2.5 text-sm sm:px-8 sm:py-4 sm:text-base rounded-xl sm:rounded-2xl font-bold hover:bg-brand hover:text-on-button hover:-translate-y-0.5 transition-all shadow-xl active:scale-[0.97]"
         >
           {primaryBtn} <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
         </Link>

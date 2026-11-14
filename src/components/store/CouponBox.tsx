@@ -86,7 +86,7 @@ export default function CouponBox({ code, loading, message, error, onApply, onRe
         type="button"
         onClick={submit}
         disabled={!value.trim()}
-        className="px-4 py-2 rounded-xl bg-gray-900 text-white text-sm font-semibold hover:bg-gray-800 disabled:opacity-40 transition-colors"
+        className="px-4 py-2 rounded-xl bg-brand text-on-button hover:bg-brand-hover text-sm font-semibold disabled:opacity-40 transition-colors"
       >
         Aplicar
       </button>

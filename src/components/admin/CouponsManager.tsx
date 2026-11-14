@@ -514,7 +514,7 @@ export default function CouponsManager() {
                             key={cat.id}
                             type="button"
                             onClick={() => set("categoryIds", on ? form.categoryIds.filter((x) => x !== cat.id) : [...form.categoryIds, cat.id])}
-                            className={`px-2.5 py-1 rounded-full text-xs font-medium ring-1 transition ${on ? "bg-brand text-white ring-transparent" : "ring-gray-200 text-gray-600 hover:bg-gray-50"}`}
+                            className={`px-2.5 py-1 rounded-full text-xs font-medium ring-1 transition ${on ? "bg-brand text-on-button ring-transparent" : "ring-gray-200 text-gray-600 hover:bg-gray-50"}`}
                           >
                             {on && <Check size={11} className="inline mr-1 -mt-0.5" />}{cat.name}
                           </button>

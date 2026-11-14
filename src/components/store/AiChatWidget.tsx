@@ -115,7 +115,7 @@ export default function AiChatWidget({ storeName, whatsapp }: { storeName: strin
           type="button"
           onClick={() => setOpen(true)}
           aria-label="Abrir atendimento"
-          className="fixed bottom-6 right-6 z-50 flex items-center gap-2 bg-brand text-white pl-4 pr-5 py-3 rounded-full shadow-xl hover:shadow-2xl hover:opacity-95 transition-all"
+          className="fixed bottom-6 right-6 z-50 flex items-center gap-2 bg-brand text-on-button pl-4 pr-5 py-3 rounded-full shadow-xl hover:shadow-2xl hover:opacity-95 transition-all"
         >
           <MessageCircle size={20} />
           <span className="text-sm font-semibold">Precisa de ajuda?</span>
@@ -128,7 +128,7 @@ export default function AiChatWidget({ storeName, whatsapp }: { storeName: strin
           aria-label="Atendimento"
           className="fixed z-50 inset-0 sm:inset-auto sm:bottom-6 sm:right-6 sm:w-[380px] sm:h-[600px] sm:max-h-[calc(100vh-3rem)] bg-white sm:rounded-2xl shadow-2xl border border-gray-100 flex flex-col overflow-hidden"
         >
-          <div className="flex items-center justify-between px-4 py-3 bg-brand text-white">
+          <div className="flex items-center justify-between px-4 py-3 bg-brand text-on-button">
             <div className="flex items-center gap-2 min-w-0">
               <Bot size={20} className="shrink-0" />
               <div className="min-w-0">
@@ -171,7 +171,7 @@ export default function AiChatWidget({ storeName, whatsapp }: { storeName: strin
                 key={i}
                 className={`text-sm px-3 py-2 rounded-2xl max-w-[85%] whitespace-pre-wrap break-words ${
                   m.role === "user"
-                    ? "ml-auto bg-brand text-white rounded-tr-sm"
+                    ? "ml-auto bg-brand text-on-button rounded-tr-sm"
                     : "bg-white border border-gray-100 text-gray-800 rounded-tl-sm"
                 }`}
               >
@@ -215,7 +215,7 @@ export default function AiChatWidget({ storeName, whatsapp }: { storeName: strin
               <button
                 type="submit"
                 disabled={sending || !input.trim()}
-                className="shrink-0 bg-brand text-white rounded-xl px-3 disabled:opacity-40"
+                className="shrink-0 bg-brand text-on-button rounded-xl px-3 disabled:opacity-40"
                 aria-label="Enviar"
               >
                 <Send size={16} />

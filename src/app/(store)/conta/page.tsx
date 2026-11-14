@@ -221,7 +221,7 @@ export default function AccountPage() {
   const editButtons = (
     <div className="flex gap-2">
       <button onClick={handleCancel} className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-gray-800 px-3 py-1.5 rounded-lg hover:bg-gray-100"><X size={12} /> Cancelar</button>
-      <button onClick={handleSave} disabled={saving} className="inline-flex items-center gap-1 text-xs font-semibold text-white bg-brand hover:opacity-90 px-4 py-1.5 rounded-lg disabled:opacity-60">
+      <button onClick={handleSave} disabled={saving} className="inline-flex items-center gap-1 text-xs font-semibold text-on-button bg-brand hover:opacity-90 px-4 py-1.5 rounded-lg disabled:opacity-60">
         {saving ? "Salvando…" : <><Check size={12} /> Salvar</>}
       </button>
     </div>
@@ -234,7 +234,7 @@ export default function AccountPage() {
       <div className="max-w-3xl mx-auto px-4 py-8 sm:py-10 space-y-5">
         {/* Saudação */}
         <div className="flex items-center gap-4">
-          <span className="w-14 h-14 rounded-2xl bg-brand text-white flex items-center justify-center text-lg font-semibold shadow-sm shrink-0">{initials}</span>
+          <span className="w-14 h-14 rounded-2xl bg-brand text-on-button flex items-center justify-center text-lg font-semibold shadow-sm shrink-0">{initials}</span>
           <div className="min-w-0 flex-1">
             <h1 className="text-2xl font-semibold tracking-tight text-gray-900">Olá, {firstName}!</h1>
             <p className="text-sm text-gray-500 truncate">{customer.email}</p>
@@ -246,14 +246,14 @@ export default function AccountPage() {
 
         {/* Pedido em andamento */}
         {featured && (
-          <Link href={`/pedido/${featured.id}`} className="group block rounded-2xl p-5 text-white shadow-lg overflow-hidden relative" style={{ background: "linear-gradient(135deg, var(--brand), color-mix(in srgb, var(--brand) 55%, #111827))" }}>
+          <Link href={`/pedido/${featured.id}`} className="group block rounded-2xl p-5 text-on-brand shadow-lg overflow-hidden relative" style={{ background: "linear-gradient(135deg, var(--brand), color-mix(in srgb, var(--brand) 55%, #111827))" }}>
             <span className="absolute -top-12 -right-12 w-44 h-44 rounded-full bg-white/10" />
             <div className="relative">
-              <p className="text-xs font-medium text-white/70 uppercase tracking-wider flex items-center gap-1.5"><Truck size={13} /> Pedido em andamento</p>
+              <p className="text-xs font-medium opacity-75 uppercase tracking-wider flex items-center gap-1.5"><Truck size={13} /> Pedido em andamento</p>
               <div className="mt-1 flex items-end justify-between gap-3">
                 <div className="min-w-0">
                   <p className="text-lg font-semibold">{orderHint(featured)}</p>
-                  <p className="text-sm text-white/70">Pedido {featured.orderNumber} · {formatCurrency(featured.total)}</p>
+                  <p className="text-sm opacity-75">Pedido {featured.orderNumber} · {formatCurrency(featured.total)}</p>
                 </div>
                 <span className="shrink-0 inline-flex items-center gap-1 text-sm font-semibold bg-white/15 group-hover:bg-white/25 rounded-xl px-3 py-2 transition">
                   Acompanhar <ArrowRight size={15} />
@@ -262,7 +262,7 @@ export default function AccountPage() {
               <div className="mt-4 flex gap-1">
                 {[0, 1, 2, 3].map((i) => <span key={i} className={cn("h-1.5 flex-1 rounded-full", i <= stepOf(featured.status) ? "bg-white" : "bg-white/25")} />)}
               </div>
-              {activeOrders.length > 1 && <p className="mt-2 text-xs text-white/70">+ {activeOrders.length - 1} outro{activeOrders.length > 2 ? "s" : ""} pedido{activeOrders.length > 2 ? "s" : ""} em andamento</p>}
+              {activeOrders.length > 1 && <p className="mt-2 text-xs opacity-75">+ {activeOrders.length - 1} outro{activeOrders.length > 2 ? "s" : ""} pedido{activeOrders.length > 2 ? "s" : ""} em andamento</p>}
             </div>
           </Link>
         )}
@@ -276,12 +276,12 @@ export default function AccountPage() {
             <button
               key={key}
               onClick={() => setTab(key)}
-              className={cn("flex-1 inline-flex items-center justify-center gap-2 py-2.5 text-sm font-semibold rounded-xl transition-all", tab === key ? "bg-gray-900 text-white shadow-sm" : "text-gray-500 hover:text-gray-900 hover:bg-gray-50")}
+              className={cn("flex-1 inline-flex items-center justify-center gap-2 py-2.5 text-sm font-semibold rounded-xl transition-all", tab === key ? "bg-menu text-on-menu shadow-sm" : "text-gray-500 hover:text-gray-900 hover:bg-gray-50")}
             >
               <Icon size={15} /> {label}
               {key === "orders" && orders.length > 0 && <span className={cn("text-[11px] rounded-full px-1.5 tabular-nums", tab === key ? "bg-white/20" : "bg-gray-100 text-gray-600")}>{orders.length}</span>}
               {key === "profile" && missing.length > 0 && <span className="w-2 h-2 rounded-full bg-amber-500" />}
-              {key === "credit" && credit && credit.available > 0 && <span className={cn("text-[11px] rounded-full px-1.5 tabular-nums", tab === key ? "bg-white/20" : "bg-violet-100 text-violet-700")}>{formatCurrency(credit.available)}</span>}
+              {key === "credit" && credit && credit.available > 0 && <span className={cn("text-[11px] rounded-full px-1.5 tabular-nums", tab === key ? "bg-white/20" : "bg-brand-light text-brand")}>{formatCurrency(credit.available)}</span>}
             </button>
           ))}
         </div>
@@ -295,7 +295,7 @@ export default function AccountPage() {
             {orders.length > 0 && (
               <div className="flex gap-1.5">
                 {([["all", "Todos"], ["active", "Em andamento"], ["done", "Concluídos e cancelados"]] as const).map(([k, l]) => (
-                  <button key={k} onClick={() => setOrderFilter(k)} className={cn("px-3 py-1.5 rounded-full text-xs font-medium ring-1 transition", orderFilter === k ? "bg-gray-900 text-white ring-gray-900" : "bg-white text-gray-600 ring-gray-200 hover:bg-gray-50")}>
+                  <button key={k} onClick={() => setOrderFilter(k)} className={cn("px-3 py-1.5 rounded-full text-xs font-medium ring-1 transition", orderFilter === k ? "bg-menu text-on-menu ring-menu" : "bg-white text-gray-600 ring-gray-200 hover:bg-gray-50")}>
                     {l}
                   </button>
                 ))}
@@ -308,7 +308,7 @@ export default function AccountPage() {
                 <span className="w-14 h-14 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto mb-3"><Package size={26} className="text-gray-300" /></span>
                 <p className="font-semibold text-gray-800">Você ainda não fez nenhum pedido</p>
                 <p className="text-sm text-gray-500 mt-1 mb-5">Quando comprar, você acompanha tudo por aqui: pagamento, envio e entrega.</p>
-                <Link href="/produtos" className="inline-flex items-center gap-2 bg-brand text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:opacity-90"><ShoppingBag size={15} /> Ver produtos</Link>
+                <Link href="/produtos" className="inline-flex items-center gap-2 bg-brand text-on-button px-5 py-2.5 rounded-xl text-sm font-semibold hover:opacity-90"><ShoppingBag size={15} /> Ver produtos</Link>
               </div>
             ) : filtered.length === 0 ? (
               <p className="text-sm text-gray-500 text-center py-10">Nenhum pedido neste filtro.</p>

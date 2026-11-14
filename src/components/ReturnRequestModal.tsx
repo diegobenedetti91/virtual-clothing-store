@@ -304,7 +304,7 @@ export default function ReturnRequestModal({
               <button
                 type="submit"
                 disabled={loading || selectedItemsArray.length === 0}
-                className="flex-1 py-3 bg-brand text-white font-semibold rounded-lg hover:opacity-90 transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
+                className="flex-1 py-3 bg-brand text-on-button font-semibold rounded-lg hover:opacity-90 transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
               >
                 {loading ? (
                   <>

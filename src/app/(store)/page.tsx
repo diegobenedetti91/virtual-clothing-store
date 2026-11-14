@@ -231,7 +231,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
           </p>
           <Link
             href="/produtos"
-            className="group inline-flex items-center gap-2 bg-brand text-white px-10 py-4 rounded-2xl font-bold hover:-translate-y-0.5 hover:shadow-[0_12px_40px_color-mix(in_srgb,var(--brand)_40%,transparent)] transition-all shadow-xl text-sm active:scale-[0.97]"
+            className="group inline-flex items-center gap-2 bg-brand text-on-button px-10 py-4 rounded-2xl font-bold hover:-translate-y-0.5 hover:shadow-[0_12px_40px_color-mix(in_srgb,var(--button)_40%,transparent)] transition-all shadow-xl text-sm active:scale-[0.97]"
           >
             Explorar toda a coleção <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
           </Link>

@@ -237,7 +237,7 @@ export default function NewOrdersCenter() {
         >
           {total ? <BellRing size={18} /> : <Bell size={18} />}
           {total > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-brand text-white text-[10.5px] font-bold flex items-center justify-center tabular-nums ring-2 ring-[#f6f7f9]">
+            <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-brand text-on-button text-[10.5px] font-bold flex items-center justify-center tabular-nums ring-2 ring-[#f6f7f9]">
               {total > 99 ? "99+" : total}
             </span>
           )}

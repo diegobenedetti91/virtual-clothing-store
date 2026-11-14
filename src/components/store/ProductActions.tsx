@@ -199,7 +199,7 @@ export default function ProductActions({ productId, name, price, comparePrice, i
                     title={out ? `${val} — esgotado` : val}
                     className={`relative inline-flex items-center gap-2 h-10 rounded-full border text-[13px] font-medium transition-all active:scale-[0.97] ${swatch ? "pl-1.5 pr-3.5" : "px-4"} ${
                       isSel
-                        ? "border-gray-900 bg-gray-900 text-white shadow-sm"
+                        ? "border-menu bg-menu text-on-menu shadow-sm"
                         : out
                           ? "border-gray-200 text-gray-400 bg-gray-50 hover:border-gray-300"
                           : "border-gray-200 text-gray-800 bg-white hover:border-gray-900"
@@ -257,9 +257,9 @@ export default function ProductActions({ productId, name, price, comparePrice, i
                 ? "bg-gray-200 text-gray-500"
                 : !fullySelected
                   ? "bg-gray-900 text-white hover:bg-gray-800"
-                  : "text-white shadow-[0_8px_20px_-8px_color-mix(in_srgb,var(--brand)_60%,transparent)] hover:-translate-y-0.5"
+                  : "text-on-button shadow-[0_8px_20px_-8px_color-mix(in_srgb,var(--button)_60%,transparent)] hover:-translate-y-0.5"
           }`}
-          style={!added && !ctaDisabled && fullySelected ? { backgroundColor: "var(--brand)" } : undefined}
+          style={!added && !ctaDisabled && fullySelected ? { backgroundColor: "var(--button)" } : undefined}
         >
           {added ? <Check size={18} /> : adding ? <Loader2 size={18} className="animate-spin" /> : <ShoppingBag size={18} />}
           {ctaLabel === "Adicionar ao carrinho" ? <span>Adicionar<span className="hidden min-[400px]:inline"> ao carrinho</span></span> : ctaLabel}
@@ -269,7 +269,7 @@ export default function ProductActions({ productId, name, price, comparePrice, i
           className={`w-12 h-12 rounded-2xl border flex items-center justify-center transition-all active:scale-90 shrink-0 ${
             inWishlist ? "text-white border-transparent" : "border-gray-200 text-gray-500 hover:text-[var(--brand)] hover:border-[var(--brand)]"
           }`}
-          style={inWishlist ? { backgroundColor: "var(--brand)" } : undefined}
+          style={inWishlist ? { backgroundColor: "var(--button)" } : undefined}
           aria-label={inWishlist ? "Remover dos favoritos" : "Adicionar aos favoritos"}
         >
           <Heart size={19} fill={inWishlist ? "currentColor" : "none"} />

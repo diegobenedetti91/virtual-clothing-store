@@ -271,7 +271,7 @@ function PixPanel({ orderNumber, data }: { orderNumber: string; data: PixData })
           <button
             type="button"
             onClick={copy}
-            className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-brand text-white text-xs font-bold hover:opacity-90"
+            className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-brand text-on-button text-xs font-bold hover:opacity-90"
           >
             {copied ? <Check size={14} /> : <Copy size={14} />} {copied ? "Copiado" : "Copiar"}
           </button>

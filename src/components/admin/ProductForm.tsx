@@ -586,7 +586,7 @@ export default function ProductForm({ productId, product, categories, navItems =
                       type="button"
                       onClick={() => toggleNav(item.id)}
                       aria-pressed={checked}
-                      className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-[13px] font-medium ring-1 transition ${checked ? "bg-brand text-white ring-transparent" : "ring-gray-200 text-gray-700 hover:bg-gray-50"}`}
+                      className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-[13px] font-medium ring-1 transition ${checked ? "bg-brand text-on-button ring-transparent" : "ring-gray-200 text-gray-700 hover:bg-gray-50"}`}
                     >
                       {checked && <Check size={12} />} {item.label}
                     </button>
@@ -607,7 +607,7 @@ export default function ProductForm({ productId, product, categories, navItems =
                   <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-300"><Package size={28} /><span className="text-xs mt-1">Sem foto</span></div>
                 )}
                 <div className="absolute top-2.5 left-2.5 flex flex-col gap-1">
-                  {featured && <span className="bg-brand text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase">Destaque</span>}
+                  {featured && <span className="bg-brand text-on-button text-[10px] font-bold px-2 py-0.5 rounded-full uppercase">Destaque</span>}
                   {promoPct > 0 && <span className="bg-white/90 text-red-600 text-[10px] font-black px-2 py-0.5 rounded-full">-{promoPct}%</span>}
                 </div>
                 {!active && <div className="absolute inset-0 bg-white/60 flex items-center justify-center"><span className="text-xs font-semibold text-gray-700 bg-white rounded-full px-2.5 py-1 ring-1 ring-gray-200">Oculto</span></div>}

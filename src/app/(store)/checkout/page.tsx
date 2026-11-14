@@ -355,7 +355,7 @@ export default function CheckoutPage() {
       `💰 *Subtotal:* ${formatCurrency(total())}`,
       `🚚 *Frete:* ${freteTexto}`,
       ...(couponActive ? [`🏷️ *Cupom ${couponCode}:* -${formatCurrency(couponDiscount)}`] : []),
-      ...(creditActive ? [`💜 *Crédito da conta:* -${formatCurrency(creditDiscount)}`] : []),
+      ...(creditActive ? [`🎁 *Crédito da conta:* -${formatCurrency(creditDiscount)}`] : []),
       `💳 *Total:* ${formatCurrency(finalTotal)}`,
       ``,
       `_Pedido gerado em ${new Date().toLocaleString("pt-BR")}_`,
@@ -946,14 +946,14 @@ const handleNuPaySubmit = async () => {
                     </div>
                   )}
                   {creditBalance > 0 && (
-                    <label className="flex items-start gap-3 rounded-xl bg-violet-50 ring-1 ring-violet-100 px-3 py-2.5 cursor-pointer">
-                      <input type="checkbox" checked={useCredit} onChange={(e) => setUseCredit(e.target.checked)} className="mt-0.5 w-4 h-4 accent-violet-600 cursor-pointer" />
+                    <label className="flex items-start gap-3 rounded-xl bg-brand-light ring-1 ring-black/5 px-3 py-2.5 cursor-pointer">
+                      <input type="checkbox" checked={useCredit} onChange={(e) => setUseCredit(e.target.checked)} className="mt-0.5 w-4 h-4 accent-[var(--brand)] cursor-pointer" />
                       <span className="text-[13px] leading-snug">
-                        <span className="block font-semibold text-violet-900">
+                        <span className="block font-semibold text-brand">
                           Usar meu crédito{quote?.creditDiscount ? ` (−${formatCurrency(quote.creditDiscount)})` : ""}
                         </span>
-                        <span className="block text-violet-700/80">Você tem {formatCurrency(creditBalance)} de cashback disponível</span>
-                        {quote?.creditNote && <span className="block text-[12px] text-violet-700/70 mt-0.5">{quote.creditNote}</span>}
+                        <span className="block text-brand">Você tem {formatCurrency(creditBalance)} de cashback disponível</span>
+                        {quote?.creditNote && <span className="block text-[12px] text-brand mt-0.5">{quote.creditNote}</span>}
                       </span>
                     </label>
                   )}
@@ -972,8 +972,8 @@ const handleNuPaySubmit = async () => {
                     <span>{formatCurrency(finalTotal)}</span>
                   </div>
                   {cashbackEarn > 0 && (
-                    <p className="flex items-center gap-1.5 text-[12.5px] text-violet-700 bg-violet-50/70 rounded-lg px-2.5 py-1.5">
-                      <span aria-hidden>💜</span> Você ganha <b>{formatCurrency(cashbackEarn)}</b> de cashback para a próxima compra
+                    <p className="flex items-center gap-1.5 text-[12.5px] text-brand bg-brand-light rounded-lg px-2.5 py-1.5">
+                      <span aria-hidden>🎁</span> Você ganha <b>{formatCurrency(cashbackEarn)}</b> de cashback para a próxima compra
                     </p>
                   )}
                 </div>

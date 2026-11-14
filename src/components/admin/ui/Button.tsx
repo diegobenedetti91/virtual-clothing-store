@@ -35,7 +35,7 @@ const BASE =
 
 const VARIANTS: Record<ButtonVariant, string> = {
   primary:
-    "bg-brand text-white shadow-[0_6px_16px_-8px_color-mix(in_srgb,var(--brand)_70%,transparent)] hover:brightness-[1.06] hover:shadow-[0_8px_20px_-8px_color-mix(in_srgb,var(--brand)_80%,transparent)]",
+    "bg-brand text-on-button shadow-[0_6px_16px_-8px_color-mix(in_srgb,var(--brand)_70%,transparent)] hover:brightness-[1.06] hover:shadow-[0_8px_20px_-8px_color-mix(in_srgb,var(--brand)_80%,transparent)]",
   dark: "bg-gray-900 text-white shadow-sm hover:bg-gray-800",
   secondary: "bg-white text-gray-700 ring-1 ring-inset ring-gray-200 shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:bg-gray-50 hover:text-gray-900 hover:ring-gray-300",
   ghost: "text-gray-600 hover:bg-gray-100 hover:text-gray-900",

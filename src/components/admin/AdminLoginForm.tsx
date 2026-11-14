@@ -113,7 +113,7 @@ export default function AdminLoginForm({ storeName, logo, description, heroImage
             {logo ? (
               <img src={logo} alt={storeName} className="h-16 w-auto object-contain" />
             ) : (
-              <span className="w-14 h-14 rounded-2xl bg-brand text-white flex items-center justify-center shadow-lg"><Store size={24} /></span>
+              <span className="w-14 h-14 rounded-2xl bg-brand text-on-button flex items-center justify-center shadow-lg"><Store size={24} /></span>
             )}
             <p className="mt-3 text-lg font-semibold text-gray-900">{storeName}</p>
           </div>

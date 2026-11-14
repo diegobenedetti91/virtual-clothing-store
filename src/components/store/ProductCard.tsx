@@ -161,8 +161,8 @@ export default function ProductCard({ product, flashSale }: ProductCardProps) {
           onClick={handleWishlist}
           className={`absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 shadow-sm active:scale-90 ${
             inWishlist
-              ? "bg-brand text-white"
-              : "bg-white/80 backdrop-blur-md ring-1 ring-black/5 text-gray-500 hover:bg-brand hover:text-white"
+              ? "bg-brand text-on-button"
+              : "bg-white/80 backdrop-blur-md ring-1 ring-black/5 text-gray-500 hover:bg-brand hover:text-on-button"
           }`}
           aria-label={inWishlist ? "Remover dos favoritos" : "Adicionar aos favoritos"}
         >
@@ -183,7 +183,7 @@ export default function ProductCard({ product, flashSale }: ProductCardProps) {
             <button
               onClick={handleAddToCart}
               className={`w-full py-2.5 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 shadow-lg backdrop-blur-md transition-colors ${
-                added ? "bg-green-500 text-white" : "bg-white/90 text-gray-900 hover:bg-brand hover:text-white"
+                added ? "bg-green-500 text-white" : "bg-white/90 text-gray-900 hover:bg-brand hover:text-on-button"
               }`}
             >
               {added ? <Check size={14} /> : <ShoppingBag size={14} />}
@@ -250,7 +250,7 @@ export default function ProductCard({ product, flashSale }: ProductCardProps) {
             ? "border-gray-200 bg-gray-50 text-gray-400"
             : added
               ? "border-green-500 bg-green-500 text-white"
-              : "border-gray-300 bg-white text-gray-800 hover:border-brand hover:bg-brand hover:text-white"
+              : "border-gray-300 bg-white text-gray-800 hover:border-brand hover:bg-brand hover:text-on-button"
         }`}
       >
         {added ? <Check size={14} /> : <ShoppingBag size={14} />}

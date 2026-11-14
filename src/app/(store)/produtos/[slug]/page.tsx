@@ -227,8 +227,8 @@ export default async function ProductDetailPage({ params }: PageProps) {
             />
 
             {cashbackPct > 0 && (
-              <p className="flex items-center gap-2 rounded-xl bg-violet-50 ring-1 ring-violet-100 px-3 py-2 text-[13px] text-violet-800">
-                <span aria-hidden>💜</span>
+              <p className="flex items-center gap-2 rounded-xl bg-brand-light ring-1 ring-black/5 px-3 py-2 text-[13px] text-brand">
+                <span aria-hidden>🎁</span>
                 <span>
                   Ganhe <b>{formatCurrency(Math.round(product.price * cashbackPct) / 100)}</b> de cashback ({cashbackPct.toLocaleString("pt-BR")}%) para usar na próxima compra
                 </span>

@@ -57,7 +57,7 @@ export default function NewArrivalsSection({ products }: Props) {
                 onClick={() => setSelectedCat(null)}
                 className={`shrink-0 h-8 px-4 rounded-full text-xs font-bold transition-all border ${
                   !selectedCat
-                    ? "bg-gray-900 text-white border-gray-900"
+                    ? "bg-menu text-on-menu border-menu"
                     : "bg-white text-gray-600 border-gray-200 hover:border-gray-400"
                 }`}
               >
@@ -69,7 +69,7 @@ export default function NewArrivalsSection({ products }: Props) {
                   onClick={() => setSelectedCat(selectedCat === cat.id ? null : cat.id)}
                   className={`shrink-0 h-8 px-4 rounded-full text-xs font-bold transition-all border ${
                     selectedCat === cat.id
-                      ? "bg-gray-900 text-white border-gray-900"
+                      ? "bg-menu text-on-menu border-menu"
                       : "bg-white text-gray-600 border-gray-200 hover:border-gray-400"
                   }`}
                 >
@@ -91,7 +91,7 @@ export default function NewArrivalsSection({ products }: Props) {
         <div className="mt-10 text-center sm:hidden">
           <Link
             href="/produtos"
-            className="inline-flex items-center gap-2 bg-gray-900 text-white font-bold px-8 py-3.5 rounded-2xl hover:bg-gray-800 transition-colors text-sm"
+            className="inline-flex items-center gap-2 bg-brand text-on-button hover:bg-brand-hover font-bold px-8 py-3.5 rounded-2xl transition-colors text-sm"
           >
             Ver todos os produtos <ArrowRight size={16} />
           </Link>

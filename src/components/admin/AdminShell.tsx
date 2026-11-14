@@ -82,7 +82,7 @@ export default function AdminShell({ user, badges, storeName, logo, children }: 
         {logo ? (
           <img src={logo} alt={storeName || "Loja"} className="h-8 w-auto max-w-[120px] object-contain" />
         ) : (
-          <span className="w-8 h-8 rounded-xl bg-brand text-white flex items-center justify-center shadow-sm">
+          <span className="w-8 h-8 rounded-xl bg-brand text-on-button flex items-center justify-center shadow-sm">
             <Store size={16} />
           </span>
         )}
@@ -142,7 +142,7 @@ export default function AdminShell({ user, badges, storeName, logo, children }: 
                         className={cn(
                           "relative flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] font-medium transition-all duration-200 group",
                           isActive
-                            ? "bg-brand text-white shadow-[0_6px_16px_-6px_color-mix(in_srgb,var(--brand)_40%,transparent)]"
+                            ? "bg-brand text-on-button shadow-[0_6px_16px_-6px_color-mix(in_srgb,var(--brand)_40%,transparent)]"
                             : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
                         )}
                       >
@@ -291,7 +291,7 @@ function CommandPalette({ badges, onClose, onGo }: { badges: AdminBadges; onClos
                   onClick={() => onGo(l.href)}
                   className={cn("w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-colors", i === sel ? "bg-gray-100" : "")}
                 >
-                  <span className={cn("w-8 h-8 rounded-lg flex items-center justify-center shrink-0", i === sel ? "bg-brand text-white" : "bg-gray-100 text-gray-500")}>
+                  <span className={cn("w-8 h-8 rounded-lg flex items-center justify-center shrink-0", i === sel ? "bg-brand text-on-button" : "bg-gray-100 text-gray-500")}>
                     <Icon size={16} />
                   </span>
                   <span className="min-w-0 flex-1">

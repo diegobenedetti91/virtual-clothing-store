@@ -30,12 +30,14 @@ export default async function StoreLayout({ children }: { children: React.ReactN
       })
       .catch(() => []),
   ]);
-  const brandColor = settings?.buttonColor || settings?.primaryColor || "#ec4899";
-  const menuColor = (settings as Record<string, string> | null)?.menuColor || settings?.primaryColor || "#ec4899";
+  // Cada cor com o seu papel: principal (destaques), botões (ações) e menu (cabeçalho)
+  const primaryColor = settings?.primaryColor || "#ec4899";
+  const buttonColor = settings?.buttonColor || primaryColor;
+  const menuColor = (settings as Record<string, string> | null)?.menuColor || primaryColor;
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ "--brand": brandColor, "--menu": menuColor } as React.CSSProperties}>
-      <BrandStyle brand={brandColor} menu={menuColor} />
+    <div className="min-h-screen flex flex-col" style={{ "--brand": primaryColor, "--button": buttonColor, "--menu": menuColor } as React.CSSProperties}>
+      <BrandStyle brand={primaryColor} button={buttonColor} menu={menuColor} />
       <CustomerInit />
       <CartSyncer />
       <TrafficSourceTracker />

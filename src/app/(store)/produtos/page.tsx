@@ -156,7 +156,7 @@ export default async function ProductsPage({ searchParams }: PageProps) {
                 placeholder={activeCategory ? `Buscar em ${activeCategory.name}` : "Buscar produtos"}
                 className="w-full rounded-full border border-gray-200 bg-white pl-10 pr-20 py-2.5 text-sm placeholder:text-gray-400 shadow-sm focus:outline-none focus:border-brand"
               />
-              <button type="submit" className="absolute right-1.5 top-1/2 -translate-y-1/2 px-3.5 py-1.5 rounded-full bg-gray-900 text-white text-xs font-semibold hover:bg-gray-800">Buscar</button>
+              <button type="submit" className="absolute right-1.5 top-1/2 -translate-y-1/2 px-3.5 py-1.5 rounded-full bg-brand text-on-button hover:bg-brand-hover text-xs font-semibold">Buscar</button>
             </form>
           </div>
 
@@ -165,7 +165,7 @@ export default async function ProductsPage({ searchParams }: PageProps) {
             <div className="relative mt-5 -mx-4 sm:mx-0">
               <div className="flex gap-3 sm:gap-4 overflow-x-auto px-4 sm:px-1 pt-1.5 pb-1 snap-x [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 <Link href={href({ category: undefined })} className="group snap-start shrink-0 flex flex-col items-center gap-1.5 w-[72px]">
-                  <span className={`w-16 h-16 rounded-full flex items-center justify-center transition-all duration-300 ${!category ? "ring-2 ring-offset-2 ring-gray-900 bg-gray-900 text-white" : "bg-gray-100 text-gray-500 group-hover:bg-gray-200"}`}>
+                  <span className={`w-16 h-16 rounded-full flex items-center justify-center transition-all duration-300 ${!category ? "ring-2 ring-offset-2 ring-menu bg-menu text-on-menu" : "bg-gray-100 text-gray-500 group-hover:bg-gray-200"}`}>
                     <LayoutGrid size={22} />
                   </span>
                   <span className={`text-xs text-center leading-tight ${!category ? "font-semibold text-gray-900" : "text-gray-600"}`}>Todos</span>
@@ -213,7 +213,7 @@ export default async function ProductsPage({ searchParams }: PageProps) {
             <PackageCheck size={13} /> Disponíveis
           </Link>
           {activeFilters.map((f) => (
-            <Link key={f.label} href={f.remove} className="shrink-0 inline-flex items-center gap-1 pl-3 pr-2 py-1.5 rounded-full bg-gray-900 text-white text-xs font-medium hover:bg-gray-800" title="Remover filtro">
+            <Link key={f.label} href={f.remove} className="shrink-0 inline-flex items-center gap-1 pl-3 pr-2 py-1.5 rounded-full bg-menu text-on-menu text-xs font-medium hover:opacity-90" title="Remover filtro">
               {f.label} <X size={12} />
             </Link>
           ))}
@@ -230,7 +230,7 @@ export default async function ProductsPage({ searchParams }: PageProps) {
             </p>
             <div className="flex gap-2 flex-wrap justify-center">
               {(activeFilters.length > 0 || category) && (
-                <Link href="/produtos" className="px-5 py-2.5 bg-gray-900 text-white rounded-full text-sm font-semibold hover:bg-gray-800">Limpar filtros</Link>
+                <Link href="/produtos" className="px-5 py-2.5 bg-brand text-on-button hover:bg-brand-hover rounded-full text-sm font-semibold">Limpar filtros</Link>
               )}
               <Link href="/" className="px-5 py-2.5 bg-gray-100 text-gray-700 rounded-full text-sm font-semibold hover:bg-gray-200">Voltar ao início</Link>
             </div>
@@ -249,9 +249,9 @@ export default async function ProductsPage({ searchParams }: PageProps) {
           <div className="mt-12 flex flex-col items-center gap-3">
             <p className="text-xs text-gray-500">Mostrando {products.length} de {total}</p>
             <div className="w-48 h-1 rounded-full bg-gray-100 overflow-hidden">
-              <div className="h-full bg-gray-900 rounded-full" style={{ width: `${(products.length / total) * 100}%` }} />
+              <div className="h-full bg-brand rounded-full" style={{ width: `${(products.length / total) * 100}%` }} />
             </div>
-            <Link href={href({ page: String(page + 1) })} scroll={false} className="mt-1 px-6 py-2.5 rounded-full border border-gray-300 text-sm font-semibold text-gray-900 hover:bg-gray-900 hover:text-white hover:border-gray-900 transition">
+            <Link href={href({ page: String(page + 1) })} scroll={false} className="mt-1 px-6 py-2.5 rounded-full border border-gray-300 text-sm font-semibold text-gray-900 hover:bg-brand hover:text-on-button hover:border-transparent transition">
               Ver mais produtos
             </Link>
           </div>

@@ -70,7 +70,7 @@ export default function FavoritosPage() {
         </div>
         <h1 className="text-2xl font-semibold tracking-tight text-gray-900">Nenhum favorito ainda</h1>
         <p className="text-gray-500 mt-2 mb-8">Toque no <Heart size={14} className="inline -mt-0.5 text-brand" /> de qualquer peça para guardar aqui e encontrar depois.</p>
-        <Link href="/produtos" className="inline-flex items-center gap-2 bg-gray-900 text-white px-6 py-3 rounded-full text-sm font-semibold hover:bg-gray-800">
+        <Link href="/produtos" className="inline-flex items-center gap-2 bg-brand text-on-button hover:bg-brand-hover px-6 py-3 rounded-full text-sm font-semibold">
           Explorar produtos <ArrowRight size={16} />
         </Link>
       </div>
@@ -143,12 +143,12 @@ export default function FavoritosPage() {
                 ) : out ? (
                   <Link href={`/produtos/${item.slug}`} className="w-full py-2.5 rounded-xl border border-gray-200 text-gray-700 text-sm font-medium inline-flex items-center justify-center gap-1.5 hover:bg-gray-50"><Bell size={14} /> Avise-me quando voltar</Link>
                 ) : l?.hasVariants ? (
-                  <Link href={`/produtos/${item.slug}`} className="w-full py-2.5 rounded-xl bg-gray-900 text-white text-sm font-semibold inline-flex items-center justify-center gap-1.5 hover:bg-gray-800">Escolher tamanho e cor <ArrowRight size={14} /></Link>
+                  <Link href={`/produtos/${item.slug}`} className="w-full py-2.5 rounded-xl bg-brand text-on-button hover:bg-brand-hover text-sm font-semibold inline-flex items-center justify-center gap-1.5">Escolher tamanho e cor <ArrowRight size={14} /></Link>
                 ) : (
                   <button
                     onClick={() => quickAdd(item, price)}
                     disabled={!l}
-                    className={`w-full py-2.5 rounded-xl text-sm font-semibold inline-flex items-center justify-center gap-1.5 transition ${added === item.productId ? "bg-emerald-500 text-white" : "bg-brand text-white hover:opacity-90"} disabled:opacity-50`}
+                    className={`w-full py-2.5 rounded-xl text-sm font-semibold inline-flex items-center justify-center gap-1.5 transition ${added === item.productId ? "bg-emerald-500 text-white" : "bg-brand text-on-button hover:opacity-90"} disabled:opacity-50`}
                   >
                     {added === item.productId ? <><Check size={15} /> Adicionado</> : <><ShoppingBag size={15} /> Adicionar ao carrinho</>}
                   </button>
