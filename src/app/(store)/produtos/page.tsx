@@ -6,16 +6,11 @@ import Link from "next/link";
 import { Search, ChevronRight, X, SlidersHorizontal, Tag, PackageCheck, LayoutGrid, SearchX } from "lucide-react";
 import type { Product } from "@/types";
 import type { Prisma } from "@prisma/client";
+import type { Metadata } from "next";
 import { getActiveFlashSales, flashPrice } from "@/lib/flashSales";
+import { CARD_SELECT } from "@/lib/productCards";
 
 const PAGE_SIZE = 24;
-
-/** Só o que o card da vitrine usa. */
-const CARD_SELECT = {
-  id: true, name: true, slug: true, price: true, comparePrice: true, images: true, stock: true,
-  featured: true, attributes: true, variantStock: true, createdAt: true, categoryId: true,
-  category: { select: { id: true, name: true, slug: true } },
-} satisfies Prisma.ProductSelect;
 
 /**
  * Decide quais produtos entram na página.
@@ -62,6 +57,20 @@ const SORTS: { key: Sort; label: string }[] = [
   { key: "name", label: "A–Z" },
 ];
 const CATEGORY_BG = ["#6366f1", "#ec4899", "#14b8a6", "#f59e0b", "#8b5cf6", "#ef4444"];
+
+export async function generateMetadata({ searchParams }: PageProps): Promise<Metadata> {
+  const { category, search, page } = await searchParams;
+  const cat = category ? await prisma.category.findUnique({ where: { slug: category }, select: { name: true } }) : null;
+  const title = cat ? cat.name : search ? `Busca: ${search}` : "Produtos";
+  return {
+    title,
+    description: cat ? `Confira ${cat.name.toLowerCase()} — novidades, promoções e entrega para todo o Brasil.` : undefined,
+    // Uma URL canônica por categoria (ordenação, filtros e "ver mais" não viram páginas duplicadas no Google)
+    alternates: { canonical: cat ? `/produtos?category=${encodeURIComponent(category!)}` : "/produtos" },
+    // Resultados de busca não devem ser indexados
+    ...(search || page ? { robots: { index: false, follow: true } } : {}),
+  };
+}
 
 export default async function ProductsPage({ searchParams }: PageProps) {
   const params = await searchParams;

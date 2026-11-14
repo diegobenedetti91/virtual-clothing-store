@@ -6,6 +6,8 @@ import { getPublicCompanySettings } from "@/lib/company";
 import HeroBanner from "@/components/store/HeroBanner";
 import ProductCard from "@/components/store/ProductCard";
 import NewArrivalsSection from "@/components/store/NewArrivalsSection";
+import RecentlyViewed from "@/components/store/RecentlyViewed";
+import { absoluteUrl, siteUrl } from "@/lib/site";
 import Link from "next/link";
 import { applyFlashSales } from "@/lib/flashSales";
 import { ArrowRight, Sparkles, ShieldCheck, Truck, RefreshCcw, MessageCircle } from "lucide-react";
@@ -39,6 +41,29 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   ]);
 
   const featured = (await applyFlashSales(featuredRaw)) as unknown as Product[];
+
+  // Dados da loja para o Google (nome, logo, redes e busca interna)
+  const insta = settings?.instagram?.replace(/^@/, "").trim();
+  const orgLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "ClothingStore",
+        name: settings?.name,
+        url: siteUrl(),
+        ...(settings?.logo ? { logo: absoluteUrl(settings.logo), image: absoluteUrl(settings.logo) } : {}),
+        ...(settings?.description ? { description: settings.description } : {}),
+        ...(settings?.phone || settings?.whatsapp ? { telephone: settings.phone || settings.whatsapp } : {}),
+        ...(insta ? { sameAs: [`https://instagram.com/${insta}`] } : {}),
+      },
+      {
+        "@type": "WebSite",
+        name: settings?.name,
+        url: siteUrl(),
+        potentialAction: { "@type": "SearchAction", target: `${siteUrl()}/produtos?search={search_term_string}`, "query-input": "required name=search_term_string" },
+      },
+    ],
+  };
   const newArrivals = (await applyFlashSales(newArrivalsRaw)) as unknown as Product[];
   const categories = categoriesRaw as unknown as Category[];
 
@@ -58,6 +83,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
 
   return (
     <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(orgLd).replace(/</g, "\\u003c") }} />
       <HeroBanner settings={settings} />
 
       {/* Features strip — letreiro infinito no celular, grade no desktop */}
@@ -176,6 +202,8 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
         </section>
       )}
 
+      {/* Só aparece para quem já abriu algum produto neste navegador */}
+      <RecentlyViewed className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12" />
 
       {/* Editorial break */}
       <section className="py-20 bg-gray-900 overflow-hidden relative">

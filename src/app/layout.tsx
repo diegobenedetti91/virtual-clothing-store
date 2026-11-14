@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist } from "next/font/google";
 import SessionProvider from "@/components/admin/SessionProvider";
 import { getCompanySettings } from "@/lib/company";
+import { absoluteUrl, metaDescription, siteUrl } from "@/lib/site";
 import Script from "next/script";
 import "./globals.css";
 
@@ -13,10 +14,21 @@ const geist = Geist({
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await getCompanySettings();
   const name = settings?.name || "Loja de Roupas";
+  const description = metaDescription(settings?.description, "Sua loja virtual de moda");
   return {
-    title: name,
-    description: settings?.description || "Sua loja virtual de moda",
-};
+    metadataBase: new URL(siteUrl()),
+    // Páginas com título próprio viram "Vestido Floral | Loja"
+    title: { default: name, template: `%s | ${name}` },
+    description,
+    openGraph: {
+      type: "website",
+      locale: "pt_BR",
+      siteName: name,
+      title: name,
+      description,
+      ...(settings?.logo ? { images: [{ url: absoluteUrl(settings.logo) }] } : {}),
+    },
+  };
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

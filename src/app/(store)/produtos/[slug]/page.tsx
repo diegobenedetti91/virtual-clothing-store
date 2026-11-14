@@ -1,3 +1,5 @@
+import { cache } from "react";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, Ruler, Star, Truck, Zap, Store, RefreshCw, CreditCard, ShieldCheck } from "lucide-react";
@@ -12,21 +14,56 @@ import ProductReviews from "@/components/store/ProductReviews";
 import { MetaViewContent } from "@/components/store/MetaPixel";
 import { applyFlashSales } from "@/lib/flashSales";
 import { FlashSaleTimer } from "@/components/store/FlashSaleTimer";
+import ProductRail from "@/components/store/ProductRail";
+import RecentlyViewed, { TrackProductView } from "@/components/store/RecentlyViewed";
+import { getRelatedProducts } from "@/lib/productCards";
+import { absoluteUrl, metaDescription } from "@/lib/site";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
+}
+
+// Uma consulta só, compartilhada entre os metadados (SEO) e a página
+const getProduct = cache((slug: string) =>
+  prisma.product.findUnique({
+    where: { slug },
+    include: { category: true, _count: { select: { reviews: { where: { approved: true } } } } },
+  })
+);
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { slug } = await params;
+  const p = await getProduct(slug);
+  if (!p || !p.active) return { title: "Produto não encontrado", robots: { index: false } };
+  let image: string | undefined;
+  try { image = (JSON.parse(p.images || "[]") as string[])[0]; } catch {}
+  const description = metaDescription(p.description, `${p.name}${p.category ? ` — ${p.category.name}` : ""}`);
+  return {
+    title: p.name,
+    description,
+    alternates: { canonical: `/produtos/${p.slug}` },
+    openGraph: {
+      type: "website",
+      title: p.name,
+      description,
+      url: `/produtos/${p.slug}`,
+      ...(image ? { images: [{ url: absoluteUrl(image), alt: p.name }] } : {}),
+    },
+    twitter: { card: "summary_large_image", title: p.name, description, ...(image ? { images: [absoluteUrl(image)] } : {}) },
+  };
 }
 
 export default async function ProductDetailPage({ params }: PageProps) {
   const { slug } = await params;
 
   const settingsPromise = getPublicCompanySettings();
-  const raw = await prisma.product.findUnique({
-    where: { slug },
-    include: { category: true, _count: { select: { reviews: { where: { approved: true } } } } },
-  });
+  const raw = await getProduct(slug);
 
   if (!raw || !raw.active) notFound();
+  const [related, rating] = await Promise.all([
+    getRelatedProducts([raw.id], 10),
+    prisma.productReview.aggregate({ where: { productId: raw.id, approved: true }, _avg: { rating: true }, _count: { rating: true } }),
+  ]);
 
   const product = (await applyFlashSales([raw]))[0] as unknown as Product;
   const settings = await settingsPromise;
@@ -46,6 +83,43 @@ export default async function ProductDetailPage({ params }: PageProps) {
   const firstImage = images[0] || "/placeholder-product.svg";
   const reviewCount = (raw as unknown as { _count: { reviews: number } })._count.reviews;
 
+  // Dados estruturados para o Google (preço, estoque, nota) — aparecem nos resultados e no Google Shopping
+  const priceValidUntil = product.flashSale?.endAt?.slice(0, 10);
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: product.name,
+    description: metaDescription(product.description, product.name),
+    image: images.length ? images.slice(0, 5).map(absoluteUrl) : undefined,
+    sku: product.id,
+    url: absoluteUrl(`/produtos/${product.slug}`),
+    category: product.category?.name,
+    brand: settings?.name ? { "@type": "Brand", name: settings.name } : undefined,
+    offers: {
+      "@type": "Offer",
+      url: absoluteUrl(`/produtos/${product.slug}`),
+      priceCurrency: "BRL",
+      price: product.price.toFixed(2),
+      ...(priceValidUntil ? { priceValidUntil } : {}),
+      availability: product.stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+      itemCondition: "https://schema.org/NewCondition",
+      seller: settings?.name ? { "@type": "Organization", name: settings.name } : undefined,
+    },
+    ...(rating._count.rating > 0 && rating._avg.rating
+      ? { aggregateRating: { "@type": "AggregateRating", ratingValue: rating._avg.rating.toFixed(1), reviewCount: rating._count.rating } }
+      : {}),
+  };
+  const breadcrumbLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Início", item: absoluteUrl("/") },
+      { "@type": "ListItem", position: 2, name: "Produtos", item: absoluteUrl("/produtos") },
+      ...(product.category ? [{ "@type": "ListItem", position: 3, name: product.category.name, item: absoluteUrl(`/produtos?category=${product.category.slug}`) }] : []),
+      { "@type": "ListItem", position: product.category ? 4 : 3, name: product.name },
+    ],
+  };
+
   const discount =
     product.comparePrice && product.comparePrice > product.price
       ? Math.round(((product.comparePrice - product.price) / product.comparePrice) * 100)
@@ -53,6 +127,9 @@ export default async function ProductDetailPage({ params }: PageProps) {
 
   return (
     <div className="bg-white min-h-screen">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd).replace(/</g, "\\u003c") }} />
+      <TrackProductView productId={product.id} />
       {/* Breadcrumb */}
       <div className="border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
@@ -175,10 +252,20 @@ export default async function ProductDetailPage({ params }: PageProps) {
           </div>
         </div>
 
+        {/* Sugestões: comprados juntos / mesma categoria */}
+        <ProductRail
+          title="Combina com"
+          subtitle="Peças que os clientes costumam levar junto"
+          products={related}
+          className="mt-16"
+        />
+
         {/* Reviews */}
         <div id="avaliacoes">
           <ProductReviews productId={product.id} />
         </div>
+
+        <RecentlyViewed excludeId={product.id} className="mt-16" />
 
         {/* Back */}
         <div className="mt-10 pt-8 border-t border-gray-100">

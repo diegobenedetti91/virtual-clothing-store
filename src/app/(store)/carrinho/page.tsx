@@ -2,6 +2,8 @@
 
 import { useCart } from "@/hooks/useCart";
 import OptimizedImg from "@/components/OptimizedImg";
+import CartSuggestions from "@/components/store/CartSuggestions";
+import RecentlyViewed from "@/components/store/RecentlyViewed";
 import { useCustomer } from "@/hooks/useCustomer";
 import { formatCurrency } from "@/lib/utils";
 import { Trash2, Plus, Minus, ShoppingBag, ArrowRight, Lock, Tag, Truck, Zap, Heart, AlertCircle, ShieldCheck, RefreshCw } from "lucide-react";
@@ -98,6 +100,7 @@ export default function CartPage() {
 
   if (items.length === 0) {
     return (
+      <>
       <div className="max-w-xl mx-auto px-4 py-24 text-center">
         <span className="w-24 h-24 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-6"><ShoppingBag size={36} className="text-gray-400" /></span>
         <h1 className="text-2xl font-semibold tracking-tight text-gray-900">Seu carrinho está vazio</h1>
@@ -106,7 +109,9 @@ export default function CartPage() {
           <Link href="/produtos" className="inline-flex items-center gap-2 bg-gray-900 text-white px-6 py-3 rounded-full text-sm font-semibold hover:bg-gray-800">Ver produtos <ArrowRight size={16} /></Link>
           <Link href="/favoritos" className="inline-flex items-center gap-2 bg-gray-100 text-gray-700 px-6 py-3 rounded-full text-sm font-semibold hover:bg-gray-200"><Heart size={15} /> Meus favoritos</Link>
         </div>
-      </div>
+        </div>
+        <RecentlyViewed className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 text-left" />
+      </>
     );
   }
 
@@ -240,6 +245,8 @@ export default function CartPage() {
             </ul>
           </aside>
         </div>
+
+        <CartSuggestions productIds={items.map((i) => i.productId)} className="mt-14" />
       </div>
 
       {/* Barra fixa no celular */}
