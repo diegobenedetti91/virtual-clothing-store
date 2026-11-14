@@ -333,7 +333,7 @@ export default function DashboardBI({ storeName }: { storeName?: string | null }
         <ChartCard className="xl:col-span-2" title="Quando seus clientes compram" subtitle="Pedidos pagos por dia da semana e hora (horário de Brasília)">
           {!data ? <Skeleton className="h-[220px]" /> : <Heatmap matrix={data.heatmap} />}
         </ChartCard>
-        <ChartCard title="Funil de conversão" subtitle="Visitantes únicos em cada etapa">
+        <ChartCard title="Funil de conversão" subtitle="Pessoas diferentes em cada etapa no período — quem vê 10 produtos conta 1 em “Viram um produto”">
           {!data ? <Skeleton className="h-[240px]" /> : <Funnel steps={data.funnel} />}
         </ChartCard>
       </div>

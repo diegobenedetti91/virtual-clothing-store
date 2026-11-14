@@ -2,14 +2,19 @@
 
 import { useEffect, useState } from "react";
 import { useRecentlyViewed } from "@/hooks/useRecentlyViewed";
+import { track } from "@/lib/analytics";
 import ProductRail from "@/components/store/ProductRail";
 import type { Product } from "@/types";
 
-/** Registra a visita ao produto (usar na página do produto). */
+/**
+ * Registra a visita ao produto (usar na página do produto): entra em "Vistos recentemente"
+ * e conta no funil "Viram um produto" — venha o cliente da vitrine, da busca, do Instagram ou de um link direto.
+ */
 export function TrackProductView({ productId }: { productId: string }) {
   const add = useRecentlyViewed((s) => s.add);
   useEffect(() => {
     add(productId);
+    track("PRODUCT_VIEW", { productId, path: window.location.pathname });
   }, [add, productId]);
   return null;
 }

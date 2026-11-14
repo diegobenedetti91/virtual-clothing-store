@@ -9,7 +9,6 @@ import { Product } from "@/types";
 import { formatCurrency } from "@/lib/utils";
 import { useCart } from "@/hooks/useCart";
 import { useWishlist } from "@/hooks/useWishlist";
-import { track } from "@/lib/analytics";
 import { useEffect, useRef, useState } from "react";
 import { Zap } from "lucide-react";
 
@@ -84,9 +83,6 @@ export default function ProductCard({ product, flashSale }: ProductCardProps) {
     setTimeout(() => setAdded(false), 1800);
   };
 
-  const handleProductClick = () => {
-    track("PRODUCT_VIEW", { productId: product.id, path: `/produtos/${product.slug}` });
-  };
 
   const handleWishlist = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -102,7 +98,7 @@ export default function ProductCard({ product, flashSale }: ProductCardProps) {
   };
 
   return (
-    <Link href={`/produtos/${product.slug}`} className="group block" onClick={handleProductClick}>
+    <Link href={`/produtos/${product.slug}`} className="group block">
       {/* Image area */}
       <div
         className={`relative rounded-2xl overflow-hidden aspect-[3/4] transition-all duration-500 ease-out group-hover:-translate-y-1 group-hover:shadow-[0_18px_40px_-14px_rgba(0,0,0,0.28)] ${

@@ -5,10 +5,10 @@ import { AlertTriangle, CheckCircle2, Info, X, XCircle } from "lucide-react";
 import { answerConfirm, dismissToast, getServerState, getState, subscribe, type Toast } from "@/lib/notify";
 
 const TONE = {
-  success: { icon: CheckCircle2, color: "text-emerald-500", bar: "bg-emerald-500" },
-  error: { icon: XCircle, color: "text-red-500", bar: "bg-red-500" },
-  warning: { icon: AlertTriangle, color: "text-amber-500", bar: "bg-amber-500" },
-  info: { icon: Info, color: "text-sky-500", bar: "bg-sky-500" },
+  success: { icon: CheckCircle2, color: "text-emerald-600", soft: "bg-emerald-50", bar: "bg-emerald-500", edge: "border-l-emerald-500" },
+  error: { icon: XCircle, color: "text-red-600", soft: "bg-red-50", bar: "bg-red-500", edge: "border-l-red-500" },
+  warning: { icon: AlertTriangle, color: "text-amber-600", soft: "bg-amber-50", bar: "bg-amber-500", edge: "border-l-amber-500" },
+  info: { icon: Info, color: "text-sky-600", soft: "bg-sky-50", bar: "bg-sky-500", edge: "border-l-sky-500" },
 } as const;
 
 function ToastItem({ toast }: { toast: Toast }) {
@@ -40,23 +40,25 @@ function ToastItem({ toast }: { toast: Toast }) {
       role={toast.tone === "error" ? "alert" : "status"}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
-      className={`pointer-events-auto relative w-full sm:w-[360px] overflow-hidden rounded-xl bg-white shadow-[0_10px_30px_-8px_rgba(0,0,0,0.25)] ring-1 ring-black/[0.06] transition-all duration-200 ${
-        leaving ? "opacity-0 translate-y-1 scale-[0.98]" : "animate-fade-up [animation-duration:0.22s]"
+      className={`pointer-events-auto relative w-full sm:w-[460px] overflow-hidden rounded-2xl border-l-4 ${t.edge} bg-white shadow-[0_18px_45px_-12px_rgba(0,0,0,0.35)] ring-1 ring-black/[0.06] transition-all duration-200 ${
+        leaving ? "opacity-0 -translate-y-2 scale-[0.98]" : "animate-toast-in"
       }`}
     >
-      <div className="flex items-start gap-3 py-3 pl-3.5 pr-2.5">
-        <Icon size={19} className={`${t.color} shrink-0 mt-px`} />
-        <div className="min-w-0 flex-1">
-          <p className="text-[13.5px] font-medium text-gray-900 leading-snug whitespace-pre-line break-words">{toast.title}</p>
-          {toast.description && <p className="mt-0.5 text-[12.5px] text-gray-500 leading-snug whitespace-pre-line break-words">{toast.description}</p>}
+      <div className="flex items-start gap-3.5 py-4 pl-4 pr-3">
+        <span className={`w-10 h-10 rounded-full ${t.soft} flex items-center justify-center shrink-0`}>
+          <Icon size={22} className={t.color} />
+        </span>
+        <div className="min-w-0 flex-1 pt-0.5">
+          <p className="text-[15px] font-semibold text-gray-900 leading-snug whitespace-pre-line break-words">{toast.title}</p>
+          {toast.description && <p className="mt-1 text-[13.5px] text-gray-600 leading-relaxed whitespace-pre-line break-words">{toast.description}</p>}
         </div>
-        <button type="button" onClick={() => setLeaving(true)} aria-label="Fechar aviso" className="shrink-0 -mt-0.5 p-1 rounded-md text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition">
-          <X size={15} />
+        <button type="button" onClick={() => setLeaving(true)} aria-label="Fechar aviso" className="shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition">
+          <X size={17} />
         </button>
       </div>
       {/* Barra do tempo restante (para quando o mouse está em cima) */}
       <span
-        className={`absolute bottom-0 left-0 h-[2px] ${t.bar} opacity-60`}
+        className={`absolute bottom-0 left-0 h-[3px] ${t.bar} opacity-70`}
         style={{ animation: `notify-progress ${toast.duration}ms linear forwards`, animationPlayState: paused ? "paused" : "running" }}
       />
     </div>
@@ -127,8 +129,8 @@ export default function Notifier() {
   const { toasts } = useSyncExternalStore(subscribe, getState, getServerState);
   return (
     <>
-      {/* Celular: no topo (não cobre a barra "Finalizar" do carrinho/checkout). Computador: canto inferior direito. */}
-      <div aria-live="polite" className="pointer-events-none fixed z-[190] inset-x-0 top-0 sm:top-auto sm:bottom-0 sm:inset-x-auto sm:right-0 flex flex-col-reverse sm:flex-col items-center sm:items-end gap-2 p-3 pt-[calc(0.75rem+env(safe-area-inset-top))] sm:p-4">
+      {/* Topo da tela, centralizado: bem visível sem cobrir botões de ação (ex.: "Finalizar" do carrinho) */}
+      <div aria-live="polite" className="pointer-events-none fixed z-[190] inset-x-0 top-0 flex flex-col-reverse items-center gap-2.5 px-3 pt-[calc(0.75rem+env(safe-area-inset-top))] sm:pt-5">
         {toasts.map((t) => <ToastItem key={t.id} toast={t} />)}
       </div>
       <ConfirmBox />

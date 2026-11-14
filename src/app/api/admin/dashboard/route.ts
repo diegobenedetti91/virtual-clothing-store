@@ -73,6 +73,8 @@ export async function GET(req: NextRequest) {
         id: true,
         orderNumber: true,
         customerName: true,
+        customerId: true,
+        customerEmail: true,
         subtotal: true,
         shippingCost: true,
         couponDiscount: true,
@@ -260,7 +262,8 @@ export async function GET(req: NextRequest) {
     { label: "Viram um produto", value: funnelCount("PRODUCT_VIEW") },
     { label: "Adicionaram ao carrinho", value: funnelCount("ADD_TO_CART") },
     { label: "Iniciaram o checkout", value: funnelCount("CHECKOUT_START") },
-    { label: "Compraram", value: paidCur.length },
+    // Pessoas (não pedidos), para comparar com as outras etapas: quem comprou 2x no período conta 1
+    { label: "Compraram", value: new Set(paidCur.map((o) => o.customerId || o.customerEmail?.toLowerCase() || o.id)).size },
   ];
 
   return NextResponse.json({
