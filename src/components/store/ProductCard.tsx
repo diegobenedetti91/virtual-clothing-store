@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import OptimizedImg from "@/components/OptimizedImg";
 import { ShoppingBag, Heart, Check, Tag } from "lucide-react";
 
 import { colorToCss } from "@/lib/colorSwatch";
@@ -11,6 +12,9 @@ import { useWishlist } from "@/hooks/useWishlist";
 import { track } from "@/lib/analytics";
 import { useEffect, useRef, useState } from "react";
 import { Zap } from "lucide-react";
+
+const CARD_WIDTHS = [320, 480, 800] as const;
+const CARD_SIZES = "(min-width: 1280px) 20vw, (min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw";
 
 interface FlashSale {
   id: string;
@@ -105,22 +109,25 @@ export default function ProductCard({ product, flashSale }: ProductCardProps) {
           imgLoaded ? "bg-gray-100" : "img-skeleton"
         }`}
       >
-        <img
+        <OptimizedImg
           ref={imgRef}
           onLoad={() => setImgLoaded(true)}
           loading="lazy"
           src={firstImage}
+          widths={CARD_WIDTHS}
+          sizes={CARD_SIZES}
           alt={product.name}
           className={`w-full h-full object-cover transition-all duration-500 ease-out ${imgLoaded ? "" : "opacity-0"} ${secondImage ? "group-hover:opacity-0" : "group-hover:scale-[1.04]"}`}
-          onError={(e) => { setImgLoaded(true); (e.target as HTMLImageElement).src = "/placeholder-product.svg"; }}
+          onError={() => setImgLoaded(true)}
         />
         {secondImage && (
-          <img
+          <OptimizedImg
             loading="lazy"
             src={secondImage}
+            widths={CARD_WIDTHS}
+            sizes={CARD_SIZES}
             alt={product.name}
             className="absolute inset-0 w-full h-full object-cover opacity-0 scale-[1.04] group-hover:opacity-100 group-hover:scale-100 transition-all duration-500 ease-out"
-            onError={(e) => { (e.target as HTMLImageElement).src = "/placeholder-product.svg"; }}
           />
         )}
 

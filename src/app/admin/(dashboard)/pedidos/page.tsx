@@ -8,8 +8,9 @@ export default async function AdminOrdersPage() {
       prisma.order.findMany({
         orderBy: { createdAt: "desc" },
         include: {
-          items: { include: { product: true } },
-          customer: true,
+          // Só o que a lista mostra (foto e e-mail) — pedidos antigos com muitos itens ficam leves
+          items: { include: { product: { select: { id: true, name: true, slug: true, images: true } } } },
+          customer: { select: { id: true, email: true, name: true } },
         },
       }),
       prisma.companySettings.findFirst({ orderBy: { updatedAt: "desc" } }),

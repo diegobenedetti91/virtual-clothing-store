@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import OptimizedImg from "@/components/OptimizedImg";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -298,7 +299,7 @@ export default function CustomerOrderPage() {
                   return (
                     <li key={item.id} className="flex items-center gap-3 py-3">
                       <Link href={item.product?.slug ? `/produtos/${item.product.slug}` : "#"} className="w-16 h-16 rounded-xl bg-gray-100 overflow-hidden shrink-0">
-                        {image ? <img src={image} alt="" className="w-full h-full object-cover" /> : <Package size={18} className="m-auto mt-5 text-gray-400" />}
+                        {image ? <OptimizedImg src={image} widths={[160]} sizes="64px" alt="" className="w-full h-full object-cover" /> : <Package size={18} className="m-auto mt-5 text-gray-400" />}
                       </Link>
                       <div className="min-w-0 flex-1">
                         <Link href={item.product?.slug ? `/produtos/${item.product.slug}` : "#"} className="text-sm font-medium text-gray-900 hover:text-brand line-clamp-2">{item.product?.name}</Link>

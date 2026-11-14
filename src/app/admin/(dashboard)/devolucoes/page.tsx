@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import OptimizedImg from "@/components/OptimizedImg";
 import { Package, Check, X, Upload, Truck, Send, ExternalLink, ArrowRight, Clock, Inbox, CheckCircle2, XCircle } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { getCarrierTracking } from "@/lib/carrierTracking";
@@ -343,7 +344,7 @@ export default function DevolucoesPage() {
                       const img = firstImage(ret, l.itemId);
                       return (
                         <span key={l.itemId} className="w-9 h-9 rounded-lg ring-2 ring-white bg-gray-100 overflow-hidden" title={l.item?.product.name}>
-                          {img ? <img src={img} alt="" className="w-full h-full object-cover" /> : <Package size={14} className="m-auto mt-2.5 text-gray-400" />}
+                          {img ? <OptimizedImg widths={[160]} sizes="48px" loading="lazy" src={img} alt="" className="w-full h-full object-cover" /> : <Package size={14} className="m-auto mt-2.5 text-gray-400" />}
                         </span>
                       );
                     })}

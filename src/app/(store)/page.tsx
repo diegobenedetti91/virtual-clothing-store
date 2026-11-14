@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { prisma } from "@/lib/prisma";
+import OptimizedImg from "@/components/OptimizedImg";
 import { getPublicCompanySettings } from "@/lib/company";
 import HeroBanner from "@/components/store/HeroBanner";
 import ProductCard from "@/components/store/ProductCard";
@@ -120,8 +121,11 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
                 >
                   <div className="w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 rounded-full overflow-hidden border-2 border-gray-200 ring-0 ring-offset-2 group-hover:ring-2 ring-[var(--menu)] group-hover:border-transparent group-hover:-translate-y-1 transition-all duration-300 shadow-sm group-hover:shadow-lg">
                     {cat.image ? (
-                      <img
+                      <OptimizedImg
                         src={cat.image}
+                        widths={[160, 320]}
+                        sizes="128px"
+                        loading="lazy"
                         alt={cat.name}
                         className="w-full h-full object-cover object-top group-hover:scale-110 transition-transform duration-500"
                       />

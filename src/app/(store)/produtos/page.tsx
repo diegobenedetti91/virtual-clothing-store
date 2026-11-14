@@ -1,12 +1,56 @@
 import { prisma } from "@/lib/prisma";
+import OptimizedImg from "@/components/OptimizedImg";
 import { applyFlashSales } from "@/lib/flashSales";
 import ProductCard from "@/components/store/ProductCard";
 import Link from "next/link";
 import { Search, ChevronRight, X, SlidersHorizontal, Tag, PackageCheck, LayoutGrid, SearchX } from "lucide-react";
 import type { Product } from "@/types";
+import type { Prisma } from "@prisma/client";
+import { getActiveFlashSales, flashPrice } from "@/lib/flashSales";
+
+const PAGE_SIZE = 24;
+
+/** Só o que o card da vitrine usa. */
+const CARD_SELECT = {
+  id: true, name: true, slug: true, price: true, comparePrice: true, images: true, stock: true,
+  featured: true, attributes: true, variantStock: true, createdAt: true, categoryId: true,
+  category: { select: { id: true, name: true, slug: true } },
+} satisfies Prisma.ProductSelect;
+
+/**
+ * Decide quais produtos entram na página.
+ * - Novidades / A–Z sem filtro de promoção: o banco ordena e pagina direto (rápido com muitos produtos).
+ * - Preço ou "Em promoção": a promoção relâmpago muda o preço final, então buscamos só id/preço
+ *   (bem leve), aplicamos as promoções, filtramos/ordenamos e pegamos a página.
+ */
+async function pageIds(where: Prisma.ProductWhereInput, sort: Sort, onlyPromo: boolean, take: number) {
+  if (!onlyPromo && (sort === "recent" || sort === "name")) {
+    const orderBy: Prisma.ProductOrderByWithRelationInput[] = sort === "name" ? [{ name: "asc" }, { id: "asc" }] : [{ createdAt: "desc" }, { id: "asc" }];
+    const [list, total] = await Promise.all([
+      prisma.product.findMany({ where, select: { id: true }, orderBy, take }),
+      prisma.product.count({ where }),
+    ]);
+    return { ids: list.map((p) => p.id), total };
+  }
+  const light = await prisma.product.findMany({
+    where,
+    select: { id: true, price: true, comparePrice: true, name: true, createdAt: true },
+    orderBy: { createdAt: "desc" },
+  });
+  const sales = await getActiveFlashSales(light.map((p) => p.id));
+  let list = light.map((p) => {
+    const sale = sales.get(p.id);
+    return { ...p, finalPrice: sale ? flashPrice(p.price, sale) : p.price, promo: !!sale || (p.comparePrice != null && p.comparePrice > p.price) };
+  });
+  if (onlyPromo) list = list.filter((p) => p.promo);
+  if (sort === "price_asc") list.sort((a, b) => a.finalPrice - b.finalPrice);
+  if (sort === "price_desc") list.sort((a, b) => b.finalPrice - a.finalPrice);
+  if (sort === "name") list.sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+  return { ids: list.slice(0, take).map((p) => p.id), total: list.length };
+}
 
 type Sort = "recent" | "price_asc" | "price_desc" | "name";
-interface Params { category?: string; search?: string; menu?: string; sort?: string; promo?: string; stock?: string }
+interface Params { category?: string; search?: string; menu?: string; sort?: string; promo?: string; stock?: string; page?: string }
 interface PageProps {
   searchParams: Promise<Params>;
 }
@@ -26,32 +70,34 @@ export default async function ProductsPage({ searchParams }: PageProps) {
   const onlyPromo = params.promo === "1";
   const onlyStock = params.stock === "1";
 
-  const [categories, productsRaw, activeNavItem] = await Promise.all([
+  const page = Math.min(50, Math.max(1, Number.parseInt(params.page ?? "1", 10) || 1));
+  const take = page * PAGE_SIZE; // "Ver mais" acumula: página 2 mostra 48, etc.
+
+  const where: Prisma.ProductWhereInput = {
+    active: true,
+    ...(category ? { category: { slug: category } } : {}),
+    ...(menu ? { navItems: { some: { id: menu } } } : {}),
+    ...(search ? { OR: [{ name: { contains: search } }, { description: { contains: search } }] } : {}),
+    ...(onlyStock ? { stock: { gt: 0 } } : {}),
+  };
+
+  const [categories, activeNavItem, { ids, total }] = await Promise.all([
     prisma.category.findMany({
       where: { active: true },
-      include: { _count: { select: { products: { where: { active: true } } } } },
+      select: { id: true, name: true, slug: true, image: true, _count: { select: { products: { where: { active: true } } } } },
       orderBy: { name: "asc" },
     }),
-    prisma.product.findMany({
-      where: {
-        active: true,
-        ...(category ? { category: { slug: category } } : {}),
-        ...(menu ? { navItems: { some: { id: menu } } } : {}),
-        ...(search ? { OR: [{ name: { contains: search } }, { description: { contains: search } }] } : {}),
-        ...(onlyStock ? { stock: { gt: 0 } } : {}),
-      },
-      include: { category: true, navItems: { select: { id: true, label: true } } },
-      orderBy: { createdAt: "desc" },
-    }),
-    menu ? prisma.navItem.findUnique({ where: { id: menu } }) : null,
+    menu ? prisma.navItem.findUnique({ where: { id: menu }, select: { label: true } }) : null,
+    pageIds(where, sort, onlyPromo, take),
   ]);
 
-  // Preço com promoção relâmpago aplicada, para filtrar e ordenar pelo que o cliente paga
-  let products = (await applyFlashSales(productsRaw)) as unknown as Product[];
-  if (onlyPromo) products = products.filter((p) => p.flashSale || (p.comparePrice && p.comparePrice > p.price));
-  if (sort === "price_asc") products = [...products].sort((a, b) => a.price - b.price);
-  if (sort === "price_desc") products = [...products].sort((a, b) => b.price - a.price);
-  if (sort === "name") products = [...products].sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+  // Busca completa só dos produtos que vão aparecer, sem descrição (texto pesado)
+  const rows = ids.length
+    ? await prisma.product.findMany({ where: { id: { in: ids } }, select: CARD_SELECT })
+    : [];
+  const byId = new Map(rows.map((r) => [r.id, r]));
+  const products = (await applyFlashSales(ids.map((id) => byId.get(id)).filter((r) => r != null))) as unknown as Product[];
+  const hasMore = total > products.length;
 
   const visibleCategories = categories.filter((c) => c._count.products > 0);
   const activeCategory = categories.find((c) => c.slug === category);
@@ -87,7 +133,7 @@ export default async function ProductsPage({ searchParams }: PageProps) {
             <div className="min-w-0">
               <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">{title}</h1>
               <p className="text-sm text-gray-500 mt-1">
-                {products.length === 0 ? "Nenhum produto encontrado" : `${products.length} produto${products.length !== 1 ? "s" : ""}${activeCategory ? " nesta categoria" : ""}`}
+                {total === 0 ? "Nenhum produto encontrado" : `${total} produto${total !== 1 ? "s" : ""}${activeCategory ? " nesta categoria" : ""}`}
               </p>
             </div>
             <form method="GET" action="/produtos" className="md:ml-auto w-full md:w-80 relative group">
@@ -122,7 +168,7 @@ export default async function ProductsPage({ searchParams }: PageProps) {
                     <Link key={cat.id} href={href({ category: active ? undefined : cat.slug })} className="group snap-start shrink-0 flex flex-col items-center gap-1.5 w-[72px]" aria-current={active ? "page" : undefined}>
                       <span className={`w-16 h-16 rounded-full overflow-hidden transition-all duration-300 ${active ? "ring-2 ring-offset-2 ring-gray-900" : "ring-1 ring-gray-200 group-hover:ring-gray-400 group-hover:-translate-y-0.5"}`}>
                         {cat.image ? (
-                          <img src={cat.image} alt="" className="w-full h-full object-cover object-top group-hover:scale-110 transition-transform duration-500" />
+                          <OptimizedImg src={cat.image} widths={[160]} sizes="80px" alt="" className="w-full h-full object-cover object-top group-hover:scale-110 transition-transform duration-500" />
                         ) : (
                           <span className="w-full h-full flex items-center justify-center text-white font-bold text-lg" style={{ background: CATEGORY_BG[i % CATEGORY_BG.length] }}>
                             {cat.name[0]}
@@ -187,6 +233,18 @@ export default async function ProductsPage({ searchParams }: PageProps) {
                 <ProductCard product={product} />
               </div>
             ))}
+          </div>
+        )}
+
+        {hasMore && (
+          <div className="mt-12 flex flex-col items-center gap-3">
+            <p className="text-xs text-gray-500">Mostrando {products.length} de {total}</p>
+            <div className="w-48 h-1 rounded-full bg-gray-100 overflow-hidden">
+              <div className="h-full bg-gray-900 rounded-full" style={{ width: `${(products.length / total) * 100}%` }} />
+            </div>
+            <Link href={href({ page: String(page + 1) })} scroll={false} className="mt-1 px-6 py-2.5 rounded-full border border-gray-300 text-sm font-semibold text-gray-900 hover:bg-gray-900 hover:text-white hover:border-gray-900 transition">
+              Ver mais produtos
+            </Link>
           </div>
         )}
       </div>

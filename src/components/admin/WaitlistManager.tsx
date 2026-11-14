@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import OptimizedImg from "@/components/OptimizedImg";
 import Link from "next/link";
 import { Bell, BellRing, CheckCircle2, ChevronDown, Mail, Package, PackageCheck, PackageX, Search, Trash2, Users } from "lucide-react";
 import { Button } from "@/components/admin/ui/Button";
@@ -213,7 +214,7 @@ export default function WaitlistManager({ productInfo = {} }: { productInfo?: Re
               <li key={g.key} className={`bg-white rounded-2xl border shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-shadow hover:shadow-md ${pending > 0 && (stock ?? 0) > 0 ? "border-emerald-200" : "border-gray-200/70"}`}>
                 <div className="flex flex-wrap sm:flex-nowrap items-center gap-3 p-3.5">
                   <span className="w-14 h-14 rounded-xl bg-gray-100 overflow-hidden shrink-0">
-                    {info?.image ? <img src={info.image} alt="" className="w-full h-full object-cover" /> : <Package size={18} className="m-auto mt-4 text-gray-400" />}
+                    {info?.image ? <OptimizedImg widths={[160]} sizes="48px" loading="lazy" src={info.image} alt="" className="w-full h-full object-cover" /> : <Package size={18} className="m-auto mt-4 text-gray-400" />}
                   </span>
                   <div className="min-w-0 flex-1">
                     <Link href={`/admin/produtos/${g.productId}`} className="text-sm font-semibold text-gray-900 hover:text-brand truncate block">{g.productName}</Link>

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useDeferredValue } from "react";
+import OptimizedImg from "@/components/OptimizedImg";
 import Link from "next/link";
 import { Button, ButtonLink } from "@/components/admin/ui/Button";
 import { useRouter } from "next/navigation";
@@ -85,14 +86,15 @@ export default function ProductsTable({ products, flashSaleProductIds = [] }: Pr
   };
 
   // Busca e categoria valem para todas as abas (contadores incluídos)
+  const deferredQuery = useDeferredValue(searchQuery); // digitar não trava com muitos produtos
   const base = useMemo(() => {
-    const q = searchQuery.trim();
+    const q = deferredQuery.trim();
     return products.filter((p) => {
       if (categoryFilter && p.category?.name !== categoryFilter) return false;
       if (!q) return true;
       return matchesQuery(p.name, q) || matchesQuery(p.description || "", q);
     });
-  }, [products, searchQuery, categoryFilter]);
+  }, [products, deferredQuery, categoryFilter]);
 
   const filteredProducts = base.filter((p) => inTab(p, tab));
 
@@ -220,7 +222,7 @@ export default function ProductsTable({ products, flashSaleProductIds = [] }: Pr
                   <div className="flex items-center gap-3 min-w-0">
                     <span className="relative w-12 h-14 rounded-xl bg-gray-100 overflow-hidden shrink-0">
                       {firstImage ? (
-                        <img src={firstImage} alt="" className="w-full h-full object-cover" />
+                        <OptimizedImg widths={[160]} sizes="48px" loading="lazy" src={firstImage} alt="" className="w-full h-full object-cover" />
                       ) : (
                         <Package size={18} className="absolute inset-0 m-auto text-gray-300" />
                       )}

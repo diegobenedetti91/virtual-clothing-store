@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import OptimizedImg from "@/components/OptimizedImg";
 import Link from "next/link";
 import { ArrowRight, Bell, Check, Heart, ShoppingBag, Trash2, TrendingDown, Zap } from "lucide-react";
 import { useWishlist } from "@/hooks/useWishlist";
@@ -104,11 +105,12 @@ export default function FavoritosPage() {
             <div key={item.productId} className="group" data-reveal>
               <div className="relative aspect-[3/4] rounded-2xl overflow-hidden bg-gray-100 transition-all duration-500 group-hover:-translate-y-1 group-hover:shadow-[0_18px_40px_-14px_rgba(0,0,0,0.28)]">
                 <Link href={`/produtos/${item.slug}`} className="block w-full h-full">
-                  <img
+                  <OptimizedImg
                     src={item.image}
+                    widths={[320, 480, 800]}
+                    sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw"
                     alt={item.name}
                     className={`w-full h-full object-cover group-hover:scale-[1.04] transition-transform duration-500 ${out || unavailable ? "grayscale-[60%] opacity-80" : ""}`}
-                    onError={(e) => { (e.target as HTMLImageElement).src = "/placeholder-product.svg"; }}
                   />
                 </Link>
                 <div className="absolute top-3 left-3 flex flex-col gap-1.5">

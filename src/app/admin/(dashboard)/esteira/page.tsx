@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import OptimizedImg from "@/components/OptimizedImg";
 import Link from "next/link";
 import {
   AlertTriangle, ArrowRight, Check, CheckCircle2, Clock, CreditCard, GripVertical, MoreHorizontal, Package,
@@ -346,7 +347,7 @@ export default function EsteiraPage() {
                           <div className="flex -space-x-2">
                             {o.thumbs.map((t, i) => (
                               <span key={i} className="w-8 h-8 rounded-lg ring-2 ring-white bg-gray-100 overflow-hidden shrink-0" title={t.name}>
-                                {t.image ? <img src={t.image} alt="" className="w-full h-full object-cover" /> : <Package size={14} className="m-auto mt-2 text-gray-400" />}
+                                {t.image ? <OptimizedImg widths={[160]} sizes="48px" loading="lazy" src={t.image} alt="" className="w-full h-full object-cover" /> : <Package size={14} className="m-auto mt-2 text-gray-400" />}
                               </span>
                             ))}
                           </div>

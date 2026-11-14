@@ -6,18 +6,33 @@ import BlingProductSyncButton from "@/components/admin/BlingProductSyncButton";
 
 export default async function AdminProductsPage() {
   const now = new Date();
-  const [products, settings, flashSales] = await Promise.all([
+  const [rows, settings, flashSales] = await Promise.all([
+    // Só o que a lista usa — sem descrição completa nem todas as fotos (deixa a página leve com muitos produtos)
     prisma.product.findMany({
-      include: { category: true },
+      select: {
+        id: true, name: true, slug: true, description: true, price: true, comparePrice: true, stock: true,
+        active: true, featured: true, images: true, variantStock: true, createdAt: true,
+        category: { select: { id: true, name: true } },
+      },
       orderBy: { createdAt: "desc" },
     }),
-    prisma.companySettings.findFirst(),
+    prisma.companySettings.findFirst({ select: { blingAtivo: true } }),
     // Promoções relâmpago no ar agora (só para mostrar o selo na lista)
     prisma.flashSale.findMany({
       where: { active: true, startAt: { lte: now }, endAt: { gte: now }, productId: { not: null } },
       select: { productId: true },
     }),
   ]);
+
+  const products = rows.map((p) => {
+    let first: string | undefined;
+    try { first = (JSON.parse(p.images || "[]") as string[])[0]; } catch {}
+    return {
+      ...p,
+      images: JSON.stringify(first ? [first] : []),
+      description: p.description ? p.description.slice(0, 160) : null, // só para a busca
+    };
+  });
 
   const flashIds = flashSales.map((f) => f.productId!).filter(Boolean);
 

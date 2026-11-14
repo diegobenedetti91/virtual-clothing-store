@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import OptimizedImg from "@/components/OptimizedImg";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCustomer } from "@/hooks/useCustomer";
@@ -92,7 +93,7 @@ function OrderCard({ order }: { order: Order }) {
             const img = firstImage(it.product.images);
             return (
               <span key={it.id} className="w-12 h-14 rounded-xl ring-2 ring-white bg-gray-100 overflow-hidden">
-                {img ? <img src={img} alt="" className="w-full h-full object-cover" /> : <Package size={16} className="m-auto mt-4 text-gray-400" />}
+                {img ? <OptimizedImg src={img} widths={[160]} sizes="48px" alt="" className="w-full h-full object-cover" /> : <Package size={16} className="m-auto mt-4 text-gray-400" />}
               </span>
             );
           })}

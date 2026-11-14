@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import OptimizedImg from "@/components/OptimizedImg";
 import {
   ShoppingBag, Search, Menu, X, Heart, User, ChevronRight, Package, Truck, Zap, RefreshCw, CreditCard, ShieldCheck, Store,
   MapPin, LogIn, UserPlus, ArrowRight, Home, Sparkles,
@@ -401,7 +402,7 @@ export default function Header({ settings, navItems = [], categories = [] }: Hea
                   {categories.map((c) => (
                     <Link key={c.id} href={`/produtos?category=${c.slug}`} onClick={close} className={cn("flex items-center gap-2 rounded-xl bg-white ring-1 p-2 text-[13px] font-medium transition", activeCategory === c.slug ? "ring-[var(--menu)] text-menu" : "ring-gray-200/70 text-gray-700 hover:ring-gray-300")}>
                       <span className="w-8 h-8 rounded-lg bg-gray-100 overflow-hidden shrink-0 flex items-center justify-center text-xs font-bold text-gray-400">
-                        {c.image ? <img src={c.image} alt="" className="w-full h-full object-cover" /> : c.name[0]}
+                        {c.image ? <OptimizedImg src={c.image} widths={[160]} sizes="40px" loading="lazy" alt="" className="w-full h-full object-cover" /> : c.name[0]}
                       </span>
                       <span className="truncate">{c.name}</span>
                     </Link>

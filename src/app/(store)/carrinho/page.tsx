@@ -1,6 +1,7 @@
 "use client";
 
 import { useCart } from "@/hooks/useCart";
+import OptimizedImg from "@/components/OptimizedImg";
 import { useCustomer } from "@/hooks/useCustomer";
 import { formatCurrency } from "@/lib/utils";
 import { Trash2, Plus, Minus, ShoppingBag, ArrowRight, Lock, Tag, Truck, Zap, Heart, AlertCircle, ShieldCheck, RefreshCw } from "lucide-react";
@@ -141,11 +142,12 @@ export default function CartPage() {
               return (
                 <li key={key} className={`flex gap-4 p-4 sm:p-5 ${out ? "bg-red-50/40" : ""}`}>
                   <Link href={`/produtos/${item.slug}`} className="shrink-0">
-                    <img
+                    <OptimizedImg
                       src={item.image}
+                      widths={[160, 320]}
+                      sizes="96px"
                       alt={item.name}
                       className={`w-20 h-24 sm:w-24 sm:h-28 object-cover rounded-xl bg-gray-100 ${out ? "grayscale opacity-70" : ""}`}
-                      onError={(e) => { (e.target as HTMLImageElement).src = "/placeholder-product.svg"; }}
                     />
                   </Link>
                   <div className="flex-1 min-w-0 flex flex-col">

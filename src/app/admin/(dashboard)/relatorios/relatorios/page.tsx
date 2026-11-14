@@ -154,11 +154,11 @@ export default function PagamentosPage() {
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">{Array.from({ length: 5 }).map((_, i) => <div key={i} className="img-skeleton rounded-2xl h-[110px]" />)}</div>
       ) : (
         <div className={`grid grid-cols-2 lg:grid-cols-5 gap-3 transition-opacity ${loading ? "opacity-60" : ""}`}>
-          <KpiCard icon={DollarSign} label="Receita bruta" value={fmt.brlCompact(s.gross)} current={s.gross} hint={`${s.orders} pedidos pagos`} />
+          <KpiCard icon={DollarSign} label="Receita bruta" value={fmt.brl(s.gross)} current={s.gross} hint={`${s.orders} pedidos pagos`} />
           <KpiCard icon={CreditCard} label="Taxas dos gateways" value={`−${fmt.brl(s.fees)}`} current={s.fees} hint="Somente taxas informadas pelo gateway" />
           <KpiCard icon={Percent} label="Taxa média" value={s.avgFeeRate != null ? fmt.pct(s.avgFeeRate, 2) : "—"} current={s.avgFeeRate ?? 0} hint="Sobre os pedidos com taxa conferida" />
           <KpiCard icon={RotateCcw} label="Estornos" value={s.refunds ? `−${fmt.brl(s.refunds)}` : fmt.brl(0)} current={s.refunds} hint="Devoluções aprovadas" />
-          <KpiCard icon={Wallet} label="Líquido para a loja" value={fmt.brlCompact(s.net)} current={s.net} hint="Bruto − taxas − estornos" />
+          <KpiCard icon={Wallet} label="Líquido para a loja" value={fmt.brl(s.net)} current={s.net} hint="Bruto − taxas − estornos" />
         </div>
       )}
 
@@ -171,7 +171,7 @@ export default function PagamentosPage() {
       {data && (
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
           <ChartCard title="Receita por forma de pagamento" subtitle="Participação no faturamento do período">
-            <SegmentedBar segments={data.byMethod.map((m) => ({ label: m.label, value: m.gross }))} format={fmt.brlCompact} />
+            <SegmentedBar segments={data.byMethod.map((m) => ({ label: m.label, value: m.gross }))} format={fmt.brl} />
           </ChartCard>
           <ChartCard title="Quanto cada forma custa" subtitle="Taxa média cobrada pelo gateway" className="xl:col-span-2">
             {data.byMethod.length === 0 ? (

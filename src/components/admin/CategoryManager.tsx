@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import OptimizedImg from "@/components/OptimizedImg";
 import { Button, ButtonLink } from "@/components/admin/ui/Button";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, Check, ExternalLink, Pencil, Plus, Search, Tag, Trash2, X } from "lucide-react";
@@ -180,7 +181,7 @@ export default function CategoryManager({ initialCategories }: Props) {
             return (
               <div key={c.id} className={`group bg-white rounded-2xl border border-gray-200/70 shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:shadow-md transition-shadow p-4 flex items-center gap-4 ${active ? "" : "opacity-70"}`}>
                 <span className="w-16 h-16 rounded-full overflow-hidden shrink-0 ring-2 ring-gray-100 flex items-center justify-center" style={c.image ? undefined : { background: CATEGORY_BG[indexOf(c.id) % CATEGORY_BG.length] }}>
-                  {c.image ? <img src={c.image} alt={c.name} className="w-full h-full object-cover" /> : <span className="text-white font-black text-xl">{c.name[0]?.toUpperCase()}</span>}
+                  {c.image ? <OptimizedImg widths={[160]} sizes="48px" loading="lazy" src={c.image} alt={c.name} className="w-full h-full object-cover" /> : <span className="text-white font-black text-xl">{c.name[0]?.toUpperCase()}</span>}
                 </span>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">

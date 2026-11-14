@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import OptimizedImg from "@/components/OptimizedImg";
 import { Button, ButtonLink } from "@/components/admin/ui/Button";
 import { BadgePercent, Calendar, Check, DollarSign, ExternalLink, Package, Pencil, Plus, Search, Timer, Trash2, X, Zap } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
@@ -197,7 +198,7 @@ export default function FlashSaleManager() {
               <div key={s.id} className={`bg-white rounded-2xl border shadow-[0_1px_2px_rgba(0,0,0,0.04)] overflow-hidden flex flex-col transition-shadow hover:shadow-md ${st.key === "live" ? "border-red-200" : "border-gray-200/70"}`}>
                 <div className="flex gap-3 p-4">
                   <span className="relative w-20 h-24 rounded-xl bg-gray-100 overflow-hidden shrink-0">
-                    {img ? <img src={img} alt="" className="w-full h-full object-cover" /> : <Package size={20} className="m-auto mt-9 text-gray-400" />}
+                    {img ? <OptimizedImg widths={[160]} sizes="48px" loading="lazy" src={img} alt="" className="w-full h-full object-cover" /> : <Package size={20} className="m-auto mt-9 text-gray-400" />}
                     <span className="absolute top-1 left-1 text-[10px] font-bold bg-red-600 text-white rounded-full px-1.5 py-0.5">-{pct}%</span>
                   </span>
                   <div className="min-w-0 flex-1">
@@ -265,7 +266,7 @@ export default function FlashSaleManager() {
                 {selectedProduct ? (
                   <div className="flex items-center gap-3 rounded-xl ring-1 ring-gray-200 p-2.5">
                     <span className="w-12 h-12 rounded-lg bg-gray-100 overflow-hidden shrink-0">
-                      {firstImage(selectedProduct.images) ? <img src={firstImage(selectedProduct.images)!} alt="" className="w-full h-full object-cover" /> : null}
+                      {firstImage(selectedProduct.images) ? <OptimizedImg widths={[160]} sizes="48px" loading="lazy" src={firstImage(selectedProduct.images)!} alt="" className="w-full h-full object-cover" /> : null}
                     </span>
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium text-gray-900 truncate">{selectedProduct.name}</p>
@@ -284,7 +285,7 @@ export default function FlashSaleManager() {
                       {matches.map((p) => (
                         <li key={p.id}>
                           <button type="button" onClick={() => set("productId", p.id)} className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-gray-50">
-                            <span className="w-9 h-9 rounded-lg bg-gray-100 overflow-hidden shrink-0">{firstImage(p.images) ? <img src={firstImage(p.images)!} alt="" className="w-full h-full object-cover" /> : null}</span>
+                            <span className="w-9 h-9 rounded-lg bg-gray-100 overflow-hidden shrink-0">{firstImage(p.images) ? <OptimizedImg widths={[160]} sizes="48px" loading="lazy" src={firstImage(p.images)!} alt="" className="w-full h-full object-cover" /> : null}</span>
                             <span className="min-w-0 flex-1 text-sm text-gray-800 truncate">{p.name}{p.active === false && <span className="text-xs text-gray-400"> · inativo</span>}</span>
                             <span className="text-xs text-gray-500 tabular-nums">{formatCurrency(p.price)}</span>
                           </button>

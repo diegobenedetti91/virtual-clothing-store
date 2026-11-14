@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import OptimizedImg from "@/components/OptimizedImg";
+import { imageVariant, isOptimizable } from "@/lib/imageUrl";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, ArrowRight } from "lucide-react";
 import { CompanySettings } from "@/types";
@@ -9,19 +11,45 @@ interface HeroBannerProps {
   settings?: CompanySettings | null;
 }
 
+function parseList(raw: string): string[] {
+  try { return (JSON.parse(raw) as string[]).filter(Boolean); } catch { return []; }
+}
+
 export default function HeroBanner({ settings }: HeroBannerProps) {
   const [current, setCurrent] = useState(0);
-  // Proporção (largura ÷ altura) da primeira foto; 16:7 até a imagem carregar
-  const [ratio, setRatio] = useState(16 / 7);
-  const firstBanner = (JSON.parse(settings?.bannerImages || "[]") as string[])[0];
-  // Mede a foto mesmo se ela vier do cache antes da hidratação (onLoad não dispararia)
+  const raw = settings?.bannerImages || "[]";
+  const all = parseList(raw);
+  // Proporção (largura ÷ altura) de cada foto, medida por uma versão leve dela
+  const [ratios, setRatios] = useState<Record<string, number>>({});
+  const [portraitScreen, setPortraitScreen] = useState<boolean | null>(null);
+
   useEffect(() => {
-    if (!firstBanner) return;
-    const probe = new Image();
-    probe.onload = () => { if (probe.naturalWidth && probe.naturalHeight) setRatio(probe.naturalWidth / probe.naturalHeight); };
-    probe.src = firstBanner;
-  }, [firstBanner]);
-  const banners = JSON.parse(settings?.bannerImages || "[]") as string[];
+    const mq = window.matchMedia("(orientation: portrait)");
+    const update = () => setPortraitScreen(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+
+  useEffect(() => {
+    for (const src of parseList(raw)) {
+      const probe = new Image();
+      let triedOriginal = false;
+      probe.onload = () => {
+        if (probe.naturalWidth && probe.naturalHeight) setRatios((r) => ({ ...r, [src]: probe.naturalWidth / probe.naturalHeight }));
+      };
+      probe.onerror = () => { if (!triedOriginal) { triedOriginal = true; probe.src = src; } };
+      probe.src = isOptimizable(src) ? imageVariant(src, 480) : src;
+    }
+  }, [raw]);
+
+  // Computador mostra as fotos horizontais; celular, as verticais.
+  // Se só existir um formato, usa todas.
+  const fit = portraitScreen == null ? [] : all.filter((src) => ratios[src] != null && (portraitScreen ? ratios[src] < 1 : ratios[src] >= 1));
+  const banners = fit.length ? fit : all;
+
+  const idx = banners.length ? current % banners.length : 0;
+  const ratio = ratios[banners[idx]] ?? 16 / 7;
 
   useEffect(() => {
     if (banners.length <= 1) return;
@@ -84,33 +112,34 @@ export default function HeroBanner({ settings }: HeroBannerProps) {
   return (
     <div
       className="relative overflow-hidden bg-gray-900 w-full transition-[aspect-ratio] duration-500"
-      // A altura segue a proporção da foto enviada: nada é cortado, no desktop ou no celular
-      style={{ aspectRatio: String(ratio), maxHeight: "82vh", minHeight: "240px" }}
+      // Largura total; a altura segue a proporção da foto (foto inteira, sem corte),
+      // limitada à altura da tela para o banner nunca passar dela
+      style={{ aspectRatio: String(ratio), maxHeight: "calc(100svh - 88px)", minHeight: "220px" }}
     >
       {banners.map((src, i) => (
         <div
-          key={i}
-          className={`absolute inset-0 transition-opacity duration-700 ${i === current ? "opacity-100" : "opacity-0"}`}
+          key={src}
+          className={`absolute inset-0 transition-opacity duration-700 ${i === idx ? "opacity-100" : "opacity-0"}`}
         >
-          {/* Fundo desfocado: só aparece se a tela for mais larga que a foto (limite de 82% da altura) */}
-          <img src={src} alt="" aria-hidden className="absolute inset-0 w-full h-full object-cover scale-110 blur-2xl opacity-60" />
-          <img
-            key={i === current ? `active-${current}` : `idle-${i}`}
+          <OptimizedImg
             src={src}
             alt={`Banner ${i + 1}`}
+            widths={[800, 1200, 1920]}
+            sizes="100vw"
             decoding="async"
+            loading={i === 0 ? "eager" : "lazy"}
             fetchPriority={i === 0 ? "high" : "auto"}
-            onLoad={i === 0 ? (e) => {
+            onLoad={(e) => {
               const img = e.currentTarget;
-              if (img.naturalWidth && img.naturalHeight) setRatio(img.naturalWidth / img.naturalHeight);
-            } : undefined}
-            className={`relative w-full h-full object-contain ${i === current ? "animate-ken-burns" : ""}`}
+              if (img.naturalWidth && img.naturalHeight) setRatios((r) => (r[src] ? r : { ...r, [src]: img.naturalWidth / img.naturalHeight }));
+            }}
+            className="w-full h-full object-cover object-[center_30%]"
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-black/45 via-black/10 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-r from-black/35 via-black/5 to-transparent" />
         </div>
       ))}
 
-      <div key={current} className="absolute bottom-4 left-4 sm:bottom-8 sm:left-16 z-20 animate-fade-up [animation-delay:250ms]">
+      <div key={idx} className="absolute bottom-4 left-4 sm:bottom-8 sm:left-16 z-20 animate-fade-up [animation-delay:250ms]">
         <Link
           href="/produtos"
           className="group inline-flex items-center gap-2 bg-white/90 backdrop-blur-md text-gray-900 px-4 py-2.5 text-sm sm:px-8 sm:py-4 sm:text-base rounded-xl sm:rounded-2xl font-bold hover:bg-brand hover:text-white hover:-translate-y-0.5 transition-all shadow-xl active:scale-[0.97]"
@@ -122,13 +151,13 @@ export default function HeroBanner({ settings }: HeroBannerProps) {
       {banners.length > 1 && (
         <>
           <button
-            onClick={() => setCurrent((c) => (c - 1 + banners.length) % banners.length)}
+            onClick={() => setCurrent((idx - 1 + banners.length) % banners.length)}
             className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-20 bg-white/15 hover:bg-white/30 text-white p-1.5 sm:p-3 rounded-full backdrop-blur-sm transition"
           >
             <ChevronLeft size={22} />
           </button>
           <button
-            onClick={() => setCurrent((c) => (c + 1) % banners.length)}
+            onClick={() => setCurrent((idx + 1) % banners.length)}
             className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-20 bg-white/15 hover:bg-white/30 text-white p-1.5 sm:p-3 rounded-full backdrop-blur-sm transition"
           >
             <ChevronRight size={22} />
@@ -139,11 +168,11 @@ export default function HeroBanner({ settings }: HeroBannerProps) {
                 key={i}
                 onClick={() => setCurrent(i)}
                 aria-label={`Ir para o banner ${i + 1}`}
-                className={`relative h-1.5 rounded-full overflow-hidden transition-all duration-300 ${i === current ? "bg-white/40 w-10" : "bg-white/40 w-2 hover:bg-white/70"}`}
+                className={`relative h-1.5 rounded-full overflow-hidden transition-all duration-300 ${i === idx ? "bg-white/40 w-10" : "bg-white/40 w-2 hover:bg-white/70"}`}
               >
-                {i === current && (
+                {i === idx && (
                   <span
-                    key={current}
+                    key={`${idx}-${current}`}
                     className="absolute inset-y-0 left-0 bg-white rounded-full"
                     style={{ animation: "banner-progress 5s linear forwards" }}
                   />

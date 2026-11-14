@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import OptimizedImg from "@/components/OptimizedImg";
 import Link from "next/link";
 import { Button } from "@/components/admin/ui/Button";
 import { Check, Clock, ExternalLink, MessageSquare, Package, Star, Trash2, X } from "lucide-react";
@@ -157,7 +158,7 @@ export default function AvaliacoesManager({ productImages = {} }: Props) {
               <article key={r.id} className={`bg-white rounded-2xl border shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:shadow-md transition-shadow p-4 flex flex-col ${r.approved ? "border-gray-200/70" : "border-amber-200"}`}>
                 <div className="flex items-start gap-3">
                   <Link href={`/produtos/${r.product.slug}`} target="_blank" className="w-12 h-12 rounded-xl bg-gray-100 overflow-hidden shrink-0 flex items-center justify-center" title="Ver produto na loja">
-                    {img ? <img src={img} alt="" className="w-full h-full object-cover" /> : <Package size={18} className="text-gray-400" />}
+                    {img ? <OptimizedImg widths={[160]} sizes="48px" loading="lazy" src={img} alt="" className="w-full h-full object-cover" /> : <Package size={18} className="text-gray-400" />}
                   </Link>
                   <div className="min-w-0 flex-1">
                     <Link href={`/produtos/${r.product.slug}`} target="_blank" className="inline-flex items-center gap-1 text-sm font-medium text-gray-900 hover:text-brand truncate max-w-full">

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import OptimizedImg from "@/components/OptimizedImg";
 import { Send, ShoppingBag } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/admin/ui/Button";
@@ -58,7 +59,7 @@ export default function CarrinhosManager() {
                     <div className="mt-3 space-y-1">
                       {items.map((item, i) => (
                         <div key={i} className="flex items-center gap-2 text-sm text-gray-600">
-                          {item.image && <img src={item.image} alt={item.name} className="w-8 h-8 object-cover rounded-lg bg-gray-100" />}
+                          {item.image && <OptimizedImg widths={[160]} sizes="48px" loading="lazy" src={item.image} alt={item.name} className="w-8 h-8 object-cover rounded-lg bg-gray-100" />}
                           <span className="truncate">{item.name}</span>
                           <span className="text-gray-400 shrink-0">× {item.quantity}</span>
                           <span className="text-gray-700 font-semibold shrink-0">{formatCurrency(item.price * item.quantity)}</span>

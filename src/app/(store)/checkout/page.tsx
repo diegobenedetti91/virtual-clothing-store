@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import OptimizedImg from "@/components/OptimizedImg";
 import { useCart } from "@/hooks/useCart";
 import { useCustomer } from "@/hooks/useCustomer";
 import { formatCurrency, generateOrderNumber } from "@/lib/utils";
@@ -699,11 +700,12 @@ const handleNuPaySubmit = async () => {
                   <div className="space-y-2">
                     {items.map((item) => (
                     <div key={`${item.productId}-${item.selectedAttributes ? JSON.stringify(item.selectedAttributes) : `${item.size ?? ""}-${item.color ?? ""}`}`} className="flex items-start gap-3">
-                      <img
+                      <OptimizedImg
                         src={item.image}
+                        widths={[160]}
+                        sizes="56px"
                         alt={item.name}
                         className="w-14 h-14 object-cover rounded-xl bg-gray-100 shrink-0"
-                        onError={(e) => { (e.target as HTMLImageElement).src = "/placeholder-product.svg"; }}
                       />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-gray-900 truncate">{item.name}</p>

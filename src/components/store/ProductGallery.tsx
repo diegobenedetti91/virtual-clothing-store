@@ -2,6 +2,7 @@
 
 import { useState, useRef } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import OptimizedImg from "@/components/OptimizedImg";
 
 interface Props {
   images: string[];
@@ -23,11 +24,12 @@ export default function ProductGallery({ images, name }: Props) {
     <div className="space-y-3">
       {/* Imagem principal */}
       <div className="relative rounded-3xl overflow-hidden bg-gray-100 shadow-sm aspect-[3/4]">
-        <img
+        <OptimizedImg
           src={all[current]}
           alt={name}
+          widths={[480, 800, 1200]}
+          sizes="(min-width: 1024px) 50vw, 100vw"
           className="w-full h-full object-cover object-top"
-          onError={(e) => { (e.target as HTMLImageElement).src = "/placeholder-product.svg"; }}
         />
 
         {all.length > 1 && (
@@ -84,7 +86,7 @@ export default function ProductGallery({ images, name }: Props) {
                 }`}
                 style={{ width: 64, height: 64 }}
               >
-                <img src={img} alt="" className="w-full h-full object-cover object-top" />
+                <OptimizedImg src={img} alt="" widths={[160]} sizes="64px" loading="lazy" className="w-full h-full object-cover object-top" />
               </button>
             ))}
           </div>

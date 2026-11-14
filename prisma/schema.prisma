@@ -94,6 +94,10 @@ model Product {
   variantBlingMaps ProductVariantBlingMap[]
   /** Medidas/tabela de tamanhos em texto livre (usado na página do produto e pelo atendente de IA) */
   measurements String?         @db.Text
+
+  @@index([active, createdAt])
+  @@index([active, price])
+  @@index([active, name])
 }
 
 model ProductVariantBlingMap {
@@ -214,6 +218,9 @@ model Order {
   updatedAt        DateTime      @updatedAt
 
   @@index([couponCode])
+  @@index([status, createdAt])
+  @@index([createdAt])
+  @@index([customerEmail])
 }
 
 model OrderItem {

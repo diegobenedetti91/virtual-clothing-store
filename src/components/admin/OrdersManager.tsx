@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useRef } from "react";
+import OptimizedImg from "@/components/OptimizedImg";
 import { Order } from "@/types";
 import { formatCurrency, formatDate, ORDER_STATUS } from "@/lib/utils";
 import Link from "next/link";
@@ -240,11 +241,12 @@ export default function OrdersManager({ initialOrders, blingEnabled = false }: P
     { value: "CANCELLED", label: "Cancelados" },
   ];
 
-  const NEXT: Record<string, { to: string; label: string }> = {
-    PENDING: { to: "CONFIRMED", label: "Confirmar pagamento" },
-    CONFIRMED: { to: "SHIPPED", label: "Marcar enviado" },
-    PRONTO_PARA_RETIRADA: { to: "RETIRADO", label: "Cliente retirou" },
-    SHIPPED: { to: "DELIVERED", label: "Marcar entregue" },
+  /** label = texto completo (balão); short = o que cabe no botão da linha */
+  const NEXT: Record<string, { to: string; label: string; short: string }> = {
+    PENDING: { to: "CONFIRMED", label: "Confirmar pagamento", short: "Confirmar" },
+    CONFIRMED: { to: "SHIPPED", label: "Marcar como enviado", short: "Enviado" },
+    PRONTO_PARA_RETIRADA: { to: "RETIRADO", label: "Cliente retirou", short: "Retirou" },
+    SHIPPED: { to: "DELIVERED", label: "Marcar como entregue", short: "Entregue" },
   };
 
   const exportCsv = () => {
@@ -438,7 +440,7 @@ export default function OrdersManager({ initialOrders, blingEnabled = false }: P
         </div>
       ) : (
         <div className="bg-white rounded-2xl border border-gray-200/70 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
-          <div className="hidden lg:grid grid-cols-[minmax(0,1.1fr)_minmax(0,1.3fr)_minmax(0,0.9fr)_minmax(0,1.6fr)_minmax(0,0.8fr)_210px] gap-3 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-gray-400 border-b border-gray-100 bg-gray-50/60 rounded-t-2xl">
+          <div className="hidden lg:grid grid-cols-[minmax(0,1.1fr)_minmax(0,1.3fr)_minmax(0,0.9fr)_minmax(0,1.6fr)_minmax(0,0.8fr)_172px] gap-3 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-gray-400 border-b border-gray-100 bg-gray-50/60 rounded-t-2xl">
             <span>Pedido</span><span>Cliente</span><span>Itens</span><span>Situação</span><span className="text-right">Total</span><span className="text-right">Ações</span>
           </div>
           <ul className="divide-y divide-gray-100">
@@ -448,7 +450,7 @@ export default function OrdersManager({ initialOrders, blingEnabled = false }: P
               const x = order as unknown as Ext;
               const units = order.items.reduce((s, i) => s + i.quantity, 0);
               const next = NEXT[order.status];
-              const nextTo = next && order.status === "CONFIRMED" && x.shippingMethod === "retirada" ? { to: "PRONTO_PARA_RETIRADA", label: "Pronto p/ retirada" } : next;
+              const nextTo = next && order.status === "CONFIRMED" && x.shippingMethod === "retirada" ? { to: "PRONTO_PARA_RETIRADA", label: "Pronto para retirada", short: "Pronto" } : next;
               const others = (ALLOWED_TRANSITIONS[order.status] || []).filter((s2) => s2 !== nextTo?.to);
               const usesLabel = !!x.shippingMethod && /^\d+$/.test(x.shippingMethod);
               const paid = order.status !== "PENDING" && order.status !== "CANCELLED";
@@ -456,7 +458,7 @@ export default function OrdersManager({ initialOrders, blingEnabled = false }: P
                 <li
                   key={order.id}
                   onClick={() => router.push(`/admin/pedidos/${order.id}`)}
-                  className={`group grid grid-cols-1 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1.3fr)_minmax(0,0.9fr)_minmax(0,1.6fr)_minmax(0,0.8fr)_210px] gap-2 lg:gap-3 px-4 py-3.5 cursor-pointer hover:bg-gray-50/80 transition-colors ${updatingStatus === order.id ? "opacity-60 pointer-events-none" : ""}`}
+                  className={`group grid grid-cols-1 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1.3fr)_minmax(0,0.9fr)_minmax(0,1.6fr)_minmax(0,0.8fr)_172px] gap-2 lg:gap-3 px-4 py-3.5 cursor-pointer hover:bg-gray-50/80 transition-colors ${updatingStatus === order.id ? "opacity-60 pointer-events-none" : ""}`}
                 >
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-gray-900 group-hover:text-brand">{order.orderNumber}</p>
@@ -471,7 +473,7 @@ export default function OrdersManager({ initialOrders, blingEnabled = false }: P
                       {order.items.slice(0, 3).map((it) => {
                         let img: string | null = null;
                         try { img = (JSON.parse(it.product?.images || "[]") as string[])[0] ?? null; } catch {}
-                        return <span key={it.id} className="w-8 h-8 rounded-lg ring-2 ring-white bg-gray-100 overflow-hidden shrink-0">{img ? <img src={img} alt="" className="w-full h-full object-cover" /> : null}</span>;
+                        return <span key={it.id} className="w-8 h-8 rounded-lg ring-2 ring-white bg-gray-100 overflow-hidden shrink-0">{img ? <OptimizedImg widths={[160]} sizes="48px" loading="lazy" src={img} alt="" className="w-full h-full object-cover" /> : null}</span>;
                       })}
                     </div>
                     <span className="text-xs text-gray-500">{units} {units === 1 ? "peça" : "peças"}</span>
@@ -494,11 +496,17 @@ export default function OrdersManager({ initialOrders, blingEnabled = false }: P
                     {x.returnStatus && <span className="px-1.5 py-0.5 rounded-md bg-orange-50 text-orange-700">{x.returnStatus === "FULL_RETURN" ? "Devolvido" : "Devolução parcial"}</span>}
                   </div>
                   <p className="text-sm font-semibold text-gray-900 lg:text-right tabular-nums">{formatCurrency(order.total)}</p>
-                  <div className="flex items-center lg:justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex items-center lg:justify-end gap-1 min-w-0" onClick={(e) => e.stopPropagation()}>
                     {nextTo && (
-                      <Button variant="dark" size="xs" icon={ArrowRight} onClick={() => requestStatusChange(order, nextTo.to)}>
-                        {nextTo.label}
-                      </Button>
+                      <span className="relative group/next">
+                        <Button variant="dark" size="xs" icon={ArrowRight} onClick={() => requestStatusChange(order, nextTo.to)} aria-label={nextTo.label} className="whitespace-nowrap">
+                          {nextTo.short}
+                        </Button>
+                        {/* Balão com a ação completa — flutua por cima, sem empurrar as colunas */}
+                        <span role="tooltip" className="pointer-events-none absolute right-0 bottom-full mb-1.5 z-30 whitespace-nowrap rounded-lg bg-gray-900 px-2.5 py-1.5 text-[11px] font-medium text-white shadow-lg opacity-0 translate-y-1 transition group-hover/next:opacity-100 group-hover/next:translate-y-0 group-focus-within/next:opacity-100">
+                          {nextTo.label} → {ORDER_STATUS[nextTo.to]?.label || nextTo.to}
+                        </span>
+                      </span>
                     )}
                     {(
                       <div className="relative">
