@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
 
   await prisma.abandonedCart.upsert({
     where: { email: customer.email },
-    update: { cartItems: serialized, reminderSent: false, customerId: customer.id },
+    update: { cartItems: serialized, reminderSent: false, reminderSentAt: null, closedAt: null, customerId: customer.id },
     create: { email: customer.email, cartItems: serialized, customerId: customer.id },
   });
 
@@ -33,6 +33,8 @@ export async function DELETE(req: NextRequest) {
   const customer = getCustomerFromRequest(req);
   if (!customer) return NextResponse.json({ ok: true });
 
-  await prisma.abandonedCart.deleteMany({ where: { email: customer.email } });
+  // Carrinho que recebeu lembrete fica guardado como "fechado" para medir se o lembrete recuperou a venda
+  await prisma.abandonedCart.updateMany({ where: { email: customer.email, reminderSent: true, closedAt: null }, data: { closedAt: new Date() } });
+  await prisma.abandonedCart.deleteMany({ where: { email: customer.email, reminderSent: false } });
   return NextResponse.json({ ok: true });
 }

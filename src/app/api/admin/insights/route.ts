@@ -66,7 +66,7 @@ export async function GET(req: NextRequest) {
       where: { createdAt: inPeriod },
       select: { reason: true, status: true, refundAmount: true, returnedItems: true, orderId: true },
     }),
-    prisma.abandonedCart.findMany({ select: { email: true, cartItems: true, updatedAt: true } }),
+    prisma.abandonedCart.findMany({ where: { closedAt: null }, select: { email: true, cartItems: true, updatedAt: true } }),
     prisma.waitlistEntry.findMany({
       where: { notified: false },
       select: { productId: true, size: true, color: true, product: { select: { name: true, price: true, stock: true } } },

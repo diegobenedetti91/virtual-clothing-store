@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
 
         await prisma.abandonedCart.update({
           where: { id: cart.id },
-          data: { reminderSent: true },
+          data: { reminderSent: true, reminderSentAt: new Date() },
         });
 
         sent++;
