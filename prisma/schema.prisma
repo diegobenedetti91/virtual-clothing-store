@@ -34,6 +34,7 @@ model CustomerUser {
   wishlist     WishlistItem[]
   reviews      ProductReview[]
   returns      Return[]
+  creditAdjustments CreditAdjustment[]
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
 }
@@ -188,6 +189,14 @@ model Order {
   labelLastAttemptAt       DateTime?
   /** Quando o dono da loja viu o pedido no aviso de "novos pedidos" do admin (null = novo) */
   adminSeenAt              DateTime?
+
+  // Cashback (crédito na conta do cliente)
+  /** Crédito da conta usado como desconto neste pedido */
+  creditUsed               Float         @default(0)
+  /** Cashback prometido por este pedido (já calculado com a % da época); libera após entrega + prazo */
+  cashbackEarned           Float         @default(0)
+  cashbackReleaseEmailAt   DateTime?
+  cashbackExpiryEmailAt    DateTime?
   trackingEvents           TrackingEvent[]
   labelValidatedAt         DateTime?
   labelValid               Boolean?
@@ -255,6 +264,7 @@ model Order {
   @@index([customerEmail])
   @@index([nfeStatus])
   @@index([adminSeenAt, status])
+  @@index([customerId, status])
 }
 
 model OrderItem {
@@ -351,6 +361,22 @@ model CompanySettings {
   blingNfeAuto           Boolean  @default(false)
   /** Alíquota de imposto sobre vendas (%), ex.: alíquota efetiva do Simples Nacional (DAS). Entra no DRE/lucro. */
   salesTaxRate           Float?
+
+  // Cashback: % da compra vira crédito para as próximas compras
+  cashbackEnabled        Boolean  @default(false)
+  cashbackPercent        Float    @default(5)
+  /** Dias depois da entrega para liberar (prazo de devolução) */
+  cashbackReleaseDays    Int      @default(7)
+  /** Validade do crédito em dias, contada da liberação */
+  cashbackValidityDays   Int      @default(90)
+  /** Quanto do pedido (produtos, após descontos) o crédito pode pagar, em % */
+  cashbackMaxUsePercent  Float    @default(50)
+  /** Valor mínimo em produtos para poder usar o crédito */
+  cashbackMinOrder       Float    @default(0)
+  /** Crédito pode ser usado junto com cupom */
+  cashbackStackCoupon    Boolean  @default(false)
+  /** Crédito pode ser usado junto com o desconto Pix */
+  cashbackStackPix       Boolean  @default(true)
   diasUteisProduzao      Int      @default(2)
   updatedAt              DateTime @updatedAt
   /** Meta de faturamento do mês (R$), exibida no dashboard */
@@ -542,4 +568,19 @@ model Coupon {
   updatedAt         DateTime  @updatedAt
 
   @@index([active])
+}
+
+/** Ajuste manual de crédito feito pelo dono da loja (cortesia, correção). Positivo = dá crédito; negativo = retira. */
+model CreditAdjustment {
+  id         String       @id @default(cuid())
+  customerId String
+  customer   CustomerUser @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  amount     Float
+  reason     String
+  createdBy  String?
+  /** Validade do crédito dado (null = validade padrão das configurações) */
+  expiresAt  DateTime?
+  createdAt  DateTime     @default(now())
+
+  @@index([customerId])
 }

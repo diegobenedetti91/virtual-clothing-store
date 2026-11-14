@@ -43,6 +43,8 @@ interface Order {
   total: number;
   couponCode: string | null;
   couponDiscount: number;
+  creditUsed?: number;
+  cashbackEarned?: number;
   paymentMethod: string | null;
   cancelReason: string | null;
   nfeStatus: string | null;
@@ -154,7 +156,8 @@ export default function CustomerOrderPage() {
     CANCELLED: "Pedido cancelado",
   };
   const couponDiscount = order.couponDiscount || 0;
-  const pixDiscount = Math.max(0, Math.round((order.subtotal + order.shippingCost - order.total - couponDiscount) * 100) / 100);
+  const creditUsed = order.creditUsed || 0;
+  const pixDiscount = Math.max(0, Math.round((order.subtotal + order.shippingCost - order.total - couponDiscount - creditUsed) * 100) / 100);
   const itemCount = order.items.reduce((s, i) => s + i.quantity, 0);
   const tracking = order.trackingCode ? getCarrierTracking(order.trackingCode) : null;
   const trackUrl = order.trackingUrl || tracking?.url;
@@ -318,7 +321,14 @@ export default function CustomerOrderPage() {
                 <div className="flex justify-between text-gray-600"><dt>Frete</dt><dd className="tabular-nums">{order.shippingCost > 0 ? formatCurrency(order.shippingCost) : isPickup ? "Retirada" : "Grátis"}</dd></div>
                 {couponDiscount > 0 && <div className="flex justify-between text-emerald-700"><dt className="inline-flex items-center gap-1"><Tag size={13} /> Cupom {order.couponCode}</dt><dd className="tabular-nums">−{formatCurrency(couponDiscount)}</dd></div>}
                 {pixDiscount > 0 && <div className="flex justify-between text-emerald-700"><dt>Desconto Pix</dt><dd className="tabular-nums">−{formatCurrency(pixDiscount)}</dd></div>}
+                {creditUsed > 0 && <div className="flex justify-between text-violet-700"><dt>Seu crédito (cashback)</dt><dd className="tabular-nums">−{formatCurrency(creditUsed)}</dd></div>}
                 <div className="flex justify-between font-semibold text-gray-900 text-base pt-1.5 border-t border-gray-100"><dt>Total</dt><dd className="tabular-nums">{formatCurrency(order.total)}</dd></div>
+                {(order.cashbackEarned || 0) > 0 && order.status !== "CANCELLED" && (
+                  <Link href="/conta?tab=credito" className="mt-1 flex justify-between items-center rounded-lg bg-violet-50 px-2.5 py-1.5 text-[12.5px] text-violet-800 hover:bg-violet-100">
+                    <span>💜 Cashback desta compra (libera após a entrega)</span>
+                    <b className="tabular-nums">+{formatCurrency(order.cashbackEarned!)}</b>
+                  </Link>
+                )}
               </dl>
             </Card>
           </div>

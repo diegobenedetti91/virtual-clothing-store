@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import CustomerCreditCard from "@/components/admin/CustomerCreditCard";
 import Link from "next/link";
 import {
   Users, UserPlus, ShoppingBag, Repeat, Search, X, Mail, Phone, MapPin, Heart, MessageCircle, ArrowRight, Copy, Check, Download,
@@ -302,6 +303,8 @@ function CustomerPanel({ c, isNew, onClose }: { c: CustomerRow; isNew: boolean; 
               </ul>
             )}
           </section>
+
+          <CustomerCreditCard customerId={c.id} />
 
           {c.wishlistCount > 0 && (
             <p className="flex items-center gap-2 text-sm text-gray-600 rounded-xl bg-pink-50/60 px-3 py-2.5">

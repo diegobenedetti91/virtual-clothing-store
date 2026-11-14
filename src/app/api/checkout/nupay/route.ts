@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getTrafficOrderContext } from "@/lib/trafficSourceServer";
-import { validateCheckout } from "@/lib/checkoutValidation";
+import { orderDiscountFields, validateCheckout } from "@/lib/checkoutValidation";
 import { getClientIp, getMetaOrderContext } from "@/lib/metaCapi";
 import { generateOrderNumber } from "@/lib/utils";
 import { createNuPayPayment, getNuPayConfig } from "@/lib/nupay";
@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
   }
 
   // NuPay has no Pix: the Pix discount never applies here
-  const checked = await validateCheckout(req, { items: rawItems, zipCode, shippingMethod, pixOnly: false, couponCode, customerEmail, cpfCnpj });
+  const checked = await validateCheckout(req, { items: rawItems, zipCode, shippingMethod, pixOnly: false, couponCode, useCredit: body?.useCredit === true, customerEmail, cpfCnpj });
   if ("error" in checked) return NextResponse.json({ error: checked.error }, { status: 400 });
   const { items, productMap, subtotal, shippingCost, discountAmount, customerId } = checked;
   const total = Math.round((subtotal + shippingCost - discountAmount) * 100) / 100;
@@ -59,8 +59,7 @@ export async function POST(req: NextRequest) {
       shippingCost,
       shippingMethod: shippingMethod || null,
       total,
-      couponCode: checked.coupon?.code ?? null,
-      couponDiscount: checked.couponDiscount,
+      ...orderDiscountFields(checked),
       status: "PENDING",
       paymentGateway: "nupay",
       paymentMethod: "NuPay",

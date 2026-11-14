@@ -13,7 +13,7 @@ import { INK, SERIES, fmt } from "@/components/admin/charts/theme";
 export type InsightsTab = "real" | "perdas" | "ganhos";
 
 interface ProfitRow {
-  id: string; orderNumber: string; customerName: string; createdAt: string; gross: number; coupon: number; pix: number; fees: number;
+  id: string; orderNumber: string; customerName: string; createdAt: string; gross: number; coupon: number; pix: number; credit: number; fees: number;
   revenue: number; taxes: number; netRevenue: number; grossProfit: number;
   cogs: number; shipping: number; refunds: number; net: number; margin: number | null; itemsWithoutCost: number;
 }
@@ -75,7 +75,7 @@ export default function InsightsPanels({ tab, from, to }: { tab: InsightsTab; fr
     { key: "orderNumber", header: "Pedido", value: (r) => r.orderNumber, render: (r) => <Link href={`/admin/pedidos/${r.id}`} onClick={(e) => e.stopPropagation()} className="font-semibold text-gray-900 hover:text-brand">{r.orderNumber}</Link> },
     { key: "createdAt", header: "Data", value: (r) => r.createdAt, render: (r) => new Date(r.createdAt).toLocaleDateString("pt-BR"), className: "text-gray-500" },
     { key: "gross", header: "GMV", value: (r) => r.gross, render: (r) => fmt.brl(r.gross), align: "right" },
-    { key: "discounts", header: "Descontos", value: (r) => r.coupon + r.pix, render: (r) => (r.coupon + r.pix ? `−${fmt.brl(r.coupon + r.pix)}` : "—"), align: "right", className: "text-gray-500" },
+    { key: "discounts", header: "Descontos", value: (r) => r.coupon + r.pix + r.credit, render: (r) => (r.coupon + r.pix + r.credit ? `−${fmt.brl(r.coupon + r.pix + r.credit)}` : "—"), align: "right", className: "text-gray-500" },
     { key: "revenue", header: "Faturamento", value: (r) => r.revenue, render: (r) => fmt.brl(r.revenue), align: "right", className: "text-gray-900" },
     { key: "deductions", header: "Devol./impostos", value: (r) => r.refunds + r.taxes, render: (r) => (r.refunds + r.taxes ? `−${fmt.brl(r.refunds + r.taxes)}` : "—"), align: "right", className: "text-gray-500" },
     { key: "cogs", header: "CMV", value: (r) => r.cogs, render: (r) => <span>{r.cogs ? `−${fmt.brl(r.cogs)}` : "—"}{r.itemsWithoutCost > 0 && <span className="ml-1 text-amber-600" title="Peças sem preço de custo">*</span>}</span>, align: "right", className: "text-gray-500" },

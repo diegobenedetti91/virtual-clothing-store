@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import CreditPanel, { type CreditData } from "@/components/customer/CreditPanel";
 import OptimizedImg from "@/components/OptimizedImg";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCustomer } from "@/hooks/useCustomer";
 import { formatCurrency, cn, ORDER_STATUS } from "@/lib/utils";
 import {
-  ArrowRight, Check, ChevronRight, Edit3, Heart, LogOut, Mail, MapPin, MessageCircle, Package, Phone, ShoppingBag, Truck, User, X,
+  ArrowRight, Check, ChevronRight, Edit3, Heart, LogOut, Mail, MapPin, MessageCircle, Package, Phone, ShoppingBag, Truck, User, Wallet, X,
 } from "lucide-react";
 
 interface OrderItem {
@@ -127,7 +128,9 @@ export default function AccountPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { customer, logout, loading } = useCustomer();
-  const [tab, setTab] = useState<"orders" | "profile">(searchParams.get("tab") === "profile" ? "profile" : "orders");
+  const initialTab = searchParams.get("tab");
+  const [tab, setTab] = useState<"orders" | "credit" | "profile">(initialTab === "profile" ? "profile" : initialTab === "credito" ? "credit" : "orders");
+  const [credit, setCredit] = useState<CreditData | null>(null);
   const [orderFilter, setOrderFilter] = useState<"active" | "done" | "all">("all");
   const [orders, setOrders] = useState<Order[]>([]);
   const [ordersLoaded, setOrdersLoaded] = useState(false);
@@ -160,6 +163,7 @@ export default function AccountPage() {
     let cancelled = false;
     fetch("/api/customer/orders").then((r) => r.json()).then((d) => { if (!cancelled) { setOrders(Array.isArray(d) ? d : []); setOrdersLoaded(true); } });
     fetch("/api/customer/profile").then((r) => r.json()).then((d: Profile) => { if (!cancelled) { setProfile(d); fillForm(d); } });
+    fetch("/api/customer/credit").then((r) => (r.ok ? r.json() : null)).then((d) => { if (!cancelled && d) setCredit(d); }).catch(() => {});
     fetch("/api/settings").then((r) => r.json()).then((s) => !cancelled && setWhatsapp(s?.whatsapp || null)).catch(() => {});
     return () => { cancelled = true; };
   }, [customer]);
@@ -223,6 +227,8 @@ export default function AccountPage() {
     </div>
   );
 
+  const showCredit = !!credit && (!!credit.program || credit.entries.length > 0);
+
   return (
     <div className="min-h-screen bg-gray-50/80">
       <div className="max-w-3xl mx-auto px-4 py-8 sm:py-10 space-y-5">
@@ -263,7 +269,10 @@ export default function AccountPage() {
 
         {/* Abas */}
         <div className="flex gap-1 bg-white ring-1 ring-gray-200/70 p-1 rounded-2xl">
-          {([["orders", "Meus pedidos", Package], ["profile", "Meus dados", User]] as const).map(([key, label, Icon]) => (
+          {(showCredit
+            ? ([["orders", "Meus pedidos", Package], ["credit", "Meu crédito", Wallet], ["profile", "Meus dados", User]] as const)
+            : ([["orders", "Meus pedidos", Package], ["profile", "Meus dados", User]] as const)
+          ).map(([key, label, Icon]) => (
             <button
               key={key}
               onClick={() => setTab(key)}
@@ -272,9 +281,13 @@ export default function AccountPage() {
               <Icon size={15} /> {label}
               {key === "orders" && orders.length > 0 && <span className={cn("text-[11px] rounded-full px-1.5 tabular-nums", tab === key ? "bg-white/20" : "bg-gray-100 text-gray-600")}>{orders.length}</span>}
               {key === "profile" && missing.length > 0 && <span className="w-2 h-2 rounded-full bg-amber-500" />}
+              {key === "credit" && credit && credit.available > 0 && <span className={cn("text-[11px] rounded-full px-1.5 tabular-nums", tab === key ? "bg-white/20" : "bg-violet-100 text-violet-700")}>{formatCurrency(credit.available)}</span>}
             </button>
           ))}
         </div>
+
+        {/* Crédito (cashback) */}
+        {tab === "credit" && <CreditPanel data={credit} />}
 
         {/* Pedidos */}
         {tab === "orders" && (

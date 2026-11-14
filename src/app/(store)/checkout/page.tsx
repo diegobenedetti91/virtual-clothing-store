@@ -22,6 +22,11 @@ import { PENDING_COUPON_KEY } from "@/components/store/CouponLinkCatcher";
 interface QuoteResult {
   pixDiscount: number;
   couponDiscount: number;
+  creditDiscount?: number;
+  creditBalance?: number;
+  creditNote?: string | null;
+  cashbackEarn?: number;
+  cashbackPercent?: number;
   coupon: { code: string; type: string } | null;
   couponMessage: string | null;
   couponError: string | null;
@@ -231,7 +236,10 @@ export default function CheckoutPage() {
     color: item.color,
     selectedAttributes: item.selectedAttributes,
   }));
-  const quoteBody = couponCode
+  // Crédito da conta (cashback): o cliente escolhe usar ou não; o servidor calcula quanto pode
+  const [useCredit, setUseCredit] = useState(true);
+  // Cotação sempre no servidor: cupom, Pix, crédito e o cashback que a compra gera
+  const quoteBody = quoteItems.length
     ? JSON.stringify({
         items: quoteItems,
         // Sem frete escolhido, cota só os produtos
@@ -239,11 +247,12 @@ export default function CheckoutPage() {
         shippingMethod: selectedShipping?.codigo || null,
         pixOnly: pixDiscountApplies,
         couponCode,
+        useCredit,
         customerEmail: email || customer?.email || null,
         cpfCnpj: cpfCnpj || null,
       })
     : null;
-  const couponLoading = !!quoteBody && quoteKey !== quoteBody;
+  const couponLoading = !!couponCode && !!quoteBody && quoteKey !== quoteBody;
 
   useEffect(() => {
     if (!quoteBody) return;
@@ -275,9 +284,13 @@ export default function CheckoutPage() {
 
   const couponActive = !!(couponCode && quote?.coupon);
   const couponDiscount = couponActive ? quote!.couponDiscount : 0;
-  // Parte do Pix: com cupom, vem do servidor (pode não acumular)
-  const discountAmount = couponCode && quote ? quote.pixDiscount : pixDiscountApplies ? (total() * pixDiscount) / 100 : 0;
-  const finalTotal = Math.max(0, total() + (selectedShipping?.valor || 0) - discountAmount - couponDiscount);
+  // Parte do Pix: vem do servidor quando já cotado (com cupom pode não acumular)
+  const discountAmount = quote ? quote.pixDiscount : pixDiscountApplies ? (total() * pixDiscount) / 100 : 0;
+  const creditBalance = quote?.creditBalance ?? 0;
+  const creditDiscount = useCredit ? quote?.creditDiscount ?? 0 : 0;
+  const creditActive = creditDiscount > 0;
+  const cashbackEarn = quote?.cashbackEarn ?? 0;
+  const finalTotal = Math.max(0, total() + (selectedShipping?.valor || 0) - discountAmount - couponDiscount - creditDiscount);
 
   const fullAddress = collectAddress && street
     ? `${street}, ${number}${neighborhood ? ` - ${neighborhood}` : ""}, ${city}${state ? `/${state}` : ""}${zipCode ? ` - CEP: ${zipCode}` : ""}`
@@ -342,6 +355,7 @@ export default function CheckoutPage() {
       `💰 *Subtotal:* ${formatCurrency(total())}`,
       `🚚 *Frete:* ${freteTexto}`,
       ...(couponActive ? [`🏷️ *Cupom ${couponCode}:* -${formatCurrency(couponDiscount)}`] : []),
+      ...(creditActive ? [`💜 *Crédito da conta:* -${formatCurrency(creditDiscount)}`] : []),
       `💳 *Total:* ${formatCurrency(finalTotal)}`,
       ``,
       `_Pedido gerado em ${new Date().toLocaleString("pt-BR")}_`,
@@ -374,6 +388,7 @@ export default function CheckoutPage() {
         shippingCost: selectedShipping?.valor || 0,
         shippingMethod: selectedShipping?.codigo || null,
         couponCode: couponActive ? couponCode : null,
+        useCredit: creditActive,
         items: items.map((item) => ({
           productId: item.productId,
           quantity: item.quantity,
@@ -419,6 +434,7 @@ const handleNuPaySubmit = async () => {
         zipCode: zipCode || null,
         shippingMethod: selectedShipping?.codigo || null,
         couponCode: couponActive ? couponCode : null,
+        useCredit: creditActive,
         items: items.map((item) => ({
           productId: item.productId,
           quantity: item.quantity,
@@ -493,6 +509,7 @@ const handleNuPaySubmit = async () => {
         shippingCost: selectedShipping?.valor || 0,
         shippingMethod: selectedShipping?.codigo || null,
         couponCode: couponActive ? couponCode : null,
+        useCredit: creditActive,
         discountAmount: discountAmount,
         pixOnly: forcePixOnly,
         items: items.map((item) => ({
@@ -529,6 +546,7 @@ const handleNuPaySubmit = async () => {
     zipCode: zipCode || null,
     shippingMethod: selectedShipping?.codigo || null,
     couponCode: couponActive ? couponCode : null,
+    useCredit: creditActive,
     pixOnly: applyPixDiscount,
     items: items.map((item) => ({
       productId: item.productId,
@@ -552,7 +570,7 @@ const handleNuPaySubmit = async () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         items: payload.items, zipCode: payload.zipCode, shippingMethod: payload.shippingMethod, pixOnly: payload.pixOnly,
-        couponCode: payload.couponCode, customerEmail: payload.customerEmail, cpfCnpj: payload.cpfCnpj,
+        couponCode: payload.couponCode, useCredit: payload.useCredit, customerEmail: payload.customerEmail, cpfCnpj: payload.cpfCnpj,
       }),
     });
     const data = await res.json();
@@ -595,6 +613,7 @@ const handleNuPaySubmit = async () => {
         shippingCost: selectedShipping?.valor || 0,
         shippingMethod: selectedShipping?.codigo || null,
         couponCode: couponActive ? couponCode : null,
+        useCredit: creditActive,
         discountAmount: discountAmount,
         pixOnly: applyPixDiscount,
         items: items.map((item) => ({
@@ -920,6 +939,24 @@ const handleNuPaySubmit = async () => {
                       <span>-{formatCurrency(discountAmount)}</span>
                     </div>
                   )}
+                  {creditActive && (
+                    <div className="flex justify-between text-sm text-green-600 font-semibold">
+                      <span>Crédito da conta</span>
+                      <span>-{formatCurrency(creditDiscount)}</span>
+                    </div>
+                  )}
+                  {creditBalance > 0 && (
+                    <label className="flex items-start gap-3 rounded-xl bg-violet-50 ring-1 ring-violet-100 px-3 py-2.5 cursor-pointer">
+                      <input type="checkbox" checked={useCredit} onChange={(e) => setUseCredit(e.target.checked)} className="mt-0.5 w-4 h-4 accent-violet-600 cursor-pointer" />
+                      <span className="text-[13px] leading-snug">
+                        <span className="block font-semibold text-violet-900">
+                          Usar meu crédito{quote?.creditDiscount ? ` (−${formatCurrency(quote.creditDiscount)})` : ""}
+                        </span>
+                        <span className="block text-violet-700/80">Você tem {formatCurrency(creditBalance)} de cashback disponível</span>
+                        {quote?.creditNote && <span className="block text-[12px] text-violet-700/70 mt-0.5">{quote.creditNote}</span>}
+                      </span>
+                    </label>
+                  )}
                   <div className="pt-1">
                     <CouponBox
                       code={couponCode}
@@ -934,6 +971,11 @@ const handleNuPaySubmit = async () => {
                     <span>Total</span>
                     <span>{formatCurrency(finalTotal)}</span>
                   </div>
+                  {cashbackEarn > 0 && (
+                    <p className="flex items-center gap-1.5 text-[12.5px] text-violet-700 bg-violet-50/70 rounded-lg px-2.5 py-1.5">
+                      <span aria-hidden>💜</span> Você ganha <b>{formatCurrency(cashbackEarn)}</b> de cashback para a próxima compra
+                    </p>
+                  )}
                 </div>
 
                 {/* PIX Discount Checkbox */}

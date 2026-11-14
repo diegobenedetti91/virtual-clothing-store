@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getTrafficOrderContext } from "@/lib/trafficSourceServer";
-import { validateCheckout } from "@/lib/checkoutValidation";
+import { orderDiscountFields, validateCheckout } from "@/lib/checkoutValidation";
 import { auth } from "@/lib/auth";
 import { generateOrderNumber } from "@/lib/utils";
 import { sendOrderConfirmationEmail } from "@/lib/email";
@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Prices, shipping and owner come from the server, never from the request body
-  const checked = await validateCheckout(req, { items: rawItems, zipCode, shippingMethod, pixOnly: false, couponCode, customerEmail, cpfCnpj });
+  const checked = await validateCheckout(req, { items: rawItems, zipCode, shippingMethod, pixOnly: false, couponCode, useCredit: body?.useCredit === true, customerEmail, cpfCnpj });
   if ("error" in checked) return NextResponse.json({ error: checked.error }, { status: 400 });
   const { items, productMap, subtotal, shippingCost: shipping, discountAmount, customerId } = checked;
 
@@ -83,8 +83,7 @@ export async function POST(req: NextRequest) {
         shippingCost: shipping,
         shippingMethod: shippingMethod || null,
         total: Math.round((subtotal + shipping - discountAmount) * 100) / 100,
-        couponCode: checked.coupon?.code ?? null,
-        couponDiscount: checked.couponDiscount,
+        ...orderDiscountFields(checked),
         notes: notes || null,
         customerId: customerId || null,
         ...getTrafficOrderContext(req),

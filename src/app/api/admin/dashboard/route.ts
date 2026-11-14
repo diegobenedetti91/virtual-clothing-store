@@ -3,6 +3,7 @@ import { requireAdmin } from "@/lib/adminAuth";
 import { prisma } from "@/lib/prisma";
 import { getAdminAlerts } from "@/lib/adminAlerts";
 import { computeProfit, getTaxRate } from "@/lib/profit";
+import { getCashbackOverview } from "@/lib/cashback";
 import { averageTicket, freeShippingCoupons, productNet } from "@/lib/ticket";
 
 const PAID = ["CONFIRMED", "SHIPPED", "DELIVERED", "PRONTO_PARA_RETIRADA", "RETIRADO"];
@@ -77,6 +78,7 @@ export async function GET(req: NextRequest) {
         customerId: true,
         customerEmail: true,
         couponCode: true,
+        creditUsed: true,
         subtotal: true,
         shippingCost: true,
         couponDiscount: true,
@@ -307,6 +309,7 @@ export async function GET(req: NextRequest) {
     heatmap,
     funnel,
     funnelClicks,
+    cashback: await getCashbackOverview(start, end).catch(() => null),
     alerts: alertData.alerts,
   });
 }

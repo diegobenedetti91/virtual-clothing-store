@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getTrafficOrderContext } from "@/lib/trafficSourceServer";
 import { webhookToken } from "@/lib/webhookToken";
-import { validateCheckout } from "@/lib/checkoutValidation";
+import { orderDiscountFields, validateCheckout } from "@/lib/checkoutValidation";
 import { getMetaOrderContext } from "@/lib/metaCapi";
 import { generateOrderNumber } from "@/lib/utils";
 
@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Dados incompletos" }, { status: 400 });
   }
 
-  const checked = await validateCheckout(req, { items: rawItems, zipCode, shippingMethod, pixOnly, couponCode, customerEmail, cpfCnpj });
+  const checked = await validateCheckout(req, { items: rawItems, zipCode, shippingMethod, pixOnly, couponCode, useCredit: body?.useCredit === true, customerEmail, cpfCnpj });
   if ("error" in checked) return NextResponse.json({ error: checked.error }, { status: 400 });
   const { items, productMap, subtotal, shippingCost, discountAmount, customerId } = checked;
 
@@ -151,8 +151,7 @@ export async function POST(req: NextRequest) {
         shippingCost: shippingCost || 0,
         shippingMethod: shippingMethod || null,
         total,
-        couponCode: checked.coupon?.code ?? null,
-        couponDiscount: checked.couponDiscount,
+        ...orderDiscountFields(checked),
         status: "PENDING",
         paymentMethod: "Infinity Pay",
         ...getMetaOrderContext(req),

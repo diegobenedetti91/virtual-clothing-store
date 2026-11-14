@@ -6,6 +6,7 @@ import { ChevronLeft, ChevronRight, Ruler, Star, Truck, Zap, Store, RefreshCw, C
 import { getPublicCompanySettings } from "@/lib/company";
 import { storePerks, type PerkIcon } from "@/lib/storePerks";
 import { prisma } from "@/lib/prisma";
+import { formatCurrency } from "@/lib/utils";
 import type { Product } from "@/types";
 import { getProductAttributes, normalizeVariantStock } from "@/lib/variantUtils";
 import ProductGallery from "@/components/store/ProductGallery";
@@ -68,6 +69,8 @@ export default async function ProductDetailPage({ params }: PageProps) {
   const product = (await applyFlashSales([raw]))[0] as unknown as Product;
   const settings = await settingsPromise;
   const pixPercent = settings?.pixDiscountEnabled ? settings.pixDiscountPercent ?? 0 : 0;
+  // Cashback (só para quem tem conta, que é exigida para comprar)
+  const cashbackPct = settings?.cashbackEnabled ? settings.cashbackPercent ?? 0 : 0;
   const PERK_ICONS: Record<PerkIcon, React.ComponentType<{ size?: number; className?: string }>> = {
     pix: Zap, truck: Truck, store: Store, refresh: RefreshCw, card: CreditCard, shield: ShieldCheck,
   };
@@ -222,6 +225,15 @@ export default async function ProductDetailPage({ params }: PageProps) {
               variantStock={normalizedVariants}
               pixPercent={pixPercent}
             />
+
+            {cashbackPct > 0 && (
+              <p className="flex items-center gap-2 rounded-xl bg-violet-50 ring-1 ring-violet-100 px-3 py-2 text-[13px] text-violet-800">
+                <span aria-hidden>💜</span>
+                <span>
+                  Ganhe <b>{formatCurrency(Math.round(product.price * cashbackPct) / 100)}</b> de cashback ({cashbackPct.toLocaleString("pt-BR")}%) para usar na próxima compra
+                </span>
+              </p>
+            )}
 
             {product.measurements?.trim() && (
               <details className="group rounded-2xl ring-1 ring-gray-200 bg-white open:shadow-sm transition">

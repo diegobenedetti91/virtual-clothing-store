@@ -4,7 +4,7 @@
  * DRE simplificado, com os nomes usados no mercado:
  *
  *   Vendas brutas (GMV)      produtos a preço cheio + frete cobrado
- *   − cupons − desconto Pix
+ *   − cupons − desconto Pix − crédito de cashback usado
  *   = Faturamento            o que o cliente pagou (valor da nota)
  *   − devoluções (estornos) − impostos sobre a venda (alíquota do Simples/DAS)
  *   = Receita líquida
@@ -28,6 +28,8 @@ export interface ProfitOrderInput {
   shippingCost: number;
   total: number;
   couponDiscount?: number | null;
+  /** Crédito da conta (cashback) usado como desconto */
+  creditUsed?: number | null;
   paymentFee?: number | null;
   shippingLabelCost?: number | null;
   items: { quantity: number; price: number; product: { costPrice: number | null } | null }[];
@@ -42,6 +44,8 @@ export interface ProfitRow {
   gross: number;
   coupon: number;
   pix: number;
+  /** Crédito de cashback usado pelo cliente (desconto) */
+  credit: number;
   /** Faturamento: o que o cliente pagou */
   revenue: number;
   refunds: number;
@@ -70,6 +74,7 @@ export interface ProfitTotals {
   gross: number;
   coupon: number;
   pix: number;
+  credit: number;
   revenue: number;
   refunds: number;
   taxes: number;
@@ -99,6 +104,7 @@ export const PROFIT_ORDER_SELECT = {
   shippingCost: true,
   total: true,
   couponDiscount: true,
+  creditUsed: true,
   paymentFee: true,
   shippingLabelCost: true,
   items: { select: { quantity: true, price: true, product: { select: { costPrice: true } } } },
@@ -109,9 +115,10 @@ const r2 = (n: number) => Math.round(n * 100) / 100;
 export function profitOfOrder(o: ProfitOrderInput, refunded = 0, taxRate = 0): ProfitRow {
   const gross = r2((o.subtotal || 0) + (o.shippingCost || 0));
   const coupon = r2(o.couponDiscount || 0);
-  // O que sobra entre bruto, total pago e cupom é o desconto Pix
-  const pix = r2(Math.max(0, gross - (o.total || 0) - coupon));
-  const revenue = r2(gross - coupon - pix);
+  const credit = r2(o.creditUsed || 0);
+  // O que sobra entre bruto, total pago, cupom e crédito é o desconto Pix
+  const pix = r2(Math.max(0, gross - (o.total || 0) - coupon - credit));
+  const revenue = r2(gross - coupon - pix - credit);
   const refunds = r2(refunded);
   // Imposto incide sobre o faturamento menos as devoluções (base do Simples Nacional)
   const taxes = r2(Math.max(0, revenue - refunds) * (taxRate / 100));
@@ -136,7 +143,7 @@ export function profitOfOrder(o: ProfitOrderInput, refunded = 0, taxRate = 0): P
     orderNumber: o.orderNumber,
     customerName: o.customerName,
     createdAt: new Date(o.createdAt).toISOString(),
-    gross, coupon, pix, revenue, refunds, taxes, netRevenue, cogs, grossProfit, fees, shipping, net,
+    gross, coupon, pix, credit, revenue, refunds, taxes, netRevenue, cogs, grossProfit, fees, shipping, net,
     margin: netRevenue > 0 ? (net / netRevenue) * 100 : null,
     itemsWithoutCost,
     feeKnown: fees > 0,
@@ -144,11 +151,11 @@ export function profitOfOrder(o: ProfitOrderInput, refunded = 0, taxRate = 0): P
   };
 }
 
-const SUM_KEYS = ["gross", "coupon", "pix", "revenue", "refunds", "taxes", "netRevenue", "cogs", "grossProfit", "fees", "shipping", "net"] as const;
+const SUM_KEYS = ["gross", "coupon", "pix", "credit", "revenue", "refunds", "taxes", "netRevenue", "cogs", "grossProfit", "fees", "shipping", "net"] as const;
 
 export function sumProfit(rows: ProfitRow[], units = 0, taxRate = 0): ProfitTotals {
   const t: ProfitTotals = {
-    orders: rows.length, gross: 0, coupon: 0, pix: 0, revenue: 0, refunds: 0, taxes: 0, netRevenue: 0, cogs: 0, grossProfit: 0,
+    orders: rows.length, gross: 0, coupon: 0, pix: 0, credit: 0, revenue: 0, refunds: 0, taxes: 0, netRevenue: 0, cogs: 0, grossProfit: 0,
     fees: 0, shipping: 0, net: 0, margin: null, taxRate, units, unitsWithoutCost: 0, ordersWithFee: 0, ordersWithLabelCost: 0, lossOrders: 0,
   };
   for (const r of rows) {

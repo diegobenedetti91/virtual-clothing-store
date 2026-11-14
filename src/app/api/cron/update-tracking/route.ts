@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getMelhorEnvioTracking } from "@/lib/melhorEnvio";
 import { applyShipmentUpdate } from "@/lib/trackingSync";
 import { processarEtiquetasPendentes } from "@/lib/labelPipeline";
+import { processCashbackNotifications } from "@/lib/cashback";
 
 export async function GET(req: NextRequest) {
   const secret = req.headers.get("x-cron-secret");
@@ -17,6 +18,8 @@ export async function GET(req: NextRequest) {
     return null;
   });
   if (labels?.tried) console.log(`[cron/update-tracking] etiquetas: ${labels.ready}/${labels.tried} prontas`);
+  // E os avisos de cashback (liberado / vencendo)
+  await processCashbackNotifications().catch((e) => console.error("[cron/update-tracking] cashback:", e));
 
   try {
     const settings = await prisma.companySettings.findFirst({ orderBy: { updatedAt: "desc" } });

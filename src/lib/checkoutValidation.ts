@@ -4,6 +4,7 @@ import { getCustomerFromRequest } from "@/lib/customerAuth";
 import { resolveShippingCost } from "@/lib/shippingCalc";
 import { evaluateCoupon, normalizeCouponCode } from "@/lib/coupons";
 import { applyFlashSales } from "@/lib/flashSales";
+import { cashbackFor, creditUsable, getCustomerCredit, toCashbackSettings } from "@/lib/cashback";
 
 // Everything that decides how much the customer pays is computed here, on the
 // server. The browser only says WHAT it wants (products, quantities, shipping
@@ -24,12 +25,21 @@ export interface ValidatedCheckout {
   productMap: Map<string, Product>;
   subtotal: number;
   shippingCost: number;
-  /** Desconto total (Pix + cupom, incluindo frete grátis). total = subtotal + shippingCost - discountAmount */
+  /** Desconto total (Pix + cupom, incluindo frete grátis, + crédito). total = subtotal + shippingCost - discountAmount */
   discountAmount: number;
   pixDiscount: number;
   /** Parte do cupom (produtos + frete) */
   couponDiscount: number;
   coupon: { code: string; type: string } | null;
+  /** Crédito da conta (cashback) usado como desconto neste pedido */
+  creditDiscount: number;
+  /** Saldo de crédito disponível do cliente (0 sem login / programa desligado) */
+  creditBalance: number;
+  /** Por que o crédito não foi usado (ou só em parte) */
+  creditNote: string | null;
+  /** Cashback que esta compra vai gerar */
+  cashbackEarn: number;
+  cashbackPercent: number;
   couponMessage: string | null;
   /** Só no modo "quote": motivo de o cupom não ter sido aplicado */
   couponError: string | null;
@@ -77,6 +87,8 @@ export async function validateCheckout(
     couponCode?: unknown;
     customerEmail?: unknown;
     cpfCnpj?: unknown;
+    /** true: usar o crédito da conta (cashback) como desconto */
+    useCredit?: unknown;
     /** "order" (padrão): cupom inválido bloqueia o pedido. "quote": só informa o erro. */
     mode?: "order" | "quote";
   }
@@ -159,17 +171,50 @@ export async function validateCheckout(
   }
 
   const couponDiscount = round2(couponItem + couponShipping);
+
+  // ─── Crédito da conta (cashback) ───
+  // Só para cliente logado; nunca paga frete; respeita teto, mínimo e combinação com cupom/Pix
+  const cb = toCashbackSettings(settings);
+  const productsAfterDiscounts = round2(subtotal - couponItem - pixDiscount);
+  let creditDiscount = 0;
+  let creditBalance = 0;
+  let creditNote: string | null = null;
+  if (customerId && cb.enabled) {
+    creditBalance = (await getCustomerCredit(customerId, { settings: cb })).available;
+    if (input.useCredit === true && creditBalance > 0) {
+      const use = creditUsable(creditBalance, productsAfterDiscounts, subtotal, cb, { hasCoupon: !!coupon, hasPix: pixDiscount > 0 });
+      creditDiscount = use.amount;
+      creditNote = use.note;
+    }
+  }
+  const cashbackEarn = customerId ? cashbackFor(round2(productsAfterDiscounts - creditDiscount), cb) : 0;
+
   return {
     items,
     productMap,
     subtotal,
     shippingCost,
-    discountAmount: round2(pixDiscount + couponDiscount),
+    discountAmount: round2(pixDiscount + couponDiscount + creditDiscount),
     pixDiscount,
     couponDiscount,
+    creditDiscount,
+    creditBalance,
+    creditNote,
+    cashbackEarn,
+    cashbackPercent: cb.enabled ? cb.percent : 0,
     coupon,
     couponMessage,
     couponError,
     customerId,
+  };
+}
+
+/** Campos do pedido ligados a cupom e cashback (usar no prisma.order.create de todos os checkouts). */
+export function orderDiscountFields(c: ValidatedCheckout) {
+  return {
+    couponCode: c.coupon?.code ?? null,
+    couponDiscount: c.couponDiscount,
+    creditUsed: c.creditDiscount,
+    cashbackEarned: c.cashbackEarn,
   };
 }

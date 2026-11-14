@@ -34,7 +34,11 @@ const SECTIONS: { key: SectionKey; label: string; hint: string; icon: React.Comp
 
 /** Estado do formulário a partir das configurações salvas. */
 function fromSettings(s: CompanySettings | null) {
-  const x = (s ?? {}) as CompanySettings & { diasUteisProduzao?: number | null; monthlyRevenueGoal?: number | null; salesTaxRate?: number | null };
+  const x = (s ?? {}) as CompanySettings & {
+    diasUteisProduzao?: number | null; monthlyRevenueGoal?: number | null; salesTaxRate?: number | null;
+    cashbackEnabled?: boolean; cashbackPercent?: number; cashbackReleaseDays?: number; cashbackValidityDays?: number;
+    cashbackMaxUsePercent?: number; cashbackMinOrder?: number; cashbackStackCoupon?: boolean; cashbackStackPix?: boolean;
+  };
   return {
     name: x.name || "",
     logo: x.logo || "",
@@ -69,6 +73,14 @@ function fromSettings(s: CompanySettings | null) {
     infinityPayAtivo: x.infinityPayAtivo ?? false,
     whatsappAtivo: x.whatsappAtivo ?? true,
     pixDiscountEnabled: x.pixDiscountEnabled ?? false,
+    cashbackEnabled: x.cashbackEnabled ?? false,
+    cashbackPercent: String(x.cashbackPercent ?? 5).replace(".", ","),
+    cashbackReleaseDays: String(x.cashbackReleaseDays ?? 7),
+    cashbackValidityDays: String(x.cashbackValidityDays ?? 90),
+    cashbackMaxUsePercent: String(x.cashbackMaxUsePercent ?? 50).replace(".", ","),
+    cashbackMinOrder: x.cashbackMinOrder ? String(x.cashbackMinOrder).replace(".", ",") : "",
+    cashbackStackCoupon: x.cashbackStackCoupon ?? false,
+    cashbackStackPix: x.cashbackStackPix ?? true,
     pixDiscountPercent: (x.pixDiscountPercent ?? 0).toString(),
     blingAtivo: x.blingAtivo ?? false,
     blingNfeAuto: x.blingNfeAuto ?? false,
@@ -117,6 +129,14 @@ function toPayload(f: FormState) {
     whatsappAtivo: f.whatsappAtivo,
     heroBadge: f.heroBadge, heroTitle: f.heroTitle, heroButtonText: f.heroButtonText, heroButtonSecondaryText: f.heroButtonSecondaryText,
     pixDiscountEnabled: f.pixDiscountEnabled, pixDiscountPercent: parseFloat(f.pixDiscountPercent) || 0,
+    cashbackEnabled: f.cashbackEnabled,
+    cashbackPercent: parseFloat(f.cashbackPercent.replace(",", ".")) || 0,
+    cashbackReleaseDays: parseInt(f.cashbackReleaseDays) || 0,
+    cashbackValidityDays: parseInt(f.cashbackValidityDays) || 90,
+    cashbackMaxUsePercent: parseFloat(f.cashbackMaxUsePercent.replace(",", ".")) || 0,
+    cashbackMinOrder: parseFloat(f.cashbackMinOrder.replace(/\./g, "").replace(",", ".")) || 0,
+    cashbackStackCoupon: f.cashbackStackCoupon,
+    cashbackStackPix: f.cashbackStackPix,
     blingAtivo: f.blingAtivo, blingNfeAuto: f.blingNfeAuto, blingClientId: f.blingClientId || null, blingClientSecret: f.blingClientSecret || null,
     freteAtivo: f.freteAtivo, freteTipo: f.freteTipo, freteLocalCidade: f.freteLocalCidade || null, freteLocalUF: f.freteLocalUF || null,
     freteLocalRegioes: f.freteLocalRegioes.length > 0 ? f.freteLocalRegioes.join("|") : null, freteLocalRetirada: f.freteLocalRetirada,
@@ -433,6 +453,38 @@ export default function SettingsForm({ initialSettings }: Props) {
                 <Field label="Percentual de desconto (%)" hint={`O cliente vê “Pix com desconto (${form.pixDiscountPercent || 0}% off)” e paga só com Pix.`} className="max-w-[200px]">
                   <input type="number" min="0" max="100" step="0.5" value={form.pixDiscountPercent} onChange={(e) => set("pixDiscountPercent", e.target.value)} className={inputClass} placeholder="Ex.: 5" />
                 </Field>
+              </IntegrationCard>
+
+              <IntegrationCard
+                title="Cashback"
+                icon="💜"
+                description="Parte de cada compra volta como crédito na conta do cliente para a próxima compra."
+                status={form.cashbackEnabled ? (parseFloat(form.cashbackPercent.replace(",", ".")) || 0 > 0 ? "active" : "missing") : "off"}
+                on={form.cashbackEnabled}
+                onToggle={(v) => set("cashbackEnabled", v)}
+              >
+                <Hint>
+                  O cliente vê o cashback na página do produto, no carrinho e no checkout. O crédito só é liberado depois da entrega + o prazo abaixo (assim, devolução cancela o cashback) e vale pela validade escolhida. Na conta do cliente aparecem saldo, extrato e vencimentos.
+                </Hint>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <Field label="Cashback (%)" hint="Sobre os produtos pagos, sem frete. Moda costuma usar de 5% a 10%.">
+                    <input inputMode="decimal" value={form.cashbackPercent} onChange={(e) => set("cashbackPercent", e.target.value.replace(/[^\d.,]/g, "").slice(0, 5))} className={inputClass} placeholder="Ex.: 5" />
+                  </Field>
+                  <Field label="Liberar após a entrega (dias)" hint="Use o prazo de devolução (7 dias).">
+                    <input inputMode="numeric" value={form.cashbackReleaseDays} onChange={(e) => set("cashbackReleaseDays", e.target.value.replace(/\D/g, "").slice(0, 3))} className={inputClass} placeholder="7" />
+                  </Field>
+                  <Field label="Validade do crédito (dias)" hint="Contada da liberação. O cliente é avisado 7 dias antes de vencer.">
+                    <input inputMode="numeric" value={form.cashbackValidityDays} onChange={(e) => set("cashbackValidityDays", e.target.value.replace(/\D/g, "").slice(0, 4))} className={inputClass} placeholder="90" />
+                  </Field>
+                  <Field label="Crédito paga até (%) do pedido" hint="Dos produtos, após descontos. Ex.: 50% garante dinheiro novo em toda compra.">
+                    <input inputMode="decimal" value={form.cashbackMaxUsePercent} onChange={(e) => set("cashbackMaxUsePercent", e.target.value.replace(/[^\d.,]/g, "").slice(0, 5))} className={inputClass} placeholder="50" />
+                  </Field>
+                  <Field label="Compra mínima para usar (R$)" hint="Em produtos. Deixe vazio para qualquer valor.">
+                    <input inputMode="decimal" value={form.cashbackMinOrder} onChange={(e) => set("cashbackMinOrder", e.target.value.replace(/[^\d.,]/g, "").slice(0, 10))} className={inputClass} placeholder="Ex.: 100" />
+                  </Field>
+                </div>
+                <ToggleRow title="Pode usar junto com cupom" hint="Desligado: o cliente escolhe entre o cupom e o crédito." checked={form.cashbackStackCoupon} onChange={(v) => set("cashbackStackCoupon", v)} />
+                <ToggleRow title="Pode usar junto com o desconto do Pix" hint="Desligado: com Pix com desconto, o crédito não é aplicado." checked={form.cashbackStackPix} onChange={(v) => set("cashbackStackPix", v)} />
               </IntegrationCard>
 
               <IntegrationCard title="NuPay" icon="🟣" description="Débito, crédito Nubank ou Pix em até 24×." status={st.nupay} on={form.nuPayAtivo} onToggle={(v) => set("nuPayAtivo", v)}>

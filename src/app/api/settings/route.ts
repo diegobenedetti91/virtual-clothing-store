@@ -7,6 +7,11 @@ import { AI_MODELS, DEFAULT_AI_MODEL } from "@/lib/aiModels";
 
 const ORDER = { orderBy: { updatedAt: "desc" } } as const;
 
+/** Número dentro da faixa; senão o padrão. */
+function clampNum(v: unknown, min: number, max: number, fallback: number): number {
+  return typeof v === "number" && Number.isFinite(v) && v >= min && v <= max ? Math.round(v * 100) / 100 : fallback;
+}
+
 export async function GET() {
   const settings = await prisma.companySettings.findFirst(ORDER);
   // Credentials only go to a logged-in admin; the storefront gets the public subset.
@@ -30,6 +35,7 @@ export async function PUT(req: NextRequest) {
     infinityPayAtivo, infinityPayHandle, infinityPayApiKey,
     pixDiscountEnabled, pixDiscountPercent, whatsappAtivo,
     blingAtivo, blingNfeAuto, blingClientId, blingClientSecret, diasUteisProduzao, monthlyRevenueGoal, salesTaxRate,
+    cashbackEnabled, cashbackPercent, cashbackReleaseDays, cashbackValidityDays, cashbackMaxUsePercent, cashbackMinOrder, cashbackStackCoupon, cashbackStackPix,
   } = body;
 
   let settings = await prisma.companySettings.findFirst(ORDER);
@@ -101,6 +107,15 @@ export async function PUT(req: NextRequest) {
       typeof monthlyRevenueGoal === "number" && Number.isFinite(monthlyRevenueGoal) && monthlyRevenueGoal > 0
         ? Math.min(monthlyRevenueGoal, 1e9)
         : null,
+    // Cashback (valores fora da faixa voltam ao padrão)
+    cashbackEnabled: !!cashbackEnabled,
+    cashbackPercent: clampNum(cashbackPercent, 0, 100, 5),
+    cashbackReleaseDays: Math.round(clampNum(cashbackReleaseDays, 0, 365, 7)),
+    cashbackValidityDays: Math.round(clampNum(cashbackValidityDays, 1, 3650, 90)),
+    cashbackMaxUsePercent: clampNum(cashbackMaxUsePercent, 0, 100, 50),
+    cashbackMinOrder: clampNum(cashbackMinOrder, 0, 1e7, 0),
+    cashbackStackCoupon: !!cashbackStackCoupon,
+    cashbackStackPix: cashbackStackPix !== false,
     // Alíquota de imposto sobre vendas (%): 0 < x < 100, ou vazio
     salesTaxRate:
       typeof salesTaxRate === "number" && Number.isFinite(salesTaxRate) && salesTaxRate > 0 && salesTaxRate < 100

@@ -30,6 +30,7 @@ const SECRET_SETTINGS_FIELDS = [
   "infinityPayApiKey",
   // Meta de faturamento é dado interno do negócio
   "monthlyRevenueGoal",
+  "salesTaxRate",
   "blingClientSecret",
   "blingAccessToken",
   "blingRefreshToken",

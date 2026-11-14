@@ -7,6 +7,7 @@ export interface ProfitTotalsView {
   gross: number;
   coupon: number;
   pix: number;
+  credit?: number;
   revenue?: number;
   refunds: number;
   taxes?: number;
@@ -33,7 +34,7 @@ export interface ProfitTotalsView {
  */
 export function ProfitWaterfall({ t, compact = false }: { t: ProfitTotalsView; compact?: boolean }) {
   const base = Math.max(t.gross, 1);
-  const revenue = t.revenue ?? t.gross - t.coupon - t.pix;
+  const revenue = t.revenue ?? t.gross - t.coupon - t.pix - (t.credit ?? 0);
   const taxes = t.taxes ?? 0;
   const netRevenue = t.netRevenue ?? revenue - t.refunds - taxes;
   const grossProfit = t.grossProfit ?? netRevenue - t.cogs;
@@ -46,6 +47,7 @@ export function ProfitWaterfall({ t, compact = false }: { t: ProfitTotalsView; c
   const lines: Line[] = [
     { kind: "minus", label: "Cupons de desconto", value: t.coupon, hint: "Valor dos cupons usados (inclui frete grátis)" },
     { kind: "minus", label: "Desconto Pix", value: t.pix, hint: "Desconto para pagamento no Pix" },
+    { kind: "minus", label: "Cashback usado (crédito)", value: t.credit ?? 0, hint: "Crédito da conta usado pelos clientes como desconto" },
     { kind: "total", label: "Faturamento", value: revenue, hint: "O que os clientes pagaram (valor das notas)", color: SERIES[0] },
     { kind: "minus", label: "Devoluções (estornos)", value: t.refunds, hint: "Devoluções aprovadas" },
     {

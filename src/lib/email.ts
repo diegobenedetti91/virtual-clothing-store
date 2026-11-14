@@ -189,6 +189,49 @@ export async function sendInvoiceEmail({
   });
 }
 
+const brlMail = (v: number) => `R$ ${v.toFixed(2).replace(".", ",")}`;
+const dateMail = (d: Date | string) => new Date(d).toLocaleDateString("pt-BR", { day: "2-digit", month: "long" });
+
+/** Cashback liberado: crédito disponível para a próxima compra. */
+export async function sendCashbackReleasedEmail({
+  to, customerName, storeName, released, available, expiresAt, shopUrl,
+}: {
+  to: string; customerName: string; storeName: string; released: number; available: number; expiresAt: Date | string | null; shopUrl: string;
+}) {
+  if (!process.env.SMTP_USER) return;
+  const html = baseWrapper(`
+    <h2 style="color:#7c3aed;margin:0 0 4px;">Seu cashback chegou! 💜</h2>
+    <p style="color:#555;margin:0 0 20px;">Olá, <strong>${esc(customerName)}</strong>! Liberamos <strong>${brlMail(released)}</strong> de crédito na sua conta para usar na próxima compra.</p>
+    <div style="background:#f5f3ff;border-radius:12px;padding:18px 20px;margin-bottom:18px;text-align:center;">
+      <p style="margin:0;font-size:12px;color:#6d28d9;text-transform:uppercase;letter-spacing:.05em;">Crédito disponível</p>
+      <p style="margin:4px 0 0;font-weight:800;font-size:28px;color:#4c1d95;">${brlMail(available)}</p>
+      ${expiresAt ? `<p style="margin:6px 0 0;font-size:12px;color:#6d28d9;">Use até ${dateMail(expiresAt)}</p>` : ""}
+    </div>
+    <p style="text-align:center;margin:0 0 6px;">
+      <a href="${esc(shopUrl)}" style="display:inline-block;background:#7c3aed;color:#fff;text-decoration:none;font-weight:600;padding:12px 22px;border-radius:10px;font-size:14px;">Usar meu crédito</a>
+    </p>
+    <p style="color:#888;font-size:12px;text-align:center;margin:10px 0 0;">No checkout, marque “Usar meu crédito” e o desconto é aplicado na hora.</p>
+  `, storeName);
+  await sendMail({ from: `"${storeName}" <${process.env.SMTP_USER}>`, to, subject: `Você ganhou ${brlMail(released)} de crédito — ${storeName}`, html });
+}
+
+/** Lembrete: crédito vai vencer. */
+export async function sendCashbackExpiringEmail({
+  to, customerName, storeName, amount, expiresAt, shopUrl,
+}: {
+  to: string; customerName: string; storeName: string; amount: number; expiresAt: Date | string; shopUrl: string;
+}) {
+  if (!process.env.SMTP_USER) return;
+  const html = baseWrapper(`
+    <h2 style="color:#7c3aed;margin:0 0 4px;">Seu crédito está quase vencendo ⏳</h2>
+    <p style="color:#555;margin:0 0 20px;">Olá, <strong>${esc(customerName)}</strong>! Você tem <strong>${brlMail(amount)}</strong> de crédito que vence em <strong>${dateMail(expiresAt)}</strong>. Não deixe passar!</p>
+    <p style="text-align:center;margin:0 0 6px;">
+      <a href="${esc(shopUrl)}" style="display:inline-block;background:#7c3aed;color:#fff;text-decoration:none;font-weight:600;padding:12px 22px;border-radius:10px;font-size:14px;">Ver novidades e usar o crédito</a>
+    </p>
+  `, storeName);
+  await sendMail({ from: `"${storeName}" <${process.env.SMTP_USER}>`, to, subject: `Seu crédito de ${brlMail(amount)} vence em breve — ${storeName}`, html });
+}
+
 export async function sendShippingEmail({
   to, customerName, orderNumber, storeName, trackingCode, shippingProofUrl,
 }: {

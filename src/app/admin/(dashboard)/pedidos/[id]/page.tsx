@@ -43,6 +43,8 @@ interface OrderDetails {
   total: number;
   couponCode?: string | null;
   couponDiscount?: number;
+  creditUsed?: number;
+  cashbackEarned?: number;
   paymentMethod?: string | null;
   paymentGateway?: string | null;
   paymentId?: string | null;
@@ -252,7 +254,8 @@ export default function OrderDetailsPage() {
   const isPickup = order.shippingMethod === "retirada";
   const blingOk = order.blingIntegrationStatus === "success" && !!order.blingPedidoId;
   const couponDiscount = order.couponDiscount || 0;
-  const otherDiscount = Math.max(0, Math.round((order.subtotal + order.shippingCost - order.total - couponDiscount) * 100) / 100);
+  const creditUsed = order.creditUsed || 0;
+  const otherDiscount = Math.max(0, Math.round((order.subtotal + order.shippingCost - order.total - couponDiscount - creditUsed) * 100) / 100);
   const itemCount = order.items.reduce((s, i) => s + i.quantity, 0);
   const phoneDigits = order.customerPhone.replace(/\D/g, "");
   const tracking = order.trackingCode ? getCarrierTracking(order.trackingCode) : null;
@@ -537,7 +540,13 @@ export default function OrderDetailsPage() {
               {otherDiscount > 0 && (
                 <div className="flex justify-between text-emerald-700"><dt>Desconto Pix</dt><dd className="tabular-nums">−{formatCurrency(otherDiscount)}</dd></div>
               )}
+              {creditUsed > 0 && (
+                <div className="flex justify-between text-violet-700"><dt>Crédito da conta (cashback)</dt><dd className="tabular-nums">−{formatCurrency(creditUsed)}</dd></div>
+              )}
               <div className="flex justify-between font-semibold text-gray-900 text-base pt-1.5 border-t border-gray-100"><dt>Total</dt><dd className="tabular-nums">{formatCurrency(order.total)}</dd></div>
+              {(order.cashbackEarned || 0) > 0 && (
+                <div className="flex justify-between text-xs text-violet-600"><dt>Cashback para o cliente (libera após a entrega)</dt><dd className="tabular-nums">{formatCurrency(order.cashbackEarned!)}</dd></div>
+              )}
               {order.paymentFee ? <div className="flex justify-between text-xs text-gray-400"><dt>Taxa do gateway</dt><dd className="tabular-nums">−{formatCurrency(order.paymentFee)}</dd></div> : null}
             </dl>
           </Card>

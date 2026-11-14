@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { prisma } from "@/lib/prisma";
-import { validateCheckout } from "@/lib/checkoutValidation";
+import { orderDiscountFields, validateCheckout } from "@/lib/checkoutValidation";
 import { getMetaOrderContext } from "@/lib/metaCapi";
 import { getTrafficOrderContext } from "@/lib/trafficSourceServer";
 import { generateOrderNumber } from "@/lib/utils";
@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
   }
 
   const checked = await validateCheckout(req, {
-    items: rawItems, zipCode, shippingMethod, pixOnly: pixOnly === true, couponCode,
+    items: rawItems, zipCode, shippingMethod, pixOnly: pixOnly === true, couponCode, useCredit: body?.useCredit === true,
     customerEmail: customerEmail || body.formData?.payer?.email, cpfCnpj: cpfCnpj || body.formData?.payer?.identification?.number,
   });
   if ("error" in checked) return NextResponse.json({ status: "error", message: checked.error }, { status: 400 });
@@ -107,8 +107,7 @@ export async function POST(req: NextRequest) {
       shippingCost,
       shippingMethod: shippingMethod || null,
       total,
-      couponCode: checked.coupon?.code ?? null,
-      couponDiscount: checked.couponDiscount,
+      ...orderDiscountFields(checked),
       status: "PENDING",
       paymentGateway: "mercadopago",
       paymentMethod: MP_TRANSPARENT_LABEL,

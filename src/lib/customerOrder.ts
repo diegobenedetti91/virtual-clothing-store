@@ -48,6 +48,8 @@ export const CUSTOMER_ORDER_SELECT = {
   total: true,
   couponCode: true,
   couponDiscount: true,
+  creditUsed: true,
+  cashbackEarned: true,
   paymentMethod: true,
   cancelReason: true,
   trackingCode: true,

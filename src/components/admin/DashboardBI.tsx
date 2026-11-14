@@ -29,6 +29,10 @@ interface DashboardData {
   heatmap: number[][];
   funnel: { label: string; value: number }[];
   funnelClicks?: { label: string; value: number }[];
+  cashback?: {
+    enabled: boolean; percent: number; earned: number; used: number; available: number; pending: number;
+    customersWithBalance: number; customersEarned: number; customersRedeemed: number;
+  } | null;
   alerts: { key: string; count: number; title: string; description: string; href: string; severity: "critical" | "warning" | "info" }[];
   profit?: { cur: ProfitTotalsView; prev: { net: number; margin: number | null; gross: number } };
   goal?: GoalView;
@@ -328,6 +332,37 @@ export default function DashboardBI({ storeName }: { storeName?: string | null }
           )}
         </ChartCard>
       </div>
+
+      {/* Cashback */}
+      {data?.cashback && (data.cashback.enabled || data.cashback.used > 0 || data.cashback.available > 0) && (
+        <ChartCard
+          title={`Cashback${data.cashback.enabled ? ` (${data.cashback.percent.toLocaleString("pt-BR")}%)` : " (desligado)"}`}
+          subtitle="Crédito que volta para o cliente usar na próxima compra"
+          action={<Link href="/admin/configuracoes" className="text-xs font-medium text-gray-500 hover:text-gray-900 inline-flex items-center gap-1">Configurar <ArrowRight size={12} /></Link>}
+        >
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-2">
+            {[
+              { label: "Concedido no período", value: fmt.brl(data.cashback.earned), hint: "Cashback gerado pelos pedidos pagos do período" },
+              { label: "Usado no período", value: fmt.brl(data.cashback.used), hint: "Crédito que os clientes usaram como desconto (entra no DRE)" },
+              { label: "Saldo dos clientes hoje", value: fmt.brl(data.cashback.available), hint: "Disponível para uso: são descontos futuros que a loja já prometeu" },
+              { label: "A liberar", value: fmt.brl(data.cashback.pending), hint: "Pedidos ainda no prazo de entrega/devolução" },
+              {
+                label: "Voltaram e usaram",
+                value: data.cashback.customersEarned ? fmt.pct((data.cashback.customersRedeemed / data.cashback.customersEarned) * 100) : "—",
+                hint: `${data.cashback.customersRedeemed} de ${data.cashback.customersEarned} clientes que ganharam cashback já compraram usando o crédito`,
+              },
+            ].map((k) => (
+              <div key={k.label} className="rounded-xl bg-violet-50/60 ring-1 ring-violet-100 px-3 py-2.5" title={k.hint}>
+                <p className="text-[11px] text-violet-700/80">{k.label}</p>
+                <p className="text-base font-semibold text-violet-900 tabular-nums">{k.value}</p>
+              </div>
+            ))}
+          </div>
+          {data.cashback.customersWithBalance > 0 && (
+            <p className="mt-3 text-xs text-gray-500">{data.cashback.customersWithBalance} cliente{data.cashback.customersWithBalance === 1 ? " tem" : "s têm"} crédito para usar — bom público para uma campanha.</p>
+          )}
+        </ChartCard>
+      )}
 
       {/* Funis: por pessoas (conversão) e por cliques (volume) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

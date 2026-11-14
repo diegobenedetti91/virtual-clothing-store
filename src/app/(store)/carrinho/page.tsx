@@ -36,6 +36,7 @@ export default function CartPage() {
   const [stockMap, setStockMap] = useState<Record<string, number>>({});
   const [stockErrors, setStockErrors] = useState<Record<string, string>>({});
   const [pixPercent, setPixPercent] = useState(0);
+  const [cashbackPct, setCashbackPct] = useState(0);
   const [pendingCoupon, setPendingCoupon] = useState<string | null>(null);
   const [removed, setRemoved] = useState<CartItem | null>(null);
 
@@ -55,7 +56,10 @@ export default function CartPage() {
   useEffect(() => {
     fetch("/api/settings")
       .then((r) => r.json())
-      .then((s) => setPixPercent(s?.pixDiscountEnabled ? s.pixDiscountPercent ?? 0 : 0))
+      .then((s) => {
+        setPixPercent(s?.pixDiscountEnabled ? s.pixDiscountPercent ?? 0 : 0);
+        setCashbackPct(s?.cashbackEnabled ? s.cashbackPercent ?? 0 : 0);
+      })
       .catch(() => {});
     try {
       const c = localStorage.getItem(PENDING_COUPON_KEY);
@@ -227,6 +231,11 @@ export default function CartPage() {
                 {pixTotal != null && (
                   <p className="mt-1 text-right text-sm text-gray-600 inline-flex items-center gap-1 w-full justify-end">
                     <Zap size={13} className="text-emerald-600" /> ou <b className="text-emerald-700 tabular-nums">{formatCurrency(pixTotal)}</b> no Pix
+                  </p>
+                )}
+                {cashbackPct > 0 && subtotal > 0 && (
+                  <p className="mt-3 flex items-center gap-1.5 rounded-lg bg-violet-50 px-2.5 py-1.5 text-[12.5px] text-violet-800">
+                    <span aria-hidden>💜</span> Você ganha até <b className="tabular-nums">{formatCurrency(Math.round(subtotal * cashbackPct) / 100)}</b> de cashback nesta compra
                   </p>
                 )}
               </div>
