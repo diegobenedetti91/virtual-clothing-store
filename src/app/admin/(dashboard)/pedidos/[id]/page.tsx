@@ -6,7 +6,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
   AlertTriangle, ArrowLeft, Check, CheckCircle2, Clock, Copy, CreditCard, ExternalLink, FileText, Globe, Mail,
-  MapPin, MessageCircle, Package, PackageCheck, Phone, RefreshCw, Receipt, Store, Tag, Truck, User, XCircle,
+  MapPin, MessageCircle, Package, PackageCheck, Phone, Printer, RefreshCw, Receipt, Store, Tag, Truck, User, XCircle,
 } from "lucide-react";
 import { formatCurrency, needsMelhorEnvioLabel, ORDER_STATUS } from "@/lib/utils";
 import { getCarrierTracking } from "@/lib/carrierTracking";
@@ -56,6 +56,11 @@ interface OrderDetails {
   trackingCode?: string | null;
   trackingUrl?: string | null;
   etiquetaUrl?: string | null;
+  labelFile?: string | null;
+  labelGeneratedAt?: string | null;
+  labelPrintedAt?: string | null;
+  labelStepError?: string | null;
+  labelStepAttempts?: number | null;
   shipmentStatus?: string | null;
   labelValid?: boolean | null;
   labelError?: string | null;
@@ -166,7 +171,8 @@ export default function OrderDetailsPage() {
         setLabelMsg({ type: "success", text: data.message || "Etiqueta criada" });
       } else {
         const text = data.error || data.message || "Erro ao gerar etiqueta";
-        setOrder({ ...order, shipmentRetryError: text });
+        const fresh = await fetch(`/api/orders/${order.id}`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+        setOrder(fresh ? { ...order, ...fresh } : { ...order, shipmentRetryError: text });
         setLabelMsg({ type: "error", text });
       }
     } catch {
@@ -299,15 +305,58 @@ export default function OrderDetailsPage() {
               </div>
             ) : order.melhorEnvioShipmentId ? (
               <div className="space-y-3">
-                <div className={`rounded-xl px-4 py-3 flex items-start gap-3 ${order.labelValid === false ? "bg-red-50" : "bg-emerald-50"}`}>
-                  {order.labelValid === false ? <AlertTriangle size={18} className="text-red-600 shrink-0 mt-0.5" /> : <PackageCheck size={18} className="text-emerald-600 shrink-0 mt-0.5" />}
-                  <div className="min-w-0 flex-1">
-                    <p className={`text-sm font-semibold ${order.labelValid === false ? "text-red-800" : "text-emerald-800"}`}>
-                      {order.labelValid === false ? "Etiqueta inválida — precisa ser recriada" : SHIPMENT_STATUS[order.shipmentStatus || ""] || "Etiqueta criada"}
-                    </p>
-                    {order.labelError && <p className="text-xs text-red-700 mt-0.5 break-words">{order.labelError}</p>}
+                {order.labelValid === false ? (
+                  <div className="rounded-xl px-4 py-3 flex items-start gap-3 bg-red-50">
+                    <AlertTriangle size={18} className="text-red-600 shrink-0 mt-0.5" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-red-800">Etiqueta inválida — precisa ser recriada</p>
+                      {order.labelError && <p className="text-xs text-red-700 mt-0.5 break-words">{order.labelError}</p>}
+                    </div>
                   </div>
-                </div>
+                ) : order.labelStepError ? (
+                  <div className="rounded-xl px-4 py-3 bg-amber-50">
+                    <div className="flex items-start gap-3">
+                      <AlertTriangle size={18} className="text-amber-600 shrink-0 mt-0.5" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-amber-900">
+                          {/saldo|insuficiente|balance/i.test(order.labelStepError) ? "Sem saldo no Melhor Envio — etiqueta reservada" : "A etiqueta travou no Melhor Envio"}
+                        </p>
+                        <p className="text-xs text-amber-800 mt-0.5 break-words">{order.labelStepError}</p>
+                        <p className="text-xs text-gray-600 mt-1.5">
+                          O site tenta de novo sozinho a cada 20 minutos{order.labelStepAttempts ? ` (${order.labelStepAttempts} tentativa${order.labelStepAttempts === 1 ? "" : "s"})` : ""}. Se já resolveu (ex.: colocou saldo), tente agora.
+                        </p>
+                      </div>
+                    </div>
+                    <Button variant="dark" size="sm" icon={RefreshCw} onClick={generateLabel} loading={labelBusy} loadingText="Tentando…" className="mt-3">
+                      Tentar de novo
+                    </Button>
+                  </div>
+                ) : !order.labelGeneratedAt ? (
+                  <div className="rounded-xl px-4 py-3 bg-sky-50">
+                    <div className="flex items-start gap-3">
+                      <Clock size={18} className="text-sky-600 shrink-0 mt-0.5" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-sky-900">Etiqueta paga — falta gerar o rastreio e o PDF</p>
+                        <p className="text-xs text-sky-800 mt-0.5">Acontece sozinho em instantes. Se demorar, prepare agora.</p>
+                      </div>
+                    </div>
+                    <Button variant="dark" size="sm" icon={Package} onClick={generateLabel} loading={labelBusy} loadingText="Preparando…" className="mt-3">
+                      Preparar etiqueta
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="rounded-xl px-4 py-3 flex items-start gap-3 bg-emerald-50">
+                    <PackageCheck size={18} className="text-emerald-600 shrink-0 mt-0.5" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-emerald-800">
+                        {["posted", "in_transit", "delivered"].includes(order.shipmentStatus || "") ? SHIPMENT_STATUS[order.shipmentStatus || ""] : "Etiqueta pronta para imprimir"}
+                      </p>
+                      <p className="text-xs text-emerald-700 mt-0.5">
+                        {order.labelPrintedAt ? `Impressa em ${new Date(order.labelPrintedAt).toLocaleString("pt-BR")}` : "Ainda não impressa"}
+                      </p>
+                    </div>
+                  </div>
+                )}
                 <dl className="grid sm:grid-cols-2 gap-3 text-sm">
                   <div className="rounded-xl ring-1 ring-gray-100 px-3 py-2.5">
                     <dt className="text-xs text-gray-500">Código de rastreio</dt>
@@ -318,7 +367,7 @@ export default function OrderDetailsPage() {
                           {tracking?.carrier && <span className="text-xs text-gray-400">{tracking.carrier}</span>}
                           <Button variant="ghost" size="iconSm" icon={copied === "trk" ? Check : Copy} onClick={() => copy(order.trackingCode!, "trk")} aria-label="Copiar rastreio" className={`ml-auto -my-1 ${copied === "trk" ? "text-emerald-600" : "text-gray-400"}`} />
                         </>
-                      ) : <span className="text-gray-400">Ainda não gerado pela transportadora</span>}
+                      ) : <span className="text-gray-400">{order.labelGeneratedAt ? "A transportadora ainda vai informar" : "Sai quando a etiqueta for gerada"}</span>}
                     </dd>
                   </div>
                   <div className="rounded-xl ring-1 ring-gray-100 px-3 py-2.5 min-w-0">
@@ -326,10 +375,16 @@ export default function OrderDetailsPage() {
                     <dd className="mt-0.5 font-mono text-xs text-gray-700 truncate" title={order.melhorEnvioShipmentId}>{order.melhorEnvioShipmentId}</dd>
                   </div>
                 </dl>
-                <div className="flex flex-wrap gap-2">
-                  {order.etiquetaUrl && (
-                    <a href={order.etiquetaUrl} target="_blank" rel="noopener noreferrer" className={buttonClasses({ variant: "dark", size: "sm" })}>
-                      <FileText /> Imprimir etiqueta
+                <div className="flex flex-wrap items-center gap-2">
+                  {order.labelGeneratedAt && order.labelValid !== false && (
+                    <a
+                      href={`/api/admin/pedidos/${order.id}/etiqueta`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => setTimeout(() => setOrder((o) => (o ? { ...o, labelPrintedAt: new Date().toISOString() } : o)), 800)}
+                      className={buttonClasses({ variant: "dark", size: "sm" })}
+                    >
+                      <Printer /> {order.labelPrintedAt ? "Imprimir de novo" : "Imprimir etiqueta"}
                     </a>
                   )}
                   {order.trackingCode && (
@@ -343,6 +398,9 @@ export default function OrderDetailsPage() {
                     </Button>
                   )}
                 </div>
+                {order.labelGeneratedAt && order.labelValid !== false && (
+                  <p className="text-[11px] text-gray-400">Impressora térmica: escolha o papel 10×15 cm (100×150 mm) e escala 100% (sem “ajustar à página”).</p>
+                )}
               </div>
             ) : (
               <div className={`rounded-xl px-4 py-4 ${order.shipmentRetryError ? "bg-red-50" : "bg-amber-50"}`}>

@@ -49,3 +49,4 @@ prisma/*.db-journal
 # local uploads — track directory but not contents
 /public/uploads/*
 !/public/uploads/.gitkeep
+/.data/

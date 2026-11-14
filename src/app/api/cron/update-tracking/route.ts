@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getMelhorEnvioTracking } from "@/lib/melhorEnvio";
 import { applyShipmentUpdate } from "@/lib/trackingSync";
+import { processarEtiquetasPendentes } from "@/lib/labelPipeline";
 
 export async function GET(req: NextRequest) {
   const secret = req.headers.get("x-cron-secret");
@@ -9,6 +10,13 @@ export async function GET(req: NextRequest) {
     console.warn("Unauthorized cron request");
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  // Aproveita a rotina que já roda para destravar etiquetas (sem saldo, falta gerar/baixar o PDF)
+  const labels = await processarEtiquetasPendentes().catch((e) => {
+    console.error("[cron/update-tracking] etiquetas:", e);
+    return null;
+  });
+  if (labels?.tried) console.log(`[cron/update-tracking] etiquetas: ${labels.ready}/${labels.tried} prontas`);
 
   try {
     const settings = await prisma.companySettings.findFirst({ orderBy: { updatedAt: "desc" } });

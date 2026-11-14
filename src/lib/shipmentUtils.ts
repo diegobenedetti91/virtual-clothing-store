@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
-import { createMelhorEnvioShipment, validateShipmentLabel, MelhorEnvioShipmentPayload } from "@/lib/melhorEnvio";
+import { createMelhorEnvioShipment, validateShipmentLabel, MelhorEnvioShipmentPayload, MelhorEnvioCheckoutError } from "@/lib/melhorEnvio";
 import { sendShippingConfirmationEmail } from "@/lib/email";
 import { needsMelhorEnvioLabel } from "@/lib/utils";
 
@@ -84,10 +84,14 @@ function parseAddress(fullAddress: string) {
 
 /** Pedidos pagos (ainda não enviados) cuja geração de etiqueta falhou. */
 export const SHIPMENT_ERROR_WHERE = {
-  shipmentRetryError: { not: null },
-  melhorEnvioShipmentId: null,
   status: "CONFIRMED",
   shippingMethod: { notIn: ["local", "retirada"] },
+  OR: [
+    // Não chegou a criar a etiqueta
+    { shipmentRetryError: { not: null }, melhorEnvioShipmentId: null },
+    // Criou, mas falhou ao pagar / gerar / imprimir
+    { labelStepError: { not: null } },
+  ],
 } satisfies Prisma.OrderWhereInput;
 
 export async function createAutomaticShipment(orderId: string) {
@@ -278,10 +282,36 @@ export async function createAutomaticShipment(orderId: string) {
       console.error(`[SHIPMENT] Invalid label for order ${order.orderNumber}: ${validation.message}`);
     }
 
+    // Pago: gera (código de rastreio) e baixa a etiqueta para imprimir, sem segurar quem chamou (webhook de pagamento)
+    await import("./labelPipeline")
+      .then((m) => m.prepararEtiquetaEmSegundoPlano(orderId))
+      .catch((e) => console.error("[SHIPMENT] Falha ao agendar preparo da etiqueta:", e));
+
     return shipment;
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
     console.error(`Failed to create shipment for order ${orderId}:`, errorMsg);
+
+    // Entrou no carrinho do Melhor Envio mas o pagamento falhou (ex.: saldo): guarda o ID para a nova
+    // tentativa só pagar essa mesma etiqueta, em vez de criar outra no carrinho
+    if (error instanceof MelhorEnvioCheckoutError) {
+      await prisma.order
+        .update({
+          where: { id: orderId },
+          data: {
+            melhorEnvioShipmentId: error.shipmentId,
+            shipmentStatus: "pending",
+            labelValid: null,
+            labelError: null,
+            labelStepError: errorMsg,
+            labelStepAttempts: { increment: 1 },
+            labelLastAttemptAt: new Date(),
+            shipmentRetryError: null,
+          },
+        })
+        .catch((e) => console.error("[SHIPMENT] Falha ao salvar etiqueta pendente:", e));
+      throw error;
+    }
 
     // Detectar se é erro retentável (ex: saldo insuficiente)
     const isRetryableError =

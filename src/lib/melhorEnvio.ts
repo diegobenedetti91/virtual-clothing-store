@@ -86,6 +86,91 @@ export interface MelhorEnvioTrackingResponse {
   }>;
 }
 
+/** Pagamento (checkout) falhou depois de a etiqueta entrar no carrinho do Melhor Envio. */
+export class MelhorEnvioCheckoutError extends Error {
+  shipmentId: string;
+  constructor(message: string, shipmentId: string) {
+    super(message);
+    this.name = "MelhorEnvioCheckoutError";
+    this.shipmentId = shipmentId;
+  }
+}
+
+/** Mensagem legível a partir da resposta de erro do Melhor Envio (message / error / errors). */
+export function meErrorMessage(body: string, fallback: string): string {
+  try {
+    const j = JSON.parse(body);
+    const parts: string[] = [];
+    if (typeof j?.message === "string" && j.message !== "The given data was invalid.") parts.push(j.message);
+    if (typeof j?.error === "string") parts.push(j.error);
+    if (j?.errors && typeof j.errors === "object") {
+      for (const v of Object.values(j.errors)) parts.push(...(Array.isArray(v) ? v.map(String) : [String(v)]));
+    }
+    const uniq = [...new Set(parts.filter(Boolean))];
+    if (uniq.length) return uniq.join(" · ").slice(0, 500);
+  } catch {}
+  return body && body.length < 300 && !body.trim().startsWith("<") ? `${fallback}: ${body}` : fallback;
+}
+
+const ME_API = "https://melhorenvio.com.br/api/v2/me";
+const meHeaders = (token: string) => ({
+  Authorization: `Bearer ${token}`,
+  "Content-Type": "application/json",
+  Accept: "application/json",
+  "User-Agent": "VirtualClothingStore/1.0",
+});
+
+export interface MeOrderInfo {
+  id: string;
+  status: string;
+  tracking: string | null;
+  protocol: string | null;
+  price: number | null;
+}
+
+/** Detalhes da etiqueta no Melhor Envio (status: pending → released → generated → posted → delivered). */
+export async function getMeOrder(token: string, shipmentId: string): Promise<MeOrderInfo> {
+  const res = await fetch(`${ME_API}/orders/${shipmentId}`, { headers: meHeaders(token), signal: AbortSignal.timeout(20000) });
+  const type = res.headers.get("content-type") || "";
+  const text = await res.text();
+  if (!res.ok || !type.includes("application/json")) throw new Error(meErrorMessage(text, `Não foi possível consultar a etiqueta (HTTP ${res.status})`));
+  const d = JSON.parse(text);
+  return {
+    id: String(d.id),
+    status: String(d.status || ""),
+    // Correios usa "tracking"; algumas transportadoras (ex.: Loggi) só "self_tracking"
+    tracking: d.tracking || d.self_tracking || null,
+    protocol: d.protocol || null,
+    price: moneyOrNull(d.price),
+  };
+}
+
+async function mePost(token: string, path: string, body: unknown, fallback: string): Promise<unknown> {
+  const res = await fetch(`${ME_API}${path}`, { method: "POST", headers: meHeaders(token), body: JSON.stringify(body), signal: AbortSignal.timeout(30000) });
+  const text = await res.text();
+  if (!res.ok) throw new Error(meErrorMessage(text, `${fallback} (HTTP ${res.status})`));
+  try { return JSON.parse(text); } catch { return {}; }
+}
+
+/** Paga a etiqueta que está no carrinho (usa o saldo da carteira do Melhor Envio). */
+export async function checkoutMeShipment(token: string, shipmentId: string) {
+  return mePost(token, "/shipment/checkout", { orders: [shipmentId] }, "Pagamento da etiqueta recusado");
+}
+
+/** Gera a etiqueta paga — é aqui que a transportadora atribui o código de rastreio. */
+export async function generateMeShipment(token: string, shipmentId: string) {
+  const r = (await mePost(token, "/shipment/generate", { orders: [shipmentId] }, "Não foi possível gerar a etiqueta")) as Record<string, { status?: boolean; message?: string }>;
+  const item = r?.[shipmentId];
+  if (item && item.status === false) throw new Error(item.message || "O Melhor Envio não gerou a etiqueta");
+}
+
+/** Link público de impressão (uma ou várias etiquetas no mesmo arquivo). */
+export async function printMeShipments(token: string, shipmentIds: string[]): Promise<string> {
+  const r = (await mePost(token, "/shipment/print", { mode: "public", orders: shipmentIds }, "Não foi possível obter a etiqueta para impressão")) as { url?: string };
+  if (!r?.url) throw new Error("O Melhor Envio não devolveu o link da etiqueta");
+  return r.url;
+}
+
 export async function createMelhorEnvioShipment(
   token: string,
   payload: MelhorEnvioShipmentPayload,
@@ -175,7 +260,7 @@ export async function createMelhorEnvioShipment(
       const error = await cartRes.text();
       console.error("[ME API] Cart error status:", cartRes.status);
       console.error("[ME API] Cart error body:", error);
-      throw new Error(`Melhor Envio cart error: ${cartRes.status}`);
+      throw new Error(meErrorMessage(error, `Melhor Envio recusou a etiqueta (HTTP ${cartRes.status})`));
     }
 
     const cartData = await cartRes.json();
@@ -203,7 +288,8 @@ export async function createMelhorEnvioShipment(
     if (!checkoutRes.ok) {
       const error = await checkoutRes.text();
       console.error("[ME API] Checkout error:", error);
-      throw new Error(`Melhor Envio checkout error: ${checkoutRes.status}`);
+      // A etiqueta já está no carrinho do Melhor Envio: devolve o ID para não criar outra ao tentar de novo
+      throw new MelhorEnvioCheckoutError(meErrorMessage(error, `Pagamento da etiqueta recusado (HTTP ${checkoutRes.status})`), String(shipmentId));
     }
 
     const checkoutData = await checkoutRes.json();

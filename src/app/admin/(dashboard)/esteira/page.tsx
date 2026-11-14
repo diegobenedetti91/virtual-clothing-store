@@ -5,7 +5,7 @@ import OptimizedImg from "@/components/OptimizedImg";
 import Link from "next/link";
 import {
   AlertTriangle, ArrowRight, Check, CheckCircle2, Clock, CreditCard, GripVertical, MoreHorizontal, Package,
-  PackageCheck, RefreshCw, Search, Store, Tag, Truck, X, XCircle,
+  PackageCheck, Printer, RefreshCw, Search, Store, Tag, Truck, X, XCircle,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/admin/ui/Button";
@@ -28,6 +28,9 @@ interface Order {
   melhorEnvioShipmentId: string | null;
   labelValid: boolean | null;
   shipmentRetryError: string | null;
+  labelGeneratedAt: string | null;
+  labelPrintedAt: string | null;
+  labelStepError: string | null;
   blingPedidoId: string | null;
   couponCode: string | null;
   itemCount: number;
@@ -153,9 +156,38 @@ export default function EsteiraPage() {
     toastTimer.current = setTimeout(() => setToast(null), 4000);
   };
 
+  /** Abre um PDF com as etiquetas dos pedidos (uma por página, para a térmica) e marca como impressas. */
+  const printLabels = async (ids: string[]) => {
+    if (!ids.length) return;
+    // Abre a aba já no clique (depois do await o navegador bloquearia como pop-up)
+    const win = window.open("", "_blank");
+    setBusy("print");
+    try {
+      const res = await fetch("/api/admin/etiquetas/imprimir", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ orderIds: ids }) });
+      const type = res.headers.get("content-type") || "";
+      if (res.ok && type.includes("pdf")) {
+        const url = URL.createObjectURL(await res.blob());
+        if (win) win.location.href = url; else window.open(url, "_blank");
+      } else {
+        const d = await res.json().catch(() => ({}));
+        if (!res.ok || !d.url) throw new Error(d.error || "Não foi possível montar as etiquetas");
+        if (win) win.location.href = d.url; else window.open(d.url, "_blank");
+      }
+      const at = new Date().toISOString();
+      setOrders((prev) => prev.map((o) => (ids.includes(o.id) ? { ...o, labelPrintedAt: at } : o)));
+      showToast(true, `${ids.length} etiqueta${ids.length > 1 ? "s" : ""} aberta${ids.length > 1 ? "s" : ""} para imprimir`);
+    } catch (e) {
+      win?.close();
+      showToast(false, e instanceof Error ? e.message : "Erro ao imprimir etiquetas");
+    } finally {
+      setBusy(null);
+    }
+  };
+  const canPrint = (o: Order) => !!o.melhorEnvioShipmentId && !!o.labelGeneratedAt && o.labelValid !== false;
+
   const needsAttention = (o: Order) => {
     if (o.status === "CONFIRMED" && now - new Date(o.updatedAt).getTime() > 2 * DAY) return true;
-    if (o.status === "CONFIRMED" && usesLabel(o) && (o.shipmentRetryError || o.labelValid === false || !o.melhorEnvioShipmentId)) return true;
+    if (o.status === "CONFIRMED" && usesLabel(o) && (o.shipmentRetryError || o.labelStepError || o.labelValid === false || !o.melhorEnvioShipmentId)) return true;
     if (blingEnabled && o.status !== "PENDING" && !o.blingPedidoId) return true;
     return false;
   };
@@ -231,6 +263,8 @@ export default function EsteiraPage() {
   const columns = COLUMNS.filter((c) => c.key !== "pickup" || hasPickupOrders);
   const attentionCount = orders.filter(needsAttention).length;
   const toShip = orders.filter((o) => o.status === "CONFIRMED").length;
+  // Etiquetas do dia: prontas e ainda não impressas
+  const toPrint = orders.filter((o) => o.status === "CONFIRMED" && canPrint(o) && !o.labelPrintedAt);
 
   return (
     <div className="space-y-5">
@@ -256,6 +290,11 @@ export default function EsteiraPage() {
             <AlertTriangle size={14} /> Precisa de atenção
             {attentionCount > 0 && <span className="ml-0.5 text-[11px] font-semibold bg-amber-500 text-white rounded-full px-1.5 tabular-nums">{attentionCount}</span>}
           </button>
+          {toPrint.length > 0 && (
+            <Button variant="dark" size="md" icon={Printer} onClick={() => printLabels(toPrint.map((o) => o.id))} loading={busy === "print"} loadingText="Montando…">
+              Imprimir etiquetas ({toPrint.length})
+            </Button>
+          )}
           <Button size="icon" icon={RefreshCw} onClick={refresh} loading={refreshing} aria-label="Atualizar" className="h-9 w-9" />
         </div>
       </div>
@@ -269,6 +308,11 @@ export default function EsteiraPage() {
               {LABEL[s]}
             </Button>
           ))}
+          {orders.some((o) => selected.has(o.id) && canPrint(o)) && (
+            <Button variant="ghost" size="xs" icon={Printer} onClick={() => printLabels(orders.filter((o) => selected.has(o.id) && canPrint(o)).map((o) => o.id))} loading={busy === "print"} className="text-white bg-white/10 hover:bg-white/20 hover:text-white focus-visible:ring-offset-gray-900">
+              Imprimir etiquetas
+            </Button>
+          )}
           <Button variant="ghost" size="xs" icon={X} onClick={() => setSelected(new Set())} className="ml-auto text-white/70 hover:bg-white/10 hover:text-white focus-visible:ring-offset-gray-900">Limpar seleção</Button>
         </div>
       )}
@@ -361,9 +405,13 @@ export default function EsteiraPage() {
                           {isPickup(o) && <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-orange-50 text-orange-700"><Store size={10} />Retirada</span>}
                           {isLocal(o) && <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-gray-100 text-gray-600"><Truck size={10} />Entrega local</span>}
                           {usesLabel(o) && o.status !== "PENDING" && (
-                            o.melhorEnvioShipmentId && o.labelValid !== false
-                              ? <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-50 text-emerald-700"><PackageCheck size={10} />Etiqueta ok</span>
-                              : <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-red-50 text-red-700" title={o.shipmentRetryError || undefined}><AlertTriangle size={10} />{o.labelValid === false ? "Etiqueta inválida" : o.shipmentRetryError ? "Erro na etiqueta" : "Sem etiqueta"}</span>
+                            o.melhorEnvioShipmentId && o.labelValid !== false && !o.labelStepError
+                              ? o.labelGeneratedAt
+                                ? o.labelPrintedAt
+                                  ? <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-50 text-emerald-700"><Printer size={10} />Etiqueta impressa</span>
+                                  : <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-sky-50 text-sky-700"><PackageCheck size={10} />Etiqueta pronta</span>
+                                : <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-sky-50 text-sky-700"><PackageCheck size={10} />Gerando etiqueta</span>
+                              : <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-red-50 text-red-700" title={o.labelStepError || o.shipmentRetryError || undefined}><AlertTriangle size={10} />{o.labelValid === false ? "Etiqueta inválida" : o.labelStepError && /saldo|insuficiente|balance/i.test(o.labelStepError) ? "Sem saldo ME" : o.labelStepError || o.shipmentRetryError ? "Erro na etiqueta" : "Sem etiqueta"}</span>
                           )}
                           {blingEnabled && o.status !== "PENDING" && (
                             o.blingPedidoId

@@ -1,28 +1,18 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/adminAuth";
 import { prisma } from "@/lib/prisma";
-import { createAutomaticShipment, SHIPMENT_ERROR_WHERE } from "@/lib/shipmentUtils";
+import { SHIPMENT_ERROR_WHERE } from "@/lib/shipmentUtils";
+import { prepararEtiqueta } from "@/lib/labelPipeline";
 import { needsMelhorEnvioLabel } from "@/lib/utils";
 
 /**
- * Gera a etiqueta e confere se ela foi de fato criada.
- * Lança erro com a mensagem amigável quando não foi.
+ * Leva a etiqueta até "pronta para imprimir" (cria, paga, gera e salva o PDF), continuando de onde parou.
+ * Lança erro com a mensagem amigável quando não deu.
  */
 async function generateLabel(orderId: string) {
-  await createAutomaticShipment(orderId);
-
-  const updated = await prisma.order.findUnique({
-    where: { id: orderId },
-    select: { melhorEnvioShipmentId: true },
-  });
-  if (!updated?.melhorEnvioShipmentId) {
-    throw new Error("A etiqueta não foi criada. Verifique os logs do servidor.");
-  }
-
-  await prisma.order.update({
-    where: { id: orderId },
-    data: { shipmentRetryableError: false, shipmentRetryError: null },
-  });
+  const r = await prepararEtiqueta(orderId);
+  if (!r.ok) throw new Error(r.message);
+  return r;
 }
 
 // GET: tenta novamente todos os pedidos com erro de etiqueta
@@ -49,11 +39,10 @@ export async function GET() {
         console.log(`[SHIPMENT RETRY] Attempting to create shipment for ${order.orderNumber}`);
         await generateLabel(order.id);
         successful++;
-        results.push({ orderNumber: order.orderNumber, status: "success", message: "Etiqueta criada" });
+        results.push({ orderNumber: order.orderNumber, status: "success", message: "Etiqueta pronta" });
       } catch (error) {
         failed++;
         const errorMsg = error instanceof Error ? error.message : String(error);
-        await prisma.order.update({ where: { id: order.id }, data: { shipmentRetryError: errorMsg } });
         results.push({ orderNumber: order.orderNumber, status: "failed", message: errorMsg });
         console.error(`[SHIPMENT RETRY] Failed for ${order.orderNumber}: ${errorMsg}`);
       }
@@ -111,19 +100,13 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
-    // Nunca descartar uma etiqueta válida: geraria outra etiqueta paga no Melhor Envio
-    if (order.melhorEnvioShipmentId && order.labelValid !== false) {
-      return NextResponse.json(
-        { success: false, error: "Este pedido já possui uma etiqueta válida" },
-        { status: 409 }
-      );
-    }
+    // Etiqueta válida já existente nunca é descartada (geraria outra paga): só continua de onde parou
 
     try {
       console.log(`[SHIPMENT RETRY] Manual retry for ${order.orderNumber}`);
 
-      if (order.melhorEnvioShipmentId) {
-        // Etiqueta inválida: limpa para permitir criar outra
+      if (order.melhorEnvioShipmentId && order.labelValid === false) {
+        // Etiqueta inválida (cancelada/expirada): limpa para permitir criar outra
         await prisma.order.update({
           where: { id: orderId },
           data: {
@@ -135,11 +118,16 @@ export async function POST(req: Request) {
             labelValidatedAt: null,
             labelValid: null,
             labelError: null,
+            labelFile: null,
+            labelPrintUrl: null,
+            labelGeneratedAt: null,
+            labelPrintedAt: null,
+            labelStepError: null,
           },
         });
       }
 
-      await generateLabel(order.id);
+      const done = await generateLabel(order.id);
 
       const updatedOrder = await prisma.order.findUnique({
         where: { id: orderId },
@@ -152,14 +140,12 @@ export async function POST(req: Request) {
       return NextResponse.json({
         ...updatedOrder,
         success: true,
-        message: `Etiqueta criada com sucesso para ${order.orderNumber}`,
+        message: done.message,
       });
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
-      await prisma.order.update({ where: { id: order.id }, data: { shipmentRetryError: errorMsg } });
-
       return NextResponse.json(
-        { success: false, message: `Falha ao criar etiqueta: ${errorMsg}`, error: errorMsg },
+        { success: false, message: errorMsg, error: errorMsg },
         { status: 400 }
       );
     }
