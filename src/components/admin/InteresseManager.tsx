@@ -23,19 +23,28 @@ const TAGS: Record<Exclude<Tag, null>, { label: string; cls: string; icon: React
   low_interest: { label: "Pouca procura", cls: "bg-gray-100 text-gray-500 ring-gray-200", icon: TrendingDown, hint: "Quase ninguém vê: destaque na home, Instagram ou categoria" },
 };
 const REASON: Record<string, string> = { PRICE_DROP: "Preço baixou", COUPON: "Cupom", FLASH_SALE: "Promoção relâmpago" };
-const FILTERS: { key: "all" | Exclude<Tag, null>; label: string }[] = [
+type FilterKey = "all" | "interested" | Exclude<Tag, null>;
+const FILTERS: { key: FilterKey; label: string }[] = [
   { key: "all", label: "Todos" },
+  { key: "interested", label: "Com interessados" },
   { key: "hot_no_sale", label: "Muito visto, pouco vendido" },
   { key: "champion", label: "Campeões" },
   { key: "low_interest", label: "Pouca procura" },
 ];
+
+/** Produto entra no filtro? "Com interessados" = ao menos 1 cliente com conta que pode ser avisado. */
+function matches(r: Row, f: FilterKey) {
+  if (f === "all") return true;
+  if (f === "interested") return r.interested >= 1;
+  return r.tag === f;
+}
 
 /** Interesse por produto: o que é visto x vendido, e avisos de promoção para os interessados. */
 export default function InteresseManager() {
   const [days, setDays] = useState(30);
   const [rows, setRows] = useState<Row[] | null>(null);
   const [history, setHistory] = useState<History[]>([]);
-  const [filter, setFilter] = useState<(typeof FILTERS)[number]["key"]>("all");
+  const [filter, setFilter] = useState<FilterKey>("all");
   const [q, setQ] = useState("");
   const [notifyFor, setNotifyFor] = useState<Row | null>(null);
 
@@ -55,7 +64,9 @@ export default function InteresseManager() {
 
   const visible = useMemo(() => {
     const nq = q.trim().toLowerCase();
-    return (rows ?? []).filter((r) => (filter === "all" || r.tag === filter) && (!nq || r.name.toLowerCase().includes(nq)));
+    const list = (rows ?? []).filter((r) => matches(r, filter) && (!nq || r.name.toLowerCase().includes(nq)));
+    // Na aba "Com interessados", quem tem mais gente para avisar vem primeiro
+    return filter === "interested" ? [...list].sort((a, b) => b.interested - a.interested || b.views - a.views) : list;
   }, [rows, filter, q]);
   const maxViews = Math.max(1, ...(rows ?? []).map((r) => r.views));
   const totals = useMemo(() => {
@@ -95,7 +106,7 @@ export default function InteresseManager() {
       <div className="flex flex-col lg:flex-row lg:items-center gap-3">
         <div className="flex gap-1 rounded-xl bg-white p-1 ring-1 ring-gray-200 overflow-x-auto [scrollbar-width:none]">
           {FILTERS.map((f) => {
-            const n = f.key === "all" ? rows?.length ?? 0 : (rows ?? []).filter((r) => r.tag === f.key).length;
+            const n = (rows ?? []).filter((r) => matches(r, f.key)).length;
             return (
               <button key={f.key} type="button" onClick={() => setFilter(f.key)} className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] font-medium whitespace-nowrap transition ${filter === f.key ? "bg-gray-900 text-white shadow-sm" : "text-gray-600 hover:bg-gray-50"}`}>
                 {f.label}
