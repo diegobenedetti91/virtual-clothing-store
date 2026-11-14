@@ -179,7 +179,7 @@ export default function RelatoriosManager() {
     { key: "name", header: "Produto", value: (r) => r.name, className: "font-medium text-gray-900 max-w-[240px] truncate" },
     { key: "quantity", header: "Qtd.", value: (r) => r.quantity, align: "right" },
     { key: "revenue", header: "Receita", value: (r) => r.revenue, render: (r) => fmt.brl(r.revenue), align: "right", className: "text-gray-900" },
-    { key: "cost", header: "Custo", value: (r) => r.cost, render: (r) => (r.cost != null ? fmt.brl(r.cost) : <span className="text-gray-300">—</span>), align: "right" },
+    { key: "cost", header: "CMV", value: (r) => r.cost, render: (r) => (r.cost != null ? fmt.brl(r.cost) : <span className="text-gray-300">—</span>), align: "right" },
     { key: "profit", header: "Lucro", value: (r) => r.profit, render: (r) => profitCell(r.profit), align: "right" },
     { key: "margin", header: "Margem", value: (r) => r.margin, render: (r) => <MarginPill margin={r.margin} />, align: "right" },
   ];
@@ -187,9 +187,9 @@ export default function RelatoriosManager() {
     { key: "orderNumber", header: "Pedido", value: (r) => r.orderNumber, className: "font-mono text-xs font-semibold text-gray-700" },
     { key: "customerName", header: "Cliente", value: (r) => r.customerName, className: "text-gray-700 max-w-[160px] truncate" },
     { key: "createdAt", header: "Data", value: (r) => r.createdAt, render: (r) => new Date(r.createdAt).toLocaleDateString("pt-BR"), className: "text-gray-500" },
-    { key: "revenue", header: "Receita", value: (r) => r.revenue, render: (r) => fmt.brl(r.revenue), align: "right", className: "text-gray-900" },
+    { key: "revenue", header: "Faturamento", value: (r) => r.revenue, render: (r) => fmt.brl(r.revenue), align: "right", className: "text-gray-900" },
     { key: "shipping", header: "Frete", value: (r) => r.shipping, render: (r) => (r.shipping ? `−${fmt.brl(r.shipping)}` : <span className="text-gray-300">—</span>), align: "right", className: "text-gray-500" },
-    { key: "cost", header: "Custo", value: (r) => r.cost, render: (r) => (r.cost != null ? fmt.brl(r.cost) : <span className="text-gray-300">—</span>), align: "right" },
+    { key: "cost", header: "CMV", value: (r) => r.cost, render: (r) => (r.cost != null ? fmt.brl(r.cost) : <span className="text-gray-300">—</span>), align: "right" },
     { key: "profit", header: "Lucro", value: (r) => r.profit, render: (r) => profitCell(r.profit), align: "right" },
     { key: "margin", header: "Margem", value: (r) => r.margin, render: (r) => <MarginPill margin={r.margin} />, align: "right" },
   ];
@@ -295,7 +295,7 @@ export default function RelatoriosManager() {
         <div className={`space-y-6 transition-opacity ${loading ? "opacity-60" : ""}`}>
           {/* KPIs */}
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-            <KpiCard icon={DollarSign} label="Faturamento" value={fmt.brlCompact(data.summary.revenue)} current={data.summary.revenue} />
+            <KpiCard icon={DollarSign} label="Faturamento" value={fmt.brlCompact(data.summary.revenue)} current={data.summary.revenue} hint="O que os clientes pagaram (já com descontos, com frete)" />
             <KpiCard icon={ShoppingCart} label="Pedidos" value={fmt.num(data.summary.orders)} current={data.summary.orders} />
             <KpiCard icon={TrendingUp} label="Ticket médio" value={fmt.brl(data.summary.ticket)} current={data.summary.ticket} hint="Valor dos produtos por pedido, já com descontos e sem o frete" />
             <KpiCard
@@ -303,7 +303,7 @@ export default function RelatoriosManager() {
               label="Lucro bruto"
               value={profit ? fmt.brlCompact(profit.value) : "—"}
               current={profit?.value ?? 0}
-              hint={profit?.missing ? `${profit.missing} produto(s) sem preço de custo não entram no cálculo` : "Receita menos custo dos produtos"}
+              hint={profit?.missing ? `${profit.missing} produto(s) sem preço de custo não entram no cálculo` : "Venda dos produtos − custo das peças (CMV), antes de impostos, taxas e frete"}
             />
             <KpiCard icon={XCircle} label="Cancelamentos" value={fmt.num(data.summary.cancelled)} current={data.summary.cancelled} />
           </div>

@@ -24,7 +24,7 @@ const UFS = ["AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG","P
 
 type SectionKey = "loja" | "aparencia" | "pagamentos" | "frete" | "integracoes" | "ia";
 const SECTIONS: { key: SectionKey; label: string; hint: string; icon: React.ComponentType<{ size?: number; className?: string }> }[] = [
-  { key: "loja", label: "Loja", hint: "Nome, logo, contato e meta", icon: Store },
+  { key: "loja", label: "Loja", hint: "Nome, logo, contato, meta e impostos", icon: Store },
   { key: "aparencia", label: "Aparência", hint: "Cores e banner da home", icon: Palette },
   { key: "pagamentos", label: "Checkout e pagamentos", hint: "Formas de pagamento", icon: CreditCard },
   { key: "frete", label: "Frete e entregas", hint: "Cálculo, Melhor Envio, prazos", icon: Truck },
@@ -34,7 +34,7 @@ const SECTIONS: { key: SectionKey; label: string; hint: string; icon: React.Comp
 
 /** Estado do formulário a partir das configurações salvas. */
 function fromSettings(s: CompanySettings | null) {
-  const x = (s ?? {}) as CompanySettings & { diasUteisProduzao?: number | null; monthlyRevenueGoal?: number | null };
+  const x = (s ?? {}) as CompanySettings & { diasUteisProduzao?: number | null; monthlyRevenueGoal?: number | null; salesTaxRate?: number | null };
   return {
     name: x.name || "",
     logo: x.logo || "",
@@ -99,6 +99,7 @@ function fromSettings(s: CompanySettings | null) {
     pacoteComprimento: x.fretePacoteComprimento?.toString() || "17",
     diasUteisProduzao: x.diasUteisProduzao?.toString() || "2",
     monthlyRevenueGoal: x.monthlyRevenueGoal?.toString() || "",
+    salesTaxRate: x.salesTaxRate != null ? String(x.salesTaxRate).replace(".", ",") : "",
   };
 }
 type FormState = ReturnType<typeof fromSettings>;
@@ -140,6 +141,7 @@ function toPayload(f: FormState) {
     // "15.000,50" (com vírgula: ponto é milhar) ou "15000.50" (sem vírgula: ponto é decimal)
     monthlyRevenueGoal:
       parseFloat(f.monthlyRevenueGoal.includes(",") ? f.monthlyRevenueGoal.replace(/\./g, "").replace(",", ".") : f.monthlyRevenueGoal) || null,
+    salesTaxRate: parseFloat(f.salesTaxRate.replace(",", ".")) || null,
   };
 }
 
@@ -331,6 +333,12 @@ export default function SettingsForm({ initialSettings }: Props) {
                     <input value={form.address} onChange={(e) => set("address", e.target.value)} className={inputClass} placeholder="Rua, número - Bairro, Cidade/UF" />
                   </Field>
                 </div>
+              </Card>
+
+              <Card title="Impostos sobre as vendas" description="Usado no DRE e no lucro líquido dos relatórios. Sem ele, o lucro aparece maior do que é.">
+                <Field label="Alíquota (%)" hint="No Simples Nacional, use a alíquota efetiva do DAS (o valor do DAS ÷ faturamento do mês). Seu contador informa; no comércio costuma ficar entre 4% e 6%." className="max-w-xs">
+                  <input inputMode="decimal" value={form.salesTaxRate} onChange={(e) => set("salesTaxRate", e.target.value.replace(/[^\d.,]/g, "").slice(0, 6))} className={inputClass} placeholder="Ex.: 4,5" />
+                </Field>
               </Card>
 
               <Card title="Meta de faturamento" description="Aparece no painel com o quanto já foi vendido no mês, a projeção e quanto vender por dia. Só você vê.">

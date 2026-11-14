@@ -29,7 +29,7 @@ export async function PUT(req: NextRequest) {
     freteLocalCidade, freteLocalUF, freteLocalRegioes, freteLocalRetirada, mercadoPagoAtivo, mercadoPagoTransparente, nuPayAtivo, nuPaySandbox,
     infinityPayAtivo, infinityPayHandle, infinityPayApiKey,
     pixDiscountEnabled, pixDiscountPercent, whatsappAtivo,
-    blingAtivo, blingNfeAuto, blingClientId, blingClientSecret, diasUteisProduzao, monthlyRevenueGoal,
+    blingAtivo, blingNfeAuto, blingClientId, blingClientSecret, diasUteisProduzao, monthlyRevenueGoal, salesTaxRate,
   } = body;
 
   let settings = await prisma.companySettings.findFirst(ORDER);
@@ -100,6 +100,11 @@ export async function PUT(req: NextRequest) {
     monthlyRevenueGoal:
       typeof monthlyRevenueGoal === "number" && Number.isFinite(monthlyRevenueGoal) && monthlyRevenueGoal > 0
         ? Math.min(monthlyRevenueGoal, 1e9)
+        : null,
+    // Alíquota de imposto sobre vendas (%): 0 < x < 100, ou vazio
+    salesTaxRate:
+      typeof salesTaxRate === "number" && Number.isFinite(salesTaxRate) && salesTaxRate > 0 && salesTaxRate < 100
+        ? Math.round(salesTaxRate * 100) / 100
         : null,
   };
 

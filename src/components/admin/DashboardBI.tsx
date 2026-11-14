@@ -207,10 +207,10 @@ export default function DashboardBI({ storeName }: { storeName?: string | null }
         </div>
       ) : (
         <div className={`grid grid-cols-2 lg:grid-cols-4 gap-3 transition-opacity ${loading ? "opacity-60" : ""}`}>
-          <KpiCard icon={DollarSign} label="Faturamento" value={fmt.brlCompact(k.revenue.cur)} current={k.revenue.cur} previous={k.revenue.prev} spark={spark("revenue")} hint="Soma dos pedidos pagos no período (inclui o frete cobrado)" />
+          <KpiCard icon={DollarSign} label="Faturamento" value={fmt.brlCompact(k.revenue.cur)} current={k.revenue.cur} previous={k.revenue.prev} spark={spark("revenue")} hint="O que os clientes pagaram nos pedidos aprovados: já com descontos, com o frete cobrado (valor das notas)" />
           <KpiCard icon={ShoppingBag} label="Pedidos pagos" value={fmt.num(k.orders.cur)} current={k.orders.cur} previous={k.orders.prev} spark={spark("orders")} />
           <KpiCard icon={CreditCard} label="Ticket médio" value={fmt.brl(k.ticket.cur)} current={k.ticket.cur} previous={k.ticket.prev} spark={spark("ticket")} hint="Valor dos produtos por pedido, já com descontos e sem o frete" />
-          <KpiCard icon={Wallet} label="Lucro bruto" value={fmt.brlCompact(k.grossProfit.cur)} current={k.grossProfit.cur} previous={k.grossProfit.prev} hint="Faturamento menos frete e preço de custo dos produtos (produtos sem custo cadastrado contam como custo zero)" />
+          <KpiCard icon={Wallet} label="Lucro bruto" value={fmt.brlCompact(k.grossProfit.cur)} current={k.grossProfit.cur} previous={k.grossProfit.prev} hint="Receita líquida (faturamento − devoluções − impostos) menos o custo das peças (CMV). Produtos sem custo cadastrado contam como custo zero." />
           <KpiCard icon={Eye} label="Visitas" value={fmt.num(k.sessions.cur)} current={k.sessions.cur} previous={k.sessions.prev} />
           <KpiCard icon={Percent} label="Conversão" value={fmt.pct(k.conversion.cur, 2)} current={k.conversion.cur} previous={k.conversion.prev} hint="Pedidos pagos ÷ visitas" />
           <KpiCard icon={UserPlus} label="Novos clientes" value={fmt.num(k.newCustomers.cur)} current={k.newCustomers.cur} previous={k.newCustomers.prev} hint="Contas criadas no período" />
@@ -223,7 +223,7 @@ export default function DashboardBI({ storeName }: { storeName?: string | null }
         <div className={`grid grid-cols-1 xl:grid-cols-2 gap-4 transition-opacity ${loading ? "opacity-60" : ""}`}>
           <ChartCard
             title="Lucro líquido do período"
-            subtitle="Depois de descontos, taxas, custo das peças, frete das etiquetas e estornos"
+            subtitle="Depois de descontos, devoluções, impostos, custo das peças (CMV), taxas e frete"
             action={<Link href="/admin/relatorios?tab=real" className="text-xs font-medium text-gray-500 hover:text-gray-900 inline-flex items-center gap-1">Detalhar <ArrowRight size={12} /></Link>}
           >
             <div className="flex items-baseline flex-wrap gap-x-3 gap-y-1 mb-1">
@@ -364,7 +364,7 @@ export default function DashboardBI({ storeName }: { storeName?: string | null }
 
       {data && k && (
         <p className="text-xs text-gray-400 flex items-center gap-1.5">
-          <TrendingUp size={12} /> Faturamento líquido de taxas e frete: <b className="text-gray-600 tabular-nums">{fmt.brl(k.netRevenue.cur)}</b>
+          <TrendingUp size={12} /> Receita líquida (após devoluções e impostos): <b className="text-gray-600 tabular-nums">{fmt.brl(k.netRevenue.cur)}</b>
           <span className="mx-1">·</span>
           <Package size={12} /> {fmt.num(k.items.cur)} peças vendidas
         </p>

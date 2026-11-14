@@ -7,10 +7,15 @@ export interface ProfitTotalsView {
   gross: number;
   coupon: number;
   pix: number;
-  fees: number;
-  cogs: number;
-  shipping: number;
+  revenue?: number;
   refunds: number;
+  taxes?: number;
+  taxRate?: number;
+  netRevenue?: number;
+  cogs: number;
+  grossProfit?: number;
+  fees: number;
+  shipping: number;
   net: number;
   margin: number | null;
   units?: number;
@@ -22,39 +27,64 @@ export interface ProfitTotalsView {
 }
 
 /**
- * Cascata do lucro: receita bruta, cada desconto/custo e o lucro líquido.
- * Barras proporcionais à receita bruta; valores sempre escritos (cor nunca sozinha).
+ * DRE em cascata, com os nomes do mercado:
+ * Vendas brutas (GMV) → Faturamento → Receita líquida → Lucro bruto → Lucro líquido.
+ * Barras proporcionais ao GMV; valores sempre escritos (cor nunca sozinha).
  */
 export function ProfitWaterfall({ t, compact = false }: { t: ProfitTotalsView; compact?: boolean }) {
-  const steps = [
-    { label: "Cupons de desconto", value: t.coupon, hint: "Valor dos cupons usados" },
-    { label: "Desconto Pix", value: t.pix, hint: "Desconto para pagamento no Pix" },
-    { label: "Taxas do gateway", value: t.fees, hint: "Mercado Pago e outros (quando informado)" },
-    { label: "Custo das peças", value: t.cogs, hint: "Preço de custo × quantidade" },
-    { label: "Frete (etiquetas)", value: t.shipping, hint: "Repassado à transportadora: custo real da etiqueta ou, sem ele, o frete cobrado" },
-    { label: "Estornos de devoluções", value: t.refunds, hint: "Devoluções aprovadas" },
-  ].filter((s) => !compact || s.value > 0);
   const base = Math.max(t.gross, 1);
+  const revenue = t.revenue ?? t.gross - t.coupon - t.pix;
+  const taxes = t.taxes ?? 0;
+  const netRevenue = t.netRevenue ?? revenue - t.refunds - taxes;
+  const grossProfit = t.grossProfit ?? netRevenue - t.cogs;
   const positive = t.net >= 0;
+  const pctOf = (v: number) => (t.gross > 0 && v > 0 ? fmt.pct((v / t.gross) * 100) : undefined);
+
+  type Line =
+    | { kind: "minus"; label: string; value: number; hint: string }
+    | { kind: "total"; label: string; value: number; hint: string; color: string };
+  const lines: Line[] = [
+    { kind: "minus", label: "Cupons de desconto", value: t.coupon, hint: "Valor dos cupons usados (inclui frete grátis)" },
+    { kind: "minus", label: "Desconto Pix", value: t.pix, hint: "Desconto para pagamento no Pix" },
+    { kind: "total", label: "Faturamento", value: revenue, hint: "O que os clientes pagaram (valor das notas)", color: SERIES[0] },
+    { kind: "minus", label: "Devoluções (estornos)", value: t.refunds, hint: "Devoluções aprovadas" },
+    {
+      kind: "minus",
+      label: t.taxRate ? `Impostos sobre vendas (${t.taxRate.toLocaleString("pt-BR")}%)` : "Impostos sobre vendas",
+      value: taxes,
+      hint: t.taxRate ? "Alíquota configurada × (faturamento − devoluções)" : "Configure a alíquota em Configurações → Loja para descontar os impostos",
+    },
+    { kind: "total", label: "Receita líquida", value: netRevenue, hint: "Faturamento − devoluções − impostos", color: SERIES[0] },
+    { kind: "minus", label: "Custo das peças (CMV)", value: t.cogs, hint: "Custo da mercadoria vendida: preço de custo × quantidade" },
+    { kind: "total", label: "Lucro bruto", value: grossProfit, hint: "Receita líquida − CMV", color: SERIES[0] },
+    { kind: "minus", label: "Taxas de pagamento", value: t.fees, hint: "Mercado Pago e outros (quando informado)" },
+    { kind: "minus", label: "Frete (etiquetas)", value: t.shipping, hint: "Repassado à transportadora: custo real da etiqueta ou, sem ele, o frete cobrado" },
+  ];
+  const visible = lines.filter((l) => l.kind === "total" || !compact || l.value > 0);
 
   return (
     <div className="space-y-2.5">
-      <Row label="Receita bruta" hint="Produtos + frete cobrado" value={fmt.brl(t.gross)} pct={100} color={SERIES[0]} strong />
-      {steps.map((s) => (
-        <Row
-          key={s.label}
-          label={s.label}
-          hint={s.hint}
-          value={s.value > 0 ? `−${fmt.brl(s.value)}` : fmt.brl(0)}
-          sub={t.gross > 0 && s.value > 0 ? fmt.pct((s.value / t.gross) * 100) : undefined}
-          pct={(s.value / base) * 100}
-          color={SERIES[1]}
-          muted={s.value === 0}
-        />
-      ))}
+      <Row label="Vendas brutas (GMV)" hint="Produtos a preço cheio + frete cobrado, antes dos descontos" value={fmt.brl(t.gross)} pct={100} color={SERIES[0]} strong />
+      {visible.map((l) =>
+        l.kind === "total" ? (
+          <Row key={l.label} label={`= ${l.label}`} hint={l.hint} value={fmt.brl(l.value)} sub={pctOf(l.value)} pct={(Math.abs(l.value) / base) * 100} color={l.color} strong />
+        ) : (
+          <Row
+            key={l.label}
+            label={l.label}
+            hint={l.hint}
+            value={l.value > 0 ? `−${fmt.brl(l.value)}` : fmt.brl(0)}
+            sub={pctOf(l.value)}
+            pct={(l.value / base) * 100}
+            color={SERIES[1]}
+            muted={l.value === 0}
+          />
+        )
+      )}
       <div className="pt-2.5 mt-1 border-t border-gray-100">
         <Row
-          label="Lucro líquido"
+          label="= Lucro líquido"
+          hint="Lucro bruto − taxas de pagamento − frete"
           value={fmt.brl(t.net)}
           sub={t.margin != null ? `margem ${fmt.pct(t.margin)}` : undefined}
           pct={(Math.abs(t.net) / base) * 100}

@@ -3,6 +3,7 @@ import { requireAdmin } from "@/lib/adminAuth";
 import { prisma } from "@/lib/prisma";
 import { extractMpPaymentDetails, PAYMENT_TYPE_LABEL } from "@/lib/mercadoPagoPayment";
 import { averageTicket, freeShippingCoupons } from "@/lib/ticket";
+import { getTaxRate } from "@/lib/profit";
 
 const PAID = ["CONFIRMED", "SHIPPED", "PRONTO_PARA_RETIRADA", "DELIVERED", "RETIRADO"];
 const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -54,6 +55,8 @@ export async function GET(req: NextRequest) {
       : [];
     const refundMap = new Map(refunds.map((r) => [r.orderId, r._sum.refundAmount || 0]));
 
+    // Impostos sobre vendas: alíquota configurada × (faturamento − devoluções)
+    const taxRate = await getTaxRate();
     const rows = orders.map((o) => {
       const refunded = refundMap.get(o.id) || 0;
       // Taxa conferida = o gateway informou o líquido (hoje só o Mercado Pago informa)
@@ -76,7 +79,8 @@ export async function GET(req: NextRequest) {
         refunded,
         shipping,
         shippingEstimated: o.shippingLabelCost == null && shipping > 0,
-        net: round2(o.total - refunded - (fee ?? 0) - shipping),
+        taxes: round2(Math.max(0, o.total - refunded) * (taxRate / 100)),
+        net: round2(o.total - refunded - (fee ?? 0) - shipping - Math.max(0, o.total - refunded) * (taxRate / 100)),
         missingFee: o.paymentGateway === "mercadopago" && !!o.paymentId && o.paymentNetAmount == null,
       };
     });
@@ -85,6 +89,7 @@ export async function GET(req: NextRequest) {
     const fees = rows.reduce((s, r) => s + (r.fee ?? 0), 0);
     const refundsTotal = rows.reduce((s, r) => s + r.refunded, 0);
     const shippingTotal = rows.reduce((s, r) => s + r.shipping, 0);
+    const taxesTotal = rows.reduce((s, r) => s + r.taxes, 0);
     const knownGross = rows.filter((r) => r.fee != null).reduce((s, r) => s + r.total, 0);
 
     const groups = new Map<string, { label: string; count: number; gross: number; fees: number; knownGross: number; feeKnownCount: number }>();
@@ -104,7 +109,9 @@ export async function GET(req: NextRequest) {
         fees: round2(fees),
         refunds: round2(refundsTotal),
         shipping: round2(shippingTotal),
-        net: round2(gross - refundsTotal - fees - shippingTotal),
+        taxes: round2(taxesTotal),
+        taxRate,
+        net: round2(gross - refundsTotal - fees - shippingTotal - taxesTotal),
         ticket: averageTicket(orders, await freeShippingCoupons(orders)),
         avgFeeRate: knownGross > 0 ? (fees / knownGross) * 100 : null,
         missingFees: rows.filter((r) => r.missingFee).length,

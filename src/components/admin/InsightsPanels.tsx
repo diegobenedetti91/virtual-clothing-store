@@ -14,6 +14,7 @@ export type InsightsTab = "real" | "perdas" | "ganhos";
 
 interface ProfitRow {
   id: string; orderNumber: string; customerName: string; createdAt: string; gross: number; coupon: number; pix: number; fees: number;
+  revenue: number; taxes: number; netRevenue: number; grossProfit: number;
   cogs: number; shipping: number; refunds: number; net: number; margin: number | null; itemsWithoutCost: number;
 }
 interface Group { label: string; count: number; value: number }
@@ -73,12 +74,13 @@ export default function InsightsPanels({ tab, from, to }: { tab: InsightsTab; fr
   const profitCols: Column<ProfitRow>[] = useMemo(() => [
     { key: "orderNumber", header: "Pedido", value: (r) => r.orderNumber, render: (r) => <Link href={`/admin/pedidos/${r.id}`} onClick={(e) => e.stopPropagation()} className="font-semibold text-gray-900 hover:text-brand">{r.orderNumber}</Link> },
     { key: "createdAt", header: "Data", value: (r) => r.createdAt, render: (r) => new Date(r.createdAt).toLocaleDateString("pt-BR"), className: "text-gray-500" },
-    { key: "gross", header: "Bruto", value: (r) => r.gross, render: (r) => fmt.brl(r.gross), align: "right" },
+    { key: "gross", header: "GMV", value: (r) => r.gross, render: (r) => fmt.brl(r.gross), align: "right" },
     { key: "discounts", header: "Descontos", value: (r) => r.coupon + r.pix, render: (r) => (r.coupon + r.pix ? `−${fmt.brl(r.coupon + r.pix)}` : "—"), align: "right", className: "text-gray-500" },
-    { key: "fees", header: "Taxa", value: (r) => r.fees, render: (r) => (r.fees ? `−${fmt.brl(r.fees)}` : "—"), align: "right", className: "text-gray-500" },
-    { key: "cogs", header: "Custo peças", value: (r) => r.cogs, render: (r) => <span>{r.cogs ? `−${fmt.brl(r.cogs)}` : "—"}{r.itemsWithoutCost > 0 && <span className="ml-1 text-amber-600" title="Peças sem preço de custo">*</span>}</span>, align: "right", className: "text-gray-500" },
-    { key: "other", header: "Frete/estorno", value: (r) => r.shipping + r.refunds, render: (r) => (r.shipping + r.refunds ? `−${fmt.brl(r.shipping + r.refunds)}` : "—"), align: "right", className: "text-gray-500" },
-    { key: "net", header: "Lucro", value: (r) => r.net, render: (r) => <span className={`font-semibold ${r.net < 0 ? "text-red-600" : "text-emerald-700"}`}>{r.net < 0 && "▼ "}{fmt.brl(r.net)}</span>, align: "right" },
+    { key: "revenue", header: "Faturamento", value: (r) => r.revenue, render: (r) => fmt.brl(r.revenue), align: "right", className: "text-gray-900" },
+    { key: "deductions", header: "Devol./impostos", value: (r) => r.refunds + r.taxes, render: (r) => (r.refunds + r.taxes ? `−${fmt.brl(r.refunds + r.taxes)}` : "—"), align: "right", className: "text-gray-500" },
+    { key: "cogs", header: "CMV", value: (r) => r.cogs, render: (r) => <span>{r.cogs ? `−${fmt.brl(r.cogs)}` : "—"}{r.itemsWithoutCost > 0 && <span className="ml-1 text-amber-600" title="Peças sem preço de custo">*</span>}</span>, align: "right", className: "text-gray-500" },
+    { key: "costs", header: "Taxa/frete", value: (r) => r.fees + r.shipping, render: (r) => (r.fees + r.shipping ? `−${fmt.brl(r.fees + r.shipping)}` : "—"), align: "right", className: "text-gray-500" },
+    { key: "net", header: "Lucro líquido", value: (r) => r.net, render: (r) => <span className={`font-semibold ${r.net < 0 ? "text-red-600" : "text-emerald-700"}`}>{r.net < 0 && "▼ "}{fmt.brl(r.net)}</span>, align: "right" },
     { key: "margin", header: "Margem", value: (r) => r.margin, render: (r) => (r.margin != null ? fmt.pct(r.margin) : "—"), align: "right", className: "text-gray-600" },
   ], []);
 
@@ -94,19 +96,20 @@ export default function InsightsPanels({ tab, from, to }: { tab: InsightsTab; fr
       {tab === "real" && (
         <>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            <KpiCard icon={Wallet} label="Lucro líquido" value={fmt.brlCompact(t.net)} current={t.net} hint="Depois de todos os descontos e custos" />
-            <KpiCard icon={TrendingDown} label="Margem líquida" value={t.margin != null ? fmt.pct(t.margin) : "—"} current={t.margin ?? 0} />
+            <KpiCard icon={Wallet} label="Lucro líquido" value={fmt.brlCompact(t.net)} current={t.net} hint="Depois de descontos, devoluções, impostos, CMV, taxas e frete" />
+            <KpiCard icon={TrendingDown} label="Margem líquida" value={t.margin != null ? fmt.pct(t.margin) : "—"} current={t.margin ?? 0} hint="Lucro líquido ÷ receita líquida" />
             <KpiCard icon={CreditCard} label="Lucro por pedido" value={t.orders ? fmt.brl(t.net / t.orders) : "—"} current={t.orders ? t.net / t.orders : 0} hint={`${t.orders} pedidos pagos`} />
             <KpiCard icon={AlertTriangle} label="Pedidos com prejuízo" value={fmt.num(t.lossOrders)} current={t.lossOrders} />
           </div>
-          {(t.unitsWithoutCost > 0 || t.ordersWithLabelCost < t.orders) && (
+          {(t.unitsWithoutCost > 0 || t.ordersWithLabelCost < t.orders || !t.taxRate) && (
             <div className="rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3 text-[13px] text-amber-900 space-y-1">
+              {!t.taxRate && <p>Os impostos sobre as vendas ainda não entram na conta. Informe a alíquota em <Link href="/admin/configuracoes" className="underline">Configurações → Loja</Link> para o lucro bater com a realidade.</p>}
               {t.unitsWithoutCost > 0 && <p><b>{t.unitsWithoutCost}</b> de {t.units} peças vendidas não têm preço de custo — para elas o custo conta como zero e o lucro aparece maior. Cadastre o custo em <Link href="/admin/produtos" className="underline">Produtos</Link>.</p>}
               {t.ordersWithLabelCost < t.orders && <p>O custo real da etiqueta é registrado só para pedidos novos ({t.ordersWithLabelCost} de {t.orders}); nos demais, desconta-se o frete cobrado do cliente como estimativa.</p>}
             </div>
           )}
           <div className="grid grid-cols-1 xl:grid-cols-5 gap-4">
-            <ChartCard title="Do faturamento ao lucro" subtitle="Para onde vai cada real vendido" className="xl:col-span-2">
+            <ChartCard title="DRE: das vendas ao lucro" subtitle="GMV → faturamento → receita líquida → lucro bruto → lucro líquido" className="xl:col-span-2">
               <ProfitWaterfall t={t} />
             </ChartCard>
             <ChartCard title="Lucro líquido por mês" subtitle="Somente pedidos pagos do período" className="xl:col-span-3">

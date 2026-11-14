@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/adminAuth";
 import { prisma } from "@/lib/prisma";
 import { getAdminAlerts } from "@/lib/adminAlerts";
-import { computeProfit } from "@/lib/profit";
+import { computeProfit, getTaxRate } from "@/lib/profit";
 import { averageTicket, freeShippingCoupons, productNet } from "@/lib/ticket";
 
 const PAID = ["CONFIRMED", "SHIPPED", "DELIVERED", "PRONTO_PARA_RETIRADA", "RETIRADO"];
@@ -139,7 +139,6 @@ export async function GET(req: NextRequest) {
 
   const sum = (list: typeof orders, f: (o: (typeof orders)[number]) => number) => list.reduce((s, o) => s + f(o), 0);
   const itemsOf = (o: (typeof orders)[number]) => o.items.reduce((s, i) => s + i.quantity, 0);
-  const costOf = (o: (typeof orders)[number]) => o.items.reduce((s, i) => s + (i.product.costPrice ?? 0) * i.quantity, 0);
 
   // ─── Séries por bucket ───
   const buckets = buildBuckets(start, end, monthly);
@@ -171,17 +170,15 @@ export async function GET(req: NextRequest) {
   series.ticket = productRev.map((r, i) => (series.orders[i] ? r / series.orders[i] : 0));
 
   // ─── KPIs ───
+  // DRE (GMV → faturamento → receita líquida → lucro bruto → lucro líquido), com a alíquota de imposto configurada
+  const taxRate = await getTaxRate();
+  const profitCur = computeProfit(paidCur, refundsByOrder, taxRate).totals;
+  const profitPrev = computeProfit(paidPrev, refundsByOrder, taxRate).totals;
   const revenue = sum(paidCur, (o) => o.total);
   const revenuePrev = sum(paidPrev, (o) => o.total);
-  const fees = sum(paidCur, (o) => o.paymentFee || 0);
-  const feesPrev = sum(paidPrev, (o) => o.paymentFee || 0);
-  // Frete vai para a transportadora: custo real da etiqueta ou, sem ele, o frete cobrado
-  const shippingOf = (o: { shippingLabelCost: number | null; shippingCost: number }) => o.shippingLabelCost ?? o.shippingCost ?? 0;
-  const shipping = sum(paidCur, shippingOf);
-  const shippingPrev = sum(paidPrev, shippingOf);
   const kpis = {
     revenue: { cur: revenue, prev: revenuePrev },
-    netRevenue: { cur: revenue - fees - shipping, prev: revenuePrev - feesPrev - shippingPrev },
+    netRevenue: { cur: profitCur.netRevenue, prev: profitPrev.netRevenue },
     orders: { cur: paidCur.length, prev: paidPrev.length },
     ticket: { cur: averageTicket(paidCur, freeShip), prev: averageTicket(paidPrev, freeShip) },
     items: { cur: sum(paidCur, itemsOf), prev: sum(paidPrev, itemsOf) },
@@ -192,12 +189,8 @@ export async function GET(req: NextRequest) {
       cur: cur.length ? (cur.filter((o) => o.status === "CANCELLED").length / cur.length) * 100 : 0,
       prev: prev.length ? (prev.filter((o) => o.status === "CANCELLED").length / prev.length) * 100 : 0,
     },
-    grossProfit: { cur: revenue - shipping - sum(paidCur, costOf), prev: revenuePrev - shippingPrev - sum(paidPrev, costOf) },
+    grossProfit: { cur: profitCur.grossProfit, prev: profitPrev.grossProfit },
   };
-
-  // Lucro líquido (DRE simplificado: descontos, taxas, custo, frete das etiquetas, estornos)
-  const profitCur = computeProfit(paidCur, refundsByOrder).totals;
-  const profitPrev = computeProfit(paidPrev, refundsByOrder).totals;
 
   const goalValue = goalSettings?.monthlyRevenueGoal ?? null;
   const monthRevenue = monthRevenueAgg._sum.total || 0;

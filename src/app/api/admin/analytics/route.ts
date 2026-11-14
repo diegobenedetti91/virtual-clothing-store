@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { averageTicket, freeShippingCoupons } from "@/lib/ticket";
+import { getTaxRate } from "@/lib/profit";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
@@ -137,7 +138,8 @@ export async function GET(req: NextRequest) {
     })
     .sort((a, b) => (b.profit ?? -Infinity) - (a.profit ?? -Infinity));
 
-  // Profit margin by order
+  // Profit margin by order (desconta frete, impostos sobre vendas e CMV)
+  const taxRate = await getTaxRate();
   const byOrder = filteredOrders.map((o) => {
     let orderCost = 0;
     let allHaveCost = true;
@@ -150,8 +152,9 @@ export async function GET(req: NextRequest) {
     }
     // Frete vai para a transportadora: custo real da etiqueta ou, sem ele, o frete cobrado
     const shipping = o.shippingLabelCost ?? o.shippingCost ?? 0;
-    const profit = allHaveCost ? o.total - shipping - orderCost : null;
-    const margin = allHaveCost && o.total > 0 ? ((o.total - shipping - orderCost) / o.total) * 100 : null;
+    const taxes = o.total * (taxRate / 100);
+    const profit = allHaveCost ? o.total - shipping - taxes - orderCost : null;
+    const margin = allHaveCost && o.total > 0 ? ((o.total - shipping - taxes - orderCost) / o.total) * 100 : null;
     return {
       orderNumber: o.orderNumber,
       customerName: o.customerName,

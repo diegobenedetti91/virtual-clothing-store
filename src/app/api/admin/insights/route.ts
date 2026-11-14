@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/adminAuth";
 import { prisma } from "@/lib/prisma";
-import { computeProfit, PAID_STATUSES, PROFIT_ORDER_SELECT } from "@/lib/profit";
+import { computeProfit, getTaxRate, PAID_STATUSES, PROFIT_ORDER_SELECT } from "@/lib/profit";
 
 const DAY = 86400000;
 const BRT = 3 * 3600000; // Brasil sem horário de verão: UTC−3 fixo
@@ -91,7 +91,7 @@ export async function GET(req: NextRequest) {
   // ─── 1. Lucro real ───
   const refundsByOrder = new Map<string, number>();
   for (const r of returns) if (r.status === "APPROVED") refundsByOrder.set(r.orderId, (refundsByOrder.get(r.orderId) || 0) + (r.refundAmount || 0));
-  const profit = computeProfit(paidOrders, refundsByOrder);
+  const profit = computeProfit(paidOrders, refundsByOrder, await getTaxRate());
   const monthMap = new Map<string, { gross: number; net: number }>();
   for (const row of profit.rows) {
     const k = brtKey(new Date(row.createdAt));

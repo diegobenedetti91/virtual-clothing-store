@@ -349,6 +349,8 @@ model CompanySettings {
   blingTokenExpiresAt    DateTime?
   /** Emite a NF-e automaticamente assim que o pedido pago entra no Bling */
   blingNfeAuto           Boolean  @default(false)
+  /** Alíquota de imposto sobre vendas (%), ex.: alíquota efetiva do Simples Nacional (DAS). Entra no DRE/lucro. */
+  salesTaxRate           Float?
   diasUteisProduzao      Int      @default(2)
   updatedAt              DateTime @updatedAt
   /** Meta de faturamento do mês (R$), exibida no dashboard */
