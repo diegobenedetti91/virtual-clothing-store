@@ -8,7 +8,7 @@ import { useCustomer } from "@/hooks/useCustomer";
 import { formatCurrency, generateOrderNumber } from "@/lib/utils";
 import { track } from "@/lib/analytics";
 import { metaTrack } from "@/lib/metaPixel";
-import { MessageCircle, ShoppingBag, CreditCard, Loader2, Truck, Lock, ShieldCheck, Smartphone, User as UserIcon, Wallet, Zap } from "lucide-react";
+import { AlertCircle, Check, ChevronLeft, ChevronRight, MessageCircle, ShoppingBag, CreditCard, Loader2, Truck, Lock, ShieldCheck, Smartphone, User as UserIcon, Wallet, Zap } from "lucide-react";
 import { attributesLabel } from "@/lib/variantUtils";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -41,18 +41,57 @@ interface ShippingOption {
   erro: string;
 }
 
-/** Bloco numerado do checkout (1. Seus dados · 2. Entrega · 3. Pagamento). */
-function Step({ n, title, icon: Icon, children }: { n: number; title: string; icon: React.ComponentType<{ size?: number; className?: string }>; children: React.ReactNode }) {
+/** Etapa do checkout: aberta (formulário), concluída (resumo + "Alterar") ou a seguir (só o título). */
+function Step({
+  n, title, icon: Icon, state, summary, onEdit, children,
+}: {
+  n: number; title: string; icon: React.ComponentType<{ size?: number; className?: string }>;
+  state: "active" | "done" | "todo"; summary?: React.ReactNode; onEdit?: () => void; children?: React.ReactNode;
+}) {
   return (
-    <section className="bg-white rounded-2xl ring-1 ring-gray-200/70 p-5 sm:p-6">
-      <h2 className="flex items-center gap-2.5 text-[15px] font-semibold text-gray-900 mb-4">
-        <span className="w-6 h-6 rounded-full bg-gray-900 text-white text-xs font-bold flex items-center justify-center">{n}</span>
-        {title}
-        <Icon size={16} className="text-gray-300 ml-auto" />
-      </h2>
-      {children}
+    <section id={`etapa-${n}`} className={`scroll-mt-28 bg-white rounded-2xl ring-1 transition-shadow ${state === "active" ? "ring-gray-300 shadow-[0_8px_30px_-12px_rgba(0,0,0,0.15)]" : "ring-gray-200/70"} ${state === "todo" ? "opacity-60" : ""}`}>
+      <div className="flex items-center gap-3 px-5 sm:px-6 py-4">
+        <span className={`w-7 h-7 rounded-full text-xs font-bold flex items-center justify-center shrink-0 ${state === "done" ? "bg-emerald-500 text-white" : state === "active" ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-500"}`}>
+          {state === "done" ? <Check size={14} strokeWidth={3} /> : n}
+        </span>
+        <div className="min-w-0 flex-1">
+          <h2 className={`text-[15px] font-semibold ${state === "todo" ? "text-gray-500" : "text-gray-900"}`}>{title}</h2>
+          {state === "done" && summary && <div className="text-[13px] text-gray-500 mt-0.5 truncate">{summary}</div>}
+        </div>
+        {state === "done" && onEdit ? (
+          <button type="button" onClick={onEdit} className="text-[13px] font-semibold text-brand hover:underline shrink-0">Alterar</button>
+        ) : (
+          <Icon size={17} className="text-gray-300 shrink-0" />
+        )}
+      </div>
+      {state === "active" && <div className="px-5 sm:px-6 pb-5 sm:pb-6 -mt-1">{children}</div>}
     </section>
   );
+}
+
+/** Botões da etapa: Voltar · Continuar. */
+function StepNav({ onBack, onNext, nextLabel }: { onBack?: () => void; onNext?: () => void; nextLabel?: string }) {
+  return (
+    <div className={`mt-6 flex items-center gap-3 ${onNext ? "" : "lg:mt-4"}`}>
+      {onBack && (
+        <button type="button" onClick={onBack} className="inline-flex items-center gap-1 text-sm font-medium text-gray-500 hover:text-gray-900 px-1 py-2">
+          <ChevronLeft size={16} /> Voltar
+        </button>
+      )}
+      {onNext && (
+        <button type="button" onClick={onNext} className="ml-auto inline-flex items-center gap-2 bg-gray-900 text-white hover:bg-gray-800 px-5 py-3 rounded-xl text-sm font-semibold transition">
+          <span className="sm:hidden">Continuar</span>
+          <span className="hidden sm:inline">{nextLabel || "Continuar"}</span>
+          <ChevronRight size={16} />
+        </button>
+      )}
+    </div>
+  );
+}
+
+/** Mensagem de campo com problema. */
+function FieldError({ msg }: { msg?: string }) {
+  return msg ? <p className="mt-1 text-xs font-medium text-red-600 flex items-center gap-1"><AlertCircle size={12} /> {msg}</p> : null;
 }
 
 /** Opção liga/desliga do pagamento (Pix com desconto, usar crédito). */
@@ -79,6 +118,10 @@ export default function CheckoutPage() {
   const router = useRouter();
   const [settings, setSettings] = useState<CompanySettings | null>(null);
   const [loading, setLoading] = useState(false);
+  // Checkout em etapas: 1 dados · 2 entrega · 3 pagamento
+  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [profileReady, setProfileReady] = useState(false);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
@@ -142,6 +185,7 @@ export default function CheckoutPage() {
       if (p.state) setState((prev) => prev || p.state);
       if (p.zipCode) setZipCode((prev) => prev || p.zipCode);
       if (p.cpfCnpj) setCpfCnpj((prev) => prev || p.cpfCnpj);
+      setProfileReady(true);
     });
   }, [customer]);
 
@@ -357,6 +401,72 @@ export default function CheckoutPage() {
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- só reage ao CEP
   }, [zipCode, collectAddress]);
+
+  // ─── Etapas ───
+  const needsAddress = !!(collectAddress || (settings?.freteAtivo && settings?.freteTipo === "local"));
+  const shippingRequired = !!(settings?.freteAtivo && (collectAddress || settings?.freteTipo === "local"));
+  /** O que falta em cada etapa (mesmas regras do envio do pedido), por campo. */
+  const stepErrors = (n: 1 | 2 | 3): Record<string, string> => {
+    const e: Record<string, string> = {};
+    if (n === 1) {
+      if (!name.trim()) e.name = "Informe seu nome completo";
+      if (phone.replace(/\D/g, "").length < 10) e.phone = "Informe um telefone com DDD";
+      if (!cpfCnpj.trim()) e.cpfCnpj = "Informe o CPF ou CNPJ (vai na nota fiscal)";
+      else if (!isValidCPFOrCNPJ(cpfCnpj)) e.cpfCnpj = "CPF/CNPJ inválido — confira os números";
+      if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) e.email = "E-mail inválido";
+    }
+    if (n === 2 && needsAddress) {
+      if (zipCode.replace(/\D/g, "").length !== 8) e.zipCode = "Informe o CEP com 8 números";
+      if (collectAddress) {
+        if (!street.trim()) e.street = "Informe a rua";
+        if (!number.trim()) e.number = "Informe o número (ou S/N)";
+        if (!city.trim()) e.city = "Informe a cidade";
+        if (!state.trim()) e.state = "Escolha o estado";
+      }
+      if (freteForaArea) e.shipping = `Não entregamos em ${freteForaArea.cidade}${freteForaArea.uf ? `/${freteForaArea.uf}` : ""}`;
+      else if (shippingRequired && shippingOptions.length > 0 && !selectedShipping) e.shipping = "Escolha a forma de entrega";
+      else if (shippingRequired && shippingLoading) e.shipping = "Aguarde o cálculo do frete";
+    }
+    if (n === 3 && !paymentOptions.some((o) => o.id === selectedPayment)) e.payment = "Escolha a forma de pagamento";
+    return e;
+  };
+  const scrollToStep = (n: number) =>
+    setTimeout(() => document.getElementById(`etapa-${n}`)?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
+  const goToStep = (n: 1 | 2 | 3) => {
+    setErrors({});
+    setStep(n);
+    scrollToStep(n);
+  };
+  /** Avança só se a etapa atual estiver completa; senão marca os campos que faltam. */
+  const advance = () => {
+    const e = stepErrors(step);
+    if (Object.keys(e).length) {
+      setErrors(e);
+      notify.warning("Falta completar esta etapa", { description: Object.values(e)[0] });
+      return;
+    }
+    goToStep((step + 1) as 2 | 3);
+  };
+  /** Antes de pagar: confere tudo e, se faltar algo, volta para a etapa certa mostrando o quê. */
+  const firstInvalidStep = (): { n: 1 | 2 | 3; e: Record<string, string> } | null => {
+    for (const n of [1, 2, 3] as const) {
+      const e = stepErrors(n);
+      if (Object.keys(e).length) return { n, e };
+    }
+    return null;
+  };
+
+  // Cadastro completo: já abre na entrega (dados pessoais ficam resumidos, com "Alterar")
+  const autoStepped = useRef(false);
+  useEffect(() => {
+    if (autoStepped.current || !profileReady || !settings) return;
+    autoStepped.current = true;
+    const t = setTimeout(() => {
+      if (!Object.keys(stepErrors(1)).length) setStep(2);
+    }, 0);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- só uma vez, quando o cadastro chega
+  }, [profileReady, settings]);
 
   const fullAddress = collectAddress && street
     ? `${street}, ${number}${neighborhood ? ` - ${neighborhood}` : ""}, ${city}${state ? `/${state}` : ""}${zipCode ? ` - CEP: ${zipCode}` : ""}`
@@ -729,6 +839,16 @@ const handleNuPaySubmit = async () => {
 
   const handleSubmit = async (e: { preventDefault: () => void }) => {
     e.preventDefault();
+    // Ainda não está no pagamento: o botão principal avança
+    if (step < 3) return advance();
+    const invalid = firstInvalidStep();
+    if (invalid) {
+      setStep(invalid.n);
+      setErrors(invalid.e);
+      scrollToStep(invalid.n);
+      notify.warning(`Confira a etapa ${invalid.n}`, { description: Object.values(invalid.e)[0] });
+      return;
+    }
     if (freteForaArea) return;
     setLoading(true);
     try {
@@ -759,6 +879,7 @@ const handleNuPaySubmit = async () => {
 
   const inputClass = "w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm text-gray-900 bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand transition";
   const labelClass = "block text-sm font-medium text-gray-700 mb-1.5";
+  const fieldCls = (k: string) => (errors[k] ? `${inputClass} !border-red-400 ring-2 ring-red-100` : inputClass);
 
   const UF_LIST = [
     "AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG",
@@ -790,123 +911,152 @@ const handleNuPaySubmit = async () => {
 
         <form onSubmit={handleSubmit}>
           <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_380px] gap-5 items-start">
-            <div className="space-y-4">
+            <div className="space-y-3">
               {/* 1. Dados */}
-              <Step n={1} title="Seus dados" icon={UserIcon}>
+              <Step
+                n={1}
+                title="Seus dados"
+                icon={UserIcon}
+                state={step === 1 ? "active" : "done"}
+                onEdit={() => goToStep(1)}
+                summary={<>{name || "—"} · {phone || "sem telefone"}{cpfCnpj ? ` · CPF/CNPJ ${cpfCnpj}` : ""}</>}
+              >
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="sm:col-span-2">
-                    <label className={labelClass}>Nome completo *</label>
-                    <input required value={name} onChange={(e) => setName(e.target.value)} className={inputClass} placeholder="Seu nome completo" autoComplete="name" />
+                    <label className={labelClass}>Nome completo</label>
+                    <input value={name} onChange={(e) => { setName(e.target.value); setErrors((x) => ({ ...x, name: "" })); }} className={fieldCls("name")} placeholder="Seu nome completo" autoComplete="name" />
+                    <FieldError msg={errors.name} />
                   </div>
                   <div>
-                    <label className={labelClass}>WhatsApp / Telefone *</label>
-                    <input required value={phone} onChange={(e) => setPhone(e.target.value)} className={inputClass} placeholder="(00) 00000-0000" inputMode="tel" autoComplete="tel" />
+                    <label className={labelClass}>WhatsApp / Telefone</label>
+                    <input value={phone} onChange={(e) => { setPhone(e.target.value); setErrors((x) => ({ ...x, phone: "" })); }} className={fieldCls("phone")} placeholder="(00) 00000-0000" inputMode="tel" autoComplete="tel" />
+                    <FieldError msg={errors.phone} />
                   </div>
-                  {collectAddress && (
-                    <div>
-                      <label className={labelClass}>CPF / CNPJ * <span className="font-normal text-gray-400">(para a nota fiscal)</span></label>
-                      <input value={cpfCnpj} onChange={(e) => setCpfCnpj(e.target.value)} className={inputClass} required placeholder="000.000.000-00" inputMode="numeric" />
-                    </div>
-                  )}
+                  <div>
+                    <label className={labelClass}>CPF / CNPJ <span className="font-normal text-gray-400">(para a nota fiscal)</span></label>
+                    <input value={cpfCnpj} onChange={(e) => { setCpfCnpj(e.target.value); setErrors((x) => ({ ...x, cpfCnpj: "" })); }} className={fieldCls("cpfCnpj")} placeholder="000.000.000-00" inputMode="numeric" />
+                    <FieldError msg={errors.cpfCnpj} />
+                  </div>
                   {collectEmail && (
                     <div className="sm:col-span-2">
                       <label className={labelClass}>E-mail</label>
-                      <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className={inputClass} placeholder="email@exemplo.com" autoComplete="email" />
+                      <input type="email" value={email} onChange={(e) => { setEmail(e.target.value); setErrors((x) => ({ ...x, email: "" })); }} className={fieldCls("email")} placeholder="email@exemplo.com" autoComplete="email" />
+                      <FieldError msg={errors.email} />
                     </div>
                   )}
                 </div>
+                <StepNav onNext={advance} nextLabel="Continuar para a entrega" />
               </Step>
 
               {/* 2. Entrega */}
-              {(collectAddress || usesShipping) && (
-                <Step n={2} title="Entrega" icon={Truck}>
+              <Step
+                n={2}
+                title="Entrega"
+                icon={Truck}
+                state={step === 2 ? "active" : step > 2 ? "done" : "todo"}
+                onEdit={() => goToStep(2)}
+                summary={
+                  <>
+                    {collectAddress && street ? `${street}, ${number} · ${city}/${state}` : zipCode ? `CEP ${zipCode}` : "A combinar"}
+                    {selectedShipping ? ` · ${selectedShipping.servico} (${selectedShipping.valor === 0 ? "grátis" : formatCurrency(selectedShipping.valor)})` : ""}
+                  </>
+                }
+              >
+                {needsAddress ? (
                   <div className="grid grid-cols-6 gap-4">
                     <div className="col-span-6 sm:col-span-2">
-                      <label className={labelClass}>CEP {collectAddress && "*"}</label>
+                      <label className={labelClass}>CEP</label>
                       <div className="relative">
-                        <input value={zipCode} onChange={(e) => setZipCode(e.target.value)} className={inputClass} placeholder="00000-000" inputMode="numeric" maxLength={9} autoComplete="postal-code" />
+                        <input value={zipCode} onChange={(e) => { setZipCode(e.target.value); setErrors((x) => ({ ...x, zipCode: "" })); }} className={fieldCls("zipCode")} placeholder="00000-000" inputMode="numeric" maxLength={9} autoComplete="postal-code" />
                         {cepLoading && <Loader2 size={14} className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-gray-400" />}
                       </div>
+                      <FieldError msg={errors.zipCode} />
                     </div>
                     {collectAddress && (
                       <>
                         <div className="col-span-6 sm:col-span-4">
-                          <label className={labelClass}>Rua / Avenida *</label>
-                          <input value={street} onChange={(e) => setStreet(e.target.value)} className={inputClass} placeholder="Preenchido pelo CEP" autoComplete="address-line1" />
+                          <label className={labelClass}>Rua / Avenida</label>
+                          <input value={street} onChange={(e) => { setStreet(e.target.value); setErrors((x) => ({ ...x, street: "" })); }} className={fieldCls("street")} placeholder="Preenchido pelo CEP" autoComplete="address-line1" />
+                          <FieldError msg={errors.street} />
                         </div>
                         <div className="col-span-2">
-                          <label className={labelClass}>Número *</label>
-                          <input ref={numberInputRef} value={number} onChange={(e) => setNumber(e.target.value)} className={inputClass} placeholder="123" />
+                          <label className={labelClass}>Número</label>
+                          <input ref={numberInputRef} value={number} onChange={(e) => { setNumber(e.target.value); setErrors((x) => ({ ...x, number: "" })); }} className={fieldCls("number")} placeholder="123" />
+                          <FieldError msg={errors.number} />
                         </div>
                         <div className="col-span-4">
                           <label className={labelClass}>Bairro</label>
                           <input value={neighborhood} onChange={(e) => setNeighborhood(e.target.value)} className={inputClass} placeholder="Bairro" />
                         </div>
                         <div className="col-span-4">
-                          <label className={labelClass}>Cidade *</label>
-                          <input value={city} onChange={(e) => setCity(e.target.value)} className={inputClass} placeholder="Cidade" autoComplete="address-level2" />
+                          <label className={labelClass}>Cidade</label>
+                          <input value={city} onChange={(e) => { setCity(e.target.value); setErrors((x) => ({ ...x, city: "" })); }} className={fieldCls("city")} placeholder="Cidade" autoComplete="address-level2" />
+                          <FieldError msg={errors.city} />
                         </div>
                         <div className="col-span-2">
                           <label className={labelClass}>UF</label>
-                          <select value={state} onChange={(e) => setState(e.target.value)} className={inputClass}>
+                          <select value={state} onChange={(e) => { setState(e.target.value); setErrors((x) => ({ ...x, state: "" })); }} className={fieldCls("state")}>
                             <option value="">—</option>
                             {UF_LIST.map((uf) => <option key={uf} value={uf}>{uf}</option>)}
                           </select>
+                          <FieldError msg={errors.state} />
                         </div>
                       </>
                     )}
                   </div>
+                ) : null}
 
-                  {/* Frete */}
-                  <div className="mt-5 pt-4 border-t border-gray-100">
-                    <p className="text-sm font-semibold text-gray-800 mb-2 flex items-center gap-2">
-                      Forma de entrega {shippingLoading && <Loader2 size={13} className="animate-spin text-gray-400" />}
+                {/* Frete */}
+                <div className={needsAddress ? "mt-5 pt-4 border-t border-gray-100" : ""}>
+                  <p className="text-sm font-semibold text-gray-800 mb-2 flex items-center gap-2">
+                    Forma de entrega {shippingLoading && <Loader2 size={13} className="animate-spin text-gray-400" />}
+                  </p>
+                  {!usesShipping ? (
+                    <p className="text-sm text-gray-500">O frete é combinado com a loja depois do pedido.</p>
+                  ) : freteForaArea ? (
+                    <p className="text-sm text-red-600">
+                      Entregamos apenas em {settings?.freteLocalCidade || "nossa cidade"}{settings?.freteLocalUF ? `/${settings.freteLocalUF}` : ""}. Este CEP é de <b>{freteForaArea.cidade}{freteForaArea.uf ? `/${freteForaArea.uf}` : ""}</b>.
                     </p>
-                    {!usesShipping ? (
-                      <p className="text-sm text-gray-500">O frete é combinado com a loja depois do pedido.</p>
-                    ) : freteForaArea ? (
-                      <p className="text-sm text-red-600">
-                        Entregamos apenas em {settings?.freteLocalCidade || "nossa cidade"}{settings?.freteLocalUF ? `/${settings.freteLocalUF}` : ""}. Este CEP é de <b>{freteForaArea.cidade}{freteForaArea.uf ? `/${freteForaArea.uf}` : ""}</b>.
-                      </p>
-                    ) : zipCode.replace(/\D/g, "").length < 8 ? (
-                      <p className="text-sm text-gray-400">Informe o CEP para ver as opções e prazos.</p>
-                    ) : !shippingLoading && shippingOptions.length === 0 ? (
-                      <p className="text-sm text-gray-500">Não conseguimos calcular agora — o frete será combinado.</p>
-                    ) : (
-                      <div className="space-y-2">
-                        {visibleShippingOptions.map((opt) => {
-                          const sel = selectedShipping?.codigo === opt.codigo;
-                          return (
-                            <label key={opt.codigo} className={`flex items-center gap-3 rounded-xl px-3.5 py-3 ring-1 cursor-pointer transition ${sel ? "ring-2 ring-brand bg-brand-light/40" : "ring-gray-200 hover:ring-gray-300"}`}>
-                              <input type="radio" name="shipping" checked={sel} onChange={() => setSelectedShipping(opt)} className="accent-[var(--brand)] w-4 h-4" />
-                              <span className="min-w-0 flex-1">
-                                <span className="block text-sm font-medium text-gray-900">{opt.servico}</span>
-                                <span className="block text-xs text-gray-500">
-                                  {opt.prazo > 0 ? `${opt.prazo} dias úteis` : "Prazo a confirmar"}
-                                  {cheapestShipping?.codigo === opt.codigo && <span className="ml-1.5 text-emerald-600 font-medium">· mais barato</span>}
-                                  {fastestShipping?.codigo === opt.codigo && fastestShipping.codigo !== cheapestShipping?.codigo && <span className="ml-1.5 text-sky-600 font-medium">· mais rápido</span>}
-                                </span>
+                  ) : zipCode.replace(/\D/g, "").length < 8 ? (
+                    <p className="text-sm text-gray-400">Informe o CEP para ver as opções e prazos.</p>
+                  ) : !shippingLoading && shippingOptions.length === 0 ? (
+                    <p className="text-sm text-gray-500">Não conseguimos calcular agora — o frete será combinado.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {visibleShippingOptions.map((opt) => {
+                        const sel = selectedShipping?.codigo === opt.codigo;
+                        return (
+                          <label key={opt.codigo} className={`flex items-center gap-3 rounded-xl px-3.5 py-3 ring-1 cursor-pointer transition ${sel ? "ring-2 ring-brand bg-brand-light/40" : "ring-gray-200 hover:ring-gray-300"}`}>
+                            <input type="radio" name="shipping" checked={sel} onChange={() => { setSelectedShipping(opt); setErrors((x) => ({ ...x, shipping: "" })); }} className="accent-[var(--brand)] w-4 h-4" />
+                            <span className="min-w-0 flex-1">
+                              <span className="block text-sm font-medium text-gray-900">{opt.servico}</span>
+                              <span className="block text-xs text-gray-500">
+                                {opt.prazo > 0 ? `${opt.prazo} dias úteis` : "Prazo a confirmar"}
+                                {cheapestShipping?.codigo === opt.codigo && <span className="ml-1.5 text-emerald-600 font-medium">· mais barato</span>}
+                                {fastestShipping?.codigo === opt.codigo && fastestShipping.codigo !== cheapestShipping?.codigo && <span className="ml-1.5 text-sky-600 font-medium">· mais rápido</span>}
                               </span>
-                              <span className="text-sm font-semibold text-gray-900 tabular-nums">{opt.valor === 0 ? "Grátis" : formatCurrency(opt.valor)}</span>
-                            </label>
-                          );
-                        })}
-                        {shippingOptions.length > visibleShippingOptions.length && (
-                          <button type="button" onClick={() => setShowAllShipping(true)} className="text-xs text-brand font-semibold hover:underline">
-                            Ver mais {shippingOptions.length - visibleShippingOptions.length} opções
-                          </button>
-                        )}
-                        {showAllShipping && shippingOptions.length > 3 && (
-                          <button type="button" onClick={() => setShowAllShipping(false)} className="text-xs text-gray-500 hover:underline ml-3">Mostrar menos</button>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </Step>
-              )}
+                            </span>
+                            <span className="text-sm font-semibold text-gray-900 tabular-nums">{opt.valor === 0 ? "Grátis" : formatCurrency(opt.valor)}</span>
+                          </label>
+                        );
+                      })}
+                      {shippingOptions.length > visibleShippingOptions.length && (
+                        <button type="button" onClick={() => setShowAllShipping(true)} className="text-xs text-brand font-semibold hover:underline">
+                          Ver mais {shippingOptions.length - visibleShippingOptions.length} opções
+                        </button>
+                      )}
+                      {showAllShipping && shippingOptions.length > 3 && (
+                        <button type="button" onClick={() => setShowAllShipping(false)} className="text-xs text-gray-500 hover:underline ml-3">Mostrar menos</button>
+                      )}
+                    </div>
+                  )}
+                  <FieldError msg={errors.shipping} />
+                </div>
+                <StepNav onBack={() => goToStep(1)} onNext={advance} nextLabel="Continuar para o pagamento" />
+              </Step>
 
               {/* 3. Pagamento */}
-              <Step n={collectAddress || usesShipping ? 3 : 2} title="Pagamento" icon={CreditCard}>
+              <Step n={3} title="Pagamento" icon={CreditCard} state={step === 3 ? "active" : "todo"}>
                 {paymentOptions.length === 0 ? (
                   <p className="text-sm text-gray-500">Nenhuma forma de pagamento disponível no momento.</p>
                 ) : (
@@ -927,8 +1077,8 @@ const handleNuPaySubmit = async () => {
                     })}
                   </div>
                 )}
+                <FieldError msg={errors.payment} />
 
-                {/* Pix com desconto e crédito: opções do pagamento */}
                 {((pixDiscountAvailable && selectedPayment !== "nupay") || creditBalance > 0) && (
                   <div className="mt-5 pt-4 border-t border-gray-100 space-y-2">
                     <p className="text-sm font-semibold text-gray-800">Descontos</p>
@@ -952,6 +1102,18 @@ const handleNuPaySubmit = async () => {
                     )}
                   </div>
                 )}
+                {/* No celular o resumo fica embaixo: o botão de pagar também aparece aqui */}
+                <div className="lg:hidden mt-5">
+                  <button
+                    type="submit"
+                    disabled={loading || !!freteForaArea || !canSubmit}
+                    className="w-full inline-flex items-center justify-center gap-2 bg-brand text-on-button py-3.5 rounded-xl font-semibold disabled:opacity-50"
+                  >
+                    {loading ? <Loader2 size={18} className="animate-spin" /> : selectedPayment === "whatsapp" ? <MessageCircle size={18} /> : <Lock size={16} />}
+                    {loading ? "Aguarde…" : `${submitLabel} · ${formatCurrency(finalTotal)}`}
+                  </button>
+                </div>
+                <StepNav onBack={() => goToStep(2)} />
               </Step>
             </div>
 
@@ -1027,11 +1189,11 @@ const handleNuPaySubmit = async () => {
 
                 <button
                   type="submit"
-                  disabled={loading || !!freteForaArea || !canSubmit}
-                  className="mt-4 w-full inline-flex items-center justify-center gap-2 bg-brand text-on-button hover:bg-brand-hover py-3.5 rounded-xl font-semibold transition disabled:opacity-50 shadow-[0_10px_24px_-12px_color-mix(in_srgb,var(--button)_70%,transparent)]"
+                  disabled={loading || (step === 3 && (!!freteForaArea || !canSubmit))}
+                  className="hidden lg:inline-flex mt-4 w-full items-center justify-center gap-2 bg-brand text-on-button hover:bg-brand-hover py-3.5 rounded-xl font-semibold transition disabled:opacity-50 shadow-[0_10px_24px_-12px_color-mix(in_srgb,var(--button)_70%,transparent)]"
                 >
-                  {loading ? <Loader2 size={18} className="animate-spin" /> : selectedPayment === "whatsapp" ? <MessageCircle size={18} /> : <Lock size={16} />}
-                  {loading ? "Aguarde…" : canSubmit ? `${submitLabel} · ${formatCurrency(finalTotal)}` : "Nenhuma forma de pagamento"}
+                  {loading ? <Loader2 size={18} className="animate-spin" /> : step < 3 ? <ChevronRight size={18} /> : selectedPayment === "whatsapp" ? <MessageCircle size={18} /> : <Lock size={16} />}
+                  {loading ? "Aguarde…" : step === 1 ? "Continuar para a entrega" : step === 2 ? "Continuar para o pagamento" : canSubmit ? `${submitLabel} · ${formatCurrency(finalTotal)}` : "Nenhuma forma de pagamento"}
                 </button>
                 <p className="mt-2 text-[11.5px] text-gray-400 text-center flex items-center justify-center gap-1"><ShieldCheck size={12} /> Pagamento processado com segurança</p>
               </div>
