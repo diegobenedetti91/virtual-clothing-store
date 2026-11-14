@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/adminAuth";
 import { prisma } from "@/lib/prisma";
 import { extractMpPaymentDetails, PAYMENT_TYPE_LABEL } from "@/lib/mercadoPagoPayment";
+import { averageTicket, freeShippingCoupons } from "@/lib/ticket";
 
 const PAID = ["CONFIRMED", "SHIPPED", "PRONTO_PARA_RETIRADA", "DELIVERED", "RETIRADO"];
 const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -37,7 +38,7 @@ export async function GET(req: NextRequest) {
     const orders = await prisma.order.findMany({
       where: { status: { in: PAID }, ...(Object.keys(createdAt).length ? { createdAt } : {}) },
       select: {
-        id: true, orderNumber: true, customerName: true, total: true, shippingCost: true, shippingLabelCost: true, status: true, createdAt: true,
+        id: true, orderNumber: true, customerName: true, total: true, shippingCost: true, shippingLabelCost: true, couponCode: true, status: true, createdAt: true,
         paymentFee: true, paymentNetAmount: true, paymentType: true, paymentInstallments: true, paymentMethod: true, paymentGateway: true, paymentId: true,
       },
       orderBy: { createdAt: "desc" },
@@ -104,7 +105,7 @@ export async function GET(req: NextRequest) {
         refunds: round2(refundsTotal),
         shipping: round2(shippingTotal),
         net: round2(gross - refundsTotal - fees - shippingTotal),
-        ticket: rows.length ? round2(gross / rows.length) : 0,
+        ticket: averageTicket(orders, await freeShippingCoupons(orders)),
         avgFeeRate: knownGross > 0 ? (fees / knownGross) * 100 : null,
         missingFees: rows.filter((r) => r.missingFee).length,
         unknownFeeOrders: rows.filter((r) => r.fee == null).length,

@@ -209,7 +209,7 @@ export default function DashboardBI({ storeName }: { storeName?: string | null }
         <div className={`grid grid-cols-2 lg:grid-cols-4 gap-3 transition-opacity ${loading ? "opacity-60" : ""}`}>
           <KpiCard icon={DollarSign} label="Faturamento" value={fmt.brlCompact(k.revenue.cur)} current={k.revenue.cur} previous={k.revenue.prev} spark={spark("revenue")} hint="Soma dos pedidos pagos no período (inclui o frete cobrado)" />
           <KpiCard icon={ShoppingBag} label="Pedidos pagos" value={fmt.num(k.orders.cur)} current={k.orders.cur} previous={k.orders.prev} spark={spark("orders")} />
-          <KpiCard icon={CreditCard} label="Ticket médio" value={fmt.brl(k.ticket.cur)} current={k.ticket.cur} previous={k.ticket.prev} spark={spark("ticket")} />
+          <KpiCard icon={CreditCard} label="Ticket médio" value={fmt.brl(k.ticket.cur)} current={k.ticket.cur} previous={k.ticket.prev} spark={spark("ticket")} hint="Valor dos produtos por pedido, já com descontos e sem o frete" />
           <KpiCard icon={Wallet} label="Lucro bruto" value={fmt.brlCompact(k.grossProfit.cur)} current={k.grossProfit.cur} previous={k.grossProfit.prev} hint="Faturamento menos frete e preço de custo dos produtos (produtos sem custo cadastrado contam como custo zero)" />
           <KpiCard icon={Eye} label="Visitas" value={fmt.num(k.sessions.cur)} current={k.sessions.cur} previous={k.sessions.prev} />
           <KpiCard icon={Percent} label="Conversão" value={fmt.pct(k.conversion.cur, 2)} current={k.conversion.cur} previous={k.conversion.prev} hint="Pedidos pagos ÷ visitas" />

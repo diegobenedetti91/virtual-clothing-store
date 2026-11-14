@@ -297,7 +297,7 @@ export default function RelatoriosManager() {
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
             <KpiCard icon={DollarSign} label="Faturamento" value={fmt.brlCompact(data.summary.revenue)} current={data.summary.revenue} />
             <KpiCard icon={ShoppingCart} label="Pedidos" value={fmt.num(data.summary.orders)} current={data.summary.orders} />
-            <KpiCard icon={TrendingUp} label="Ticket médio" value={fmt.brl(data.summary.ticket)} current={data.summary.ticket} />
+            <KpiCard icon={TrendingUp} label="Ticket médio" value={fmt.brl(data.summary.ticket)} current={data.summary.ticket} hint="Valor dos produtos por pedido, já com descontos e sem o frete" />
             <KpiCard
               icon={Wallet}
               label="Lucro bruto"

@@ -3,6 +3,7 @@ import { requireAdmin } from "@/lib/adminAuth";
 import { prisma } from "@/lib/prisma";
 import { getAdminAlerts } from "@/lib/adminAlerts";
 import { computeProfit } from "@/lib/profit";
+import { averageTicket, freeShippingCoupons, productNet } from "@/lib/ticket";
 
 const PAID = ["CONFIRMED", "SHIPPED", "DELIVERED", "PRONTO_PARA_RETIRADA", "RETIRADO"];
 const DAY = 24 * 60 * 60 * 1000;
@@ -75,6 +76,7 @@ export async function GET(req: NextRequest) {
         customerName: true,
         customerId: true,
         customerEmail: true,
+        couponCode: true,
         subtotal: true,
         shippingCost: true,
         couponDiscount: true,
@@ -146,9 +148,13 @@ export async function GET(req: NextRequest) {
   const prevIdx = new Map(prevBuckets.map((b, i) => [b.key, i]));
   const zero = () => buckets.map(() => 0);
   const series = { revenue: zero(), orders: zero(), items: zero(), ticket: zero(), prevRevenue: zero(), cancelled: zero() };
+  // Ticket médio sem frete (o frete vai para a transportadora)
+  const freeShip = await freeShippingCoupons([...paidCur, ...paidPrev]);
+  const productRev = zero();
   for (const o of paidCur) {
     const i = idx.get(bucketKey(o.createdAt, monthly));
     if (i == null) continue;
+    productRev[i] += productNet(o, freeShip);
     series.revenue[i] += o.total;
     series.orders[i] += 1;
     series.items[i] += itemsOf(o);
@@ -162,7 +168,7 @@ export async function GET(req: NextRequest) {
     const i = prevIdx.get(bucketKey(o.createdAt, monthly));
     if (i != null && i < buckets.length) series.prevRevenue[i] += o.total;
   }
-  series.ticket = series.revenue.map((r, i) => (series.orders[i] ? r / series.orders[i] : 0));
+  series.ticket = productRev.map((r, i) => (series.orders[i] ? r / series.orders[i] : 0));
 
   // ─── KPIs ───
   const revenue = sum(paidCur, (o) => o.total);
@@ -177,7 +183,7 @@ export async function GET(req: NextRequest) {
     revenue: { cur: revenue, prev: revenuePrev },
     netRevenue: { cur: revenue - fees - shipping, prev: revenuePrev - feesPrev - shippingPrev },
     orders: { cur: paidCur.length, prev: paidPrev.length },
-    ticket: { cur: paidCur.length ? revenue / paidCur.length : 0, prev: paidPrev.length ? revenuePrev / paidPrev.length : 0 },
+    ticket: { cur: averageTicket(paidCur, freeShip), prev: averageTicket(paidPrev, freeShip) },
     items: { cur: sum(paidCur, itemsOf), prev: sum(paidPrev, itemsOf) },
     sessions: { cur: sessionsCur, prev: sessionsPrev },
     conversion: { cur: sessionsCur ? (paidCur.length / sessionsCur) * 100 : 0, prev: sessionsPrev ? (paidPrev.length / sessionsPrev) * 100 : 0 },

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { averageTicket, freeShippingCoupons } from "@/lib/ticket";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
@@ -108,7 +109,8 @@ export async function GET(req: NextRequest) {
 
   const periodRevenue = filteredOrders.reduce((s, o) => s + o.total, 0);
   const periodOrders = filteredOrders.length;
-  const periodTicket = periodOrders > 0 ? periodRevenue / periodOrders : 0;
+  // Ticket médio sem frete (valor dos produtos, já com descontos)
+  const periodTicket = averageTicket(filteredOrders, await freeShippingCoupons(filteredOrders));
 
   // Profit margin by product
   const productMap = new Map<string, { name: string; revenue: number; cost: number; quantity: number; hasCost: boolean }>();
