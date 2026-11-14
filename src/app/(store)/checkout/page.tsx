@@ -1123,7 +1123,7 @@ const handleNuPaySubmit = async () => {
                 <h2 className="text-[15px] font-semibold text-gray-900 flex items-center gap-2">
                   <ShoppingBag size={16} className="text-gray-400" /> Resumo <span className="text-gray-400 font-normal">· {units} {units === 1 ? "peça" : "peças"}</span>
                 </h2>
-                <ul className="mt-3 space-y-3 max-h-64 overflow-y-auto pr-1">
+                <ul className="mt-2 space-y-3 max-h-64 overflow-y-auto pt-2 pl-0.5 pr-2">
                   {items.map((item) => (
                     <li key={`${item.productId}-${item.selectedAttributes ? JSON.stringify(item.selectedAttributes) : `${item.size ?? ""}-${item.color ?? ""}`}`} className="flex items-center gap-3">
                       <span className="relative shrink-0">
