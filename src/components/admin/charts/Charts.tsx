@@ -354,6 +354,45 @@ export function Funnel({ steps }: { steps: { label: string; value: number }[] })
   );
 }
 
+/**
+ * Funil de cliques: total de ações em cada etapa (uma pessoa pode contar várias vezes).
+ * Barras proporcionais à maior etapa; ao lado, a média por entrada na loja.
+ */
+export function ClickFunnel({ steps }: { steps: { label: string; value: number }[] }) {
+  const visits = steps[0]?.value || 0;
+  const max = Math.max(...steps.map((s) => s.value), 0);
+  if (!max) return <p className="text-sm text-gray-400 text-center py-8">Sem cliques registrados no período</p>;
+  return (
+    <ol className="space-y-3">
+      {steps.map((s, i) => {
+        const pct = (s.value / max) * 100;
+        const perVisit = i > 0 && visits ? s.value / visits : null;
+        return (
+          <li key={s.label}>
+            <div className="flex items-baseline justify-between gap-3 text-[13px] mb-1">
+              <span className="text-gray-700 truncate">{s.label}</span>
+              <span className="tabular-nums shrink-0 whitespace-nowrap">
+                {perVisit != null && (
+                  <span className="mr-2 text-[11px] text-gray-400" title="Média por entrada na loja">
+                    {perVisit.toLocaleString("pt-BR", { maximumFractionDigits: perVisit < 10 ? 2 : 0 })} por entrada
+                  </span>
+                )}
+                <b className="text-gray-900">{fmt.num(s.value)}</b>
+              </span>
+            </div>
+            <div className="h-7 rounded-lg bg-gray-50 overflow-hidden">
+              <div
+                className="h-full rounded-lg transition-[width] duration-700"
+                style={{ width: `${Math.max(pct, 2)}%`, background: SERIES[1] ?? BLUE_RAMP[2] }}
+              />
+            </div>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
 /* ───────────────────────── Card de gráfico ───────────────────────── */
 
 export function ChartCard({

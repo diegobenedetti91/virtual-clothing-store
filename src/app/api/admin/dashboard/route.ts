@@ -66,7 +66,7 @@ export async function GET(req: NextRequest) {
   const prevEnd = new Date(start.getTime() - 1);
   const monthly = length > 92 * DAY;
 
-  const [orders, sessionsCur, sessionsPrev, customersCur, customersPrev, funnelEvents, alertData] = await Promise.all([
+  const [orders, sessionsCur, sessionsPrev, customersCur, customersPrev, funnelEvents, clickCounts, alertData] = await Promise.all([
     prisma.order.findMany({
       where: { createdAt: { gte: prevStart, lte: end } },
       select: {
@@ -105,6 +105,12 @@ export async function GET(req: NextRequest) {
       where: { type: { in: ["SESSION_START", "PRODUCT_VIEW", "ADD_TO_CART", "CHECKOUT_START"] }, createdAt: { gte: start, lte: end }, sessionId: { not: null } },
       distinct: ["type", "sessionId"],
       select: { type: true },
+    }),
+    // Funil de cliques: total de ações (não pessoas) por etapa
+    prisma.analyticsEvent.groupBy({
+      by: ["type"],
+      where: { type: { in: ["SESSION_START", "PRODUCT_VIEW", "ADD_TO_CART", "CHECKOUT_START"] }, createdAt: { gte: start, lte: end } },
+      _count: { _all: true },
     }),
     getAdminAlerts(),
   ]);
@@ -266,6 +272,15 @@ export async function GET(req: NextRequest) {
     { label: "Compraram", value: new Set(paidCur.map((o) => o.customerId || o.customerEmail?.toLowerCase() || o.id)).size },
   ];
 
+  const clicks = (t: string) => clickCounts.find((c) => c.type === t)?._count._all ?? 0;
+  const funnelClicks = [
+    { label: "Entradas na loja", value: clicks("SESSION_START") },
+    { label: "Produtos abertos", value: clicks("PRODUCT_VIEW") },
+    { label: "Adições ao carrinho", value: clicks("ADD_TO_CART") },
+    { label: "Checkouts iniciados", value: clicks("CHECKOUT_START") },
+    { label: "Pedidos pagos", value: paidCur.length },
+  ];
+
   return NextResponse.json({
     period: { start: start.toISOString(), end: end.toISOString(), monthly },
     profit: {
@@ -292,6 +307,7 @@ export async function GET(req: NextRequest) {
     topProducts,
     heatmap,
     funnel,
+    funnelClicks,
     alerts: alertData.alerts,
   });
 }

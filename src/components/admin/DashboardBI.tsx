@@ -7,7 +7,7 @@ import {
   Eye, Package, Percent, RefreshCw, ShoppingBag, Table2, TrendingUp, UserPlus, XCircle, Wallet,
 } from "lucide-react";
 import TrendChart from "@/components/admin/charts/TrendChart";
-import { BarList, ChartCard, Funnel, Heatmap, KpiCard, SegmentedBar } from "@/components/admin/charts/Charts";
+import { BarList, ChartCard, ClickFunnel, Funnel, Heatmap, KpiCard, SegmentedBar } from "@/components/admin/charts/Charts";
 import { fmt } from "@/components/admin/charts/theme";
 import { ProfitWaterfall, type ProfitTotalsView } from "@/components/admin/charts/ProfitWaterfall";
 import { GoalCard, type GoalView } from "@/components/admin/charts/GoalCard";
@@ -28,6 +28,7 @@ interface DashboardData {
   topProducts: { label: string; value: number; qty: number }[];
   heatmap: number[][];
   funnel: { label: string; value: number }[];
+  funnelClicks?: { label: string; value: number }[];
   alerts: { key: string; count: number; title: string; description: string; href: string; severity: "critical" | "warning" | "info" }[];
   profit?: { cur: ProfitTotalsView; prev: { net: number; margin: number | null; gross: number } };
   goal?: GoalView;
@@ -328,15 +329,20 @@ export default function DashboardBI({ storeName }: { storeName?: string | null }
         </ChartCard>
       </div>
 
-      {/* Horários + funil */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-        <ChartCard className="xl:col-span-2" title="Quando seus clientes compram" subtitle="Pedidos pagos por dia da semana e hora (horário de Brasília)">
-          {!data ? <Skeleton className="h-[220px]" /> : <Heatmap matrix={data.heatmap} />}
-        </ChartCard>
-        <ChartCard title="Funil de conversão" subtitle="Pessoas diferentes em cada etapa no período — quem vê 10 produtos conta 1 em “Viram um produto”">
+      {/* Funis: por pessoas (conversão) e por cliques (volume) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <ChartCard title="Funil de conversão (pessoas)" subtitle="Pessoas diferentes em cada etapa — mostra onde os visitantes desistem. Quem vê 10 produtos conta 1.">
           {!data ? <Skeleton className="h-[240px]" /> : <Funnel steps={data.funnel} />}
         </ChartCard>
+        <ChartCard title="Funil de cliques (volume)" subtitle="Total de ações em cada etapa — quem vê 10 produtos conta 10. Ao lado, a média por entrada na loja.">
+          {!data ? <Skeleton className="h-[240px]" /> : <ClickFunnel steps={data.funnelClicks ?? []} />}
+        </ChartCard>
       </div>
+
+      {/* Horários */}
+      <ChartCard title="Quando seus clientes compram" subtitle="Pedidos pagos por dia da semana e hora (horário de Brasília)">
+        {!data ? <Skeleton className="h-[220px]" /> : <Heatmap matrix={data.heatmap} />}
+      </ChartCard>
 
       {/* Geografia + canais */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
