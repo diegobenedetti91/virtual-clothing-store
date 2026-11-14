@@ -176,6 +176,9 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
         </section>
       )}
 
+      {/* Novidades */}
+      <NewArrivalsSection products={newArrivals} />
+
       {/* Featured products */}
       {featured.length > 0 && (
         <section className="py-16 bg-white">
@@ -185,7 +188,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
                 <span className="inline-flex items-center gap-1.5 text-xs font-bold text-brand uppercase tracking-widest mb-2">
                   <Sparkles size={12} /> Destaques
                 </span>
-                <h2 className="text-3xl font-black text-gray-900 tracking-tight">Peças em destaque</h2>
+                <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">Peças em destaque</h2>
               </div>
               <Link href="/produtos" className="hidden sm:inline-flex items-center gap-1 text-sm font-semibold text-gray-500 hover:text-brand transition-colors">
                 Ver todas <ArrowRight size={14} />
@@ -205,41 +208,26 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
       {/* Só aparece para quem já abriu algum produto neste navegador */}
       <RecentlyViewed className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12" />
 
-      {/* Editorial break */}
-      <section className="py-20 bg-gray-900 overflow-hidden relative">
+      {/* Convite final */}
+      <section className="py-14 bg-gray-900 overflow-hidden relative">
         <div
-          className="absolute -inset-[20%] pointer-events-none animate-glow-drift"
-          style={{
-            background:
-              "radial-gradient(ellipse at 20% 50%, color-mix(in srgb, var(--brand) 30%, transparent), transparent 60%), radial-gradient(ellipse at 80% 50%, color-mix(in srgb, var(--brand) 15%, transparent), transparent 60%)",
-          }}
+          className="absolute -inset-[20%] pointer-events-none"
+          style={{ background: "radial-gradient(ellipse at 30% 50%, color-mix(in srgb, var(--brand) 28%, transparent), transparent 60%)" }}
         />
-        {/* textura de pontos sutil */}
-        <div
-          className="absolute inset-0 pointer-events-none opacity-[0.07]"
-          style={{ backgroundImage: "radial-gradient(white 1px, transparent 1px)", backgroundSize: "22px 22px" }}
-        />
-        <div data-reveal className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          {settings?.heroBadge && (
-            <p className="text-xs font-bold tracking-widest text-brand uppercase mb-4">{settings.heroBadge}</p>
-          )}
-          <h2 className="text-4xl sm:text-5xl font-black text-white mb-5 tracking-tight leading-tight">
-            {settings?.heroTitle || settings?.name || "Nossa coleção completa"}
-          </h2>
-          <p className="text-gray-400 text-lg mb-10 max-w-md mx-auto leading-relaxed">
-            {settings?.description || "Encontre a peça perfeita para cada ocasião"}
-          </p>
+        <div data-reveal className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-5 text-center sm:text-left">
+          <div>
+            <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">Ainda não encontrou a sua peça?</h2>
+            <p className="text-gray-400 mt-1">Veja a coleção completa, com filtros por tamanho, preço e promoções.</p>
+          </div>
           <Link
             href="/produtos"
-            className="group inline-flex items-center gap-2 bg-brand text-on-button px-10 py-4 rounded-2xl font-bold hover:-translate-y-0.5 hover:shadow-[0_12px_40px_color-mix(in_srgb,var(--button)_40%,transparent)] transition-all shadow-xl text-sm active:scale-[0.97]"
+            className="group shrink-0 inline-flex items-center gap-2 bg-brand text-on-button px-8 py-3.5 rounded-xl font-semibold hover:-translate-y-0.5 transition-all shadow-xl text-sm"
           >
-            Explorar toda a coleção <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+            Ver toda a coleção <ArrowRight size={17} className="group-hover:translate-x-1 transition-transform" />
           </Link>
         </div>
       </section>
 
-      {/* New arrivals with category filter */}
-      <NewArrivalsSection products={newArrivals} />
 
     </>
   );
