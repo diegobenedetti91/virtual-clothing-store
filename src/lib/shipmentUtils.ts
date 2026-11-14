@@ -247,7 +247,7 @@ export async function createAutomaticShipment(orderId: string) {
       labelValidatedAt: new Date(),
       labelValid: validation.valid,
       labelError: validation.valid ? null : validation.message,
-      // Custo real da etiqueta, para o relatório de lucro (frete subsidiado)
+      // Custo real da etiqueta, para o relatório de lucro (desconta do lucro)
       shippingLabelCost: shipment.price,
       shipmentRetryError: null,
       shipmentRetryableError: false,

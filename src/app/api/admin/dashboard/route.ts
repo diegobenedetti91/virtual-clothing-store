@@ -161,9 +161,13 @@ export async function GET(req: NextRequest) {
   const revenuePrev = sum(paidPrev, (o) => o.total);
   const fees = sum(paidCur, (o) => o.paymentFee || 0);
   const feesPrev = sum(paidPrev, (o) => o.paymentFee || 0);
+  // Frete vai para a transportadora: custo real da etiqueta ou, sem ele, o frete cobrado
+  const shippingOf = (o: { shippingLabelCost: number | null; shippingCost: number }) => o.shippingLabelCost ?? o.shippingCost ?? 0;
+  const shipping = sum(paidCur, shippingOf);
+  const shippingPrev = sum(paidPrev, shippingOf);
   const kpis = {
     revenue: { cur: revenue, prev: revenuePrev },
-    netRevenue: { cur: revenue - fees, prev: revenuePrev - feesPrev },
+    netRevenue: { cur: revenue - fees - shipping, prev: revenuePrev - feesPrev - shippingPrev },
     orders: { cur: paidCur.length, prev: paidPrev.length },
     ticket: { cur: paidCur.length ? revenue / paidCur.length : 0, prev: paidPrev.length ? revenuePrev / paidPrev.length : 0 },
     items: { cur: sum(paidCur, itemsOf), prev: sum(paidPrev, itemsOf) },
@@ -174,10 +178,10 @@ export async function GET(req: NextRequest) {
       cur: cur.length ? (cur.filter((o) => o.status === "CANCELLED").length / cur.length) * 100 : 0,
       prev: prev.length ? (prev.filter((o) => o.status === "CANCELLED").length / prev.length) * 100 : 0,
     },
-    grossProfit: { cur: revenue - sum(paidCur, costOf), prev: revenuePrev - sum(paidPrev, costOf) },
+    grossProfit: { cur: revenue - shipping - sum(paidCur, costOf), prev: revenuePrev - shippingPrev - sum(paidPrev, costOf) },
   };
 
-  // Lucro líquido (DRE simplificado: descontos, taxas, custo, frete subsidiado, estornos)
+  // Lucro líquido (DRE simplificado: descontos, taxas, custo, frete das etiquetas, estornos)
   const profitCur = computeProfit(paidCur, refundsByOrder).totals;
   const profitPrev = computeProfit(paidPrev, refundsByOrder).totals;
 

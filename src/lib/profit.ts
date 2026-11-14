@@ -4,7 +4,7 @@
  *   Receita bruta (produtos + frete cobrado)
  *   − descontos de cupom − desconto Pix
  *   − taxa do gateway − custo das peças
- *   − frete subsidiado (etiqueta mais cara que o frete cobrado)
+ *   − frete (vai para a transportadora: custo real da etiqueta; sem ele, o frete cobrado)
  *   − estornos de devoluções aprovadas
  *   = lucro líquido
  *
@@ -38,7 +38,7 @@ export interface ProfitRow {
   pix: number;
   fees: number;
   cogs: number;
-  shippingSubsidy: number;
+  shipping: number;
   refunds: number;
   net: number;
   margin: number | null;
@@ -55,7 +55,7 @@ export interface ProfitTotals {
   pix: number;
   fees: number;
   cogs: number;
-  shippingSubsidy: number;
+  shipping: number;
   refunds: number;
   net: number;
   margin: number | null;
@@ -83,10 +83,11 @@ export function profitOfOrder(o: ProfitOrderInput, refunded = 0): ProfitRow {
   }
   cogs = r2(cogs);
   const labelCostKnown = o.shippingLabelCost != null;
-  // Frete grátis via cupom já entra em "cupom"; aqui só a diferença etiqueta × frete cobrado
-  const shippingSubsidy = labelCostKnown ? r2(Math.max(0, (o.shippingLabelCost as number) - (o.shippingCost || 0))) : 0;
+  // O frete cobrado do cliente não é da loja: paga a etiqueta. Desconta o custo real da etiqueta
+  // (quando registrado) ou, sem ele, o próprio frete cobrado. Frete grátis por cupom já saiu em "cupom".
+  const shipping = r2(labelCostKnown ? (o.shippingLabelCost as number) : o.shippingCost || 0);
   const refunds = r2(refunded);
-  const net = r2(gross - coupon - pix - fees - cogs - shippingSubsidy - refunds);
+  const net = r2(gross - coupon - pix - fees - cogs - shipping - refunds);
   return {
     id: o.id,
     orderNumber: o.orderNumber,
@@ -97,7 +98,7 @@ export function profitOfOrder(o: ProfitOrderInput, refunded = 0): ProfitRow {
     pix,
     fees,
     cogs,
-    shippingSubsidy,
+    shipping,
     refunds,
     net,
     margin: gross > 0 ? (net / gross) * 100 : null,
@@ -109,7 +110,7 @@ export function profitOfOrder(o: ProfitOrderInput, refunded = 0): ProfitRow {
 
 export function sumProfit(rows: ProfitRow[], units = 0): ProfitTotals {
   const t: ProfitTotals = {
-    orders: rows.length, gross: 0, coupon: 0, pix: 0, fees: 0, cogs: 0, shippingSubsidy: 0, refunds: 0, net: 0,
+    orders: rows.length, gross: 0, coupon: 0, pix: 0, fees: 0, cogs: 0, shipping: 0, refunds: 0, net: 0,
     margin: null, units, unitsWithoutCost: 0, ordersWithFee: 0, ordersWithLabelCost: 0, lossOrders: 0,
   };
   for (const r of rows) {
@@ -118,7 +119,7 @@ export function sumProfit(rows: ProfitRow[], units = 0): ProfitTotals {
     t.pix += r.pix;
     t.fees += r.fees;
     t.cogs += r.cogs;
-    t.shippingSubsidy += r.shippingSubsidy;
+    t.shipping += r.shipping;
     t.refunds += r.refunds;
     t.net += r.net;
     t.unitsWithoutCost += r.itemsWithoutCost;
@@ -126,7 +127,7 @@ export function sumProfit(rows: ProfitRow[], units = 0): ProfitTotals {
     if (r.labelCostKnown) t.ordersWithLabelCost++;
     if (r.net < 0) t.lossOrders++;
   }
-  for (const k of ["gross", "coupon", "pix", "fees", "cogs", "shippingSubsidy", "refunds", "net"] as const) t[k] = r2(t[k]);
+  for (const k of ["gross", "coupon", "pix", "fees", "cogs", "shipping", "refunds", "net"] as const) t[k] = r2(t[k]);
   t.margin = t.gross > 0 ? (t.net / t.gross) * 100 : null;
   return t;
 }

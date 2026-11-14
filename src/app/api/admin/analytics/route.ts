@@ -146,13 +146,16 @@ export async function GET(req: NextRequest) {
         allHaveCost = false;
       }
     }
-    const profit = allHaveCost ? o.total - orderCost : null;
-    const margin = allHaveCost && o.total > 0 ? ((o.total - orderCost) / o.total) * 100 : null;
+    // Frete vai para a transportadora: custo real da etiqueta ou, sem ele, o frete cobrado
+    const shipping = o.shippingLabelCost ?? o.shippingCost ?? 0;
+    const profit = allHaveCost ? o.total - shipping - orderCost : null;
+    const margin = allHaveCost && o.total > 0 ? ((o.total - shipping - orderCost) / o.total) * 100 : null;
     return {
       orderNumber: o.orderNumber,
       customerName: o.customerName,
       createdAt: o.createdAt,
       revenue: o.total,
+      shipping,
       cost: allHaveCost ? orderCost : null,
       profit,
       margin,

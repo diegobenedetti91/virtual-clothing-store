@@ -20,7 +20,7 @@ interface ProductMarginData {
 }
 interface OrderMarginData {
   orderNumber: string; customerName: string; createdAt: string;
-  revenue: number; cost: number | null; profit: number | null; margin: number | null;
+  revenue: number; shipping: number; cost: number | null; profit: number | null; margin: number | null;
 }
 
 interface SourceData { channel: string; visits: number; orders: number; revenue: number; conversion: number | null }
@@ -188,6 +188,7 @@ export default function RelatoriosManager() {
     { key: "customerName", header: "Cliente", value: (r) => r.customerName, className: "text-gray-700 max-w-[160px] truncate" },
     { key: "createdAt", header: "Data", value: (r) => r.createdAt, render: (r) => new Date(r.createdAt).toLocaleDateString("pt-BR"), className: "text-gray-500" },
     { key: "revenue", header: "Receita", value: (r) => r.revenue, render: (r) => fmt.brl(r.revenue), align: "right", className: "text-gray-900" },
+    { key: "shipping", header: "Frete", value: (r) => r.shipping, render: (r) => (r.shipping ? `−${fmt.brl(r.shipping)}` : <span className="text-gray-300">—</span>), align: "right", className: "text-gray-500" },
     { key: "cost", header: "Custo", value: (r) => r.cost, render: (r) => (r.cost != null ? fmt.brl(r.cost) : <span className="text-gray-300">—</span>), align: "right" },
     { key: "profit", header: "Lucro", value: (r) => r.profit, render: (r) => profitCell(r.profit), align: "right" },
     { key: "margin", header: "Margem", value: (r) => r.margin, render: (r) => <MarginPill margin={r.margin} />, align: "right" },

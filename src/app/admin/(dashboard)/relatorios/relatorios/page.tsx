@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, CalendarDays, CheckCircle2, CreditCard, DollarSign, Info, Percent, RefreshCw, RotateCcw, Wallet } from "lucide-react";
+import { AlertTriangle, CalendarDays, CheckCircle2, CreditCard, DollarSign, Info, Percent, RefreshCw, RotateCcw, Truck, Wallet } from "lucide-react";
 import { Button } from "@/components/admin/ui/Button";
 import { ChartCard, KpiCard, SegmentedBar } from "@/components/admin/charts/Charts";
 import DataTable, { type Column } from "@/components/admin/charts/DataTable";
@@ -20,13 +20,15 @@ interface Row {
   fee: number | null;
   feeRate: number | null;
   refunded: number;
+  shipping: number;
+  shippingEstimated: boolean;
   net: number;
   missingFee: boolean;
 }
 interface MethodRow { label: string; count: number; gross: number; fees: number; feeRate: number | null; feeKnownCount: number }
 interface Data {
   rows: Row[];
-  summary: { orders: number; gross: number; fees: number; refunds: number; net: number; ticket: number; avgFeeRate: number | null; missingFees: number; unknownFeeOrders: number };
+  summary: { orders: number; gross: number; fees: number; refunds: number; shipping: number; net: number; ticket: number; avgFeeRate: number | null; missingFees: number; unknownFeeOrders: number };
   byMethod: MethodRow[];
 }
 
@@ -102,6 +104,12 @@ export default function PagamentosPage() {
         ? <span className="text-red-600">−{fmt.brl(r.fee)} <span className="text-gray-400 text-xs">{r.feeRate != null ? fmt.pct(r.feeRate, 2) : ""}</span></span>
         : <span className="text-gray-300" title={r.missingFee ? "Taxa ainda não buscada no Mercado Pago" : "Este gateway não informa a taxa"}>{r.missingFee ? "pendente" : "—"}</span>,
     },
+    {
+      key: "shipping", header: "Frete", value: (r) => r.shipping, align: "right",
+      render: (r) => r.shipping
+        ? <span className="text-gray-600" title={r.shippingEstimated ? "Custo da etiqueta não registrado: usando o frete cobrado do cliente" : "Custo real da etiqueta"}>−{fmt.brl(r.shipping)}{r.shippingEstimated ? "*" : ""}</span>
+        : <span className="text-gray-300">—</span>,
+    },
     { key: "refunded", header: "Estorno", value: (r) => r.refunded, render: (r) => (r.refunded ? <span className="text-amber-700">−{fmt.brl(r.refunded)}</span> : <span className="text-gray-300">—</span>), align: "right" },
     { key: "net", header: "Líquido", value: (r) => r.net, render: (r) => fmt.brl(r.net), align: "right", className: "font-semibold text-emerald-700" },
   ], []);
@@ -151,14 +159,15 @@ export default function PagamentosPage() {
 
       {/* KPIs */}
       {!s ? (
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">{Array.from({ length: 5 }).map((_, i) => <div key={i} className="img-skeleton rounded-2xl h-[110px]" />)}</div>
+        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">{Array.from({ length: 6 }).map((_, i) => <div key={i} className="img-skeleton rounded-2xl h-[110px]" />)}</div>
       ) : (
-        <div className={`grid grid-cols-2 lg:grid-cols-5 gap-3 transition-opacity ${loading ? "opacity-60" : ""}`}>
+        <div className={`grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 transition-opacity ${loading ? "opacity-60" : ""}`}>
           <KpiCard icon={DollarSign} label="Receita bruta" value={fmt.brl(s.gross)} current={s.gross} hint={`${s.orders} pedidos pagos`} />
           <KpiCard icon={CreditCard} label="Taxas dos gateways" value={`−${fmt.brl(s.fees)}`} current={s.fees} hint="Somente taxas informadas pelo gateway" />
           <KpiCard icon={Percent} label="Taxa média" value={s.avgFeeRate != null ? fmt.pct(s.avgFeeRate, 2) : "—"} current={s.avgFeeRate ?? 0} hint="Sobre os pedidos com taxa conferida" />
+          <KpiCard icon={Truck} label="Frete (etiquetas)" value={s.shipping ? `−${fmt.brl(s.shipping)}` : fmt.brl(0)} current={s.shipping} hint="Repassado à transportadora: custo da etiqueta ou o frete cobrado" />
           <KpiCard icon={RotateCcw} label="Estornos" value={s.refunds ? `−${fmt.brl(s.refunds)}` : fmt.brl(0)} current={s.refunds} hint="Devoluções aprovadas" />
-          <KpiCard icon={Wallet} label="Líquido para a loja" value={fmt.brl(s.net)} current={s.net} hint="Bruto − taxas − estornos" />
+          <KpiCard icon={Wallet} label="Líquido para a loja" value={fmt.brl(s.net)} current={s.net} hint="Bruto − taxas − frete − estornos" />
         </div>
       )}
 

@@ -28,7 +28,8 @@ const numCompact = new Intl.NumberFormat("pt-BR", { notation: "compact", maximum
 
 export const fmt = {
   brl: (v: number) => brl.format(v),
-  brlCompact: (v: number) => (Math.abs(v) >= 10000 ? brlCompact.format(v) : brl.format(v)),
+  /** Dinheiro em cards e tabelas: sempre exato, com centavos (eixos de gráfico usam brlAxis) */
+  brlCompact: (v: number) => brl.format(v),
   /** Eixos: sempre curto, sem centavos (R$ 6 mil, R$ 500) */
   brlAxis: (v: number) => (Math.abs(v) >= 1000 ? brlCompact.format(v) : `R$ ${Math.round(v)}`),
   num: (v: number) => num.format(v),

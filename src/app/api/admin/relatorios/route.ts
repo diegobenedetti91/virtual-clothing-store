@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
     const orders = await prisma.order.findMany({
       where: { status: { in: PAID }, ...(Object.keys(createdAt).length ? { createdAt } : {}) },
       select: {
-        id: true, orderNumber: true, customerName: true, total: true, status: true, createdAt: true,
+        id: true, orderNumber: true, customerName: true, total: true, shippingCost: true, shippingLabelCost: true, status: true, createdAt: true,
         paymentFee: true, paymentNetAmount: true, paymentType: true, paymentInstallments: true, paymentMethod: true, paymentGateway: true, paymentId: true,
       },
       orderBy: { createdAt: "desc" },
@@ -58,6 +58,8 @@ export async function GET(req: NextRequest) {
       // Taxa conferida = o gateway informou o líquido (hoje só o Mercado Pago informa)
       const feeKnown = o.paymentGateway === "mercadopago" && o.paymentNetAmount != null;
       const fee = feeKnown ? o.paymentFee : null;
+      // Frete vai para a transportadora: custo real da etiqueta ou, sem ele, o frete cobrado
+      const shipping = round2(o.shippingLabelCost ?? o.shippingCost ?? 0);
       return {
         id: o.id,
         orderNumber: o.orderNumber,
@@ -71,7 +73,9 @@ export async function GET(req: NextRequest) {
         fee,
         feeRate: fee != null && o.total > 0 ? (fee / o.total) * 100 : null,
         refunded,
-        net: round2(o.total - refunded - (fee ?? 0)),
+        shipping,
+        shippingEstimated: o.shippingLabelCost == null && shipping > 0,
+        net: round2(o.total - refunded - (fee ?? 0) - shipping),
         missingFee: o.paymentGateway === "mercadopago" && !!o.paymentId && o.paymentNetAmount == null,
       };
     });
@@ -79,6 +83,7 @@ export async function GET(req: NextRequest) {
     const gross = rows.reduce((s, r) => s + r.total, 0);
     const fees = rows.reduce((s, r) => s + (r.fee ?? 0), 0);
     const refundsTotal = rows.reduce((s, r) => s + r.refunded, 0);
+    const shippingTotal = rows.reduce((s, r) => s + r.shipping, 0);
     const knownGross = rows.filter((r) => r.fee != null).reduce((s, r) => s + r.total, 0);
 
     const groups = new Map<string, { label: string; count: number; gross: number; fees: number; knownGross: number; feeKnownCount: number }>();
@@ -97,7 +102,8 @@ export async function GET(req: NextRequest) {
         gross: round2(gross),
         fees: round2(fees),
         refunds: round2(refundsTotal),
-        net: round2(gross - refundsTotal - fees),
+        shipping: round2(shippingTotal),
+        net: round2(gross - refundsTotal - fees - shippingTotal),
         ticket: rows.length ? round2(gross / rows.length) : 0,
         avgFeeRate: knownGross > 0 ? (fees / knownGross) * 100 : null,
         missingFees: rows.filter((r) => r.missingFee).length,

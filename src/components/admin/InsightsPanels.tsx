@@ -14,7 +14,7 @@ export type InsightsTab = "real" | "perdas" | "ganhos";
 
 interface ProfitRow {
   id: string; orderNumber: string; customerName: string; createdAt: string; gross: number; coupon: number; pix: number; fees: number;
-  cogs: number; shippingSubsidy: number; refunds: number; net: number; margin: number | null; itemsWithoutCost: number;
+  cogs: number; shipping: number; refunds: number; net: number; margin: number | null; itemsWithoutCost: number;
 }
 interface Group { label: string; count: number; value: number }
 interface Insights {
@@ -77,7 +77,7 @@ export default function InsightsPanels({ tab, from, to }: { tab: InsightsTab; fr
     { key: "discounts", header: "Descontos", value: (r) => r.coupon + r.pix, render: (r) => (r.coupon + r.pix ? `−${fmt.brl(r.coupon + r.pix)}` : "—"), align: "right", className: "text-gray-500" },
     { key: "fees", header: "Taxa", value: (r) => r.fees, render: (r) => (r.fees ? `−${fmt.brl(r.fees)}` : "—"), align: "right", className: "text-gray-500" },
     { key: "cogs", header: "Custo peças", value: (r) => r.cogs, render: (r) => <span>{r.cogs ? `−${fmt.brl(r.cogs)}` : "—"}{r.itemsWithoutCost > 0 && <span className="ml-1 text-amber-600" title="Peças sem preço de custo">*</span>}</span>, align: "right", className: "text-gray-500" },
-    { key: "other", header: "Frete/estorno", value: (r) => r.shippingSubsidy + r.refunds, render: (r) => (r.shippingSubsidy + r.refunds ? `−${fmt.brl(r.shippingSubsidy + r.refunds)}` : "—"), align: "right", className: "text-gray-500" },
+    { key: "other", header: "Frete/estorno", value: (r) => r.shipping + r.refunds, render: (r) => (r.shipping + r.refunds ? `−${fmt.brl(r.shipping + r.refunds)}` : "—"), align: "right", className: "text-gray-500" },
     { key: "net", header: "Lucro", value: (r) => r.net, render: (r) => <span className={`font-semibold ${r.net < 0 ? "text-red-600" : "text-emerald-700"}`}>{r.net < 0 && "▼ "}{fmt.brl(r.net)}</span>, align: "right" },
     { key: "margin", header: "Margem", value: (r) => r.margin, render: (r) => (r.margin != null ? fmt.pct(r.margin) : "—"), align: "right", className: "text-gray-600" },
   ], []);
@@ -102,7 +102,7 @@ export default function InsightsPanels({ tab, from, to }: { tab: InsightsTab; fr
           {(t.unitsWithoutCost > 0 || t.ordersWithLabelCost < t.orders) && (
             <div className="rounded-xl bg-amber-50 ring-1 ring-amber-200 px-4 py-3 text-[13px] text-amber-900 space-y-1">
               {t.unitsWithoutCost > 0 && <p><b>{t.unitsWithoutCost}</b> de {t.units} peças vendidas não têm preço de custo — para elas o custo conta como zero e o lucro aparece maior. Cadastre o custo em <Link href="/admin/produtos" className="underline">Produtos</Link>.</p>}
-              {t.ordersWithLabelCost < t.orders && <p>O custo real da etiqueta é registrado só para pedidos novos ({t.ordersWithLabelCost} de {t.orders}); nos demais, o frete pago pela loja não entra na conta.</p>}
+              {t.ordersWithLabelCost < t.orders && <p>O custo real da etiqueta é registrado só para pedidos novos ({t.ordersWithLabelCost} de {t.orders}); nos demais, desconta-se o frete cobrado do cliente como estimativa.</p>}
             </div>
           )}
           <div className="grid grid-cols-1 xl:grid-cols-5 gap-4">

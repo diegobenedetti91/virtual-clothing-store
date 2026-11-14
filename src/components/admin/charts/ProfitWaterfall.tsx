@@ -9,7 +9,7 @@ export interface ProfitTotalsView {
   pix: number;
   fees: number;
   cogs: number;
-  shippingSubsidy: number;
+  shipping: number;
   refunds: number;
   net: number;
   margin: number | null;
@@ -31,7 +31,7 @@ export function ProfitWaterfall({ t, compact = false }: { t: ProfitTotalsView; c
     { label: "Desconto Pix", value: t.pix, hint: "Desconto para pagamento no Pix" },
     { label: "Taxas do gateway", value: t.fees, hint: "Mercado Pago e outros (quando informado)" },
     { label: "Custo das peças", value: t.cogs, hint: "Preço de custo × quantidade" },
-    { label: "Frete pago pela loja", value: t.shippingSubsidy, hint: "Etiqueta mais cara que o frete cobrado" },
+    { label: "Frete (etiquetas)", value: t.shipping, hint: "Repassado à transportadora: custo real da etiqueta ou, sem ele, o frete cobrado" },
     { label: "Estornos de devoluções", value: t.refunds, hint: "Devoluções aprovadas" },
   ].filter((s) => !compact || s.value > 0);
   const base = Math.max(t.gross, 1);
