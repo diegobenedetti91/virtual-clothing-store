@@ -35,7 +35,7 @@ export async function PUT(req: NextRequest) {
     infinityPayAtivo, infinityPayHandle, infinityPayApiKey,
     pixDiscountEnabled, pixDiscountPercent, whatsappAtivo,
     blingAtivo, blingNfeAuto, blingClientId, blingClientSecret, diasUteisProduzao, monthlyRevenueGoal, salesTaxRate,
-    cashbackEnabled, cashbackPercent, cashbackReleaseDays, cashbackValidityDays, cashbackMaxUsePercent, cashbackMinOrder, cashbackStackCoupon, cashbackStackPix,
+    cashbackEnabled, cashbackPercent, cashbackReleaseDays, cashbackValidityDays, cashbackMaxUsePercent, cashbackMinOrder, cashbackStackCoupon, cashbackStackPix, promoAutoNotify,
   } = body;
 
   let settings = await prisma.companySettings.findFirst(ORDER);
@@ -116,6 +116,7 @@ export async function PUT(req: NextRequest) {
     cashbackMinOrder: clampNum(cashbackMinOrder, 0, 1e7, 0),
     cashbackStackCoupon: !!cashbackStackCoupon,
     cashbackStackPix: cashbackStackPix !== false,
+    promoAutoNotify: !!promoAutoNotify,
     // Alíquota de imposto sobre vendas (%): 0 < x < 100, ou vazio
     salesTaxRate:
       typeof salesTaxRate === "number" && Number.isFinite(salesTaxRate) && salesTaxRate > 0 && salesTaxRate < 100

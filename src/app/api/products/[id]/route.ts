@@ -1,5 +1,6 @@
 import { applyFlashSales } from "@/lib/flashSales";
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
+import { autoNotify } from "@/lib/promoInterest";
 import { requireAdmin } from "@/lib/adminAuth";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -27,6 +28,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const { id } = await params;
   const body = await req.json();
   const { name, description, price, comparePrice, costPrice, pesoGramas, embalagemId, measurements, blingProdutoId, images, categoryId, attributes, stock, variantStock, active, featured, navItemIds } = body;
+
+  // Preço anterior: se baixou, avisa os interessados (automático) ou devolve para o admin perguntar
+  const before = await prisma.product.findUnique({ where: { id }, select: { price: true } });
 
   let slug = slugify(name);
   const existing = await prisma.product.findFirst({ where: { slug, NOT: { id } } });
@@ -65,7 +69,18 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     include: { category: true, navItems: { select: { id: true, label: true } } },
   });
 
-  return NextResponse.json(product);
+  let priceDropped: { from: number; to: number; autoNotify: boolean } | null = null;
+  if (before && product.price < before.price - 0.009 && product.active) {
+    const settings = await prisma.companySettings.findFirst({ orderBy: { updatedAt: "desc" }, select: { promoAutoNotify: true } });
+    const auto = !!settings?.promoAutoNotify;
+    priceDropped = { from: before.price, to: product.price, autoNotify: auto };
+    if (auto) {
+      const task = () => autoNotify({ productId: id, reason: "PRICE_DROP", priceBefore: before.price });
+      try { after(task); } catch { void task(); }
+    }
+  }
+
+  return NextResponse.json({ ...product, priceDropped });
 }
 
 export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {

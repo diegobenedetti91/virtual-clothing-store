@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, Kanban, TicketPercent, ClipboardList, Undo2, ShoppingBag, Package, Tag, Layers, Zap, Star,
-  Truck, MapPin, Box, Users, Bell, Bot, BarChart3, Receipt, Navigation, Settings,
+  Truck, MapPin, Box, Users, Bell, Bot, BarChart3, Receipt, Navigation, Settings, Eye,
 } from "lucide-react";
 import type { AdminBadges } from "@/lib/adminAlerts";
 
@@ -68,6 +68,7 @@ export const ADMIN_NAV: NavGroup[] = [
     title: "Análises",
     links: [
       { href: "/admin/relatorios", label: "Relatórios", description: "Faturamento, margem, estados, canais e campanhas", icon: BarChart3, exact: true, keywords: "analise lucro margem" },
+      { href: "/admin/interesse", label: "Interesse por produto", description: "Mais vistos x vendidos e avisos de promoção", icon: Eye, keywords: "visualizacoes visto clicado promocao remarketing email interessados" },
       { href: "/admin/relatorios/relatorios", label: "Pagamentos e taxas", description: "Taxas cobradas por forma de pagamento", icon: Receipt, keywords: "financeiro gateway mercado pago" },
     ],
   },

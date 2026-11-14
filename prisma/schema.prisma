@@ -35,6 +35,9 @@ model CustomerUser {
   reviews      ProductReview[]
   returns      Return[]
   creditAdjustments CreditAdjustment[]
+  /** Pediu para não receber e-mails de promoção (link "não quero receber" — LGPD) */
+  marketingOptOut Boolean     @default(false)
+  promoEmails  PromoEmail[]
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
 }
@@ -93,6 +96,7 @@ model Product {
   waitlist     WaitlistEntry[]
   flashSales   FlashSale[]
   variantBlingMaps ProductVariantBlingMap[]
+  promoCampaigns PromoCampaign[]
   /** Medidas/tabela de tamanhos em texto livre (usado na página do produto e pelo atendente de IA) */
   measurements String?         @db.Text
 
@@ -377,6 +381,8 @@ model CompanySettings {
   cashbackStackCoupon    Boolean  @default(false)
   /** Crédito pode ser usado junto com o desconto Pix */
   cashbackStackPix       Boolean  @default(true)
+  /** Avisar sozinho os interessados quando uma promoção relâmpago começa ou o preço baixa */
+  promoAutoNotify        Boolean  @default(false)
   diasUteisProduzao      Int      @default(2)
   updatedAt              DateTime @updatedAt
   /** Meta de faturamento do mês (R$), exibida no dashboard */
@@ -473,6 +479,7 @@ model AnalyticsEvent {
   @@index([type, createdAt])
   @@index([productId, type])
   @@index([sessionId])
+  @@index([customerId, type])
 }
 
 model TrackingEvent {
@@ -587,4 +594,42 @@ model CreditAdjustment {
   createdAt  DateTime     @default(now())
 
   @@index([customerId])
+}
+
+/** Aviso de promoção para quem demonstrou interesse num produto (viu, favoritou, deixou no carrinho). */
+model PromoCampaign {
+  id          String       @id @default(cuid())
+  productId   String
+  product     Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+  /** PRICE_DROP | COUPON | FLASH_SALE */
+  reason      String
+  couponCode  String?
+  flashSaleId String?
+  priceBefore Float?
+  priceAfter  Float?
+  /** manual | auto */
+  trigger     String       @default("manual")
+  sent        Int          @default(0)
+  skipped     Int          @default(0)
+  createdBy   String?
+  createdAt   DateTime     @default(now())
+  emails      PromoEmail[]
+
+  @@index([productId])
+  @@index([createdAt])
+}
+
+/** Cada e-mail de promoção enviado (base da trava: no máximo 3 por cliente a cada 30 dias). */
+model PromoEmail {
+  id         String        @id @default(cuid())
+  campaignId String
+  campaign   PromoCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  customerId String
+  customer   CustomerUser  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  productId  String
+  sentAt     DateTime      @default(now())
+  clickedAt  DateTime?
+
+  @@index([customerId, sentAt])
+  @@index([productId, customerId])
 }

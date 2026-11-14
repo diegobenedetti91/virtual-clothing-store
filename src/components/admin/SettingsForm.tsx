@@ -38,6 +38,7 @@ function fromSettings(s: CompanySettings | null) {
     diasUteisProduzao?: number | null; monthlyRevenueGoal?: number | null; salesTaxRate?: number | null;
     cashbackEnabled?: boolean; cashbackPercent?: number; cashbackReleaseDays?: number; cashbackValidityDays?: number;
     cashbackMaxUsePercent?: number; cashbackMinOrder?: number; cashbackStackCoupon?: boolean; cashbackStackPix?: boolean;
+    promoAutoNotify?: boolean;
   };
   return {
     name: x.name || "",
@@ -81,6 +82,7 @@ function fromSettings(s: CompanySettings | null) {
     cashbackMinOrder: x.cashbackMinOrder ? String(x.cashbackMinOrder).replace(".", ",") : "",
     cashbackStackCoupon: x.cashbackStackCoupon ?? false,
     cashbackStackPix: x.cashbackStackPix ?? true,
+    promoAutoNotify: x.promoAutoNotify ?? false,
     pixDiscountPercent: (x.pixDiscountPercent ?? 0).toString(),
     blingAtivo: x.blingAtivo ?? false,
     blingNfeAuto: x.blingNfeAuto ?? false,
@@ -137,6 +139,7 @@ function toPayload(f: FormState) {
     cashbackMinOrder: parseFloat(f.cashbackMinOrder.replace(/\./g, "").replace(",", ".")) || 0,
     cashbackStackCoupon: f.cashbackStackCoupon,
     cashbackStackPix: f.cashbackStackPix,
+    promoAutoNotify: f.promoAutoNotify,
     blingAtivo: f.blingAtivo, blingNfeAuto: f.blingNfeAuto, blingClientId: f.blingClientId || null, blingClientSecret: f.blingClientSecret || null,
     freteAtivo: f.freteAtivo, freteTipo: f.freteTipo, freteLocalCidade: f.freteLocalCidade || null, freteLocalUF: f.freteLocalUF || null,
     freteLocalRegioes: f.freteLocalRegioes.length > 0 ? f.freteLocalRegioes.join("|") : null, freteLocalRetirada: f.freteLocalRetirada,
@@ -485,6 +488,21 @@ export default function SettingsForm({ initialSettings }: Props) {
                 </div>
                 <ToggleRow title="Pode usar junto com cupom" hint="Desligado: o cliente escolhe entre o cupom e o crédito." checked={form.cashbackStackCoupon} onChange={(v) => set("cashbackStackCoupon", v)} />
                 <ToggleRow title="Pode usar junto com o desconto do Pix" hint="Desligado: com Pix com desconto, o crédito não é aplicado." checked={form.cashbackStackPix} onChange={(v) => set("cashbackStackPix", v)} />
+              </IntegrationCard>
+
+              <IntegrationCard
+                title="Avisos de promoção para interessados"
+                icon="📣"
+                description="E-mail “o produto que você viu baixou de preço / está em promoção” para quem viu, favoritou ou deixou o produto no carrinho."
+                status={form.promoAutoNotify ? "active" : "off"}
+                on={form.promoAutoNotify}
+                onToggle={(v) => set("promoAutoNotify", v)}
+              >
+                <Hint>
+                  <b>Ligado:</b> o aviso sai sozinho quando uma promoção relâmpago começa ou quando você baixa o preço de um produto.{" "}
+                  <b>Desligado:</b> o admin pergunta “Avisar os interessados?” nesses momentos. Nos dois casos, você também pode avisar quando quiser em <b>Análises → Interesse por produto</b>.
+                  Cada cliente recebe no máximo <b>3 e-mails de promoção a cada 30 dias</b>, nunca dois do mesmo produto nesse período, e pode se descadastrar pelo link do e-mail.
+                </Hint>
               </IntegrationCard>
 
               <IntegrationCard title="NuPay" icon="🟣" description="Débito, crédito Nubank ou Pix em até 24×." status={st.nupay} on={form.nuPayAtivo} onToggle={(v) => set("nuPayAtivo", v)}>

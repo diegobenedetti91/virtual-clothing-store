@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { askToNotifyInterested } from "@/lib/promoClient";
+import { notify } from "@/lib/notify";
 import { useRouter } from "next/navigation";
 import { Plus, X, ArrowLeft, ChevronDown, ChevronUp, Check, ImageIcon, Info, Layers, Package, Store, Tag, TrendingUp, Truck, Eye, Star, AlertCircle } from "lucide-react";
 import { Button, ButtonLink } from "@/components/admin/ui/Button";
@@ -256,6 +258,12 @@ export default function ProductForm({ productId, product, categories, navItems =
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data?.error || "Erro ao salvar produto");
+      }
+      // Baixou o preço: avisa os interessados (automático) ou pergunta se quer avisar
+      const saved = await res.json().catch(() => null);
+      if (saved?.priceDropped) {
+        if (saved.priceDropped.autoNotify) notify.info("Preço reduzido", { description: "Os clientes interessados neste produto serão avisados por e-mail." });
+        else await askToNotifyInterested(saved.id, "PRICE_DROP", { priceBefore: saved.priceDropped.from });
       }
       router.push("/admin/produtos");
       router.refresh();

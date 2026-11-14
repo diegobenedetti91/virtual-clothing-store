@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getCustomerFromRequest } from "@/lib/customerAuth";
 
 const RATE_LIMIT = new Map<string, { count: number; reset: number }>();
 
@@ -20,7 +21,7 @@ export async function POST(req: NextRequest) {
   bucket.count++;
   RATE_LIMIT.set(ip, bucket);
 
-  const { type, productId, sessionId, customerId, orderId, path, value, channel, utmSource, utmMedium, utmCampaign } =
+  const { type, productId, sessionId, orderId, path, value, channel, utmSource, utmMedium, utmCampaign } =
     await req.json().catch(() => ({}));
   const short = (v: unknown, max = 100) => (typeof v === "string" && v.trim() ? v.trim().slice(0, max) : null);
 
@@ -34,7 +35,8 @@ export async function POST(req: NextRequest) {
         type,
         productId: productId || null,
         sessionId: sessionId || null,
-        customerId: customerId || null,
+        // Cliente logado vem do cookie (o navegador não decide quem é); base dos avisos de promoção
+        customerId: getCustomerFromRequest(req)?.id ?? null,
         orderId: orderId || null,
         path: path || null,
         value: value || null,

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import CreditPanel, { type CreditData } from "@/components/customer/CreditPanel";
+import PromoEmailToggle from "@/components/customer/PromoEmailToggle";
 import OptimizedImg from "@/components/OptimizedImg";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -393,6 +394,7 @@ export default function AccountPage() {
                 <p className="text-sm text-gray-400 italic">Nenhum endereço salvo. Ele é preenchido automaticamente no checkout.</p>
               )}
             </section>
+            <PromoEmailToggle />
           </div>
         )}
 

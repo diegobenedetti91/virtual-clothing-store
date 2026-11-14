@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
+import { autoNotify } from "@/lib/promoInterest";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 
@@ -53,7 +54,15 @@ export async function POST(req: NextRequest) {
       include: { product: { select: { id: true, name: true, slug: true, price: true } } },
     });
 
-    return NextResponse.json(flashSale, { status: 201 });
+    // Já começou: avisa os interessados (automático) ou o admin pergunta. Futura: a rotina avisa quando começar.
+    const startedNow = flashSale.active && flashSale.productId && flashSale.startAt <= new Date();
+    const settings = await prisma.companySettings.findFirst({ orderBy: { updatedAt: "desc" }, select: { promoAutoNotify: true } });
+    const auto = !!settings?.promoAutoNotify;
+    if (startedNow && auto) {
+      const task = () => autoNotify({ productId: flashSale.productId!, reason: "FLASH_SALE", flashSaleId: flashSale.id });
+      try { after(task); } catch { void task(); }
+    }
+    return NextResponse.json({ ...flashSale, promo: { startedNow: !!startedNow, autoNotify: auto } }, { status: 201 });
   } catch (error) {
     console.error("Create flash sale error:", error);
     return NextResponse.json({ error: "Failed to create flash sale" }, { status: 500 });

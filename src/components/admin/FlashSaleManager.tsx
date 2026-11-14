@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { confirmDialog } from "@/lib/notify";
+import { askToNotifyInterested } from "@/lib/promoClient";
+import { confirmDialog, notify } from "@/lib/notify";
 import OptimizedImg from "@/components/OptimizedImg";
 import { Button, ButtonLink } from "@/components/admin/ui/Button";
 import { BadgePercent, Calendar, Check, DollarSign, ExternalLink, Package, Pencil, Plus, Search, Timer, Trash2, X, Zap } from "lucide-react";
@@ -133,6 +134,11 @@ export default function FlashSaleManager() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erro ao salvar");
       setForm(null);
+      // Promoção que já começou: avisa os interessados (automático) ou pergunta
+      if (!form.id && data?.promo?.startedNow && data.productId) {
+        if (data.promo.autoNotify) notify.info("Promoção no ar", { description: "Os clientes interessados neste produto serão avisados por e-mail." });
+        else void askToNotifyInterested(data.productId, "FLASH_SALE", { flashSaleId: data.id });
+      }
       setReload((n) => n + 1);
     } catch (e) {
       setFormError(e instanceof Error ? e.message : "Erro ao salvar");
