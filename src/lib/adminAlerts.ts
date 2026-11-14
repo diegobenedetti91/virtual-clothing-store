@@ -24,6 +24,13 @@ const DAY = 24 * 60 * 60 * 1000;
 /** Pendências que o dono da loja precisa resolver — alimenta o dashboard e os contadores do menu. */
 export async function getAdminAlerts(): Promise<{ alerts: AdminAlert[]; badges: AdminBadges }> {
   const settings = await prisma.companySettings.findFirst({ orderBy: { updatedAt: "desc" }, select: { blingAtivo: true } });
+  const nfeFailed = settings?.blingAtivo
+    ? await prisma.order.count({ where: { nfeStatus: { in: ["rejected", "denied", "error"] }, status: { not: "CANCELLED" } } })
+    : 0;
+  // Cancelado com nota autorizada: a nota precisa ser cancelada no Bling (SEFAZ dá 24h)
+  const nfeToCancel = settings?.blingAtivo
+    ? await prisma.order.count({ where: { status: "CANCELLED", nfeStatus: "authorized" } })
+    : 0;
   const twoDaysAgo = new Date(Date.now() - 2 * DAY);
   const sixtyDaysAgo = new Date(Date.now() - 60 * DAY);
 
@@ -73,6 +80,22 @@ export async function getAdminAlerts(): Promise<{ alerts: AdminAlert[]; badges: 
       severity: "critical" as const,
     },
     {
+      key: "nfeFailed",
+      count: nfeFailed,
+      title: "Notas fiscais rejeitadas",
+      description: "A SEFAZ recusou a nota. Veja o motivo no pedido, corrija no Bling e reenvie.",
+      href: "/admin/pedidos",
+      severity: "critical" as const,
+    },
+    {
+      key: "nfeToCancel",
+      count: nfeToCancel,
+      title: "Pedidos cancelados com nota emitida",
+      description: "Cancele a NF-e no Bling (prazo de 24h após a autorização).",
+      href: "/admin/pedidos",
+      severity: "warning" as const,
+    },
+    {
       key: "labelInvalid",
       count: labelInvalid,
       title: "Etiquetas inválidas",
@@ -117,7 +140,7 @@ export async function getAdminAlerts(): Promise<{ alerts: AdminAlert[]; badges: 
   return {
     alerts,
     badges: {
-      pedidos: blingPending,
+      pedidos: blingPending + nfeFailed,
       esteira: toShip,
       rastreamento: labelErrors + labelInvalid,
       devolucoes: returnsPending,

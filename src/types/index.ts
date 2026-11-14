@@ -182,6 +182,8 @@ export interface CompanySettings {
   pixDiscountEnabled?: boolean;
   pixDiscountPercent?: number;
   blingAtivo?: boolean;
+  /** Emite a NF-e automaticamente quando o pedido pago entra no Bling */
+  blingNfeAuto?: boolean;
   blingClientId?: string | null;
   blingClientSecret?: string | null;
   blingAccessToken?: string | null;

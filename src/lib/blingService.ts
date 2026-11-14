@@ -135,6 +135,13 @@ async function obterTokenAutomatico(settings: { blingClientId: string | null; bl
   }
 }
 
+/** Token de acesso válido do Bling (renova sozinho quando expira). null = não configurado/autorizado. */
+export async function getBlingAccessToken(): Promise<string | null> {
+  const settings = await prisma.companySettings.findFirst({ orderBy: { updatedAt: "desc" } });
+  if (!settings?.blingClientId || !settings?.blingClientSecret) return null;
+  return obterTokenAutomatico(settings);
+}
+
 type BlingIntegrationResult = { success: boolean; error?: string; blingId?: string };
 
 /**
@@ -143,6 +150,12 @@ type BlingIntegrationResult = { success: boolean; error?: string; blingId?: stri
  */
 export async function integrarPedidoBling(orderId: string): Promise<BlingIntegrationResult> {
   const result = await enviarPedidoBling(orderId);
+  if (result.success) {
+    // Pedido no Bling → emite a NF-e (se a emissão automática estiver ligada). Import tardio evita ciclo entre os módulos.
+    await import("./blingNfe")
+      .then((m) => m.emitirNfeAutomatica(orderId))
+      .catch((e) => console.error("[Bling] Falha ao agendar emissão da NF-e:", e));
+  }
   if (!result.success) {
     await prisma.order
       .updateMany({

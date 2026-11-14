@@ -55,6 +55,8 @@ export const CUSTOMER_ORDER_SELECT = {
   shipmentStatus: true,
   lastTrackingUpdate: true,
   returnStatus: true,
+  nfeStatus: true,
+  nfeNumero: true,
   items: {
     select: {
       id: true,

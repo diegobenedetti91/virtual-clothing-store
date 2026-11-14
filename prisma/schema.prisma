@@ -195,6 +195,23 @@ model Order {
   blingIntegrationStatus   String?       @default("pending")
   blingIntegratedAt        DateTime?
 
+  // Nota fiscal (NF-e emitida pelo Bling a partir do pedido)
+  /** ID da nota no Bling */
+  nfeId                    String?
+  /** processing | authorized | rejected | denied | cancelled | error */
+  nfeStatus                String?
+  /** Situação numérica do Bling (1 pendente … 5 autorizada, 4 rejeitada) */
+  nfeSituacao              Int?
+  nfeNumero                String?
+  nfeSerie                 String?
+  nfeChave                 String?
+  /** Motivo da rejeição / erro, como veio do Bling/SEFAZ */
+  nfeError                 String?       @db.Text
+  nfeAttempts              Int           @default(0)
+  nfeAuthorizedAt          DateTime?
+  nfeLastCheckAt           DateTime?
+  nfeEmailSentAt           DateTime?
+
   // Meta Ads (Pixel + Conversions API): browser context captured at checkout,
   // only when the buyer accepted marketing cookies (LGPD)
   metaConsent              Boolean       @default(false)
@@ -221,6 +238,7 @@ model Order {
   @@index([status, createdAt])
   @@index([createdAt])
   @@index([customerEmail])
+  @@index([nfeStatus])
 }
 
 model OrderItem {
@@ -313,6 +331,8 @@ model CompanySettings {
   blingAccessToken       String?  @db.Text
   blingRefreshToken      String?  @db.Text
   blingTokenExpiresAt    DateTime?
+  /** Emite a NF-e automaticamente assim que o pedido pago entra no Bling */
+  blingNfeAuto           Boolean  @default(false)
   diasUteisProduzao      Int      @default(2)
   updatedAt              DateTime @updatedAt
   /** Meta de faturamento do mês (R$), exibida no dashboard */

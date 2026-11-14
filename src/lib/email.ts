@@ -147,6 +147,48 @@ export async function sendOrderConfirmationEmail({
   });
 }
 
+/** E-mail com a nota fiscal autorizada (DANFE em PDF + XML anexos). */
+export async function sendInvoiceEmail({
+  to, customerName, orderNumber, storeName, numero, serie, chave, orderUrl, attachments,
+}: {
+  to: string; customerName: string; orderNumber: string; storeName: string;
+  numero: string | null; serie: string | null; chave: string; orderUrl: string;
+  attachments: { filename: string; content: Buffer }[];
+}) {
+  if (!process.env.SMTP_USER) return;
+  const chaveFmt = chave.replace(/(\d{4})(?=\d)/g, "$1 ");
+  const html = baseWrapper(`
+    <h2 style="color:#ec4899;margin:0 0 4px;">Sua nota fiscal chegou</h2>
+    <p style="color:#555;margin:0 0 20px;">Olá, <strong>${esc(customerName)}</strong>! A nota fiscal do seu pedido foi emitida e está anexada a este e-mail (DANFE em PDF e arquivo XML).</p>
+
+    <div style="background:#fdf2f8;border-radius:10px;padding:16px 20px;margin-bottom:16px;">
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <tr><td style="color:#888;padding:3px 0;">Pedido</td><td style="text-align:right;font-weight:700;color:#be185d;">${esc(orderNumber)}</td></tr>
+        ${numero ? `<tr><td style="color:#888;padding:3px 0;">Nota fiscal</td><td style="text-align:right;font-weight:600;color:#111;">Nº ${esc(numero)}${serie ? ` · Série ${esc(serie)}` : ""}</td></tr>` : ""}
+      </table>
+      <p style="margin:10px 0 0;font-size:11px;color:#888;">Chave de acesso</p>
+      <p style="margin:2px 0 0;font-family:monospace;font-size:12px;color:#333;word-break:break-all;">${esc(chaveFmt)}</p>
+    </div>
+
+    <p style="text-align:center;margin:20px 0 4px;">
+      <a href="${esc(orderUrl)}" style="display:inline-block;background:#ec4899;color:#fff;text-decoration:none;font-weight:600;padding:12px 22px;border-radius:10px;font-size:14px;">Acompanhar meu pedido</a>
+    </p>
+    <p style="color:#888;font-size:12px;text-align:center;margin:12px 0 0;">Guarde este e-mail: a nota é o seu comprovante para trocas e garantia. Você também pode consultá-la no portal da NF-e com a chave acima.</p>
+  `, storeName);
+
+  await sendMail({
+    from: `"${storeName}" <${process.env.SMTP_USER}>`,
+    to,
+    subject: `Nota fiscal do pedido ${orderNumber} — ${storeName}`,
+    html,
+    attachments: attachments.map((a) => ({
+      filename: a.filename,
+      content: a.content,
+      contentType: a.filename.endsWith(".pdf") ? "application/pdf" : "application/xml",
+    })),
+  });
+}
+
 export async function sendShippingEmail({
   to, customerName, orderNumber, storeName, trackingCode, shippingProofUrl,
 }: {

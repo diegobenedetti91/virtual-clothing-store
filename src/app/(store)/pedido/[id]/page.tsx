@@ -5,7 +5,7 @@ import OptimizedImg from "@/components/OptimizedImg";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
-  AlertTriangle, ArrowLeft, Check, CheckCircle2, Clock, Copy, CreditCard, ExternalLink, Loader2, MapPin, MessageCircle,
+  AlertTriangle, ArrowLeft, Check, CheckCircle2, Clock, Copy, CreditCard, Download, ExternalLink, FileText, Loader2, MapPin, MessageCircle,
   Package, PackageCheck, Store, Tag, Truck, Undo2, User, XCircle,
 } from "lucide-react";
 import { formatCurrency, ORDER_STATUS } from "@/lib/utils";
@@ -45,6 +45,8 @@ interface Order {
   couponDiscount: number;
   paymentMethod: string | null;
   cancelReason: string | null;
+  nfeStatus: string | null;
+  nfeNumero: string | null;
   trackingCode: string | null;
   trackingUrl: string | null;
   shipmentStatus: string | null;
@@ -387,6 +389,19 @@ export default function CustomerOrderPage() {
                 <div className="flex justify-between gap-3"><dt className="text-gray-500">Forma</dt><dd className="text-gray-900 text-right">{order.paymentMethod || "A combinar"}</dd></div>
                 <div className="flex justify-between gap-3"><dt className="text-gray-500">Situação</dt><dd className="text-gray-900">{order.status === "PENDING" ? "Aguardando" : order.status === "CANCELLED" ? "Cancelado" : "Aprovado"}</dd></div>
               </dl>
+              {order.nfeStatus === "authorized" && (
+                <div className="mt-4 pt-4 border-t border-gray-100">
+                  <p className="text-xs text-gray-500 mb-2 flex items-center gap-1.5"><FileText size={13} /> Nota fiscal{order.nfeNumero ? ` nº ${order.nfeNumero}` : ""}</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <a href={`/api/customer/orders/${order.id}/nfe?formato=pdf`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-gray-900 text-white text-xs font-semibold hover:bg-gray-800">
+                      <Download size={14} /> Baixar PDF
+                    </a>
+                    <a href={`/api/customer/orders/${order.id}/nfe?formato=xml`} className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl ring-1 ring-gray-200 text-gray-700 text-xs font-semibold hover:bg-gray-50">
+                      <Download size={14} /> XML
+                    </a>
+                  </div>
+                </div>
+              )}
             </Card>
 
             <Card title="Seus dados" icon={User}>

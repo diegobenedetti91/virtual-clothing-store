@@ -70,6 +70,7 @@ function fromSettings(s: CompanySettings | null) {
     pixDiscountEnabled: x.pixDiscountEnabled ?? false,
     pixDiscountPercent: (x.pixDiscountPercent ?? 0).toString(),
     blingAtivo: x.blingAtivo ?? false,
+    blingNfeAuto: x.blingNfeAuto ?? false,
     blingClientId: x.blingClientId || "",
     blingClientSecret: x.blingClientSecret || "",
     freteAtivo: x.freteAtivo || false,
@@ -114,7 +115,7 @@ function toPayload(f: FormState) {
     whatsappAtivo: f.whatsappAtivo,
     heroBadge: f.heroBadge, heroTitle: f.heroTitle, heroButtonText: f.heroButtonText, heroButtonSecondaryText: f.heroButtonSecondaryText,
     pixDiscountEnabled: f.pixDiscountEnabled, pixDiscountPercent: parseFloat(f.pixDiscountPercent) || 0,
-    blingAtivo: f.blingAtivo, blingClientId: f.blingClientId || null, blingClientSecret: f.blingClientSecret || null,
+    blingAtivo: f.blingAtivo, blingNfeAuto: f.blingNfeAuto, blingClientId: f.blingClientId || null, blingClientSecret: f.blingClientSecret || null,
     freteAtivo: f.freteAtivo, freteTipo: f.freteTipo, freteLocalCidade: f.freteLocalCidade || null, freteLocalUF: f.freteLocalUF || null,
     freteLocalRegioes: f.freteLocalRegioes.length > 0 ? f.freteLocalRegioes.join("|") : null, freteLocalRetirada: f.freteLocalRetirada,
     freteValorFixo: parseFloat(f.freteValorFixo) || 0,
@@ -638,6 +639,17 @@ export default function SettingsForm({ initialSettings }: Props) {
                     </Button>
                   )}
                 </div>
+                <ToggleRow
+                  title="Emitir nota fiscal automaticamente"
+                  hint="Assim que o pedido pago entra no Bling, a NF-e é gerada e enviada à SEFAZ. Aprovada, o cliente recebe a nota por e-mail; rejeitada, o motivo aparece no pedido."
+                  checked={form.blingNfeAuto}
+                  onChange={(v) => set("blingNfeAuto", v)}
+                />
+                {form.blingNfeAuto && (
+                  <Hint>
+                    No Bling, desligue o envio automático de e-mail da nota para o cliente não receber duas vezes. Para avisos instantâneos da SEFAZ, cadastre o webhook de <b>Nota fiscal</b> no aplicativo do Bling apontando para <code className="font-mono">https://SEU-DOMINIO/api/webhooks/bling/nfe</code> (sem ele, o site confere sozinho a cada poucos minutos).
+                  </Hint>
+                )}
               </IntegrationCard>
 
               <IntegrationCard title="Meta Ads (Facebook / Instagram)" icon="📣" description="Pixel e API de Conversões para medir anúncios. Só envia eventos de quem aceitou os cookies de marketing." status={st.meta}>

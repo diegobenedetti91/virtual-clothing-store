@@ -491,6 +491,15 @@ export default function OrdersManager({ initialOrders, blingEnabled = false }: P
                         ? <span className="px-1.5 py-0.5 rounded-md bg-emerald-50 text-emerald-700">Bling ✓</span>
                         : <button onClick={(e) => { e.stopPropagation(); retryBlingIntegration(order.id); }} className="px-1.5 py-0.5 rounded-md bg-red-50 text-red-700 hover:bg-red-100" title="Enviar ao Bling agora">{retryingBling === order.id ? "Enviando…" : "Fora do Bling ↻"}</button>
                     )}
+                    {blingEnabled && x.nfeStatus && (
+                      x.nfeStatus === "authorized"
+                        ? <span className="px-1.5 py-0.5 rounded-md bg-emerald-50 text-emerald-700" title={x.nfeNumero ? `NF-e nº ${x.nfeNumero}` : undefined}>NF ✓</span>
+                        : x.nfeStatus === "processing" || x.nfeStatus === "pending"
+                          ? <span className="px-1.5 py-0.5 rounded-md bg-sky-50 text-sky-700">NF aguardando</span>
+                          : x.nfeStatus === "cancelled"
+                            ? <span className="px-1.5 py-0.5 rounded-md bg-gray-100 text-gray-500">NF cancelada</span>
+                            : <span className="px-1.5 py-0.5 rounded-md bg-red-50 text-red-700" title={x.nfeError || undefined}>{x.nfeStatus === "rejected" ? "NF rejeitada" : x.nfeStatus === "denied" ? "NF denegada" : "Erro na NF"}</span>
+                    )}
                     {x.couponCode && <span className="px-1.5 py-0.5 rounded-md bg-violet-50 text-violet-700">{x.couponCode}</span>}
                     {x.trackingCode && order.status === "SHIPPED" && <span className="px-1.5 py-0.5 rounded-md bg-gray-100 text-gray-600 font-mono">{x.trackingCode}</span>}
                     {x.returnStatus && <span className="px-1.5 py-0.5 rounded-md bg-orange-50 text-orange-700">{x.returnStatus === "FULL_RETURN" ? "Devolvido" : "Devolução parcial"}</span>}
@@ -559,5 +568,8 @@ interface Ext {
   couponCode?: string | null;
   trackingCode?: string | null;
   returnStatus?: string | null;
+  nfeStatus?: string | null;
+  nfeNumero?: string | null;
+  nfeError?: string | null;
   customer?: { email: string } | null;
 }

@@ -12,6 +12,7 @@ import { formatCurrency, needsMelhorEnvioLabel, ORDER_STATUS } from "@/lib/utils
 import { getCarrierTracking } from "@/lib/carrierTracking";
 import { attributesLabel } from "@/lib/variantUtils";
 import { Button, ButtonLink, buttonClasses } from "@/components/admin/ui/Button";
+import NfeCard from "@/components/admin/NfeCard";
 
 interface OrderItem {
   id: string;
@@ -64,6 +65,15 @@ interface OrderDetails {
   blingIntegrationStatus?: string | null;
   blingPedidoId?: string | null;
   blingIntegratedAt?: string | null;
+  nfeId?: string | null;
+  nfeStatus?: string | null;
+  nfeNumero?: string | null;
+  nfeSerie?: string | null;
+  nfeChave?: string | null;
+  nfeError?: string | null;
+  nfeAttempts?: number | null;
+  nfeAuthorizedAt?: string | null;
+  nfeEmailSentAt?: string | null;
   trafficChannel?: string | null;
   utmSource?: string | null;
   utmMedium?: string | null;
@@ -396,6 +406,13 @@ export default function OrderDetailsPage() {
                 </div>
               )}
               <Note msg={blingMsg} />
+            </Card>
+          )}
+
+          {/* Nota fiscal */}
+          {blingEnabled && (isPaid || !!order.nfeStatus) && (
+            <Card title="Nota fiscal (NF-e)" icon={FileText}>
+              <NfeCard key={`${order.blingPedidoId ?? "x"}`} orderId={order.id} initial={order} inBling={blingOk} orderCancelled={order.status === "CANCELLED"} />
             </Card>
           )}
 
