@@ -234,8 +234,8 @@ export default function CartPage() {
                   </p>
                 )}
                 {cashbackPct > 0 && subtotal > 0 && (
-                  <p className="mt-3 flex items-center gap-1.5 rounded-lg bg-brand-light px-2.5 py-1.5 text-[12.5px] text-brand">
-                    <span aria-hidden>🎁</span> Você ganha até <b className="tabular-nums">{formatCurrency(Math.round(subtotal * cashbackPct) / 100)}</b> de cashback nesta compra
+<p className="mt-3 rounded-lg bg-brand-light px-3 py-2 text-[12.5px] leading-snug text-brand">
+                    Você ganha até <b className="tabular-nums whitespace-nowrap">{formatCurrency(Math.round(subtotal * cashbackPct) / 100)}</b> de cashback nesta compra
                   </p>
                 )}
               </div>

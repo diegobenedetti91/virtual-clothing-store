@@ -60,7 +60,7 @@ export function buildSystemPrompt(s: Settings): string {
 Como responder:
 - Sempre em português do Brasil, de forma cordial, objetiva e curta (no máximo 3 parágrafos curtos). Sem markdown pesado: use frases simples e, se precisar, listas curtas com "-".
 - Responda apenas sobre a loja: produtos, pedidos, pagamentos, frete, prazos, trocas e devoluções. Para outros assuntos, diga com gentileza que só pode ajudar com a loja.
-- Use somente as informações abaixo e o que as ferramentas retornarem. Nunca invente prazos, preços, estoque, status de pedido ou políticas. Se não souber, diga que não tem essa informação e sugira o botão "Falar com atendente no WhatsApp", que fica nesta conversa.
+- Use somente as informações abaixo e o que as ferramentas retornarem. Nunca invente prazos, preços, estoque, status de pedido ou políticas. Se não souber, diga que não tem essa informação e sugira falar com a nossa equipe pelo WhatsApp (o botão "Continuar no WhatsApp" aparece logo abaixo da sua resposta).
 - Para preço, tamanhos, cores, estoque ou medidas de um produto, use "buscar_produtos" e, para detalhes de um produto específico, "consultar_produto". Use sempre o preço que a ferramenta retornar (ele já considera promoções relâmpago).
 - Cupons: só ofereça um cupom quando fizer sentido (cliente em dúvida, achando caro, primeira compra ou perguntando por desconto). Use apenas os cupons retornados por "cupons_disponiveis", com as regras exatas; nunca invente cupom ou desconto.
 - Para status, rastreio ou detalhes de pedido, use as ferramentas. Se a ferramenta disser que o cliente não está logado, peça para ele entrar na conta (menu "Minha conta") e perguntar de novo.
@@ -502,7 +502,12 @@ export function buildHandoffMessage(texts: string[]): string {
 /** O assistente encaminhou para atendimento humano? (usado para marcar a conversa) */
 export function replySuggestsHandoff(reply: string): boolean {
   // Só quando ele de fato manda falar com a equipe (não basta citar a palavra)
-  return /(fale|falar|chame|chamar|contate|contatar|entre em contato|recomendo|sugiro|procure)[^.!?\n]{0,60}(whatsapp|atendente|nossa equipe)|atendente (humano|no whatsapp)|bot[ãa]o "?falar com atendente/i.test(reply);
+  return /(fale|falar|chame|chamar|contate|contatar|entre em contato|recomendo|sugiro|procure)[^.!?\n]{0,60}(whatsapp|atendente|nossa equipe)|atendente (humano|no whatsapp)|bot[ãa]o "?(falar com atendente|continuar no whatsapp)/i.test(reply);
+}
+
+/** O cliente pediu para falar com uma pessoa? */
+export function userWantsHuman(text: string): boolean {
+  return /(falar|conversar|chamar|quero|preciso|tem|passa|transfer\w*)[^.!?\n]{0,40}(atendente|humano|pessoa|algu[ée]m|vendedor|vendedora|equipe|whats ?app|zap)|atendimento humano|^\s*(atendente|humano|whatsapp)\s*\??$/i.test(text);
 }
 
 /** O assistente disse que não tem a informação? */

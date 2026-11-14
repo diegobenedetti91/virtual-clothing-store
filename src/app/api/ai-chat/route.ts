@@ -13,6 +13,7 @@ import {
   buildSystemPrompt,
   customerTexts,
   replySuggestsHandoff,
+  userWantsHuman,
   runAiTurn,
   usageDay,
 } from "@/lib/aiAssistant";
@@ -21,7 +22,7 @@ import {
 // unavailable (disabled, daily limit, API error) the reply points to WhatsApp.
 
 const HANDOFF_TEXT =
-  "Não consegui responder por aqui agora. Fale com a nossa equipe pelo botão \"Falar com atendente no WhatsApp\" que eles te ajudam.";
+  "Não consegui responder por aqui agora. Toque em \"Continuar no WhatsApp\" logo abaixo e a nossa equipe te ajuda.";
 
 function json(body: Record<string, unknown>, status = 200) {
   return NextResponse.json(body, { status });
@@ -115,7 +116,8 @@ export async function POST(req: NextRequest) {
   }
 
   // O próprio assistente encaminhou para a equipe: destaca o botão e marca a conversa
-  const handoff = replySuggestsHandoff(result.reply);
+  // Passa para uma pessoa quando a IA indica ou quando o próprio cliente pede
+  const handoff = replySuggestsHandoff(result.reply) || userWantsHuman(text);
 
   await prisma.aiConversation.update({
     where: { id: conversation.id },

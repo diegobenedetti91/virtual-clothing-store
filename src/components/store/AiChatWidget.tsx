@@ -1,18 +1,25 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { MessageCircle, X, Send, Loader2, RotateCcw, Bot } from "lucide-react";
+import { ArrowRight, ArrowUp, CreditCard, Loader2, MessageCircle, Package, RefreshCw, RotateCcw, Sparkles, Truck, UserRound, X } from "lucide-react";
 
-// Floating support chat (AI assistant). Replaces the WhatsApp float when the
-// assistant is enabled; the WhatsApp button stays inside the chat at all times.
+// Chat de atendimento com IA. O WhatsApp só aparece quando a IA sugere uma pessoa
+// ou quando o cliente pede (cartão "Continuar no WhatsApp" dentro da conversa).
 
 interface ChatMessage {
   role: "user" | "assistant";
   text: string;
+  /** A IA sugeriu (ou o cliente pediu) falar com uma pessoa nesta resposta */
+  handoff?: boolean;
 }
 
 const STORAGE_KEY = "ai_chat_v1";
-const SUGGESTIONS = ["Onde está meu pedido?", "Qual o prazo de entrega?", "Quais as formas de pagamento?", "Como faço uma troca?"];
+const SUGGESTIONS: { label: string; text: string; icon: React.ComponentType<{ size?: number; className?: string }> }[] = [
+  { label: "Meu pedido", text: "Onde está meu pedido?", icon: Package },
+  { label: "Prazo de entrega", text: "Qual o prazo de entrega?", icon: Truck },
+  { label: "Pagamento", text: "Quais as formas de pagamento?", icon: CreditCard },
+  { label: "Trocas", text: "Como faço uma troca?", icon: RefreshCw },
+];
 
 function loadStored(): { conversationId: string | null; messages: ChatMessage[] } {
   if (typeof window === "undefined") return { conversationId: null, messages: [] };
@@ -29,21 +36,64 @@ function loadStored(): { conversationId: string | null; messages: ChatMessage[] 
   }
 }
 
-// Plain text with clickable http(s) links; everything else rendered as text (no HTML)
-function MessageText({ text }: { text: string }) {
-  const parts = text.split(/(https?:\/\/[^\s)]+)/g);
+// Texto simples com links clicáveis e **negrito**; nada de HTML vindo da IA
+function Inline({ text }: { text: string }) {
+  const parts = text.split(/(https?:\/\/[^\s)]+|\*\*[^*]+\*\*)/g);
   return (
     <>
       {parts.map((part, i) =>
         /^https?:\/\//.test(part) ? (
-          <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="underline break-all">
-            {part}
-          </a>
+          <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 break-all">{part}</a>
+        ) : /^\*\*[^*]+\*\*$/.test(part) ? (
+          <strong key={i} className="font-semibold">{part.slice(2, -2)}</strong>
         ) : (
           <span key={i}>{part}</span>
         )
       )}
     </>
+  );
+}
+
+/** Parágrafos e listas ("- item" / "1. item") para respostas mais fáceis de ler. */
+function MessageText({ text }: { text: string }) {
+  const blocks: { list: boolean; lines: string[] }[] = [];
+  for (const line of text.split("\n")) {
+    const isItem = /^\s*([-•*]|\d+[.)])\s+/.test(line);
+    const last = blocks[blocks.length - 1];
+    if (!line.trim()) { blocks.push({ list: false, lines: [] }); continue; }
+    if (last && last.list === isItem) last.lines.push(line);
+    else blocks.push({ list: isItem, lines: [line] });
+  }
+  return (
+    <div className="space-y-1.5">
+      {blocks.filter((b) => b.lines.length).map((b, i) =>
+        b.list ? (
+          <ul key={i} className="space-y-1">
+            {b.lines.map((l, j) => (
+              <li key={j} className="flex gap-2"><span className="mt-[7px] w-1 h-1 rounded-full bg-current opacity-60 shrink-0" /><span><Inline text={l.replace(/^\s*([-•*]|\d+[.)])\s+/, "")} /></span></li>
+            ))}
+          </ul>
+        ) : (
+          <p key={i}>{b.lines.map((l, j) => <span key={j}>{j > 0 && <br />}<Inline text={l} /></span>)}</p>
+        )
+      )}
+    </div>
+  );
+}
+
+function Bubble({ role, showAvatar = true, children }: { role: "user" | "assistant"; showAvatar?: boolean; children: React.ReactNode }) {
+  if (role === "user") {
+    return (
+      <div className="flex justify-end">
+        <div className="max-w-[80%] rounded-2xl rounded-br-md bg-brand text-on-button px-3.5 py-2 text-[14px] leading-relaxed whitespace-pre-wrap break-words">{children}</div>
+      </div>
+    );
+  }
+  return (
+    <div className="flex items-end gap-2">
+      <span className={`w-7 h-7 rounded-full bg-brand-light text-brand flex items-center justify-center shrink-0 ${showAvatar ? "" : "invisible"}`}><Sparkles size={13} /></span>
+      <div className="max-w-[82%] rounded-2xl rounded-bl-md bg-gray-100 text-gray-800 px-3.5 py-2 text-[14px] leading-relaxed break-words">{children}</div>
+    </div>
   );
 }
 
@@ -54,7 +104,6 @@ export default function AiChatWidget({ storeName, whatsapp }: { storeName: strin
   const [messages, setMessages] = useState<ChatMessage[]>(stored.messages);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
-  const [handoff, setHandoff] = useState(false);
   // Texto do WhatsApp com o resumo da conversa (vem do servidor a cada resposta)
   const [waText, setWaText] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -91,11 +140,10 @@ export default function AiChatWidget({ storeName, whatsapp }: { storeName: strin
       if (typeof data.whatsappText === "string") setWaText(data.whatsappText);
       const reply: string =
         data.reply || data.error || "Não consegui responder agora. Fale com a gente pelo WhatsApp.";
-      setMessages((m) => [...m, { role: "assistant", text: reply }]);
-      if (data.handoff || !res.ok) setHandoff(true);
+      const handoffNow = !!data.handoff || !res.ok;
+      setMessages((m) => [...m, { role: "assistant", text: reply, handoff: handoffNow }]);
     } catch {
-      setMessages((m) => [...m, { role: "assistant", text: "Falha de conexão. Tente de novo ou fale com a gente pelo WhatsApp." }]);
-      setHandoff(true);
+      setMessages((m) => [...m, { role: "assistant", text: "Falha de conexão. Tente de novo ou fale com a gente pelo WhatsApp.", handoff: true }]);
     } finally {
       setSending(false);
     }
@@ -104,7 +152,6 @@ export default function AiChatWidget({ storeName, whatsapp }: { storeName: strin
   const reset = () => {
     setConversationId(null);
     setMessages([]);
-    setHandoff(false);
     setWaText(null);
   };
 
@@ -126,104 +173,121 @@ export default function AiChatWidget({ storeName, whatsapp }: { storeName: strin
         <div
           role="dialog"
           aria-label="Atendimento"
-          className="fixed z-50 inset-0 sm:inset-auto sm:bottom-6 sm:right-6 sm:w-[380px] sm:h-[600px] sm:max-h-[calc(100vh-3rem)] bg-white sm:rounded-2xl shadow-2xl border border-gray-100 flex flex-col overflow-hidden"
+          className="fixed z-50 inset-0 sm:inset-auto sm:bottom-6 sm:right-6 sm:w-[390px] sm:h-[620px] sm:max-h-[calc(100vh-3rem)] bg-white sm:rounded-3xl shadow-[0_24px_70px_-20px_rgba(0,0,0,0.35)] ring-1 ring-black/5 flex flex-col overflow-hidden animate-fade-up [animation-duration:0.25s]"
         >
-          <div className="flex items-center justify-between px-4 py-3 bg-brand text-on-button">
-            <div className="flex items-center gap-2 min-w-0">
-              <Bot size={20} className="shrink-0" />
-              <div className="min-w-0">
-                <p className="font-semibold text-sm truncate">Atendimento {storeName}</p>
-                <p className="text-[11px] opacity-90">Assistente virtual · responde na hora</p>
-              </div>
+          {/* Cabeçalho */}
+          <div className="flex items-center gap-3 px-4 py-3.5 border-b border-gray-100">
+            <span className="relative w-10 h-10 rounded-full bg-brand-light text-brand flex items-center justify-center shrink-0">
+              <Sparkles size={18} />
+              <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="font-semibold text-[15px] text-gray-900 truncate">{storeName}</p>
+              <p className="text-xs text-gray-500">Online · responde na hora</p>
             </div>
-            <div className="flex items-center gap-1">
-              {messages.length > 0 && (
-                <button type="button" onClick={reset} className="p-2 rounded-full hover:bg-white/15" aria-label="Nova conversa" title="Nova conversa">
-                  <RotateCcw size={16} />
-                </button>
-              )}
-              <button type="button" onClick={() => setOpen(false)} className="p-2 rounded-full hover:bg-white/15" aria-label="Fechar">
-                <X size={18} />
+            {messages.length > 0 && (
+              <button type="button" onClick={reset} className="p-2 rounded-full text-gray-400 hover:text-gray-700 hover:bg-gray-100" aria-label="Nova conversa" title="Nova conversa">
+                <RotateCcw size={16} />
               </button>
-            </div>
+            )}
+            <button type="button" onClick={() => setOpen(false)} className="p-2 rounded-full text-gray-400 hover:text-gray-700 hover:bg-gray-100" aria-label="Fechar">
+              <X size={18} />
+            </button>
           </div>
 
-          <div ref={listRef} className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50">
-            <div className="bg-white border border-gray-100 rounded-2xl rounded-tl-sm px-3 py-2 text-sm text-gray-800 max-w-[85%]">
-              Olá! Sou o assistente virtual da {storeName}. Posso ajudar com pedidos, rastreio, frete, pagamentos e trocas. Como posso ajudar?
-            </div>
+          {/* Conversa */}
+          <div ref={listRef} className="flex-1 overflow-y-auto px-4 py-5 space-y-3">
+            <Bubble role="assistant">
+              Oi! 👋 Sou a assistente virtual da {storeName}. Posso te ajudar com pedidos, entrega, pagamento e trocas.
+            </Bubble>
+
             {messages.length === 0 && (
-              <div className="flex flex-wrap gap-2">
-                {SUGGESTIONS.map((s) => (
-                  <button
-                    key={s}
-                    type="button"
-                    onClick={() => send(s)}
-                    className="text-xs bg-white border border-gray-200 rounded-full px-3 py-1.5 text-gray-700 hover:border-brand hover:text-brand"
-                  >
-                    {s}
+              <div className="pl-9 pt-1">
+                <p className="text-xs text-gray-400 mb-2">Escolha um assunto ou escreva abaixo</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {SUGGESTIONS.map(({ label, text, icon: Icon }) => (
+                    <button
+                      key={label}
+                      type="button"
+                      onClick={() => send(text)}
+                      className="flex items-center gap-2 rounded-xl ring-1 ring-gray-200 px-3 py-2.5 text-left text-[13px] font-medium text-gray-700 hover:ring-brand hover:text-brand hover:bg-brand-light/40 transition"
+                    >
+                      <Icon size={15} className="shrink-0 opacity-70" /> {label}
+                    </button>
+                  ))}
+                </div>
+                {waUrl && (
+                  <button type="button" onClick={() => send("Quero falar com uma pessoa")} className="mt-2 w-full flex items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-[12.5px] text-gray-500 hover:text-gray-800 hover:bg-gray-50">
+                    <UserRound size={14} /> Prefiro falar com uma pessoa
                   </button>
-                ))}
+                )}
               </div>
             )}
-            {messages.map((m, i) => (
-              <div
-                key={i}
-                className={`text-sm px-3 py-2 rounded-2xl max-w-[85%] whitespace-pre-wrap break-words ${
-                  m.role === "user"
-                    ? "ml-auto bg-brand text-on-button rounded-tr-sm"
-                    : "bg-white border border-gray-100 text-gray-800 rounded-tl-sm"
-                }`}
-              >
-                <MessageText text={m.text} />
-              </div>
-            ))}
+
+            {messages.map((m, i) => {
+              const lastHandoff = m.handoff && !messages.slice(i + 1).some((x) => x.handoff);
+              return (
+                <div key={i} className="space-y-2">
+                  <Bubble role={m.role} showAvatar={m.role === "assistant" && messages[i - 1]?.role !== "assistant"}>
+                    {m.role === "assistant" ? <MessageText text={m.text} /> : m.text}
+                  </Bubble>
+                  {/* WhatsApp só aparece quando a IA sugere ou o cliente pede uma pessoa */}
+                  {lastHandoff && waUrl && (
+                    <a
+                      href={waUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="ml-9 flex items-center gap-3 rounded-2xl bg-[#25D366]/10 ring-1 ring-[#25D366]/30 px-3.5 py-3 hover:bg-[#25D366]/15 transition"
+                    >
+                      <span className="w-9 h-9 rounded-full bg-[#25D366] text-white flex items-center justify-center shrink-0"><MessageCircle size={17} /></span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-semibold text-gray-900">Continuar no WhatsApp</span>
+                        <span className="block text-xs text-gray-600">Uma pessoa da equipe te atende · o resumo da conversa vai junto</span>
+                      </span>
+                      <ArrowRight size={16} className="text-gray-400 shrink-0" />
+                    </a>
+                  )}
+                </div>
+              );
+            })}
+
             {sending && (
-              <div className="flex items-center gap-2 text-xs text-gray-400">
-                <Loader2 size={14} className="animate-spin" /> Digitando...
-              </div>
+              <Bubble role="assistant" showAvatar={messages[messages.length - 1]?.role !== "assistant"}>
+                <span className="flex items-center gap-1 py-1" aria-label="Digitando">
+                  {[0, 1, 2].map((d) => (
+                    <span key={d} className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: `${d * 0.15}s` }} />
+                  ))}
+                </span>
+              </Bubble>
             )}
           </div>
 
-          <div className="border-t border-gray-100 p-3 space-y-2 bg-white">
-            {waUrl && (
-              <a
-                href={waUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={`flex items-center justify-center gap-2 w-full rounded-xl py-2 text-sm font-semibold transition-colors ${
-                  handoff ? "bg-green-500 text-white hover:bg-green-600" : "bg-green-50 text-green-700 hover:bg-green-100"
-                }`}
-              >
-                <MessageCircle size={16} /> Falar com atendente no WhatsApp
-              </a>
-            )}
+          {/* Escrever */}
+          <div className="px-3 pt-2 pb-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
             <form
               onSubmit={(e) => {
                 e.preventDefault();
                 send(input);
               }}
-              className="flex gap-2"
+              className="flex items-center gap-1 rounded-full bg-gray-100 pl-4 pr-1.5 py-1.5 focus-within:bg-white focus-within:ring-2 focus-within:ring-brand transition"
             >
               <input
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 maxLength={1000}
-                placeholder="Digite sua dúvida..."
-                className="flex-1 min-w-0 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+                placeholder="Escreva sua mensagem…"
+                className="flex-1 min-w-0 bg-transparent text-sm text-gray-900 placeholder:text-gray-400 outline-none !border-0 !shadow-none"
               />
               <button
                 type="submit"
                 disabled={sending || !input.trim()}
-                className="shrink-0 bg-brand text-on-button rounded-xl px-3 disabled:opacity-40"
+                className="shrink-0 w-9 h-9 rounded-full bg-brand text-on-button flex items-center justify-center disabled:opacity-30 transition"
                 aria-label="Enviar"
               >
-                <Send size={16} />
+                {sending ? <Loader2 size={16} className="animate-spin" /> : <ArrowUp size={17} />}
               </button>
             </form>
-            <p className="text-[10px] text-gray-400 text-center">
-              Atendimento automático com IA, pode cometer erros. As conversas são registradas para melhorar o atendimento.
-            </p>
+            <p className="mt-1.5 text-[10.5px] text-gray-400 text-center">Respostas automáticas com IA · podem conter erros</p>
           </div>
         </div>
       )}

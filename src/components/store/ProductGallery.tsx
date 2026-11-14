@@ -24,13 +24,21 @@ export default function ProductGallery({ images, name }: Props) {
     <div className="space-y-3">
       {/* Imagem principal */}
       <div className="relative rounded-3xl overflow-hidden bg-gray-100 shadow-sm aspect-[3/4]">
-        <OptimizedImg
-          src={all[current]}
-          alt={name}
-          widths={[480, 800, 1200]}
-          sizes="(min-width: 1024px) 50vw, 100vw"
-          className="w-full h-full object-cover object-top"
-        />
+        {/* Todas as fotos já carregadas e empilhadas: trocar é só uma transição, sem esperar download */}
+        {all.map((src, i) => (
+          <OptimizedImg
+            key={src + i}
+            src={src}
+            alt={i === current ? name : ""}
+            aria-hidden={i !== current}
+            widths={[480, 800, 1200]}
+            sizes="(min-width: 1024px) 50vw, 100vw"
+            loading={i === 0 ? "eager" : "lazy"}
+            fetchPriority={i === 0 ? "high" : "low"}
+            decoding="async"
+            className={`absolute inset-0 w-full h-full object-cover object-top transition-opacity duration-200 ${i === current ? "opacity-100" : "opacity-0 pointer-events-none"}`}
+          />
+        ))}
 
         {all.length > 1 && (
           <>
