@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { confirmDialog } from "@/lib/notify";
 import OptimizedImg from "@/components/OptimizedImg";
 import { Button, ButtonLink } from "@/components/admin/ui/Button";
 import { BadgePercent, Calendar, Check, DollarSign, ExternalLink, Package, Pencil, Plus, Search, Timer, Trash2, X, Zap } from "lucide-react";
@@ -146,7 +147,7 @@ export default function FlashSaleManager() {
   };
 
   const remove = async (s: FlashSale) => {
-    if (!confirm(`Excluir a promoção "${s.title}"?`)) return;
+    if (!(await confirmDialog({ title: `Excluir a promoção “${s.title}”?`, message: "Os produtos voltam ao preço normal na hora.", confirmText: "Excluir", tone: "danger" }))) return;
     await fetch(`/api/admin/flash-sales?id=${s.id}`, { method: "DELETE" });
     setReload((n) => n + 1);
   };

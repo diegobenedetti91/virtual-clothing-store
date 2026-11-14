@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { notify } from "@/lib/notify";
 import OptimizedImg from "@/components/OptimizedImg";
 import { useCart } from "@/hooks/useCart";
 import { useCustomer } from "@/hooks/useCustomer";
@@ -353,7 +354,7 @@ export default function CheckoutPage() {
     try {
       validateCheckout();
     } catch (err) {
-      alert(String(err).replace("Error: ", ""));
+      notify.warning(String(err).replace("Error: ", ""));
       return;
     }
 
@@ -398,7 +399,7 @@ const handleNuPaySubmit = async () => {
     try {
       validateCheckout();
     } catch (err) {
-      alert(String(err).replace("Error: ", ""));
+      notify.warning(String(err).replace("Error: ", ""));
       return;
     }
 
@@ -470,7 +471,7 @@ const handleNuPaySubmit = async () => {
     try {
       validateCheckout();
     } catch (err) {
-      alert(String(err).replace("Error: ", ""));
+      notify.warning(String(err).replace("Error: ", ""));
       return;
     }
 
@@ -542,7 +543,7 @@ const handleNuPaySubmit = async () => {
     try {
       validateCheckout();
     } catch (err) {
-      alert(String(err).replace("Error: ", ""));
+      notify.warning(String(err).replace("Error: ", ""));
       return;
     }
     const payload = buildTransparentPayload();
@@ -556,7 +557,7 @@ const handleNuPaySubmit = async () => {
     });
     const data = await res.json();
     if (!res.ok) {
-      alert(data.error || "Não foi possível calcular o total do pedido.");
+      notify.error("Não foi possível calcular o total", { description: data.error || "Tente de novo em instantes." });
       return;
     }
     setTransparentCheckout({ amount: data.total, pixOnly: applyPixDiscount });
@@ -574,7 +575,7 @@ const handleNuPaySubmit = async () => {
     try {
       validateCheckout();
     } catch (err) {
-      alert(String(err).replace("Error: ", ""));
+      notify.warning(String(err).replace("Error: ", ""));
       return;
     }
 
@@ -648,7 +649,7 @@ const handleNuPaySubmit = async () => {
     try {
       const stockError = await validateStock();
       if (stockError) {
-        alert(`Estoque insuficiente para alguns itens:\n\n${stockError}\n\nAtualize o carrinho antes de continuar.`);
+        notify.error("Estoque insuficiente para alguns itens", { description: `${stockError}\nAtualize o carrinho antes de continuar.`, duration: 10000 });
         return;
       }
       if (selectedPayment === "mercadopago" && mpTransparent) {
@@ -662,10 +663,10 @@ const handleNuPaySubmit = async () => {
       } else if (selectedPayment === "whatsapp" && whatsappAvailable) {
         await handleWhatsAppSubmit();
       } else {
-        alert("Forma de pagamento não disponível. Selecione outra opção.");
+        notify.warning("Forma de pagamento indisponível", { description: "Escolha outra opção para continuar." });
       }
     } catch {
-      alert("Erro ao processar pedido. Tente novamente.");
+      notify.error("Não foi possível finalizar o pedido", { description: "Nada foi cobrado. Tente novamente em instantes." });
     } finally {
       setLoading(false);
     }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { confirmDialog } from "@/lib/notify";
 import OptimizedImg from "@/components/OptimizedImg";
 import { Button, ButtonLink } from "@/components/admin/ui/Button";
 import { useRouter } from "next/navigation";
@@ -117,7 +118,7 @@ export default function CategoryManager({ initialCategories }: Props) {
       setNotice(`"${c.name}" tem ${count} produto${count !== 1 ? "s" : ""}. Mova-os para outra categoria ou desative a categoria para escondê-la da loja.`);
       return;
     }
-    if (!confirm(`Excluir a categoria "${c.name}"?`)) return;
+    if (!(await confirmDialog({ title: `Excluir a categoria “${c.name}”?`, message: "Ela some do menu e da loja. Essa ação não pode ser desfeita.", confirmText: "Excluir", tone: "danger" }))) return;
     const res = await fetch(`/api/categories/${c.id}`, { method: "DELETE" });
     if (!res.ok) {
       setNotice(`Não foi possível excluir "${c.name}". Verifique se ainda há produtos nela.`);

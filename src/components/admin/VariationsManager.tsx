@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { confirmDialog } from "@/lib/notify";
 import { Check, Layers, Pencil, Plus, Trash2, X } from "lucide-react";
 import { isColorAttribute, swatchBackground } from "@/lib/colorSwatch";
 import { Button } from "@/components/admin/ui/Button";
@@ -98,7 +99,7 @@ export default function VariationsManager({ initialTemplates }: Props) {
   };
 
   const handleDelete = async (t: VariationTemplate) => {
-    if (!confirm(`Remover a variação "${t.name}"? Produtos já criados não serão afetados.`)) return;
+    if (!(await confirmDialog({ title: `Remover a variação “${t.name}”?`, message: "Produtos já criados não serão afetados.", confirmText: "Remover", tone: "danger" }))) return;
     await fetch(`/api/admin/variations?id=${t.id}`, { method: "DELETE" });
     setTemplates((p) => p.filter((x) => x.id !== t.id));
   };

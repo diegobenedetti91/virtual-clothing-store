@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { confirmDialog } from "@/lib/notify";
 import OptimizedImg from "@/components/OptimizedImg";
 import Link from "next/link";
 import { Bell, BellRing, CheckCircle2, ChevronDown, Mail, Package, PackageCheck, PackageX, Search, Trash2, Users } from "lucide-react";
@@ -114,7 +115,7 @@ export default function WaitlistManager({ productInfo = {} }: { productInfo?: Re
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Remover este cliente da lista de espera?")) return;
+    if (!(await confirmDialog({ title: "Remover da lista de espera?", message: "O cliente não será avisado quando o produto voltar.", confirmText: "Remover", tone: "danger" }))) return;
     await fetch(`/api/admin/waitlist?id=${id}`, { method: "DELETE" });
     setEntries((prev) => prev.filter((e) => e.id !== id));
   };
@@ -122,8 +123,15 @@ export default function WaitlistManager({ productInfo = {} }: { productInfo?: Re
   const handleNotify = async (group: VariantGroup) => {
     const pending = group.entries.filter((e) => !e.notified).length;
     const stock = stockOf(group);
-    const warn = stock === 0 ? "\n\nAtenção: esta variação ainda está SEM ESTOQUE na loja." : "";
-    if (!confirm(`Enviar e-mail de "voltou ao estoque" para ${pending} cliente(s)?${warn}`)) return;
+    const ok = await confirmDialog({
+      title: `Avisar ${pending} cliente${pending === 1 ? "" : "s"} por e-mail?`,
+      message: stock === 0
+        ? "Atenção: esta variação ainda está SEM ESTOQUE na loja. O cliente vai chegar e não vai conseguir comprar."
+        : "Eles recebem o e-mail “voltou ao estoque” com o link do produto.",
+      confirmText: "Enviar e-mails",
+      tone: stock === 0 ? "danger" : "default",
+    });
+    if (!ok) return;
     setNotifying(group.key);
     setNotice(null);
     try {

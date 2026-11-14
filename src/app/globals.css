@@ -153,6 +153,9 @@ html {
 }
 
 @keyframes banner-progress { from { width: 0; } to { width: 100%; } }
+/* Avisos (Notifier): barra do tempo restante e fundo do diálogo */
+@keyframes notify-progress { from { width: 100%; } to { width: 0; } }
+@keyframes fade-in { from { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) {
   [style*="banner-progress"] { animation: none !important; width: 100%; }
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { confirmDialog } from "@/lib/notify";
 import { Button, ButtonLink } from "@/components/admin/ui/Button";
 import { AlertTriangle, ExternalLink, Filter, Link2, Lock, Pencil, Plus, Tag, Trash2, Wand2, X } from "lucide-react";
 
@@ -130,7 +131,7 @@ export default function AdminMenuPage() {
 
   const handleDelete = async (item: NavItem) => {
     const n = item._count?.products ?? 0;
-    if (!confirm(n > 0 ? `Remover “${item.label}” do menu? ${n} produto(s) deixam de estar marcados com ele.` : `Remover “${item.label}” do menu?`)) return;
+    if (!(await confirmDialog({ title: `Remover “${item.label}” do menu?`, message: n > 0 ? `${n} produto(s) deixam de estar marcados com este item.` : undefined, confirmText: "Remover", tone: "danger" }))) return;
     await fetch(`/api/nav-items/${item.id}`, { method: "DELETE" });
     setItems((prev) => prev.filter((i) => i.id !== item.id));
   };

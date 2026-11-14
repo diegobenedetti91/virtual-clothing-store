@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { confirmDialog } from "@/lib/notify";
 import OptimizedImg from "@/components/OptimizedImg";
 import { Package, Check, X, Upload, Truck, Send, ExternalLink, ArrowRight, Clock, Inbox, CheckCircle2, XCircle } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
@@ -141,7 +142,7 @@ export default function DevolucoesPage() {
       setError(status === "APPROVED" ? "Descreva a análise do produto antes de aprovar" : "Informe o motivo da recusa");
       return;
     }
-    if (status === "APPROVED" && !confirm(`Aprovar a devolução? Será feito o estorno de ${formatCurrency(refundOf(selectedReturn))} e os itens voltarão ao estoque.`)) {
+    if (status === "APPROVED" && !(await confirmDialog({ title: "Aprovar a devolução?", message: `Será feito o estorno de ${formatCurrency(refundOf(selectedReturn))} e os itens voltarão ao estoque.`, confirmText: "Aprovar e estornar" }))) {
       return;
     }
 

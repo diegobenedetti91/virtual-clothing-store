@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist } from "next/font/google";
 import SessionProvider from "@/components/admin/SessionProvider";
+import Notifier from "@/components/Notifier";
 import { getCompanySettings } from "@/lib/company";
 import { absoluteUrl, metaDescription, siteUrl } from "@/lib/site";
 import Script from "next/script";
@@ -57,6 +58,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="min-h-full flex flex-col bg-white text-gray-900">
         <SessionProvider>{children}</SessionProvider>
+        <Notifier />
       </body>
     </html>
   );

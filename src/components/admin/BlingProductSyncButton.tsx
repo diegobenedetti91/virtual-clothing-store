@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { notify } from "@/lib/notify";
 import { Upload, CheckCircle } from "lucide-react";
 import { Button } from "@/components/admin/ui/Button";
 
@@ -19,16 +20,16 @@ export default function BlingProductSyncButton() {
 
       if (!res.ok) {
         const error = await res.json();
-        alert(`Erro: ${error.error || "Falha ao sincronizar"}`);
+        notify.error("Falha ao sincronizar com o Bling", { description: error.error });
         setLoading(false);
         return;
       }
 
       const data = await res.json();
       setResult(data);
-      alert(`✓ ${data.message}`);
+      notify.success(data.message || "Sincronização concluída");
     } catch (err) {
-      alert("Erro ao sincronizar produtos");
+      notify.error("Erro ao sincronizar produtos", { description: "Verifique a conexão e tente de novo." });
       console.error(err);
     } finally {
       setLoading(false);

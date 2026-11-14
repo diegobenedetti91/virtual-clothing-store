@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { confirmDialog } from "@/lib/notify";
 import {
   AlertTriangle, Bot, Check, CheckCircle2, CreditCard, LockOpen, Palette, Plug, RotateCcw, Save, Store, Truck,
 } from "lucide-react";
@@ -223,8 +224,8 @@ export default function SettingsForm({ initialSettings }: Props) {
     }
   };
 
-  const discard = () => {
-    if (!confirm("Descartar as mudanças não salvas?")) return;
+  const discard = async () => {
+    if (!(await confirmDialog({ title: "Descartar as mudanças?", message: "O que você alterou e ainda não salvou será perdido.", confirmText: "Descartar", tone: "danger" }))) return;
     setForm(JSON.parse(savedSnapshot));
   };
 
@@ -630,8 +631,8 @@ export default function SettingsForm({ initialSettings }: Props) {
                       variant={blingAuthorized ? "secondary" : "primary"}
                       size="sm"
                       icon={LockOpen}
-                      onClick={() => {
-                        if (dirty && !confirm("Salve as configurações antes de autorizar, senão as chaves novas não serão usadas. Continuar mesmo assim?")) return;
+                      onClick={async () => {
+                        if (dirty && !(await confirmDialog({ title: "Há mudanças não salvas", message: "Salve as configurações antes de autorizar, senão as chaves novas não serão usadas.", confirmText: "Autorizar mesmo assim", cancelText: "Voltar e salvar" }))) return;
                         window.location.href = "/api/settings/bling/authorize";
                       }}
                     >

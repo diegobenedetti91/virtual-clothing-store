@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { confirmDialog } from "@/lib/notify";
 import { Box, Info, Pencil, Plus, Search, Trash2, X } from "lucide-react";
 import { PackagePreset } from "@/types";
 import { KpiCard } from "@/components/admin/charts/Charts";
@@ -126,10 +127,13 @@ export default function EmbalagensManager() {
 
   const remove = async (p: Pkg) => {
     const count = p._count?.products ?? 0;
-    const msg = count
-      ? `Remover "${p.name}"? ${count} produto(s) usam esta embalagem e vão voltar a usar as medidas padrão do frete.`
-      : `Remover "${p.name}"?`;
-    if (!confirm(msg)) return;
+    const ok = await confirmDialog({
+      title: `Remover a embalagem “${p.name}”?`,
+      message: count ? `${count} produto(s) usam esta embalagem e vão voltar a usar as medidas padrão do frete.` : undefined,
+      confirmText: "Remover",
+      tone: "danger",
+    });
+    if (!ok) return;
     await fetch(`/api/admin/packages/${p.id}`, { method: "DELETE" });
     setReload((n) => n + 1);
   };

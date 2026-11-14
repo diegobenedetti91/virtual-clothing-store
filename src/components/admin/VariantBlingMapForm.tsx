@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { confirmDialog } from "@/lib/notify";
 import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/admin/ui/Button";
 
@@ -94,7 +95,7 @@ export function VariantBlingMapForm({
   };
 
   const handleDelete = async (size: string) => {
-    if (!confirm(`Remover mapeamento para tamanho ${size}?`)) return;
+    if (!(await confirmDialog({ title: `Remover o vínculo do tamanho ${size}?`, message: "Esse tamanho deixa de ser associado ao produto no Bling.", confirmText: "Remover", tone: "danger" }))) return;
 
     try {
       const res = await fetch(

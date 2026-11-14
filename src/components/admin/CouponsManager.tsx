@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { confirmDialog } from "@/lib/notify";
 import {
   BadgePercent, Bot, Calendar, Check, Copy, DollarSign, Link2, Pencil, Plus, Search, ShoppingBag, Sparkles, Tag, Trash2, Truck, Users, X, Zap,
 } from "lucide-react";
@@ -229,10 +230,15 @@ export default function CouponsManager() {
   };
 
   const remove = async (c: Coupon) => {
-    const msg = c.stats.uses > 0
-      ? `Excluir o cupom ${c.code}? Os ${c.stats.uses} pedidos que usaram continuam com o desconto registrado. Se quiser só parar de aceitar, use "Pausar".`
-      : `Excluir o cupom ${c.code}?`;
-    if (!confirm(msg)) return;
+    const ok = await confirmDialog({
+      title: `Excluir o cupom ${c.code}?`,
+      message: c.stats.uses > 0
+        ? `Os ${c.stats.uses} pedidos que usaram continuam com o desconto registrado. Se quiser só parar de aceitar, use “Pausar”.`
+        : undefined,
+      confirmText: "Excluir cupom",
+      tone: "danger",
+    });
+    if (!ok) return;
     await fetch(`/api/admin/coupons/${c.id}`, { method: "DELETE" });
     setReload((n) => n + 1);
   };

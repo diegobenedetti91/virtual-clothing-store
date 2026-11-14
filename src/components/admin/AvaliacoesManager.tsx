@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { confirmDialog } from "@/lib/notify";
 import OptimizedImg from "@/components/OptimizedImg";
 import Link from "next/link";
 import { Button } from "@/components/admin/ui/Button";
@@ -55,7 +56,7 @@ export default function AvaliacoesManager({ productImages = {} }: Props) {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Excluir esta avaliação? Essa ação não pode ser desfeita.")) return;
+    if (!(await confirmDialog({ title: "Excluir esta avaliação?", message: "Essa ação não pode ser desfeita.", confirmText: "Excluir", tone: "danger" }))) return;
     await fetch(`/api/admin/reviews?id=${id}`, { method: "DELETE" });
     setReviews((prev) => prev.filter((r) => r.id !== id));
   };

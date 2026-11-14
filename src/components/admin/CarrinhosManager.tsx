@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { notify } from "@/lib/notify";
 import OptimizedImg from "@/components/OptimizedImg";
 import { Send, ShoppingBag } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
@@ -24,10 +25,12 @@ export default function CarrinhosManager() {
   const handleSend = async (id: string) => {
     setSending(id);
     try {
-      await fetch("/api/admin/abandoned-carts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
+      const res = await fetch("/api/admin/abandoned-carts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
+      if (!res.ok) throw new Error();
       setCarts((prev) => prev.filter((c) => c.id !== id));
+      notify.success("Lembrete enviado ao cliente");
     } catch {
-      alert("Erro ao enviar e-mail.");
+      notify.error("Não foi possível enviar o e-mail");
     } finally {
       setSending(null);
     }

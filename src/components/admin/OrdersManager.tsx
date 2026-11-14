@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useRef } from "react";
+import { notify } from "@/lib/notify";
 import OptimizedImg from "@/components/OptimizedImg";
 import { Order } from "@/types";
 import { formatCurrency, formatDate, ORDER_STATUS } from "@/lib/utils";
@@ -113,13 +114,13 @@ export default function OrdersManager({ initialOrders, blingEnabled = false }: P
       });
       if (!res.ok) {
         const error = await res.json();
-        alert(`Erro: ${error.error || "Não foi possível alterar o status"}`);
+        notify.error("Não foi possível alterar o status", { description: error.error });
         return;
       }
       const updated = await res.json();
       setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, ...updated } : o)));
     } catch (err) {
-      alert("Erro ao alterar status do pedido");
+      notify.error("Erro ao alterar o status do pedido", { description: "Verifique a conexão e tente de novo." });
       console.error(err);
     } finally {
       setUpdatingStatus(null);
