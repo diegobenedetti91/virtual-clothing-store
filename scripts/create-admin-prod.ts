@@ -2,7 +2,7 @@ import bcrypt from "bcryptjs";
 import { PrismaClient } from "../src/generated/prisma";
 
 const EMAIL = process.env.ADMIN_EMAIL || "admin@loja.com";
-const SENHA = process.env.ADMIN_PASS  || "admin123";
+const SENHA = process.env.ADMIN_PASS || (console.error("Defina ADMIN_PASS (8+ caracteres) para rodar este script."), process.exit(1));
 const NOME  = process.env.ADMIN_NAME  || "Administrador";
 
 async function main() {

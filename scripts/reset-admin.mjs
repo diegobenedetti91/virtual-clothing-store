@@ -2,7 +2,7 @@ import pg from "pg";
 import bcrypt from "bcryptjs";
 
 const EMAIL = "admin@loja.com";
-const NOVA_SENHA = process.env.ADMIN_PASS || "admin123";
+const NOVA_SENHA = process.env.ADMIN_PASS || (console.error("Defina ADMIN_PASS (8+ caracteres) para rodar este script."), process.exit(1));
 
 const client = new pg.Client({ connectionString: process.env.DATABASE_URL });
 await client.connect();
