@@ -66,7 +66,7 @@ export default function LoginForm() {
         // A API não diz se a conta foi criada pelo Google; a dica cobre esse caso
         setError(
           res.status === 401
-            ? "E-mail ou senha incorretos. Se você criou a conta com o Google, entre pelo botão do Google."
+            ? "E-mail ou senha incorretos. Se você criou a conta com o Google, entre pelo botão do Google — ou use “Esqueci minha senha”."
             : data.error || "Não foi possível entrar."
         );
         return;
@@ -141,10 +141,18 @@ export default function LoginForm() {
           error={errors.password}
           placeholder="Sua senha"
         />
-        <label className="flex items-center gap-2 text-sm text-gray-600 select-none cursor-pointer">
-          <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} className="w-4 h-4 rounded accent-[var(--brand)]" />
-          Lembrar meu e-mail
-        </label>
+        <div className="flex items-center justify-between gap-3">
+          <label className="flex items-center gap-2 text-sm text-gray-600 select-none cursor-pointer">
+            <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} className="w-4 h-4 rounded accent-[var(--brand)]" />
+            Lembrar meu e-mail
+          </label>
+          <Link
+            href={`/conta/esqueci-senha${isValidEmail(email) ? `?email=${encodeURIComponent(email.trim())}` : ""}`}
+            className="text-sm font-medium text-gray-700 hover:text-brand underline-offset-2 hover:underline"
+          >
+            Esqueci minha senha
+          </Link>
+        </div>
 
         {error && <FormError>{error}</FormError>}
 

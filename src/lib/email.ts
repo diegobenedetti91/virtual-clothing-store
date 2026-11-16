@@ -232,6 +232,24 @@ export async function sendCashbackExpiringEmail({
   await sendMail({ from: `"${storeName}" <${process.env.SMTP_USER}>`, to, subject: `Seu crédito de ${brlMail(amount)} vence em breve — ${storeName}`, html });
 }
 
+/** Link para criar uma nova senha (vale 1 hora). */
+export async function sendPasswordResetEmail({
+  to, customerName, storeName, link, hadPassword,
+}: {
+  to: string; customerName: string; storeName: string; link: string; hadPassword: boolean;
+}) {
+  if (!process.env.SMTP_USER) return;
+  const html = baseWrapper(`
+    <h2 style="color:#111;margin:0 0 4px;">${hadPassword ? "Criar uma nova senha" : "Criar uma senha para sua conta"}</h2>
+    <p style="color:#555;margin:0 0 20px;">Olá, <strong>${esc(customerName)}</strong>! Recebemos um pedido para ${hadPassword ? "trocar a senha" : "criar uma senha"} da sua conta na ${esc(storeName)}.${hadPassword ? "" : " Você entrava pelo Google; com a senha, também pode entrar com seu e-mail."}</p>
+    <p style="text-align:center;margin:0 0 14px;">
+      <a href="${esc(link)}" style="display:inline-block;background:#111;color:#fff;text-decoration:none;font-weight:600;padding:12px 22px;border-radius:10px;font-size:14px;">${hadPassword ? "Criar nova senha" : "Criar minha senha"}</a>
+    </p>
+    <p style="color:#888;font-size:12px;text-align:center;margin:0;">O link vale por 1 hora e só pode ser usado uma vez.<br/>Se não foi você, ignore este e-mail: sua senha continua a mesma.</p>
+  `, storeName);
+  await sendMail({ from: `"${storeName}" <${process.env.SMTP_USER}>`, to, subject: `${hadPassword ? "Nova senha" : "Criar senha"} — ${storeName}`, html });
+}
+
 /** "O produto que você viu está em promoção" — com link de descadastro (LGPD). */
 export async function sendPromoProductEmail({
   to, customerName, storeName, offer, productUrl, unsubscribeUrl, imageUrl,
