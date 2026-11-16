@@ -56,6 +56,9 @@ async function applyStockDelta(items: OrderItemLike[], sign: 1 | -1): Promise<st
           warnings.push(`"${product.name}" (${label}): variação não encontrada no cadastro — ${item.quantity} un. não ${sign < 0 ? "baixada(s)" : "reposta(s)"}`);
           continue;
         }
+        if (sign < 0 && variants[hit].stock < item.quantity) {
+          warnings.push(`"${product.name}" (${Object.values(selected!).join(" / ")}): VENDIDO SEM ESTOQUE — havia ${variants[hit].stock}, pedido de ${item.quantity}. Fale com o cliente (prazo maior ou estorno)`);
+        }
         const updated = variants.map((v, i) =>
           i === hit ? { ...v, stock: Math.max(0, v.stock + sign * item.quantity) } : v
         );
@@ -65,6 +68,9 @@ async function applyStockDelta(items: OrderItemLike[], sign: 1 | -1): Promise<st
           data: { variantStock: JSON.stringify(updated), stock: newTotal },
         });
       } else {
+        if (sign < 0 && Number(product.stock) < item.quantity) {
+          warnings.push(`"${product.name}": VENDIDO SEM ESTOQUE — havia ${Number(product.stock)}, pedido de ${item.quantity}. Fale com o cliente (prazo maior ou estorno)`);
+        }
         await tx.product.update({
           where: { id: item.productId },
           data: { stock: Math.max(0, Number(product.stock) + sign * item.quantity) },

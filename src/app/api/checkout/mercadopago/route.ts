@@ -1,3 +1,5 @@
+import { mpDate } from "@/lib/mercadoPagoTransparent";
+import { PENDING_EXPIRY_HOURS } from "@/lib/pendingExpiry";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getTrafficOrderContext } from "@/lib/trafficSourceServer";
@@ -87,6 +89,11 @@ export async function POST(req: NextRequest) {
       pending: `${baseUrl}/checkout/pendente?order=${orderNumber}`,
     },
     auto_return: "approved",
+    // Mesmo prazo do pedido: depois disso o link, o Pix e o boleto não podem mais ser pagos
+    expires: true,
+    expiration_date_from: mpDate(new Date()),
+    expiration_date_to: mpDate(new Date(Date.now() + PENDING_EXPIRY_HOURS * 60 * 60 * 1000)),
+    date_of_expiration: mpDate(new Date(Date.now() + PENDING_EXPIRY_HOURS * 60 * 60 * 1000)),
     notification_url: `${baseUrl}/api/checkout/mercadopago/webhook`,
     ...(address && city ? {
       shipments: {
