@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email";
+import { siteUrl } from "@/lib/site";
 
 const CRON_SECRET = process.env.CRON_SECRET;
 
@@ -48,7 +49,7 @@ export async function POST(req: NextRequest) {
           <h3>Itens no carrinho:</h3>
           <ul>${itemsHtml}</ul>
           <p><strong>Total: R$ ${total.toFixed(2)}</strong></p>
-          <p><a href="${process.env.NEXT_PUBLIC_STORE_URL || 'https://localhost:3000'}/carrinho" style="background: #ec4899; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; display: inline-block;">Voltar ao carrinho</a></p>
+          <p><a href="${siteUrl()}/carrinho" style="background: #ec4899; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; display: inline-block;">Voltar ao carrinho</a></p>
           <p>Obrigado,<br/>${storeName}</p>
         `;
 
