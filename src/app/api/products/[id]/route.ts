@@ -88,6 +88,21 @@ export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id:
   if (denied) return denied;
 
   const { id } = await params;
-  await prisma.product.delete({ where: { id } });
+  // Produto já vendido não pode ser apagado (os pedidos, notas e devoluções dependem dele): desativa
+  const sold = await prisma.orderItem.count({ where: { productId: id } });
+  if (sold > 0) {
+    await prisma.product.update({ where: { id }, data: { active: false } });
+    return NextResponse.json({
+      success: true,
+      archived: true,
+      message: "Este produto já tem pedidos, então foi desativado em vez de excluído: saiu da loja, mas o histórico dos pedidos continua certo.",
+    });
+  }
+  try {
+    await prisma.product.delete({ where: { id } });
+  } catch (e) {
+    console.error("[products DELETE]", e);
+    return NextResponse.json({ error: "Não foi possível excluir o produto. Desative-o na edição para tirá-lo da loja." }, { status: 409 });
+  }
   return NextResponse.json({ success: true });
 }

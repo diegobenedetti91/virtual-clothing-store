@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useDeferredValue } from "react";
-import { confirmDialog } from "@/lib/notify";
+import { confirmDialog, notify } from "@/lib/notify";
 import OptimizedImg from "@/components/OptimizedImg";
 import Link from "next/link";
 import { Button, ButtonLink } from "@/components/admin/ui/Button";
@@ -112,7 +112,11 @@ export default function ProductsTable({ products, flashSaleProductIds = [] }: Pr
     setMenuFor(null);
     if (!(await confirmDialog({ title: `Excluir “${p.name}”?`, message: "O produto sai da loja e essa ação não pode ser desfeita. Para só esconder da loja, desative-o na edição do produto.", confirmText: "Excluir produto", tone: "danger" }))) return;
     setDeleting(p.id);
-    await fetch(`/api/products/${p.id}`, { method: "DELETE" });
+    const res = await fetch(`/api/products/${p.id}`, { method: "DELETE" });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) notify.error("Não foi possível excluir", { description: data.error });
+    else if (data.archived) notify.info("Produto desativado", { description: data.message, duration: 9000 });
+    else notify.success("Produto excluído");
     router.refresh();
     setDeleting(null);
   };
