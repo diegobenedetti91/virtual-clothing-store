@@ -9,9 +9,11 @@ function esc(value: unknown): string {
 }
 
 export async function POST(req: NextRequest) {
+  // Aceita os dois formatos (as outras rotinas usam x-cron-secret)
   const auth = req.headers.get("authorization");
+  const ok = !!CRON_SECRET && (auth === `Bearer ${CRON_SECRET}` || req.headers.get("x-cron-secret") === CRON_SECRET);
 
-  if (!CRON_SECRET || auth !== `Bearer ${CRON_SECRET}`) {
+  if (!ok) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
