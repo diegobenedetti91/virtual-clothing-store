@@ -1,21 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { sendEmail } from "@/lib/email";
-import { siteUrl } from "@/lib/site";
+import { parseCartItems, sendCartReminder } from "@/lib/abandonedCartReminder";
 
 const PAID = ["CONFIRMED", "SHIPPED", "PRONTO_PARA_RETIRADA", "DELIVERED", "RETIRADO"];
-
-type CartItem = { name: string; price: number; quantity: number; image?: string; slug?: string; size?: string; color?: string };
-
-function parseItems(raw: string): CartItem[] {
-  try {
-    const v = JSON.parse(raw);
-    return Array.isArray(v) ? v.filter((i) => i && typeof i.name === "string") : [];
-  } catch {
-    return [];
-  }
-}
 
 export type CartStatus = "open" | "reminded" | "recovered" | "closed";
 
@@ -51,7 +39,7 @@ export async function GET() {
   const custByEmail = new Map(customers.map((c) => [c.email.toLowerCase(), c]));
 
   const rows = carts.map((c) => {
-    const items = parseItems(c.cartItems);
+    const items = parseCartItems(c.cartItems);
     const value = Math.round(items.reduce((s, i) => s + (Number(i.price) || 0) * (Number(i.quantity) || 0), 0) * 100) / 100;
     const cust = (c.customerId && custById.get(c.customerId)) || custByEmail.get(c.email.toLowerCase()) || null;
     const email = c.email.toLowerCase();
@@ -95,54 +83,6 @@ export async function GET() {
   });
 }
 
-type ReminderResult = { sent: true; to: string } | { sent: false; reason: string };
-
-async function sendReminder(id: string, storeName: string, storeUrl: string): Promise<ReminderResult> {
-  const cart = await prisma.abandonedCart.findUnique({ where: { id } });
-  if (!cart) return { sent: false, reason: "Carrinho não encontrado." };
-  if (cart.closedAt) return { sent: false, reason: "Este carrinho já foi fechado (o cliente finalizou a compra ou ele foi encerrado)." };
-  if (!cart.email) return { sent: false, reason: "O carrinho não tem e-mail do cliente." };
-  if (!process.env.SMTP_USER) return { sent: false, reason: "E-mail da loja (SMTP) não configurado no servidor." };
-  const items = parseItems(cart.cartItems);
-  if (!items.length) return { sent: false, reason: "O carrinho está vazio." };
-  const total = items.reduce((s, i) => s + i.price * i.quantity, 0);
-  const brl = (v: number) => `R$ ${v.toFixed(2).replace(".", ",")}`;
-  const esc = (v: string) => v.replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]!);
-  const abs = (u?: string) => (!u ? "" : /^https?:\/\//.test(u) ? u : `${storeUrl}${u}`);
-
-  await sendEmail({
-    to: cart.email,
-    storeName,
-    subject: `Você esqueceu algo na ${storeName}!`,
-    html: `
-      <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:32px 24px;background:#fff;border-radius:12px;border:1px solid #f0f0f0;">
-        <h2 style="color:#ec4899;margin:0 0 8px;">Seus produtos estão esperando por você</h2>
-        <p style="color:#555;margin:0 0 20px;">Ainda está pensando? Guardamos o seu carrinho na <strong>${esc(storeName)}</strong>.</p>
-        <table style="width:100%;border-collapse:collapse;">
-          ${items
-            .slice(0, 6)
-            .map(
-              (i) => `<tr>
-                <td style="padding:6px 0;width:56px;">${i.image ? `<img src="${esc(abs(i.image))}" alt="" width="48" height="48" style="border-radius:8px;object-fit:cover;display:block;" />` : ""}</td>
-                <td style="padding:6px 8px;color:#333;font-size:14px;">${esc(i.name)} <span style="color:#999;">× ${i.quantity}</span></td>
-                <td style="padding:6px 0;text-align:right;font-weight:600;color:#111;font-size:14px;">${brl(i.price * i.quantity)}</td>
-              </tr>`
-            )
-            .join("")}
-        </table>
-        ${items.length > 6 ? `<p style="color:#888;font-size:12px;margin:4px 0 0;">+ ${items.length - 6} outro(s) item(ns)</p>` : ""}
-        <p style="margin:16px 0 0;font-size:18px;font-weight:700;color:#111;text-align:right;">Total: ${brl(total)}</p>
-        <p style="text-align:center;margin:24px 0 0;">
-          <a href="${storeUrl}/carrinho" style="display:inline-block;padding:12px 28px;background:#ec4899;color:#fff;border-radius:10px;text-decoration:none;font-weight:700;">Finalizar minha compra</a>
-        </p>
-        <p style="color:#888;font-size:12px;margin-top:24px;text-align:center;">As peças podem esgotar — garanta a sua. <strong style="color:#ec4899;">${esc(storeName)}</strong></p>
-      </div>
-    `,
-  });
-  await prisma.abandonedCart.update({ where: { id }, data: { reminderSent: true, reminderSentAt: new Date() } });
-  return { sent: true, to: cart.email };
-}
-
 /** Envia lembrete: { id } ou { ids: [...] } (até 50 por vez). */
 export async function POST(req: NextRequest) {
   const session = await auth();
@@ -154,7 +94,6 @@ export async function POST(req: NextRequest) {
 
   const settings = await prisma.companySettings.findFirst({ orderBy: { updatedAt: "desc" }, select: { name: true } });
   const storeName = settings?.name || "Minha Loja";
-  const storeUrl = siteUrl();
 
   let sent = 0;
   let failed = 0;
@@ -162,7 +101,7 @@ export async function POST(req: NextRequest) {
   const skipped: string[] = [];
   for (const id of ids) {
     try {
-      const r = await sendReminder(id, storeName, storeUrl);
+      const r = await sendCartReminder(id, storeName);
       if (r.sent) { sent++; sentTo.push(r.to); } else skipped.push(r.reason);
     } catch (e) {
       failed++;

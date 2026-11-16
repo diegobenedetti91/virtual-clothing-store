@@ -1,13 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { sendEmail } from "@/lib/email";
-import { siteUrl } from "@/lib/site";
+import { sendCartReminder } from "@/lib/abandonedCartReminder";
 
 const CRON_SECRET = process.env.CRON_SECRET;
-
-function esc(value: unknown): string {
-  return String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-}
 
 export async function POST(req: NextRequest) {
   // Aceita os dois formatos (as outras rotinas usam x-cron-secret)
@@ -27,46 +22,27 @@ export async function POST(req: NextRequest) {
     const carts = await prisma.abandonedCart.findMany({
       where: {
         reminderSent: false,
+        closedAt: null,
         updatedAt: { lt: threeHoursAgo },
       },
     });
 
     console.log(`[CRON] Found ${carts.length} abandoned carts to notify`);
 
+    // Mesmo envio do botão do admin: respeita "não quero receber" (LGPD) e pula quem já comprou
     let sent = 0;
+    const skipped: string[] = [];
     for (const cart of carts) {
       try {
-        const items = JSON.parse(cart.cartItems) as Array<{ name: string; price: number; quantity: number }>;
-        const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-
-        const itemsHtml = items
-          .map((item) => `<li>${esc(item.name)} (x${Number(item.quantity) || 0}) - R$ ${(Number(item.price) || 0).toFixed(2)}</li>`)
-          .join("");
-
-        const html = `
-          <p>Olá,</p>
-          <p>Notamos que você deixou alguns itens no seu carrinho. Não perca essa oportunidade!</p>
-          <h3>Itens no carrinho:</h3>
-          <ul>${itemsHtml}</ul>
-          <p><strong>Total: R$ ${total.toFixed(2)}</strong></p>
-          <p><a href="${siteUrl()}/carrinho" style="background: #ec4899; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; display: inline-block;">Voltar ao carrinho</a></p>
-          <p>Obrigado,<br/>${storeName}</p>
-        `;
-
-        await sendEmail({
-          to: cart.email,
-          subject: `Seus itens estão esperando no carrinho - ${storeName}`,
-          html,
-          storeName,
-        });
-
-        await prisma.abandonedCart.update({
-          where: { id: cart.id },
-          data: { reminderSent: true, reminderSentAt: new Date() },
-        });
-
-        sent++;
-        console.log(`[CRON] Sent reminder email to ${cart.email}`);
+        const r = await sendCartReminder(cart.id, storeName);
+        if (r.sent) sent++;
+        else {
+          skipped.push(r.reason);
+          // Não tentar de novo a cada hora: encerra o carrinho (exceto SMTP fora — tenta quando voltar)
+          if (!r.reason.includes("SMTP")) {
+            await prisma.abandonedCart.updateMany({ where: { id: cart.id, closedAt: null }, data: { closedAt: new Date() } }).catch(() => {});
+          }
+        }
       } catch (err) {
         console.error(`[CRON] Failed to send reminder to ${cart.email}:`, err);
       }
@@ -76,6 +52,7 @@ export async function POST(req: NextRequest) {
       success: true,
       found: carts.length,
       sent,
+      skipped,
     });
   } catch (error) {
     console.error("[CRON] Abandoned carts cron error:", error);
