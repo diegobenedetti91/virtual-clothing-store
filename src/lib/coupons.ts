@@ -161,3 +161,35 @@ export async function evaluateCoupon(input: {
 
   return { ok: true, coupon, itemDiscount, shippingDiscount, message };
 }
+
+/**
+ * Conferência depois do pagamento: o cupom deste pedido passou do limite?
+ * (duas compras simultâneas podem passar pela validação do checkout ao mesmo tempo).
+ * Conta só pedidos pagos. Retorna a descrição do problema, ou null.
+ */
+export async function couponOveruse(order: { id: string; couponCode: string | null; customerId: string | null; customerEmail: string | null; cpfCnpj: string | null; createdAt: Date }): Promise<string | null> {
+  const code = normalizeCouponCode(order.couponCode);
+  if (!code) return null;
+  const coupon = await prisma.coupon.findUnique({ where: { code } });
+  if (!coupon) return null;
+  const paid = { couponCode: code, status: { in: PAID_STATUSES } };
+  if (coupon.usageLimit != null) {
+    const used = await prisma.order.count({ where: paid });
+    if (used > coupon.usageLimit) return `Cupom ${code} usado ${used} vezes (limite ${coupon.usageLimit}).`;
+  }
+  const identity = identityWhere({ id: order.customerId, email: order.customerEmail, cpfCnpj: order.cpfCnpj });
+  if (identity.length) {
+    if (coupon.perCustomerLimit != null) {
+      const mine = await prisma.order.count({ where: { AND: [paid, { OR: identity }] } });
+      if (mine > coupon.perCustomerLimit) return `Cupom ${code} usado ${mine} vezes pelo mesmo cliente (limite ${coupon.perCustomerLimit}).`;
+    }
+    if (coupon.firstPurchaseOnly) {
+      const before = await prisma.order.findFirst({
+        where: { id: { not: order.id }, status: { in: PAID_STATUSES }, createdAt: { lt: order.createdAt }, OR: identity },
+        select: { orderNumber: true },
+      });
+      if (before) return `Cupom ${code} é só para a primeira compra, mas o cliente já tinha o pedido ${before.orderNumber}.`;
+    }
+  }
+  return null;
+}

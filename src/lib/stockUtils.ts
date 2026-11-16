@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { checkOrderBenefits } from "@/lib/orderIntegrity";
 import { normalizeVariantStock, matchesSelection } from "@/lib/variantUtils";
 
 interface OrderItemLike {
@@ -117,6 +118,8 @@ export async function commitOrderStock(orderId: string): Promise<void> {
   try {
     const warnings = await decrementOrderStock(items);
     await flagStockWarnings(orderId, "Baixa", warnings);
+    // Mesmo ponto para todos os gateways e a confirmação manual: confere cashback/cupom (só alerta)
+    await checkOrderBenefits(orderId).catch((e) => console.error("[STOCK] conferência de cashback/cupom:", e));
   } catch (err) {
     await prisma.order.update({ where: { id: orderId }, data: { stockDecrementedAt: null } }).catch(() => {});
     throw err;

@@ -18,6 +18,8 @@ import { prisma } from "@/lib/prisma";
 import { MP_TRANSPARENT_LABEL } from "@/lib/mercadoPagoTransparent";
 import { getNuPayConfig, getNuPayPaymentStatus } from "@/lib/nupay";
 import { releaseOrderStock } from "@/lib/stockUtils";
+import { sendOrderExpiredEmail } from "@/lib/email";
+import { siteUrl, absoluteUrl } from "@/lib/site";
 import { POST as mercadoPagoWebhook } from "@/app/api/checkout/mercadopago/webhook/route";
 import { POST as nuPayWebhook } from "@/app/api/checkout/nupay/webhook/route";
 
@@ -68,6 +70,39 @@ export async function checkGatewayPayment(o: { orderNumber: string; paymentGatew
   if (o.paymentGateway === "nupay" || o.paymentMethod === "NuPay") return checkNuPay(o.paymentId);
   if (o.paymentGateway === "mercadopago" || o.paymentMethod === "Mercado Pago" || o.paymentMethod === MP_TRANSPARENT_LABEL) return checkMercadoPago(o.orderNumber);
   return { kind: "unsupported" };
+}
+
+/** E-mail "seu pedido expirou" com as peças (e se ainda há estoque) e o link para comprar de novo. */
+async function notifyExpired(orderId: string) {
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    select: {
+      orderNumber: true, customerName: true, customerEmail: true,
+      customer: { select: { email: true } },
+      items: { select: { quantity: true, product: { select: { name: true, slug: true, images: true, stock: true, active: true } } } },
+    },
+  });
+  const to = order?.customer?.email || order?.customerEmail;
+  if (!order || !to) return;
+  const settings = await prisma.companySettings.findFirst({ orderBy: { updatedAt: "desc" }, select: { name: true } });
+  const base = siteUrl();
+  const firstImage = (images: string | null) => {
+    try { const list = JSON.parse(images || "[]"); return Array.isArray(list) && list[0] ? absoluteUrl(String(list[0])) : null; } catch { return null; }
+  };
+  await sendOrderExpiredEmail({
+    to,
+    customerName: order.customerName,
+    orderNumber: order.orderNumber,
+    storeName: settings?.name || "Minha Loja",
+    shopUrl: base,
+    items: order.items.map((i) => ({
+      name: i.product.name,
+      quantity: i.quantity,
+      url: `${base}/produtos/${i.product.slug}`,
+      image: firstImage(i.product.images),
+      available: i.product.active && i.product.stock > 0,
+    })),
+  });
 }
 
 export interface ExpireResult {
@@ -123,6 +158,7 @@ export async function expirePendingOrders(): Promise<ExpireResult> {
     if (claimed.count === 0) continue;
     await releaseOrderStock(o.id).catch(() => {}); // normalmente nada a repor (só baixa no pagamento)
     result.cancelled.push(o.orderNumber);
+    await notifyExpired(o.id).catch((e) => console.error("[expire-pending] e-mail", o.orderNumber, e));
   }
 
   if (result.checked) console.log("[expire-pending]", JSON.stringify(result));

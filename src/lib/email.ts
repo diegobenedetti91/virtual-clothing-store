@@ -232,6 +232,38 @@ export async function sendCashbackExpiringEmail({
   await sendMail({ from: `"${storeName}" <${process.env.SMTP_USER}>`, to, subject: `Seu crédito de ${brlMail(amount)} vence em breve — ${storeName}`, html });
 }
 
+/** Pedido expirou sem pagamento: avisa e convida a voltar (segunda chance de venda). */
+export async function sendOrderExpiredEmail({
+  to, customerName, orderNumber, storeName, items, shopUrl,
+}: {
+  to: string; customerName: string; orderNumber: string; storeName: string; shopUrl: string;
+  items: { name: string; quantity: number; url: string; image: string | null; available: boolean }[];
+}) {
+  if (!process.env.SMTP_USER) return;
+  const anyAvailable = items.some((i) => i.available);
+  const rows = items
+    .slice(0, 6)
+    .map(
+      (i) => `<tr>
+        <td style="padding:6px 0;width:56px;">${i.image ? `<img src="${esc(i.image)}" alt="" width="48" height="48" style="border-radius:8px;object-fit:cover;display:block;" />` : ""}</td>
+        <td style="padding:6px 8px;font-size:14px;color:#333;"><a href="${esc(i.url)}" style="color:#333;text-decoration:none;">${esc(i.name)}</a> <span style="color:#999;">× ${i.quantity}</span>${i.available ? "" : ` <span style="color:#b45309;font-size:12px;">(esgotado)</span>`}</td>
+      </tr>`
+    )
+    .join("");
+  const cta = items.find((i) => i.available)?.url || shopUrl;
+  const html = baseWrapper(`
+    <h2 style="color:#111;margin:0 0 4px;">Seu pedido ${esc(orderNumber)} expirou</h2>
+    <p style="color:#555;margin:0 0 18px;">Olá, <strong>${esc(customerName.split(" ")[0])}</strong>! Não identificamos o pagamento em 24 horas, então o pedido foi cancelado automaticamente. <strong>Nenhum valor foi cobrado.</strong></p>
+    <table style="width:100%;border-collapse:collapse;margin-bottom:18px;">${rows}</table>
+    ${anyAvailable ? `<p style="color:#555;margin:0 0 16px;">Ainda quer as peças? Elas continuam disponíveis — mas podem esgotar.</p>` : ""}
+    <p style="text-align:center;margin:0 0 8px;">
+      <a href="${esc(cta)}" style="display:inline-block;background:#111;color:#fff;text-decoration:none;font-weight:600;padding:12px 22px;border-radius:10px;font-size:14px;">${anyAvailable ? "Comprar de novo" : "Ver novidades"}</a>
+    </p>
+    <p style="color:#888;font-size:12px;text-align:center;margin:10px 0 0;">Se você já pagou, responda este e-mail com o comprovante que resolvemos na hora.</p>
+  `, storeName);
+  await sendMail({ from: `"${storeName}" <${process.env.SMTP_USER}>`, to, subject: `Pedido ${orderNumber} expirou — ${storeName}`, html });
+}
+
 /** Link para criar uma nova senha (vale 1 hora). */
 export async function sendPasswordResetEmail({
   to, customerName, storeName, link, hadPassword,
