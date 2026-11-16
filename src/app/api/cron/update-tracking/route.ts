@@ -21,11 +21,27 @@ export async function GET(req: NextRequest) {
   });
   if (labels?.tried) console.log(`[cron/update-tracking] etiquetas: ${labels.ready}/${labels.tried} prontas`);
   // E os avisos de cashback (liberado / vencendo)
-  await processCashbackNotifications().catch((e) => console.error("[cron/update-tracking] cashback:", e));
+  const cashback = await processCashbackNotifications().catch((e) => { console.error("[cron/update-tracking] cashback:", e); return null; });
   // E os avisos automáticos de promoção relâmpago que começaram
-  await processFlashSaleNotifications().catch((e) => console.error("[cron/update-tracking] promo:", e));
+  const promo = await processFlashSaleNotifications().then(() => "ok").catch((e) => { console.error("[cron/update-tracking] promo:", e); return "erro"; });
   // E expira pedidos de gateway não pagos há mais de 24h (confere no gateway antes)
-  await expirePendingOrders().catch((e) => console.error("[cron/update-tracking] expirar pendentes:", e));
+  const expired = await expirePendingOrders().catch((e) => { console.error("[cron/update-tracking] expirar pendentes:", e); return null; });
+
+  // Resumo de cada parte, para aparecer na saída do agendamento
+  const routines = {
+    etiquetas: labels ? `${labels.ready}/${labels.tried} prontas` : "erro",
+    cashback: cashback ? `${cashback.released} liberados, ${cashback.expiring} vencendo` : "erro",
+    promocao: promo,
+    pedidosExpirados: expired
+      ? {
+          conferidos: expired.checked,
+          cancelados: expired.cancelled,
+          confirmadosPagos: expired.confirmed,
+          aguardandoBoleto: expired.waiting,
+          naoConferidos: expired.skipped,
+        }
+      : "erro",
+  };
 
   try {
     const settings = await prisma.companySettings.findFirst({ orderBy: { updatedAt: "desc" } });
@@ -35,7 +51,7 @@ export async function GET(req: NextRequest) {
     if (!token) {
       console.warn("Melhor Envio token not configured");
       // Loja sem Melhor Envio: o resto da rotina já rodou; não é falha do agendamento
-      return NextResponse.json({ ok: true, tracking: "Melhor Envio não configurado — rastreio não atualizado", updated: 0 });
+      return NextResponse.json({ ok: true, tracking: "Melhor Envio não configurado — rastreio não atualizado", updated: 0, routines });
     }
 
     const orders = await prisma.order.findMany({
@@ -87,9 +103,10 @@ export async function GET(req: NextRequest) {
       statusChanged,
       total: orders.length,
       message: `Updated ${updated}/${orders.length} orders${errors > 0 ? ` with ${errors} errors` : ""}${statusChanged > 0 ? `, ${statusChanged} order status changes` : ""}`,
+      routines,
     });
   } catch (error) {
     console.error("[TRACKING CRON] Unexpected error:", error);
-    return NextResponse.json({ error: "Internal server error", success: false, updated: 0 }, { status: 500 });
+    return NextResponse.json({ error: "Internal server error", success: false, updated: 0, routines }, { status: 500 });
   }
 }
