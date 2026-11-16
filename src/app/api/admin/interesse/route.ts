@@ -106,12 +106,13 @@ export async function GET(req: NextRequest) {
           where: {
             customerId: { in: recipients }, status: { in: PAID },
             createdAt: { gte: c.createdAt, lte: new Date(c.createdAt.getTime() + 14 * DAY) },
-            items: { some: { productId: c.productId } },
+            // Aviso geral (cupom da loja): qualquer compra conta; aviso de produto: só a do produto
+            ...(c.productId ? { items: { some: { productId: c.productId } } } : c.couponCode ? { couponCode: c.couponCode } : {}),
           },
         })
       : 0;
     return {
-      id: c.id, productName: c.product.name, reason: c.reason, trigger: c.trigger, couponCode: c.couponCode,
+      id: c.id, productName: c.product?.name ?? (c.couponCode ? `Cupom ${c.couponCode} (toda a loja)` : "Aviso geral"), reason: c.reason, trigger: c.trigger, couponCode: c.couponCode,
       createdAt: c.createdAt.toISOString(), sent: c.sent, skipped: c.skipped,
       clicks: c.emails.filter((e) => e.clickedAt).length, purchases,
     };

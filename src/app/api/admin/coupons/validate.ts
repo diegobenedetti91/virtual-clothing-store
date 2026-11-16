@@ -16,6 +16,8 @@ export interface CouponData {
   firstPurchaseOnly: boolean;
   stackWithPix: boolean;
   showInChat: boolean;
+  /** Avisar todos os clientes por e-mail quando o cupom começar */
+  notifyCustomers: boolean;
   productIds: string | null;
   categoryIds: string | null;
   active: boolean;
@@ -80,6 +82,7 @@ export function parseCouponInput(body: unknown): { data: CouponData } | { error:
       firstPurchaseOnly: b.firstPurchaseOnly === true,
       stackWithPix: b.stackWithPix === true,
       showInChat: b.showInChat === true,
+      notifyCustomers: b.notifyCustomers !== false,
       productIds: ids(b.productIds),
       categoryIds: ids(b.categoryIds),
       active: b.active !== false,

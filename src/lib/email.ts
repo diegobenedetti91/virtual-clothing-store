@@ -322,6 +322,44 @@ export async function sendPromoProductEmail({
   await sendMail({ from: `"${storeName}" <${process.env.SMTP_USER}>`, to, subject: `${offer.headline} — ${offer.product.name}`, html });
 }
 
+/** Cupom novo / promoção relâmpago para toda a base (com link de descadastro — LGPD). */
+export async function sendPromoBroadcastEmail({
+  to, customerName, storeName, offer, clickUrl, unsubscribeUrl,
+}: {
+  to: string; customerName: string; storeName: string; clickUrl: string; unsubscribeUrl: string;
+  offer: {
+    headline: string; detail: string; subject: string; couponCode: string | null; endsAt: Date | null; cta: string;
+    product: { name: string; image: string | null; priceBefore: number; priceNow: number } | null;
+  };
+}) {
+  if (!process.env.SMTP_USER) return;
+  const first = esc(customerName.split(" ")[0] || customerName);
+  const product = offer.product
+    ? `<div style="border:1px solid #f0f0f0;border-radius:14px;overflow:hidden;margin-bottom:18px;">
+        ${offer.product.image ? `<a href="${esc(clickUrl)}"><img src="${esc(offer.product.image)}" alt="" width="472" style="display:block;width:100%;max-height:420px;object-fit:cover;" /></a>` : ""}
+        <div style="padding:16px 18px;">
+          <p style="margin:0;font-weight:700;color:#111;font-size:16px;">${esc(offer.product.name)}</p>
+          <p style="margin:6px 0 0;"><span style="color:#999;text-decoration:line-through;font-size:14px;">${brlMail(offer.product.priceBefore)}</span> <strong style="color:#111;font-size:22px;">${brlMail(offer.product.priceNow)}</strong></p>
+        </div>
+      </div>`
+    : "";
+  const coupon = offer.couponCode
+    ? `<p style="text-align:center;margin:0 0 18px;"><span style="display:inline-block;border:2px dashed #ec4899;color:#be185d;font-weight:800;letter-spacing:.08em;padding:10px 18px;border-radius:10px;font-family:monospace;font-size:20px;">${esc(offer.couponCode)}</span></p>`
+    : "";
+  const html = baseWrapper(`
+    <h2 style="color:#ec4899;margin:0 0 4px;">${esc(offer.headline)}</h2>
+    <p style="color:#555;margin:0 0 18px;">Oi, <strong>${first}</strong>! ${esc(offer.detail)}</p>
+    ${product}
+    ${coupon}
+    <p style="text-align:center;margin:0 0 6px;">
+      <a href="${esc(clickUrl)}" style="display:inline-block;background:#ec4899;color:#fff;text-decoration:none;font-weight:700;padding:13px 26px;border-radius:10px;font-size:15px;">${esc(offer.cta)}</a>
+    </p>
+    <p style="color:#888;font-size:12px;text-align:center;margin:8px 0 0;">${offer.endsAt ? `Válido até ${new Date(offer.endsAt).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}${offer.product ? " ou enquanto durar o estoque" : ""}.` : offer.product ? "Enquanto durar o estoque." : ""}</p>
+    <p style="color:#aaa;font-size:11px;text-align:center;margin:18px 0 0;">Você recebeu este e-mail por ser cliente da ${esc(storeName)}. <a href="${esc(unsubscribeUrl)}" style="color:#aaa;">Não quero receber promoções</a>.</p>
+  `, storeName);
+  await sendMail({ from: `"${storeName}" <${process.env.SMTP_USER}>`, to, subject: offer.subject, html });
+}
+
 export async function sendShippingEmail({
   to, customerName, orderNumber, storeName, trackingCode, shippingProofUrl,
 }: {

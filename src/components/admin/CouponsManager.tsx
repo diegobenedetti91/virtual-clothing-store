@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { confirmDialog } from "@/lib/notify";
+import { confirmDialog, notify } from "@/lib/notify";
 import {
   BadgePercent, Bot, Calendar, Check, Copy, DollarSign, Link2, Pencil, Plus, Search, ShoppingBag, Sparkles, Tag, Trash2, Truck, Users, X, Zap,
 } from "lucide-react";
@@ -26,6 +26,8 @@ interface Coupon {
   firstPurchaseOnly: boolean;
   stackWithPix: boolean;
   showInChat: boolean;
+  notifyCustomers?: boolean;
+  notifySent?: boolean;
   productIds: string | null;
   categoryIds: string | null;
   active: boolean;
@@ -49,6 +51,9 @@ interface FormState {
   firstPurchaseOnly: boolean;
   stackWithPix: boolean;
   showInChat: boolean;
+  notifyCustomers: boolean;
+  /** Aviso por e-mail já disparado (edição) */
+  notifySent?: boolean;
   productIds: string[];
   categoryIds: string[];
   active: boolean;
@@ -56,7 +61,7 @@ interface FormState {
 
 const EMPTY: FormState = {
   code: "", description: "", type: "PERCENT", value: "", maxDiscount: "", minOrderValue: "", startsAt: "", endsAt: "",
-  usageLimit: "", perCustomer: "1", perCustomerCustom: "2", firstPurchaseOnly: false, stackWithPix: false, showInChat: false, productIds: [], categoryIds: [], active: true,
+  usageLimit: "", perCustomer: "1", perCustomerCustom: "2", firstPurchaseOnly: false, stackWithPix: false, showInChat: false, notifyCustomers: true, productIds: [], categoryIds: [], active: true,
 };
 
 const parseIds = (raw: string | null) => { try { const v = JSON.parse(raw || "[]"); return Array.isArray(v) ? (v as string[]) : []; } catch { return []; } };
@@ -179,6 +184,8 @@ export default function CouponsManager() {
       firstPurchaseOnly: c.firstPurchaseOnly,
       stackWithPix: c.stackWithPix,
       showInChat: !!c.showInChat,
+      notifyCustomers: c.notifyCustomers !== false,
+      notifySent: !!c.notifySent,
       productIds: parseIds(c.productIds),
       categoryIds: parseIds(c.categoryIds),
       active: c.active,
@@ -203,6 +210,7 @@ export default function CouponsManager() {
       firstPurchaseOnly: form.firstPurchaseOnly,
       stackWithPix: form.stackWithPix,
       showInChat: form.showInChat,
+      notifyCustomers: form.notifyCustomers,
       productIds: form.productIds,
       categoryIds: form.categoryIds,
       active: form.active,
@@ -215,6 +223,15 @@ export default function CouponsManager() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erro ao salvar");
+      if (!form.id && form.notifyCustomers && form.active) {
+        const future = form.startsAt && new Date(form.startsAt) > new Date();
+        notify.success("Cupom criado", {
+          description: future
+            ? "Os clientes serão avisados por e-mail quando o cupom começar a valer."
+            : "Os clientes estão sendo avisados por e-mail (em lotes, respeitando quem não quer receber).",
+          duration: 8000,
+        });
+      }
       setForm(null);
       setReload((n) => n + 1);
     } catch (e) {
@@ -493,6 +510,16 @@ export default function CouponsManager() {
                     label="O atendente de IA pode divulgar este cupom"
                     hint="Ele oferece o cupom só quando o cliente está em dúvida, acha caro ou pede desconto."
                   />
+                  {form.notifySent ? (
+                    <p className="text-xs text-gray-500">Aviso por e-mail deste cupom já foi enviado aos clientes.</p>
+                  ) : (
+                    <Toggle
+                      checked={form.notifyCustomers}
+                      onChange={(v) => set("notifyCustomers", v)}
+                      label="Avisar os clientes por e-mail"
+                      hint={`${form.firstPurchaseOnly ? "Clientes com conta que ainda não compraram" : "Todos os clientes com conta"} recebem o cupom quando ele começar a valer — menos quem pediu para não receber promoções e quem já recebeu 3 no mês. Desmarque para cupons de um cliente só (compensação, parceria).`}
+                    />
+                  )}
                   <Toggle checked={form.active} onChange={(v) => set("active", v)} label="Cupom ativo" />
                 </div>
               </section>

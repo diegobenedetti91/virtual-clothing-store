@@ -5,7 +5,7 @@ import { getMelhorEnvioTracking } from "@/lib/melhorEnvio";
 import { applyShipmentUpdate } from "@/lib/trackingSync";
 import { processarEtiquetasPendentes } from "@/lib/labelPipeline";
 import { processCashbackNotifications } from "@/lib/cashback";
-import { processFlashSaleNotifications } from "@/lib/promoInterest";
+import { processPromoBroadcasts } from "@/lib/promoBroadcast";
 
 export async function GET(req: NextRequest) {
   const secret = req.headers.get("x-cron-secret");
@@ -23,7 +23,10 @@ export async function GET(req: NextRequest) {
   // E os avisos de cashback (liberado / vencendo)
   const cashback = await processCashbackNotifications().catch((e) => { console.error("[cron/update-tracking] cashback:", e); return null; });
   // E os avisos automáticos de promoção relâmpago que começaram
-  const promo = await processFlashSaleNotifications().then(() => "ok").catch((e) => { console.error("[cron/update-tracking] promo:", e); return "erro"; });
+  // Avisos de cupom novo / promoção relâmpago para a base (LGPD e limite mensal respeitados)
+  const promo = await processPromoBroadcasts()
+    .then((r) => `${r.started} aviso(s) iniciado(s), ${r.sent} e-mail(s) enviado(s)`)
+    .catch((e) => { console.error("[cron/update-tracking] promo:", e); return "erro"; });
   // E expira pedidos de gateway não pagos há mais de 24h (confere no gateway antes)
   const expired = await expirePendingOrders().catch((e) => { console.error("[cron/update-tracking] expirar pendentes:", e); return null; });
 

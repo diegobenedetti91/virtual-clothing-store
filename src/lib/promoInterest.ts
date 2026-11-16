@@ -289,17 +289,3 @@ export async function autoNotify(input: { productId: string; reason: PromoReason
   }
 }
 
-/** Rotina: promoções relâmpago que começaram e ainda não avisaram ninguém (modo automático). */
-export async function processFlashSaleNotifications() {
-  const now = new Date();
-  const sales = await prisma.flashSale.findMany({
-    where: { active: true, notifySent: false, productId: { not: null }, startAt: { lte: now }, endAt: { gte: new Date(now.getTime() + 2 * 3600_000) } },
-    select: { id: true, productId: true },
-    take: 10,
-  });
-  for (const s of sales) {
-    const r = await autoNotify({ productId: s.productId!, reason: "FLASH_SALE", flashSaleId: s.id });
-    // Mesmo sem ninguém para avisar, não tenta de novo a cada rodada
-    if (r) await prisma.flashSale.update({ where: { id: s.id }, data: { notifySent: true } }).catch(() => {});
-  }
-}

@@ -457,6 +457,8 @@ model FlashSale {
   endAt         DateTime
   active        Boolean  @default(true)
   notifySent    Boolean  @default(false)
+  /** Avisar todos os clientes por e-mail quando começar (LGPD e limite mensal respeitados) */
+  notifyCustomers Boolean @default(true)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -584,6 +586,10 @@ model Coupon {
   productIds        String?   @db.Text
   categoryIds       String?   @db.Text
   active            Boolean   @default(true)
+  /** Avisar todos os clientes por e-mail quando o cupom começar (LGPD e limite mensal respeitados) */
+  notifyCustomers   Boolean   @default(true)
+  /** Aviso já disparado (não repete) */
+  notifySent        Boolean   @default(false)
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
@@ -608,8 +614,15 @@ model CreditAdjustment {
 /** Aviso de promoção para quem demonstrou interesse num produto (viu, favoritou, deixou no carrinho). */
 model PromoCampaign {
   id          String       @id @default(cuid())
-  productId   String
-  product     Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+  /** Vazio em avisos gerais (cupom para toda a loja) */
+  productId   String?
+  product     Product?     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  /** Aviso para a base: ALL (todos) | NEVER_BOUGHT (cupom de primeira compra). Vazio = interessados no produto */
+  audience    String?
+  /** Envio em lotes terminou */
+  finishedAt  DateTime?
+  /** Envio em lotes: último cliente (id) já processado */
+  cursor      String?
   /** PRICE_DROP | COUPON | FLASH_SALE */
   reason      String
   couponCode  String?
@@ -635,10 +648,11 @@ model PromoEmail {
   campaign   PromoCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   customerId String
   customer   CustomerUser  @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  productId  String
+  productId  String?
   sentAt     DateTime      @default(now())
   clickedAt  DateTime?
 
   @@index([customerId, sentAt])
   @@index([productId, customerId])
+  @@index([campaignId, customerId])
 }

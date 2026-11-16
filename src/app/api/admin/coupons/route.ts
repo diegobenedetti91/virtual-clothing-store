@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
+import { startCouponBroadcast } from "@/lib/promoBroadcast";
 import { requireAdmin } from "@/lib/adminAuth";
 import { prisma } from "@/lib/prisma";
 import { PAID_STATUSES } from "@/lib/coupons";
@@ -57,5 +58,10 @@ export async function POST(req: NextRequest) {
   if (exists) return NextResponse.json({ error: `Já existe um cupom com o código ${parsed.data.code}` }, { status: 409 });
 
   const coupon = await prisma.coupon.create({ data: parsed.data });
+  // Aviso por e-mail para os clientes: já vale → sai agora; data futura → a rotina horária avisa quando começar
+  if (coupon.notifyCustomers && coupon.active) {
+    const task = () => startCouponBroadcast(coupon.id).catch((e) => console.error("[coupons] aviso:", e));
+    try { after(task); } catch { void task(); }
+  }
   return NextResponse.json(coupon, { status: 201 });
 }

@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { askToNotifyInterested } from "@/lib/promoClient";
 import { confirmDialog, notify } from "@/lib/notify";
 import OptimizedImg from "@/components/OptimizedImg";
 import { Button, ButtonLink } from "@/components/admin/ui/Button";
@@ -17,6 +16,8 @@ interface FlashSale {
   startAt: string;
   endAt: string;
   active: boolean;
+  notifyCustomers?: boolean;
+  notifySent?: boolean;
   product: { id: string; name: string; slug: string; price: number; images?: string | null } | null;
 }
 interface ProductOption { id: string; name: string; price: number; images?: string | null; active?: boolean }
@@ -29,6 +30,9 @@ interface FormState {
   discountValue: string;
   startAt: string;
   endAt: string;
+  /** Avisar todos os clientes por e-mail quando começar */
+  notifyCustomers: boolean;
+  notifySent?: boolean;
 }
 
 const firstImage = (raw?: string | null) => { try { const v = JSON.parse(raw || "[]"); return Array.isArray(v) ? (v[0] as string) ?? null : null; } catch { return null; } };
@@ -102,7 +106,7 @@ export default function FlashSaleManager() {
     const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
     setFormError(null);
     setProductQuery("");
-    setForm({ title: "", productId: "", discountType: "PERCENT", discountValue: "", startAt: toLocalInput(start), endAt: toLocalInput(end) });
+    setForm({ title: "", productId: "", discountType: "PERCENT", discountValue: "", startAt: toLocalInput(start), endAt: toLocalInput(end), notifyCustomers: true });
   };
   const openEdit = (s: FlashSale) => {
     setFormError(null);
@@ -110,6 +114,7 @@ export default function FlashSaleManager() {
     setForm({
       id: s.id, title: s.title, productId: s.productId || "", discountType: s.discountType, discountValue: String(s.discountValue),
       startAt: toLocalInput(new Date(s.startAt)), endAt: toLocalInput(new Date(s.endAt)),
+      notifyCustomers: s.notifyCustomers !== false, notifySent: !!s.notifySent,
     });
   };
 
@@ -129,15 +134,19 @@ export default function FlashSaleManager() {
           discountValue: form.discountValue,
           startAt: new Date(form.startAt).toISOString(),
           endAt: new Date(form.endAt).toISOString(),
+          notifyCustomers: form.notifyCustomers,
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erro ao salvar");
       setForm(null);
-      // Promoção que já começou: avisa os interessados (automático) ou pergunta
-      if (!form.id && data?.promo?.startedNow && data.productId) {
-        if (data.promo.autoNotify) notify.info("Promoção no ar", { description: "Os clientes interessados neste produto serão avisados por e-mail." });
-        else void askToNotifyInterested(data.productId, "FLASH_SALE", { flashSaleId: data.id });
+      if (!form.id && data?.promo?.notify) {
+        notify.success("Promoção criada", {
+          description: data.promo.startedNow
+            ? "Os clientes estão sendo avisados por e-mail (em lotes, respeitando quem não quer receber)."
+            : "Os clientes serão avisados por e-mail quando a promoção começar.",
+          duration: 8000,
+        });
       }
       setReload((n) => n + 1);
     } catch (e) {
@@ -343,6 +352,18 @@ export default function FlashSaleManager() {
                   </button>
                 ))}
               </div>
+
+              {form.notifySent ? (
+                <p className="text-xs text-gray-500">Aviso por e-mail desta promoção já foi enviado aos clientes.</p>
+              ) : (
+                <label className="flex items-start gap-2.5 rounded-xl ring-1 ring-gray-200 px-3 py-2.5 cursor-pointer">
+                  <input type="checkbox" checked={form.notifyCustomers} onChange={(e) => set("notifyCustomers", e.target.checked)} className="mt-0.5 w-4 h-4 accent-[var(--brand)]" />
+                  <span>
+                    <span className="block text-sm font-medium text-gray-900">Avisar os clientes por e-mail</span>
+                    <span className="block text-xs text-gray-500 mt-0.5">Todos os clientes com conta recebem quando a promoção começar — menos quem pediu para não receber promoções e quem já recebeu 3 no mês.</span>
+                  </span>
+                </label>
+              )}
 
               {/* Prévia */}
               <div className="rounded-2xl bg-gray-900 text-white p-4">

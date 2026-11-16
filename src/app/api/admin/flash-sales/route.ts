@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse, after } from "next/server";
-import { autoNotify } from "@/lib/promoInterest";
+import { startFlashBroadcast } from "@/lib/promoBroadcast";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 
-type SaleInput = { title?: unknown; productId?: unknown; discountType?: unknown; discountValue?: unknown; startAt?: unknown; endAt?: unknown; active?: unknown };
+type SaleInput = { title?: unknown; productId?: unknown; discountType?: unknown; discountValue?: unknown; startAt?: unknown; endAt?: unknown; active?: unknown; notifyCustomers?: unknown };
 
 /** Valida e normaliza os campos de uma promoção (criação ou edição completa). */
 async function parseSale(b: SaleInput) {
@@ -22,7 +22,7 @@ async function parseSale(b: SaleInput) {
   if (discountType === "FIXED" && discountValue >= product.price) return { error: "O desconto precisa ser menor que o preço do produto" };
   if (Number.isNaN(startAt.getTime()) || Number.isNaN(endAt.getTime())) return { error: "Informe início e fim" };
   if (endAt <= startAt) return { error: "O fim precisa ser depois do início" };
-  return { data: { title, productId, discountType, discountValue, startAt, endAt, active: b.active !== false } };
+  return { data: { title, productId, discountType, discountValue, startAt, endAt, active: b.active !== false, notifyCustomers: b.notifyCustomers !== false } };
 }
 
 export async function GET(req: NextRequest) {
@@ -54,15 +54,13 @@ export async function POST(req: NextRequest) {
       include: { product: { select: { id: true, name: true, slug: true, price: true } } },
     });
 
-    // Já começou: avisa os interessados (automático) ou o admin pergunta. Futura: a rotina avisa quando começar.
-    const startedNow = flashSale.active && flashSale.productId && flashSale.startAt <= new Date();
-    const settings = await prisma.companySettings.findFirst({ orderBy: { updatedAt: "desc" }, select: { promoAutoNotify: true } });
-    const auto = !!settings?.promoAutoNotify;
-    if (startedNow && auto) {
-      const task = () => autoNotify({ productId: flashSale.productId!, reason: "FLASH_SALE", flashSaleId: flashSale.id });
+    // Aviso por e-mail para os clientes: já começou → sai agora; futura → a rotina horária avisa quando começar
+    const startedNow = flashSale.active && !!flashSale.productId && flashSale.startAt <= new Date();
+    if (flashSale.notifyCustomers && startedNow) {
+      const task = () => startFlashBroadcast(flashSale.id).catch((e) => console.error("[flash-sales] aviso:", e));
       try { after(task); } catch { void task(); }
     }
-    return NextResponse.json({ ...flashSale, promo: { startedNow: !!startedNow, autoNotify: auto } }, { status: 201 });
+    return NextResponse.json({ ...flashSale, promo: { startedNow, notify: flashSale.notifyCustomers } }, { status: 201 });
   } catch (error) {
     console.error("Create flash sale error:", error);
     return NextResponse.json({ error: "Failed to create flash sale" }, { status: 500 });
