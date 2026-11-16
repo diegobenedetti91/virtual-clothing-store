@@ -82,13 +82,5 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// Allow GET for monitoring/health checks
-export async function GET(req: NextRequest) {
-  const auth = req.headers.get("authorization");
-
-  if (!CRON_SECRET || auth !== `Bearer ${CRON_SECRET}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  return NextResponse.json({ status: "ready" });
-}
+// O agendador do servidor chama com GET (curl sem -X POST): executa a mesma rotina
+export const GET = POST;
