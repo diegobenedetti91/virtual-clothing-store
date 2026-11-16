@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email";
+import { siteUrl } from "@/lib/site";
 
 const PAID = ["CONFIRMED", "SHIPPED", "PRONTO_PARA_RETIRADA", "DELIVERED", "RETIRADO"];
 
@@ -94,11 +95,16 @@ export async function GET() {
   });
 }
 
-async function sendReminder(id: string, storeName: string, storeUrl: string) {
+type ReminderResult = { sent: true; to: string } | { sent: false; reason: string };
+
+async function sendReminder(id: string, storeName: string, storeUrl: string): Promise<ReminderResult> {
   const cart = await prisma.abandonedCart.findUnique({ where: { id } });
-  if (!cart || cart.closedAt) return false;
+  if (!cart) return { sent: false, reason: "Carrinho não encontrado." };
+  if (cart.closedAt) return { sent: false, reason: "Este carrinho já foi fechado (o cliente finalizou a compra ou ele foi encerrado)." };
+  if (!cart.email) return { sent: false, reason: "O carrinho não tem e-mail do cliente." };
+  if (!process.env.SMTP_USER) return { sent: false, reason: "E-mail da loja (SMTP) não configurado no servidor." };
   const items = parseItems(cart.cartItems);
-  if (!items.length) return false;
+  if (!items.length) return { sent: false, reason: "O carrinho está vazio." };
   const total = items.reduce((s, i) => s + i.price * i.quantity, 0);
   const brl = (v: number) => `R$ ${v.toFixed(2).replace(".", ",")}`;
   const esc = (v: string) => v.replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]!);
@@ -134,7 +140,7 @@ async function sendReminder(id: string, storeName: string, storeUrl: string) {
     `,
   });
   await prisma.abandonedCart.update({ where: { id }, data: { reminderSent: true, reminderSentAt: new Date() } });
-  return true;
+  return { sent: true, to: cart.email };
 }
 
 /** Envia lembrete: { id } ou { ids: [...] } (até 50 por vez). */
@@ -148,18 +154,21 @@ export async function POST(req: NextRequest) {
 
   const settings = await prisma.companySettings.findFirst({ orderBy: { updatedAt: "desc" }, select: { name: true } });
   const storeName = settings?.name || "Minha Loja";
-  const storeUrl = (process.env.NEXTAUTH_URL || "http://localhost:3000").replace(/\/+$/, "");
+  const storeUrl = siteUrl();
 
   let sent = 0;
   let failed = 0;
+  const sentTo: string[] = [];
+  const skipped: string[] = [];
   for (const id of ids) {
     try {
-      if (await sendReminder(id, storeName, storeUrl)) sent++;
+      const r = await sendReminder(id, storeName, storeUrl);
+      if (r.sent) { sent++; sentTo.push(r.to); } else skipped.push(r.reason);
     } catch (e) {
       failed++;
       console.error("[ABANDONED CART] Falha ao enviar lembrete:", e);
     }
   }
-  if (!sent && failed) return NextResponse.json({ error: "Não foi possível enviar o e-mail" }, { status: 502 });
-  return NextResponse.json({ ok: true, sent, failed });
+  if (!sent && failed) return NextResponse.json({ error: "O servidor de e-mail recusou o envio. Confira o SMTP da loja." }, { status: 502 });
+  return NextResponse.json({ ok: true, sent, failed, sentTo, skipped });
 }

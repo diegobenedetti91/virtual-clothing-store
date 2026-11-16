@@ -119,9 +119,20 @@ export default function CarrinhosManager() {
       const res = await fetch("/api/admin/abandoned-carts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids }) });
       const d = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(d.error);
+      const skipped: string[] = Array.isArray(d.skipped) ? d.skipped : [];
+      if (!d.sent) {
+        // Nada saiu: mostra o motivo em vez de um falso "enviado"
+        notify.warning("Nenhum lembrete enviado", { description: skipped[0] || "Não foi possível enviar.", duration: 10000 });
+        load();
+        return;
+      }
       const at = new Date().toISOString();
       setCarts((prev) => prev.map((c) => (ids.includes(c.id) && c.status !== "recovered" ? { ...c, status: "reminded", reminderSentAt: at } : c)));
-      notify.success(d.sent > 1 ? `${d.sent} lembretes enviados` : "Lembrete enviado ao cliente", d.failed ? { description: `${d.failed} não puderam ser enviados.` } : undefined);
+      const extra = [d.failed ? `${d.failed} não puderam ser enviados.` : "", skipped.length ? `${skipped.length} ignorado(s): ${skipped[0]}` : ""].filter(Boolean).join(" ");
+      notify.success(d.sent > 1 ? `${d.sent} lembretes enviados` : `Lembrete enviado para ${d.sentTo?.[0] ?? "o cliente"}`, {
+        description: `${extra ? `${extra} ` : ""}Se não aparecer na caixa de entrada, veja Spam e Promoções.`,
+        duration: 8000,
+      });
     } catch (e) {
       notify.error("Não foi possível enviar o e-mail", { description: e instanceof Error && e.message ? e.message : undefined });
     } finally {
