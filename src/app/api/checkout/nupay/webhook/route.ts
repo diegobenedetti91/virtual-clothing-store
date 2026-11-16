@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getNuPayConfig, getNuPayPaymentStatus, mapNuPayStatus } from "@/lib/nupay";
 import { sendOrderStatusEmail, sendOrderConfirmationEmail, sendNewOrderNotificationEmail } from "@/lib/email";
 import { commitOrderStock, releaseOrderStock } from "@/lib/stockUtils";
+import { flagOrderIssue, refundPaidAfterCancel, handleRefundAfterShipping, SHIPPED_STATUSES } from "@/lib/refundUtils";
 import { createAutomaticShipment } from "@/lib/shipmentUtils";
 import { trackServer } from "@/lib/analyticsServer";
 import { sendMetaPurchase } from "@/lib/metaCapi";
@@ -49,9 +50,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true });
   }
 
-  // Don't revert cancelled orders
+  // Pedido cancelado não volta. Pago depois do cancelamento: devolve o dinheiro.
   if (order.status === "CANCELLED") {
-    console.log("[NUPAY WEBHOOK] Order is already cancelled, ignoring webhook");
+    if (newStatus === "CONFIRMED") {
+      console.warn("[NUPAY WEBHOOK] Payment completed for a cancelled order, refunding:", orderNumber);
+      await refundPaidAfterCancel(order, "nupay", pspReferenceId, remote.amount ?? order.total);
+    }
+    return NextResponse.json({ ok: true });
+  }
+
+  // Cancelado no NuPay com o pedido já fora da loja: não cancela nem repõe estoque
+  if (newStatus === "CANCELLED" && SHIPPED_STATUSES.includes(order.status)) {
+    await handleRefundAfterShipping(order, "NuPay", "refund", null);
     return NextResponse.json({ ok: true });
   }
 
@@ -63,6 +73,7 @@ export async function POST(req: NextRequest) {
   // Paid amount must cover the order
   if (newStatus === "CONFIRMED" && remote.amount !== undefined && remote.amount + 0.01 < order.total) {
     console.error("[NUPAY WEBHOOK] Paid amount lower than order total", { orderNumber, paid: remote.amount, total: order.total });
+    await flagOrderIssue(order.id, `NuPay aprovou R$ ${remote.amount.toFixed(2)}, menor que o total do pedido (R$ ${order.total.toFixed(2)}). O pedido NÃO foi confirmado — confira no NuPay.`);
     return NextResponse.json({ ok: true });
   }
 
@@ -82,13 +93,19 @@ export async function POST(req: NextRequest) {
 
     // Payment cancelled/refunded: give back stock if it had been taken
     if (newStatus === "CANCELLED") {
-      await releaseOrderStock(order.id).catch(console.error);
+      await releaseOrderStock(order.id).catch(async (e) => {
+        console.error(e);
+        await flagOrderIssue(order.id, "Pagamento cancelado, mas o estoque NÃO foi reposto automaticamente. Ajuste à mão.");
+      });
     }
 
     // Decrement stock when payment is confirmed
     if (newStatus === "CONFIRMED") {
       console.log("[NUPAY WEBHOOK] Decrementing stock for order:", orderNumber);
-      await commitOrderStock(order.id).catch(console.error);
+      await commitOrderStock(order.id).catch(async (e) => {
+        console.error(e);
+        await flagOrderIssue(order.id, "Pagamento confirmado, mas a baixa de estoque FALHOU. Ajuste o estoque à mão para não vender peça que não existe.");
+      });
 
       // Integrate with Bling if enabled
       if (settings?.blingAtivo) {

@@ -43,6 +43,9 @@ export async function getAdminAlerts(): Promise<{ alerts: AdminAlert[]; badges: 
     returnsPending,
     reviewsPending,
     outOfStock,
+    opsAlerts,
+    refundsPending,
+    labelsToCancel,
   ] = await Promise.all([
     prisma.order.count({ where: SHIPMENT_ERROR_WHERE }),
     prisma.order.count({ where: { labelValid: false, status: "CONFIRMED" } }),
@@ -60,9 +63,43 @@ export async function getAdminAlerts(): Promise<{ alerts: AdminAlert[]; badges: 
     prisma.return.count({ where: { status: "PENDING" } }),
     prisma.productReview.count({ where: { approved: false } }),
     prisma.product.count({ where: { active: true, stock: { lte: 0 } } }),
+    prisma.order.count({ where: { opsAlert: { not: null } } }),
+    prisma.return.count({ where: { status: "APPROVED", refundAmount: { gt: 0 }, refundedAt: null } }),
+    prisma.order.count({
+      where: {
+        status: "CANCELLED",
+        melhorEnvioShipmentId: { not: null },
+        OR: [{ shipmentStatus: null }, { shipmentStatus: { notIn: ["posted", "in_transit", "delivered", "canceled", "cancelled"] } }],
+        updatedAt: { gte: sixtyDaysAgo },
+      },
+    }),
   ]);
 
   const alerts: AdminAlert[] = [
+    {
+      key: "opsAlerts",
+      count: opsAlerts,
+      title: "Pedidos com ocorrência",
+      description: "Estorno manual, pagamento após cancelamento, falha de estoque… Abra o pedido, resolva e marque como resolvido.",
+      href: "/admin/pedidos?filtro=ocorrencias",
+      severity: "critical" as const,
+    },
+    {
+      key: "refundsPending",
+      count: refundsPending,
+      title: "Estornos de devolução pendentes",
+      description: "Devolução aprovada e o dinheiro ainda não voltou ao cliente. Tente de novo ou marque como estornado.",
+      href: "/admin/devolucoes",
+      severity: "critical" as const,
+    },
+    {
+      key: "labelsToCancel",
+      count: labelsToCancel,
+      title: "Etiquetas de pedidos cancelados",
+      description: "Cancele no Melhor Envio para recuperar o valor pago.",
+      href: "/admin/pedidos?filtro=ocorrencias",
+      severity: "warning" as const,
+    },
     {
       key: "labelErrors",
       count: labelErrors,
@@ -140,10 +177,10 @@ export async function getAdminAlerts(): Promise<{ alerts: AdminAlert[]; badges: 
   return {
     alerts,
     badges: {
-      pedidos: blingPending + nfeFailed,
+      pedidos: blingPending + nfeFailed + opsAlerts,
       esteira: toShip,
       rastreamento: labelErrors + labelInvalid,
-      devolucoes: returnsPending,
+      devolucoes: returnsPending + refundsPending,
       avaliacoes: reviewsPending,
       produtos: outOfStock,
     },

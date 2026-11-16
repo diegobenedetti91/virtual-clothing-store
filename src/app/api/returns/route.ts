@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getCustomerFromRequest } from "@/lib/customerAuth";
 import { sendReturnRequestNotificationEmail, sendReturnRequestConfirmationEmail } from "@/lib/email";
 import { RETURN_DAYS, returnDeadline } from "@/lib/customerOrder";
+import { computeReturnRefund } from "@/lib/returnRefund";
 
 
 export async function POST(req: NextRequest) {
@@ -108,6 +109,13 @@ export async function POST(req: NextRequest) {
     }
 
     // Criar solicitação de devolução
+    // Valor pelo que o cliente pagou pelas peças (com cupom/Pix/crédito), não pelo preço cheio
+    const split = await computeReturnRefund(
+      orderId,
+      itemIds.map((sel: { itemId: string; quantity: number }) => ({ itemId: sel.itemId, quantity: sel.quantity }))
+    );
+    refundAmount = split.money;
+
     const newReturn = await prisma.return.create({
       data: {
         orderId,
@@ -116,6 +124,7 @@ export async function POST(req: NextRequest) {
         status: "PENDING",
         returnedItems: itemIds.map((sel: { itemId: string; quantity: number }) => ({ itemId: sel.itemId, quantity: sel.quantity })),
         refundAmount: Math.round(refundAmount * 100) / 100,
+        refundCredit: split.credit,
       },
     });
 

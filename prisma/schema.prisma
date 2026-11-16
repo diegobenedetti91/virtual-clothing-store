@@ -172,6 +172,9 @@ model Order {
   returnStatus     String?       // PARTIAL_RETURN, FULL_RETURN
   reviewEmailSentAt DateTime?
   stockDecrementedAt DateTime?   // set when stock was taken for this order (see commitOrderStock)
+  /** Ocorrência que precisa do dono da loja (pagamento, estorno, estoque) — aparece no pedido e nos alertas */
+  opsAlert         String?       @db.Text
+  opsAlertAt       DateTime?
   upsellEmailSentAt DateTime?
 
   // Melhor Envio integration
@@ -267,6 +270,7 @@ model Order {
   @@index([createdAt])
   @@index([customerEmail])
   @@index([nfeStatus])
+  @@index([opsAlertAt])
   @@index([adminSeenAt, status])
   @@index([customerId, status])
 }
@@ -509,8 +513,13 @@ model Return {
   labelSentAt     DateTime?
   adminNotes      String?  @db.Text
   images          String?  @db.Text
+  /** Valor devolvido em dinheiro (proporcional ao que o cliente pagou pelas peças, com descontos) */
   refundAmount    Float    @default(0)
+  /** Parte que volta como crédito na conta (quando o pedido usou crédito de cashback) */
+  refundCredit    Float    @default(0)
   refundedAt      DateTime?
+  /** Estorno não concluído: motivo da falha ou "manual" (gateway sem estorno por API) */
+  refundError     String?  @db.Text
   responseDate    DateTime?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt

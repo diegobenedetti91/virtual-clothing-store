@@ -13,10 +13,10 @@ import { Button, ButtonLink } from "@/components/admin/ui/Button";
 const ALLOWED_TRANSITIONS: Record<string, string[]> = {
   PENDING:                    ["CONFIRMED", "CANCELLED"],
   CONFIRMED:                  ["SHIPPED", "PRONTO_PARA_RETIRADA", "CANCELLED"],
-  SHIPPED:                    ["DELIVERED", "CANCELLED"],
+  SHIPPED:                    ["DELIVERED"],
   PRONTO_PARA_RETIRADA:       ["RETIRADO", "CANCELLED"],
-  RETIRADO:                   ["CANCELLED"],
-  DELIVERED:                  ["CANCELLED"],
+  RETIRADO:                   [],
+  DELIVERED:                  [],
   CANCELLED:                  [],
 };
 
@@ -31,6 +31,8 @@ const CANCEL_REASONS = [
 
 interface Props {
   initialOrders: Order[];
+  /** Aba inicial (ex.: "ALERTS" vindo do alerta do painel) */
+  initialFilter?: string;
   blingEnabled?: boolean;
 }
 
@@ -49,11 +51,11 @@ interface ShippingState {
   customerName: string;
 }
 
-export default function OrdersManager({ initialOrders, blingEnabled = false }: Props) {
+export default function OrdersManager({ initialOrders, blingEnabled = false, initialFilter = "" }: Props) {
   const router = useRouter();
   const [orders, setOrders] = useState(initialOrders);
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState(initialFilter);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
@@ -119,6 +121,10 @@ export default function OrdersManager({ initialOrders, blingEnabled = false }: P
       }
       const updated = await res.json();
       setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, ...updated } : o)));
+      if (newStatus === "CANCELLED") {
+        if (updated.manualRefund) notify.warning("Pedido cancelado — estorno manual pendente", { description: updated.message, duration: 15000 });
+        else notify.success("Pedido cancelado", { description: updated.message, duration: 8000 });
+      }
     } catch (err) {
       notify.error("Erro ao alterar o status do pedido", { description: "Verifique a conexão e tente de novo." });
       console.error(err);
@@ -225,8 +231,9 @@ export default function OrdersManager({ initialOrders, blingEnabled = false }: P
       return true;
     });
   }, [orders, search, dateFrom, dateTo]);
-  const countOf = (st: string) => (st ? baseFiltered.filter((o) => st.split(",").includes(o.status)).length : baseFiltered.length);
-  const visible = statusFilter ? baseFiltered.filter((o) => statusFilter.split(",").includes(o.status)) : baseFiltered;
+  const matchTab = (o: Order, st: string) => (st === "ALERTS" ? !!o.opsAlert : st.split(",").includes(o.status));
+  const countOf = (st: string) => (st ? baseFiltered.filter((o) => matchTab(o, st)).length : baseFiltered.length);
+  const visible = statusFilter ? baseFiltered.filter((o) => matchTab(o, statusFilter)) : baseFiltered;
   const [limit, setLimit] = useState(40);
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const paidVisible = visible.filter((o) => o.status !== "CANCELLED" && o.status !== "PENDING");
@@ -240,6 +247,7 @@ export default function OrdersManager({ initialOrders, blingEnabled = false }: P
     { value: "SHIPPED", label: "Enviados" },
     { value: "DELIVERED,RETIRADO", label: "Concluídos" },
     { value: "CANCELLED", label: "Cancelados" },
+    ...(orders.some((o) => o.opsAlert) ? [{ value: "ALERTS", label: "Ocorrências" }] : []),
   ];
 
   /** label = texto completo (balão); short = o que cabe no botão da linha */
@@ -404,7 +412,7 @@ export default function OrdersManager({ initialOrders, blingEnabled = false }: P
           return (
             <button key={t.value || "all"} onClick={() => { setStatusFilter(t.value); setLimit(40); }} className={`relative inline-flex items-center gap-1.5 px-3 py-2.5 text-[13px] font-medium whitespace-nowrap transition-colors ${active ? "text-gray-900" : "text-gray-500 hover:text-gray-800"}`}>
               {t.label}
-              <span className={`text-[11px] font-semibold rounded-full px-1.5 tabular-nums ${t.value === "CONFIRMED" && n > 0 ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-600"}`}>{n}</span>
+              <span className={`text-[11px] font-semibold rounded-full px-1.5 tabular-nums ${t.value === "ALERTS" && n > 0 ? "bg-red-600 text-white" : t.value === "CONFIRMED" && n > 0 ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-600"}`}>{n}</span>
               <span className={`absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-gray-900 transition-transform ${active ? "scale-x-100" : "scale-x-0"}`} />
             </button>
           );
@@ -462,7 +470,10 @@ export default function OrdersManager({ initialOrders, blingEnabled = false }: P
                   className={`group grid grid-cols-1 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1.3fr)_minmax(0,0.9fr)_minmax(0,1.6fr)_minmax(0,0.8fr)_172px] gap-2 lg:gap-3 px-4 py-3.5 cursor-pointer hover:bg-gray-50/80 transition-colors ${updatingStatus === order.id ? "opacity-60 pointer-events-none" : ""}`}
                 >
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold text-gray-900 group-hover:text-brand">{order.orderNumber}</p>
+                    <p className="text-sm font-semibold text-gray-900 group-hover:text-brand flex items-center gap-1.5">
+                      {order.orderNumber}
+                      {order.opsAlert && <AlertCircle size={14} className="text-red-600 shrink-0" aria-label="Ocorrência no pedido" />}
+                    </p>
                     <p className="text-xs text-gray-400">{formatDate(order.createdAt)}</p>
                   </div>
                   <div className="min-w-0">

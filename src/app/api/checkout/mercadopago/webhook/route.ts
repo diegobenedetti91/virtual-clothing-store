@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendOrderStatusEmail, sendOrderConfirmationEmail, sendNewOrderNotificationEmail } from "@/lib/email";
 import { commitOrderStock, releaseOrderStock } from "@/lib/stockUtils";
+import { flagOrderIssue, refundPaidAfterCancel, handleRefundAfterShipping, SHIPPED_STATUSES } from "@/lib/refundUtils";
 import { createAutomaticShipment } from "@/lib/shipmentUtils";
 import { trackServer } from "@/lib/analyticsServer";
 import { sendMetaPurchase } from "@/lib/metaCapi";
@@ -83,9 +84,30 @@ export async function POST(req: NextRequest) {
     include: { items: { include: { product: true } } },
   });
 
-  // Don't revert cancelled orders
+  // Pedido cancelado não volta. Mas se o pagamento foi aprovado depois do cancelamento, o dinheiro é devolvido.
   if (order?.status === "CANCELLED") {
-    console.log("[MP WEBHOOK] Order is already cancelled, ignoring webhook");
+    if (payment.status === "approved") {
+      console.warn("[MP WEBHOOK] Payment approved for a cancelled order, refunding:", orderNumber);
+      await refundPaidAfterCancel(order, "mercadopago", String(payment.id), Number(payment.transaction_amount) || order.total);
+    }
+    return NextResponse.json({ ok: true });
+  }
+
+  // Valor aprovado precisa cobrir o pedido (nunca confirmar pagamento menor)
+  if (order && newStatus === "CONFIRMED" && Number(payment.transaction_amount) + 0.01 < order.total) {
+    console.error("[MP WEBHOOK] Paid amount lower than order total", { orderNumber, paid: payment.transaction_amount, total: order.total });
+    await flagOrderIssue(order.id, `Mercado Pago aprovou R$ ${Number(payment.transaction_amount).toFixed(2)}, menor que o total do pedido (R$ ${order.total.toFixed(2)}). O pedido NÃO foi confirmado — confira no Mercado Pago.`);
+    return NextResponse.json({ ok: true });
+  }
+
+  // Estorno/contestação com o pedido já fora da loja: não cancela nem repõe estoque, só alerta se inesperado
+  if (order && newStatus === "CANCELLED" && SHIPPED_STATUSES.includes(order.status)) {
+    await handleRefundAfterShipping(
+      order,
+      "Mercado Pago",
+      payment.status === "charged_back" ? "chargeback" : "refund",
+      payment.transaction_amount_refunded != null ? Number(payment.transaction_amount_refunded) : null
+    );
     return NextResponse.json({ ok: true });
   }
 
@@ -117,6 +139,13 @@ export async function POST(req: NextRequest) {
   // Order was already created with PENDING status, just update it
   if (order && order.status !== newStatus) {
     console.log("[MP WEBHOOK] Updating order status:", { orderNumber, from: order.status, to: newStatus });
+    // Transição condicional: avisos repetidos/simultâneos do MP não processam o pedido duas vezes
+    // (etiqueta paga em dobro, pedido duplicado no Bling, e-mails repetidos)
+    const claimed = await prisma.order.updateMany({ where: { id: order.id, status: order.status }, data: { status: newStatus } });
+    if (claimed.count === 0) {
+      console.log("[MP WEBHOOK] Order changed concurrently, skipping", orderNumber);
+      return NextResponse.json({ ok: true });
+    }
 
     // Store payment info for future refunds
     try {
@@ -150,15 +179,21 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Payment cancelled/refunded: give back stock if it had been taken
+    // Pagamento cancelado/estornado antes do envio: devolve o estoque (se tinha sido baixado)
     if (newStatus === "CANCELLED") {
-      await releaseOrderStock(order.id).catch(console.error);
+      await releaseOrderStock(order.id).catch(async (e) => {
+        console.error(e);
+        await flagOrderIssue(order.id, "Pagamento cancelado/estornado, mas o estoque NÃO foi reposto automaticamente. Ajuste à mão.");
+      });
     }
 
     // Decrement stock when payment is confirmed
     if (newStatus === "CONFIRMED") {
       console.log("[MP WEBHOOK] Decrementing stock for order:", orderNumber);
-      await commitOrderStock(order.id).catch(console.error);
+      await commitOrderStock(order.id).catch(async (e) => {
+        console.error(e);
+        await flagOrderIssue(order.id, "Pagamento confirmado, mas a baixa de estoque FALHOU. Ajuste o estoque à mão para não vender peça que não existe.");
+      });
 
       // Integrate with Bling if enabled
       if (settings?.blingAtivo) {

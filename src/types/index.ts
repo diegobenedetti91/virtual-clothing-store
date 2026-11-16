@@ -104,6 +104,9 @@ export interface Order {
   paymentMethod?: string | null;
   paymentFee?: number;
   refundedAt?: string | null;
+  /** Ocorrência que precisa de ação do dono (estorno manual, falha de estoque, etc.) */
+  opsAlert?: string | null;
+  opsAlertAt?: string | null;
   // Melhor Envio integration
   trackingCode?: string | null;
   trackingUrl?: string | null;

@@ -88,10 +88,27 @@ export default function ReturnRequestModal({
     quantity: qty,
   }));
 
-  const totalRefund = selectedItemsArray.reduce((sum, sel) => {
+  const listTotal = selectedItemsArray.reduce((sum, sel) => {
     const item = items.find((i) => i.id === sel.itemId);
     return sum + (item ? item.price * sel.quantity : 0);
   }, 0);
+
+  // Valor real a receber (cupom, desconto Pix e cashback rateados) — calculado pela loja
+  const selectionKey = JSON.stringify(selectedItemsArray);
+  const [preview, setPreview] = useState<{ key: string; money: number; credit: number } | null>(null);
+  useEffect(() => {
+    if (!isOpen || selectedItemsArray.length === 0) return;
+    let cancelled = false;
+    const t = setTimeout(() => {
+      fetch("/api/returns/preview", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ orderId, itemIds: JSON.parse(selectionKey) }) })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => { if (!cancelled && d) setPreview({ key: selectionKey, money: d.money, credit: d.credit }); })
+        .catch(() => {});
+    }, 250);
+    return () => { cancelled = true; clearTimeout(t); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, orderId, selectionKey]);
+  const current = preview?.key === selectionKey ? preview : null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -266,8 +283,14 @@ export default function ReturnRequestModal({
                 <p className="text-sm font-semibold text-gray-700 mb-3">📊 Resumo da Devolução</p>
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600">{selectedItemsArray.length} item{selectedItemsArray.length > 1 ? 's' : ''} selecionado{selectedItemsArray.length > 1 ? 's' : ''}</span>
-                  <span className="text-2xl font-bold text-pink-600">{formatCurrency(totalRefund)}</span>
+                  <span className="text-2xl font-bold text-pink-600">{current ? formatCurrency(current.money) : "…"}</span>
                 </div>
+                {current && (current.credit > 0 || Math.abs(current.money - listTotal) > 0.009) && (
+                  <p className="text-xs text-gray-600 mt-2 leading-relaxed">
+                    Valor proporcional ao que você pagou pelas peças (descontos do pedido já aplicados; o frete não é devolvido).
+                    {current.credit > 0 && <> Mais <strong>{formatCurrency(current.credit)}</strong> voltam como crédito na sua conta.</>}
+                  </p>
+                )}
               </div>
             )}
 

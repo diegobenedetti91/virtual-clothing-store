@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendOrderStatusEmail, sendOrderConfirmationEmail, sendNewOrderNotificationEmail } from "@/lib/email";
 import { commitOrderStock } from "@/lib/stockUtils";
+import { flagOrderIssue, refundPaidAfterCancel } from "@/lib/refundUtils";
 import { createAutomaticShipment } from "@/lib/shipmentUtils";
 import { trackServer } from "@/lib/analyticsServer";
 import { sendMetaPurchase } from "@/lib/metaCapi";
@@ -67,34 +68,43 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, message: "Pedido não encontrado" }, { status: 400 });
     }
 
-    // Don't revert cancelled orders
-    if (order.status === "CANCELLED") {
-      console.log("[IP WEBHOOK] Order is already cancelled, ignoring webhook");
+    // Só um pedido aguardando pagamento é confirmado. Pago/enviado/entregue: aviso repetido, nada a fazer
+    // (antes, um aviso repetido voltava pedido enviado para "pago" e reenviava e-mails/etiqueta).
+    if (order.status !== "PENDING" && order.status !== "CANCELLED") {
       return NextResponse.json({ success: true, message: null }, { status: 200 });
     }
 
-    // Confirmar com a InfinityPay antes de marcar como pago (o webhook não é assinado)
-    if (order.status !== "CONFIRMED") {
-      const settings = await prisma.companySettings.findFirst({ orderBy: { updatedAt: "desc" } });
-      const handle = settings?.infinityPayHandle;
-      const paid =
-        !!handle &&
-        (await confirmWithInfinityPay(handle, order.orderNumber, transaction_nsu, invoice_slug, Math.round(order.total * 100)));
-      if (!paid) {
-        console.warn("[IP WEBHOOK] Payment not confirmed by payment_check for order", order.orderNumber);
-        return NextResponse.json({ success: false, message: "Pagamento não confirmado" }, { status: 400 });
-      }
+    // Confirmar com a InfinityPay antes de qualquer ação (o webhook não é assinado)
+    const settings0 = await prisma.companySettings.findFirst({ orderBy: { updatedAt: "desc" } });
+    const handle = settings0?.infinityPayHandle;
+    const paid =
+      !!handle &&
+      (await confirmWithInfinityPay(handle, order.orderNumber, transaction_nsu, invoice_slug, Math.round(order.total * 100)));
+    if (!paid) {
+      console.warn("[IP WEBHOOK] Payment not confirmed by payment_check for order", order.orderNumber);
+      return NextResponse.json({ success: false, message: "Pagamento não confirmado" }, { status: 400 });
     }
 
-    // Pagamento confirmado pela InfinityPay: atualizar status para CONFIRMED
-    if (order.status !== "CONFIRMED") {
+    // Pago depois do cancelamento: a InfinityPay não tem estorno por API → alerta para estorno manual
+    if (order.status === "CANCELLED") {
+      console.warn("[IP WEBHOOK] Payment confirmed for a cancelled order:", order.orderNumber);
+      await refundPaidAfterCancel(order, "infinitypay", String(transaction_nsu || invoice_slug), order.total);
+      return NextResponse.json({ success: true, message: null }, { status: 200 });
+    }
+
+    {
       console.log("[IP WEBHOOK] Updating order status:", { orderNumber: order_nsu, from: order.status, to: "CONFIRMED" });
+
+      // Transição condicional: dois avisos simultâneos não processam o pedido duas vezes
+      const claimed = await prisma.order.updateMany({ where: { id: order.id, status: "PENDING" }, data: { status: "CONFIRMED" } });
+      if (claimed.count === 0) {
+        return NextResponse.json({ success: true, message: null }, { status: 200 });
+      }
 
       // Armazenar dados da transação para futuras consultas/reembolsos
       await prisma.order.update({
         where: { id: order.id },
         data: {
-          status: "CONFIRMED",
           paymentGateway: "infinitypay",
           paymentId: transaction_nsu || invoice_slug,
           paymentMethod: "Infinity Pay",
@@ -106,7 +116,10 @@ export async function POST(req: NextRequest) {
 
       // Decrement stock when payment is confirmed
       console.log("[IP WEBHOOK] Decrementing stock for order:", order_nsu);
-      await commitOrderStock(order.id).catch(console.error);
+      await commitOrderStock(order.id).catch(async (e) => {
+        console.error(e);
+        await flagOrderIssue(order.id, "Pagamento confirmado, mas a baixa de estoque FALHOU. Ajuste o estoque à mão para não vender peça que não existe.");
+      });
 
       // Get settings for Bling integration
       const settings = await prisma.companySettings.findFirst({ orderBy: { updatedAt: "desc" } });

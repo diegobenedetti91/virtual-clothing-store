@@ -51,6 +51,9 @@ interface OrderDetails {
   paymentFee?: number;
   notes?: string | null;
   cancelReason?: string | null;
+  opsAlert?: string | null;
+  opsAlertAt?: string | null;
+  refundedAt?: string | null;
   createdAt: string;
   updatedAt: string;
   items: OrderItem[];
@@ -151,6 +154,18 @@ export default function OrderDetailsPage() {
       .catch(() => {});
     return () => { cancelled = true; };
   }, [id]);
+
+  const [resolving, setResolving] = useState(false);
+  const resolveAlert = async () => {
+    if (!order) return;
+    setResolving(true);
+    try {
+      const res = await fetch(`/api/orders/${order.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ resolveAlert: true }) });
+      if (res.ok) setOrder({ ...order, ...(await res.json()) });
+    } finally {
+      setResolving(false);
+    }
+  };
 
   const copy = (text: string, key: string) => {
     navigator.clipboard?.writeText(text).catch(() => {});
@@ -272,6 +287,19 @@ export default function OrderDetailsPage() {
 
   return (
     <div className="space-y-5">
+      {order.opsAlert && (
+        <div role="alert" className="flex flex-col sm:flex-row sm:items-start gap-3 rounded-2xl border border-red-200 bg-red-50 px-5 py-4">
+          <AlertTriangle size={18} className="text-red-600 shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-red-900">Ocorrência que precisa da sua ação</p>
+            <p className="text-sm text-red-800 mt-0.5 whitespace-pre-line break-words">{order.opsAlert}</p>
+            {order.opsAlertAt && <p className="text-xs text-red-600/80 mt-1">{new Date(order.opsAlertAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}</p>}
+          </div>
+          <Button variant="secondary" size="sm" icon={Check} onClick={resolveAlert} disabled={resolving} className="shrink-0">
+            {resolving ? "Salvando…" : "Resolvido"}
+          </Button>
+        </div>
+      )}
       {/* Cabeçalho */}
       <div className="bg-white rounded-2xl border border-gray-200/70 shadow-[0_1px_2px_rgba(0,0,0,0.04)] p-5">
         <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">

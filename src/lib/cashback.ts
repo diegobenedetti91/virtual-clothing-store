@@ -13,6 +13,8 @@
  *  - devolução aprovada reduz o cashback do pedido na mesma proporção; pedido cancelado não gera nada
  */
 import { prisma } from "@/lib/prisma";
+import { freeShippingCoupons } from "@/lib/ticket";
+import { productsPaidInMoney } from "@/lib/refundCalc";
 
 const DAY = 86_400_000;
 const r2 = (n: number) => Math.round(n * 100) / 100;
@@ -71,6 +73,8 @@ export interface LedgerOrder {
   cashbackEarned: number;
   creditUsed: number;
   returns: { status: string; refundAmount: number }[];
+  /** Base do cashback (produtos pagos em dinheiro). Se presente, a devolução reduz o cashback por ela. */
+  productsPaid?: number;
 }
 
 export interface LedgerAdjustment {
@@ -144,7 +148,9 @@ export function computeCredit(
     // Crédito ganho
     if (o.cashbackEarned > 0) {
       const refunded = o.returns.filter((r) => r.status === "APPROVED").reduce((s, r) => s + (r.refundAmount || 0), 0);
-      const factor = o.total > 0 ? Math.max(0, 1 - refunded / o.total) : 0;
+      // O cashback é % dos produtos pagos; o estorno da devolução é sobre a mesma base (sem frete)
+      const base = o.productsPaid != null && o.productsPaid > 0 ? o.productsPaid : o.total;
+      const factor = base > 0 ? Math.max(0, 1 - refunded / base) : 0;
       const amount = r2(o.cashbackEarned * factor);
       const entry: LedgerEntry = {
         id: `earn-${o.id}`, kind: "earn", date: o.createdAt.toISOString(), orderId: o.id,
@@ -261,8 +267,25 @@ export function computeCredit(
 
 const LEDGER_ORDER_SELECT = {
   id: true, orderNumber: true, status: true, createdAt: true, deliveredAt: true, updatedAt: true, total: true,
+  subtotal: true, shippingCost: true, couponDiscount: true, couponCode: true,
   cashbackEarned: true, creditUsed: true, returns: { select: { status: true, refundAmount: true } },
 } as const;
+
+/** Anota a base do cashback (produtos pagos em dinheiro) em cada pedido do extrato. */
+async function withProductsPaid<T extends LedgerOrder & { subtotal: number; shippingCost: number; couponDiscount: number | null; couponCode: string | null }>(orders: T[]): Promise<T[]> {
+  const free = await freeShippingCoupons(orders);
+  return orders.map((o) => ({
+    ...o,
+    productsPaid: productsPaidInMoney({
+      subtotal: o.subtotal,
+      shippingCost: o.shippingCost,
+      total: o.total,
+      couponDiscount: o.couponDiscount || 0,
+      freeShippingCoupon: !!o.couponCode && free.has(o.couponCode.trim().toUpperCase()),
+      creditUsed: o.creditUsed || 0,
+    }),
+  }));
+}
 
 /** Saldo e extrato de um cliente. */
 export async function getCustomerCredit(customerId: string, opts: { excludeOrderId?: string; settings?: CashbackSettings } = {}): Promise<CreditSummary> {
@@ -276,7 +299,7 @@ export async function getCustomerCredit(customerId: string, opts: { excludeOrder
     }),
     prisma.creditAdjustment.findMany({ where: { customerId }, orderBy: { createdAt: "asc" }, take: 500 }),
   ]);
-  return computeCredit(orders, adjustments, settings, Date.now(), opts.excludeOrderId);
+  return computeCredit(await withProductsPaid(orders), adjustments, settings, Date.now(), opts.excludeOrderId);
 }
 
 // ───────────────────────── Uso no checkout ─────────────────────────
@@ -424,7 +447,7 @@ export async function getCashbackOverview(start: Date, end: Date): Promise<Cashb
     prisma.creditAdjustment.findMany({ orderBy: { createdAt: "asc" }, take: 20000 }),
   ]);
   const byCustomer = new Map<string, { orders: LedgerOrder[]; adj: LedgerAdjustment[] }>();
-  for (const o of orders) {
+  for (const o of await withProductsPaid(orders)) {
     const g = byCustomer.get(o.customerId!) ?? { orders: [], adj: [] };
     g.orders.push(o);
     byCustomer.set(o.customerId!, g);

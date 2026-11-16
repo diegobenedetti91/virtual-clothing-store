@@ -25,84 +25,73 @@ function parseSelected(item: OrderItemLike): Record<string, string> | null {
   return null;
 }
 
-export async function decrementOrderStock(items: OrderItemLike[]): Promise<void> {
+/**
+ * Aplica uma variação de estoque (−quantidade na venda, +quantidade na devolução/cancelamento).
+ * A linha do produto é travada (SELECT … FOR UPDATE) até o fim da transação: duas compras
+ * simultâneas do mesmo produto não leem o mesmo estoque e uma sobrescreve a outra
+ * (variantStock é um JSON reescrito inteiro). Retorna avisos quando a peça não pôde ser
+ * localizada, para virar alerta no pedido em vez de passar em silêncio.
+ */
+async function applyStockDelta(items: OrderItemLike[], sign: 1 | -1): Promise<string[]> {
+  const warnings: string[] = [];
   await prisma.$transaction(async (tx) => {
     for (const item of items) {
-      const product = await tx.product.findUnique({
-        where: { id: item.productId },
-        select: { stock: true, variantStock: true },
-      });
-      if (!product) continue;
-
-      const raw = JSON.parse(product.variantStock || "[]");
-      const variants = normalizeVariantStock(raw);
-      const selected = parseSelected(item);
-
-      if (variants.length > 0 && selected) {
-        const updated = variants.map((v) =>
-          matchesSelection(v.attributes, selected)
-            ? { ...v, stock: Math.max(0, v.stock - item.quantity) }
-            : v
-        );
-        const newTotal = updated.reduce((sum, v) => sum + (v.stock || 0), 0);
-        await tx.product.update({
-          where: { id: item.productId },
-          data: { variantStock: JSON.stringify(updated), stock: newTotal },
-        });
-      } else {
-        await tx.product.update({
-          where: { id: item.productId },
-          data: { stock: { decrement: item.quantity } },
-        });
-      }
-    }
-  });
-}
-
-export async function restoreOrderStock(items: OrderItemLike[]): Promise<void> {
-  console.log("[RESTORE] Starting stock restoration for items:", JSON.stringify(items));
-
-  await prisma.$transaction(async (tx) => {
-    for (const item of items) {
-      const product = await tx.product.findUnique({
-        where: { id: item.productId },
-        select: { stock: true, variantStock: true },
-      });
+      const rows = await tx.$queryRaw<{ name: string; stock: number; variantStock: string | null }[]>`
+        SELECT name, stock, variantStock FROM Product WHERE id = ${item.productId} FOR UPDATE`;
+      const product = rows[0];
       if (!product) {
-        console.warn("[RESTORE] Product not found:", item.productId);
+        warnings.push(`produto ${item.productId} não existe mais (${item.quantity} un.)`);
         continue;
       }
 
-      console.log("[RESTORE] Before restoration - Product:", item.productId, "Current stock:", product.stock, "Quantity to restore:", item.quantity);
-
-      const raw = JSON.parse(product.variantStock || "[]");
+      let raw: unknown[] = [];
+      try { const p = JSON.parse(product.variantStock || "[]"); raw = Array.isArray(p) ? p : []; } catch { raw = []; }
       const variants = normalizeVariantStock(raw);
       const selected = parseSelected(item);
 
-      if (variants.length > 0 && selected) {
-        console.log("[RESTORE] Has variants with selection");
-        const updated = variants.map((v) =>
-          matchesSelection(v.attributes, selected)
-            ? { ...v, stock: v.stock + item.quantity }
-            : v
+      if (variants.length > 0) {
+        const hit = selected ? variants.findIndex((v) => matchesSelection(v.attributes, selected)) : -1;
+        if (hit < 0) {
+          const label = selected ? Object.values(selected).join(" / ") : "sem variação escolhida";
+          warnings.push(`"${product.name}" (${label}): variação não encontrada no cadastro — ${item.quantity} un. não ${sign < 0 ? "baixada(s)" : "reposta(s)"}`);
+          continue;
+        }
+        const updated = variants.map((v, i) =>
+          i === hit ? { ...v, stock: Math.max(0, v.stock + sign * item.quantity) } : v
         );
         const newTotal = updated.reduce((sum, v) => sum + (v.stock || 0), 0);
-        console.log("[RESTORE] After restoration - New total stock:", newTotal);
         await tx.product.update({
           where: { id: item.productId },
           data: { variantStock: JSON.stringify(updated), stock: newTotal },
         });
       } else {
-        console.log("[RESTORE] No variants, incrementing total stock by:", item.quantity);
         await tx.product.update({
           where: { id: item.productId },
-          data: { stock: { increment: item.quantity } },
+          data: { stock: Math.max(0, Number(product.stock) + sign * item.quantity) },
         });
       }
     }
   });
+  return warnings;
+}
 
-  console.log("[RESTORE] ✓ Stock restoration completed");
+export async function decrementOrderStock(items: OrderItemLike[]): Promise<string[]> {
+  return applyStockDelta(items, -1);
+}
+
+export async function restoreOrderStock(items: OrderItemLike[]): Promise<string[]> {
+  return applyStockDelta(items, 1);
+}
+
+async function flagStockWarnings(orderId: string, action: string, warnings: string[]) {
+  if (warnings.length === 0) return;
+  console.warn(`[STOCK] ${action} incompleta no pedido ${orderId}:`, warnings);
+  await prisma.order
+    .update({
+      where: { id: orderId },
+      data: { opsAlert: `${action} de estoque incompleta — ajuste à mão: ${warnings.join("; ")}`.slice(0, 2000), opsAlertAt: new Date() },
+    })
+    .catch(() => {});
 }
 
 /**
@@ -120,7 +109,8 @@ export async function commitOrderStock(orderId: string): Promise<void> {
 
   const items = await prisma.orderItem.findMany({ where: { orderId } });
   try {
-    await decrementOrderStock(items);
+    const warnings = await decrementOrderStock(items);
+    await flagStockWarnings(orderId, "Baixa", warnings);
   } catch (err) {
     await prisma.order.update({ where: { id: orderId }, data: { stockDecrementedAt: null } }).catch(() => {});
     throw err;
@@ -159,7 +149,7 @@ export async function releaseOrderStock(orderId: string): Promise<void> {
     .filter((i) => i.quantity > 0);
 
   try {
-    if (toRestore.length > 0) await restoreOrderStock(toRestore);
+    if (toRestore.length > 0) await flagStockWarnings(orderId, "Reposição", await restoreOrderStock(toRestore));
   } catch (err) {
     await prisma.order.update({ where: { id: orderId }, data: { stockDecrementedAt: new Date() } }).catch(() => {});
     throw err;

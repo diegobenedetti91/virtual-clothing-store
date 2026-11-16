@@ -59,7 +59,7 @@ export async function refundPayment(orderNumber: string): Promise<RefundResult> 
   }
 }
 
-async function refundMercadoPago(paymentId: string): Promise<void> {
+export async function refundMercadoPago(paymentId: string): Promise<void> {
   const settings = await prisma.companySettings.findFirst({
     orderBy: { updatedAt: "desc" },
   });
@@ -89,7 +89,7 @@ async function refundMercadoPago(paymentId: string): Promise<void> {
   console.log("[REFUND] Mercado Pago refund successful for payment:", paymentId);
 }
 
-async function refundNuPay(pspReferenceId: string, amount: number): Promise<void> {
+export async function refundNuPay(pspReferenceId: string, amount: number): Promise<void> {
   // One full refund per payment: a stable key makes a retry idempotent on NuPay's side
   await refundNuPayPayment(pspReferenceId, amount, `full-${pspReferenceId}`, "Cancelamento do pedido");
   console.log("[REFUND] NuPay full refund requested for payment:", pspReferenceId);
@@ -167,4 +167,60 @@ async function refundMercadoPagoPartial(paymentId: string, amount: number): Prom
 async function refundNuPayPartial(pspReferenceId: string, amount: number): Promise<void> {
   await refundNuPayPayment(pspReferenceId, amount, `partial-${pspReferenceId}-${randomUUID()}`, "Devolução de itens");
   console.log("[REFUND] NuPay partial refund requested for payment:", pspReferenceId, amount);
+}
+
+/** Registra uma ocorrência no pedido (aparece no pedido e nos alertas do painel). */
+export async function flagOrderIssue(orderId: string, message: string) {
+  await prisma.order.update({ where: { id: orderId }, data: { opsAlert: message.slice(0, 2000), opsAlertAt: new Date() } }).catch(() => {});
+}
+
+/**
+ * Pagamento aprovado num pedido que já estava cancelado (ex.: Pix pago depois do cancelamento).
+ * Estorna automaticamente quando o gateway permite; senão, alerta para estorno manual.
+ */
+export async function refundPaidAfterCancel(
+  order: { id: string; orderNumber: string; refundedAt: Date | null },
+  gateway: "mercadopago" | "nupay" | "infinitypay",
+  paymentId: string,
+  amount: number
+) {
+  if (order.refundedAt) return; // já estornado (aviso antigo reenviado pelo gateway)
+  try {
+    if (gateway === "mercadopago") await refundMercadoPago(paymentId);
+    else if (gateway === "nupay") await refundNuPay(paymentId, amount);
+    else throw new Error("gateway sem estorno por API");
+    await prisma.order.update({ where: { id: order.id }, data: { refundedAt: new Date() } });
+    await flagOrderIssue(order.id, `Pagamento de R$ ${amount.toFixed(2)} aprovado DEPOIS do cancelamento — estornado automaticamente ao cliente. Confira no gateway.`);
+  } catch (e) {
+    await flagOrderIssue(order.id, `Pagamento de R$ ${amount.toFixed(2)} aprovado DEPOIS do cancelamento e o estorno automático não foi possível (${e instanceof Error ? e.message : e}). Estorne pelo painel do gateway.`);
+  }
+}
+
+export const SHIPPED_STATUSES = ["SHIPPED", "DELIVERED", "RETIRADO"];
+
+/**
+ * O gateway avisou estorno/contestação num pedido que já saiu da loja.
+ * O status do pedido NÃO muda (a peça está com o cliente; devolução segue pelo fluxo de Devoluções).
+ * Se o valor estornado não é explicado pelas devoluções aprovadas da loja, alerta o dono (estorno feito
+ * fora do sistema ou chargeback).
+ */
+export async function handleRefundAfterShipping(
+  order: { id: string; status: string },
+  gatewayLabel: string,
+  kind: "refund" | "chargeback",
+  refundedAmount: number | null
+) {
+  if (kind === "refund") {
+    const returns = await prisma.return.aggregate({
+      where: { orderId: order.id, status: "APPROVED", refundedAt: { not: null } },
+      _sum: { refundAmount: true },
+    });
+    const byReturns = returns._sum.refundAmount || 0;
+    if (byReturns > 0 && (refundedAmount == null || refundedAmount <= byReturns + 0.01)) return; // estorno das devoluções da própria loja
+  }
+  const what = kind === "chargeback" ? "uma CONTESTAÇÃO (chargeback)" : `um estorno${refundedAmount != null ? ` de R$ ${refundedAmount.toFixed(2)}` : ""} que não veio de uma devolução aprovada`;
+  await flagOrderIssue(
+    order.id,
+    `${gatewayLabel} registrou ${what} com o pedido já ${order.status === "DELIVERED" ? "entregue" : order.status === "RETIRADO" ? "retirado" : "enviado"}. O pedido e o estoque não foram alterados — confira no ${gatewayLabel}.`
+  );
 }

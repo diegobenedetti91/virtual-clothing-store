@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getCustomerFromRequest } from "@/lib/customerAuth";
 import { prisma } from "@/lib/prisma";
-import { refundPayment } from "@/lib/refundUtils";
-import { releaseOrderStock } from "@/lib/stockUtils";
+import { cancelOrder } from "@/lib/cancelOrder";
 import { sendOrderStatusEmail } from "@/lib/email";
 
 export async function POST(req: NextRequest) {
@@ -24,87 +23,32 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Pedido não encontrado" }, { status: 404 });
     }
 
-    // Verificar se há devoluções em andamento ou aprovadas (o cancelamento estornaria o pedido inteiro)
-    const approvedReturns = await prisma.return.findMany({
-      where: { orderId: order.id, status: { in: ["PENDING", "AWAITING_RETURN", "APPROVED"] } },
-    });
-
-    if (approvedReturns.length > 0) {
-      return NextResponse.json(
-        {
-          error: "Pedido com devolução em andamento ou aprovada não pode ser cancelado. Resolva a devolução primeiro.",
-          hasApprovedReturns: true
-        },
-        { status: 400 }
-      );
-    }
-
     // Verify authorization (admin via NextAuth session or customer owner)
-    const isAdmin = !!session?.user?.email; // NextAuth session = admin
-    // Cliente da loja entra por cookie próprio (não pelo NextAuth do admin)
+    const isAdmin = !!session?.user?.email;
     const customer = getCustomerFromRequest(req);
     const isOwner =
       !!customer &&
       (order.customerId === customer.id ||
         (!!order.customerEmail && order.customerEmail.toLowerCase() === customer.email.toLowerCase()));
-
     if (!isAdmin && !isOwner) {
       return NextResponse.json({ error: "Não autorizado" }, { status: 403 });
     }
 
-    // Customer can only cancel CONFIRMED orders
-    if (!isAdmin && order.status !== "CONFIRMED") {
-      return NextResponse.json(
-        { error: "Pedido não pode ser cancelado neste status. Entre em contato com a loja." },
-        { status: 400 }
-      );
-    }
-
-    // Admin can cancel most statuses except DELIVERED
-    if (isAdmin && order.status === "DELIVERED") {
-      return NextResponse.json(
-        { error: "Pedidos entregues não podem ser cancelados" },
-        { status: 400 }
-      );
-    }
-
-    // Refund payment if order was confirmed
-    let refundMessage = "";
-    if (order.status === "CONFIRMED" && order.paymentGateway && order.paymentId) {
-      const refundResult = await refundPayment(orderNumber);
-      if (refundResult.success) {
-        refundMessage = ` Reembolso de R$ ${order.total.toFixed(2)} será processado em breve.`;
-      } else if (refundResult.manual) {
-        refundMessage = ` ${refundResult.message}`;
-      } else {
-        console.error("[CANCEL] Refund failed:", refundResult.message);
-        refundMessage = ` Erro ao processar reembolso: ${refundResult.message}`;
-      }
-    }
-
-    // Determine cancel reason
-    let cancelReason = reason || null;
-    if (!isAdmin && !cancelReason) {
-      cancelReason = "Cancelado pelo cliente";
-    }
-
-    // Give back stock if it was taken (idempotent: refundPayment may already have done it)
-    await releaseOrderStock(order.id).catch(console.error);
-
-    // Update order status
-    console.log("[CANCEL] Updating order status to CANCELLED:", { orderNumber, currentStatus: order.status });
-    const updatedOrder = await prisma.order.update({
-      where: { orderNumber },
-      data: {
-        status: "CANCELLED",
-        cancelReason,
-      },
-      include: { items: { include: { product: true } } },
-    });
-    console.log("[CANCEL] Order updated successfully:", { orderNumber, newStatus: updatedOrder.status });
+    // Estorna primeiro; se falhar, não cancela (regras em lib/cancelOrder)
+    const result = await cancelOrder(order.id, { reason: reason || null, by: isAdmin ? "admin" : "customer" });
+    if (!result.ok) return NextResponse.json({ error: result.message }, { status: result.status });
+    const updatedOrder = await prisma.order.findUnique({ where: { id: order.id }, include: { items: { include: { product: true } } } });
+    // Mensagem do dono (instruções de estorno) não vai para o cliente
+    const refundMessage = isAdmin
+      ? result.message.replace(/^Pedido cancelado\./, "")
+      : order.status === "CONFIRMED"
+        ? result.manualRefund
+          ? " A loja vai fazer o estorno do valor pago e te avisar."
+          : " O estorno foi solicitado e aparece na sua fatura/conta conforme o prazo do meio de pagamento."
+        : "";
 
     // Send notification email to customer
-    if (order.customerEmail) {
+    if (order.customerEmail && !result.already) {
       const settings = await prisma.companySettings.findFirst({
         orderBy: { updatedAt: "desc" },
       });
@@ -123,7 +67,8 @@ export async function POST(req: NextRequest) {
       {
         success: true,
         message: `Pedido cancelado com sucesso.${refundMessage}`,
-        order: updatedOrder,
+        manualRefund: isAdmin ? (result.manualRefund ?? false) : false,
+        order: isAdmin || !updatedOrder ? updatedOrder : (({ opsAlert: _a, opsAlertAt: _b, ...o }) => o)(updatedOrder),
       },
       { status: 200 }
     );

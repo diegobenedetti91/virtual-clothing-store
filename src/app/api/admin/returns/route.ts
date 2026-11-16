@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
+import { computeReturnRefund } from "@/lib/returnRefund";
 
 export async function GET(req: NextRequest) {
   try {
@@ -20,7 +21,17 @@ export async function GET(req: NextRequest) {
       orderBy: { createdAt: "desc" },
     });
 
-    return NextResponse.json(returns);
+    // Devoluções em aberto: valor recalculado com a regra atual (rateio de cupom/Pix/crédito),
+    // o mesmo que será estornado na aprovação
+    const withPreview = await Promise.all(
+      returns.map(async (r) => {
+        if (r.status !== "PENDING" && r.status !== "AWAITING_RETURN") return r;
+        const split = await computeReturnRefund(r.orderId, r.returnedItems, r.id).catch(() => null);
+        return split ? { ...r, refundAmount: split.money, refundCredit: split.credit } : r;
+      })
+    );
+
+    return NextResponse.json(withPreview);
   } catch (error) {
     console.error("[admin/returns] GET error:", error);
     return NextResponse.json({ error: "Erro ao buscar devoluções" }, { status: 500 });

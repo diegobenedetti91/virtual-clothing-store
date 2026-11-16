@@ -2,7 +2,8 @@ import { prisma } from "@/lib/prisma";
 import OrdersManager from "@/components/admin/OrdersManager";
 import { Order, CompanySettings } from "@/types";
 
-export default async function AdminOrdersPage() {
+export default async function AdminOrdersPage({ searchParams }: { searchParams: Promise<{ filtro?: string }> }) {
+  const { filtro } = await searchParams;
   try {
     const [orders, settings] = await Promise.all([
       prisma.order.findMany({
@@ -25,6 +26,7 @@ export default async function AdminOrdersPage() {
         <OrdersManager
           initialOrders={orders as unknown as Order[]}
           blingEnabled={settings?.blingAtivo ?? false}
+          initialFilter={filtro === "ocorrencias" ? "ALERTS" : ""}
         />
       </div>
     );

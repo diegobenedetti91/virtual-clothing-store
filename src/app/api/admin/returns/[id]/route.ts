@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { sendReturnDecisionEmail, sendReturnLabelEmail } from "@/lib/email";
 import { refundPartialPayment } from "@/lib/refundUtils";
+import { computeReturnRefund } from "@/lib/returnRefund";
 import { restoreOrderStock } from "@/lib/stockUtils";
 import { getCarrierTracking } from "@/lib/carrierTracking";
 
@@ -80,6 +81,8 @@ export async function PATCH(
     if (body.action === "SEND_TRACKING") {
       return sendTrackingCode(returnData, body.trackingCode, storeName);
     }
+    if (body.action === "RETRY_REFUND") return retryRefund(id);
+    if (body.action === "MARK_REFUNDED") return markRefunded(id);
 
     const { status, adminNotes, images } = body;
 
@@ -100,13 +103,10 @@ export async function PATCH(
 
     const returnedItems = parseReturnedItems(returnData.returnedItems);
 
-    // Recalcula pelo preço pago no pedido, ignorando o valor gravado na solicitação
-    const refundAmount = Math.round(
-      returnedItems.reduce((sum, ri) => {
-        const orderItem = returnData.order.items.find((oi) => oi.id === ri.itemId);
-        return sum + (orderItem ? orderItem.price * ri.quantity : 0);
-      }, 0) * 100
-    ) / 100;
+    // Pelo que o cliente pagou pelas peças (cupom, Pix e crédito rateados), descontando devoluções anteriores
+    const split = await computeReturnRefund(returnData.order.id, returnedItems, id);
+    const refundAmount = split.money;
+    const refundCredit = split.credit;
 
     // Transição condicional ao status atual: um duplo clique não aprova (nem estorna) duas vezes
     const claimed = await prisma.return.updateMany({
@@ -116,7 +116,7 @@ export async function PATCH(
         adminNotes: adminNotes || null,
         images: images && images.length > 0 ? JSON.stringify(images) : null,
         responseDate: new Date(),
-        ...(status === "APPROVED" && { refundAmount }),
+        ...(status === "APPROVED" && { refundAmount, refundCredit, refundError: null }),
       },
     });
 
@@ -124,7 +124,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Esta devolução já foi processada" }, { status: 409 });
     }
 
-    let refund: { success: boolean; message: string } | null = null;
+    let refund: { success: boolean; message: string; pending?: boolean } | null = null;
 
     // Se aprovar, restaurar estoque e fazer estorno de pagamento
     if (status === "APPROVED") {
@@ -143,43 +143,24 @@ export async function PATCH(
         .filter((item): item is NonNullable<typeof item> => item !== null);
 
       if (itemsToRestore.length > 0) {
-        await restoreOrderStock(itemsToRestore).catch(console.error);
+        await restoreOrderStock(itemsToRestore)
+          .then(async (warnings) => {
+            if (warnings.length) await flagOrder(returnData.order.id, `Devolução aprovada, mas parte do estoque não foi reposta — ajuste à mão: ${warnings.join("; ")}`);
+          })
+          .catch(async (e) => {
+          console.error("[admin/returns] Falha ao repor estoque:", e);
+          await flagOrder(returnData.order.id, `Devolução aprovada, mas o estoque NÃO foi reposto automaticamente (${returnedItems.length} item/itens). Ajuste o estoque à mão.`);
+        });
       }
 
-      const gateway = returnData.order.paymentGateway;
-      if (refundAmount > 0 && (gateway === "mercadopago" || gateway === "nupay")) {
-        refund = await refundPartialPayment(returnData.order.orderNumber, refundAmount);
-
-        if (refund.success) {
-          await prisma.return.update({
-            where: { id },
-            data: { refundedAt: new Date() },
-          }).catch(console.error);
-        } else {
-          console.warn("[admin/returns] Refund failed:", refund.message);
-        }
-      } else if (refundAmount > 0 && gateway === "infinitypay") {
-        // InfinityPay has no refund API: same treatment as WhatsApp orders (manual refund)
-        await prisma.return.update({
-          where: { id },
-          data: { refundedAt: new Date() },
-        }).catch(console.error);
-        refund = {
-          success: true,
-          message: `Estorno automático indisponível para InfinityPay: faça o estorno de R$ ${refundAmount.toFixed(2)} pelo painel da InfinityPay.`,
-        };
-      } else if (refundAmount > 0 && (!gateway || gateway === "whatsapp")) {
-        // Para WhatsApp ou sem gateway, apenas marcar como refundado (refund é manual)
-        await prisma.return.update({
-          where: { id },
-          data: { refundedAt: new Date() },
-        }).catch(console.error);
-        refund = {
-          success: true,
-          message: `Pedido sem gateway de pagamento: faça o estorno de R$ ${refundAmount.toFixed(2)} manualmente ao cliente.`,
-        };
+      // Parte paga com crédito de cashback volta como crédito na conta
+      if (refundCredit > 0 && returnData.order.customerId) {
+        await prisma.creditAdjustment
+          .create({ data: { customerId: returnData.order.customerId, amount: refundCredit, reason: `Devolução do pedido ${returnData.order.orderNumber} (crédito usado na compra)`, createdBy: "sistema" } })
+          .catch((e) => console.error("[admin/returns] Falha ao devolver crédito:", e));
       }
 
+      refund = await doRefund(id, returnData.order, refundAmount);
       // Calcular returnStatus baseado em devoluções aprovadas
       const allReturns = await prisma.return.findMany({
         where: { orderId: returnData.order.id, status: "APPROVED" },
@@ -222,6 +203,59 @@ export async function PATCH(
     console.error("[admin/returns/[id]] PATCH error:", error);
     return NextResponse.json({ error: "Erro ao atualizar devolução" }, { status: 500 });
   }
+}
+
+const MANUAL_PREFIX = "Estorno manual:";
+
+async function flagOrder(orderId: string, msg: string) {
+  await prisma.order.update({ where: { id: orderId }, data: { opsAlert: msg.slice(0, 2000), opsAlertAt: new Date() } }).catch(() => {});
+}
+
+/** Estorna o dinheiro da devolução. Falha ou gateway sem API → fica "estorno pendente", visível no admin. */
+async function doRefund(
+  returnId: string,
+  order: { id: string; orderNumber: string; paymentGateway: string | null },
+  amount: number
+): Promise<{ success: boolean; message: string; pending?: boolean }> {
+  if (amount <= 0) {
+    await prisma.return.update({ where: { id: returnId }, data: { refundedAt: new Date(), refundError: null } }).catch(() => {});
+    return { success: true, message: "Sem valor em dinheiro a estornar." };
+  }
+  const gateway = order.paymentGateway;
+  if (gateway === "mercadopago" || gateway === "nupay") {
+    const r = await refundPartialPayment(order.orderNumber, amount);
+    if (r.success) {
+      await prisma.return.update({ where: { id: returnId }, data: { refundedAt: new Date(), refundError: null } });
+      return { success: true, message: r.message };
+    }
+    await prisma.return.update({ where: { id: returnId }, data: { refundError: r.message.slice(0, 1000) } });
+    await flagOrder(order.id, `Estorno de devolução FALHOU (R$ ${amount.toFixed(2)}): ${r.message}. Use "Tentar estorno de novo" em Devoluções.`);
+    return { success: false, pending: true, message: r.message };
+  }
+  // Infinity Pay (sem API de estorno), WhatsApp ou sem gateway: o dono faz o estorno e confirma aqui
+  const where = gateway === "infinitypay" ? "pelo painel da InfinityPay" : "diretamente ao cliente (Pix/transferência)";
+  const msg = `${MANUAL_PREFIX} faça o estorno de R$ ${amount.toFixed(2)} ${where} e depois clique em "Marcar como estornado".`;
+  await prisma.return.update({ where: { id: returnId }, data: { refundError: msg } });
+  return { success: true, pending: true, message: msg };
+}
+
+async function retryRefund(id: string) {
+  const r = await prisma.return.findUnique({ where: { id }, include: { order: { select: { id: true, orderNumber: true, paymentGateway: true } } } });
+  if (!r || r.status !== "APPROVED") return NextResponse.json({ error: "Só devoluções aprovadas" }, { status: 400 });
+  if (r.refundedAt) return NextResponse.json({ error: "Esta devolução já foi estornada" }, { status: 409 });
+  // Evita dois cliques simultâneos estornarem duas vezes
+  const claim = await prisma.return.updateMany({ where: { id, refundedAt: null, OR: [{ refundError: null }, { refundError: { not: "processando" } }] }, data: { refundError: "processando" } });
+  if (claim.count === 0) return NextResponse.json({ error: "Estorno já em andamento" }, { status: 409 });
+  const refund = await doRefund(id, r.order, r.refundAmount);
+  const updated = await prisma.return.findUnique({ where: { id } });
+  return NextResponse.json({ ...updated, refund });
+}
+
+async function markRefunded(id: string) {
+  const res = await prisma.return.updateMany({ where: { id, status: "APPROVED", refundedAt: null }, data: { refundedAt: new Date(), refundError: null } });
+  if (res.count === 0) return NextResponse.json({ error: "Nada a marcar" }, { status: 409 });
+  const updated = await prisma.return.findUnique({ where: { id } });
+  return NextResponse.json({ ...updated, refund: { success: true, message: "Estorno marcado como feito" } });
 }
 
 async function sendTrackingCode(

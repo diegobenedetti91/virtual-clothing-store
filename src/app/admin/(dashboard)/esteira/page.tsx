@@ -1,5 +1,7 @@
 "use client";
 
+import { notify } from "@/lib/notify";
+
 import { useEffect, useMemo, useRef, useState } from "react";
 import OptimizedImg from "@/components/OptimizedImg";
 import Link from "next/link";
@@ -40,7 +42,7 @@ interface Order {
 const TRANSITIONS: Record<Status, Status[]> = {
   PENDING: ["CONFIRMED", "CANCELLED"],
   CONFIRMED: ["SHIPPED", "PRONTO_PARA_RETIRADA", "CANCELLED"],
-  SHIPPED: ["DELIVERED", "CANCELLED"],
+  SHIPPED: ["DELIVERED"],
   PRONTO_PARA_RETIRADA: ["RETIRADO", "CANCELLED"],
   RETIRADO: [],
   DELIVERED: [],
@@ -220,7 +222,8 @@ export default function EsteiraPage() {
           ? prev.filter((o) => o.id !== order.id)
           : prev.map((o) => (o.id === order.id ? { ...o, status: to, updatedAt: new Date().toISOString(), trackingCode: extra.trackingCode ?? o.trackingCode } : o))
       );
-      showToast(true, `${order.orderNumber}: ${LABEL[to].toLowerCase()}${to === "SHIPPED" || to === "CANCELLED" ? " · cliente avisado por e-mail" : ""}`);
+      if (to === "CANCELLED" && data.manualRefund) notify.warning(`${order.orderNumber} cancelado — estorno manual pendente`, { description: data.message, duration: 15000 });
+      else showToast(true, `${order.orderNumber}: ${LABEL[to].toLowerCase()}${to === "SHIPPED" || to === "CANCELLED" ? " · cliente avisado por e-mail" : ""}`);
     } catch (e) {
       showToast(false, e instanceof Error ? e.message : "Erro ao atualizar");
     } finally {

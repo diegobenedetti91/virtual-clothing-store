@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { confirmDialog } from "@/lib/notify";
+import { confirmDialog, notify } from "@/lib/notify";
 import OptimizedImg from "@/components/OptimizedImg";
 import { Package, Check, X, Upload, Truck, Send, ExternalLink, ArrowRight, Clock, Inbox, CheckCircle2, XCircle } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
@@ -18,8 +18,13 @@ interface Return {
   adminNotes?: string;
   images?: string;
   returnedItems?: Array<{ itemId: string; quantity: number }>;
+  /** Estorno em dinheiro (já rateado: cupom, Pix e crédito descontados) */
   refundAmount: number;
+  /** Parte paga com crédito de cashback, que volta como crédito */
+  refundCredit?: number;
   refundedAt?: string | null;
+  /** Estorno pendente: motivo (falha no gateway ou estorno manual) */
+  refundError?: string | null;
   trackingCode?: string | null;
   labelSentAt?: string | null;
   order: {
@@ -142,7 +147,7 @@ export default function DevolucoesPage() {
       setError(status === "APPROVED" ? "Descreva a análise do produto antes de aprovar" : "Informe o motivo da recusa");
       return;
     }
-    if (status === "APPROVED" && !(await confirmDialog({ title: "Aprovar a devolução?", message: `Será feito o estorno de ${formatCurrency(refundOf(selectedReturn))} e os itens voltarão ao estoque.`, confirmText: "Aprovar e estornar" }))) {
+    if (status === "APPROVED" && !(await confirmDialog({ title: "Aprovar a devolução?", message: `Será feito o estorno de ${formatCurrency(selectedReturn.refundAmount)}${(selectedReturn.refundCredit || 0) > 0 ? ` + ${formatCurrency(selectedReturn.refundCredit || 0)} em crédito na conta` : ""} e os itens voltarão ao estoque.`, confirmText: "Aprovar e estornar" }))) {
       return;
     }
 
@@ -177,9 +182,11 @@ export default function DevolucoesPage() {
 
       if (status === "APPROVED") {
         setNotice(
-          data.refund
-            ? { ok: data.refund.success, message: data.refund.success ? data.refund.message : `Devolução aprovada, mas o estorno FALHOU: ${data.refund.message}. Faça o estorno manualmente no gateway.` }
-            : { ok: true, message: "Devolução aprovada e itens devolvidos ao estoque." }
+          !data.refund
+            ? { ok: true, message: "Devolução aprovada e itens devolvidos ao estoque." }
+            : data.refund.pending
+              ? { ok: false, message: `Devolução aprovada. Estorno PENDENTE: ${data.refund.message}` }
+              : { ok: data.refund.success, message: data.refund.message }
         );
       } else {
         setNotice({ ok: true, message: "Devolução recusada. O cliente foi avisado por email." });
@@ -195,14 +202,44 @@ export default function DevolucoesPage() {
     }
   };
 
+  const refundAction = async (action: "RETRY_REFUND" | "MARK_REFUNDED") => {
+    if (!selectedReturn) return;
+    if (
+      action === "MARK_REFUNDED" &&
+      !(await confirmDialog({
+        title: "Marcar como estornado?",
+        message: `Confirme que você já devolveu ${formatCurrency(selectedReturn.refundAmount)} ao cliente pelo gateway ou Pix. O sistema não fará nenhum estorno.`,
+        confirmText: "Sim, já estornei",
+      }))
+    )
+      return;
+    setProcessingId(selectedReturn.id);
+    try {
+      const res = await fetch(`/api/admin/returns/${selectedReturn.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        notify.error("Não foi possível concluir", { description: data.error });
+        return;
+      }
+      if (data.refund?.success && !data.refund?.pending) notify.success("Estorno concluído", { description: data.refund.message });
+      else notify.warning("Estorno ainda pendente", { description: data.refund?.message, duration: 12000 });
+      setSelectedReturn({ ...selectedReturn, ...data });
+      fetchReturns();
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
   const returnedLines = (ret: Return) =>
     (ret.returnedItems || []).map((ri) => {
       const item = ret.order.items.find((i) => i.id === ri.itemId);
       return { ...ri, item };
     });
 
-  const refundOf = (ret: Return) =>
-    returnedLines(ret).reduce((sum, line) => sum + (line.item ? line.item.price * line.quantity : 0), 0);
 
   const statusBadge = (status: string) => {
     const styles: Record<string, [string, string]> = {
@@ -335,7 +372,10 @@ export default function DevolucoesPage() {
                   </div>
                   <div className="text-right shrink-0">
                     {statusBadge(ret.status)}
-                    <p className="text-sm font-semibold text-gray-900 mt-1 tabular-nums">{formatCurrency(ret.status === "APPROVED" ? ret.refundAmount : refundOf(ret))}</p>
+                    <p className="text-sm font-semibold text-gray-900 mt-1 tabular-nums">{formatCurrency(ret.refundAmount)}</p>
+                    {ret.status === "APPROVED" && !ret.refundedAt && ret.refundAmount > 0 && (
+                      <p className="text-[11px] font-semibold text-red-600">estorno pendente</p>
+                    )}
                   </div>
                 </div>
 
@@ -431,7 +471,7 @@ export default function DevolucoesPage() {
                       Valor a estornar{selectedReturn.status === "APPROVED" && (selectedReturn.refundedAt ? " · estornado" : " · estorno pendente")}
                     </span>
                     <span className="text-base font-bold text-gray-900">
-                      {formatCurrency(selectedReturn.status === "APPROVED" ? selectedReturn.refundAmount : refundOf(selectedReturn))}
+                      {formatCurrency(selectedReturn.refundAmount)}
                     </span>
                   </div>
                 </div>
@@ -484,6 +524,31 @@ export default function DevolucoesPage() {
                     )}
                   </div>
                 </section>
+              )}
+
+              {selectedReturn.status === "APPROVED" && !selectedReturn.refundedAt && selectedReturn.refundAmount > 0 && (
+                <section className="rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+                  <p className="text-sm font-semibold text-red-900">Estorno de {formatCurrency(selectedReturn.refundAmount)} ainda não foi feito</p>
+                  {selectedReturn.refundError && selectedReturn.refundError !== "processando" && (
+                    <p className="text-sm text-red-800 mt-1 whitespace-pre-line">{selectedReturn.refundError}</p>
+                  )}
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    {selectedReturn.refundError?.startsWith("Estorno manual") ? null : (
+                      <Button variant="primary" size="sm" icon={ArrowRight} onClick={() => refundAction("RETRY_REFUND")} loading={processingId === selectedReturn.id}>
+                        Tentar estorno de novo
+                      </Button>
+                    )}
+                    <Button size="sm" icon={Check} onClick={() => refundAction("MARK_REFUNDED")} disabled={processingId === selectedReturn.id}>
+                      Já estornei — marcar como estornado
+                    </Button>
+                  </div>
+                </section>
+              )}
+
+              {(selectedReturn.refundCredit || 0) > 0 && (
+                <p className="text-xs text-gray-500 -mt-2">
+                  + {formatCurrency(selectedReturn.refundCredit || 0)} {selectedReturn.status === "APPROVED" ? "devolvidos" : "a devolver"} como crédito na conta do cliente (parte paga com cashback).
+                </p>
               )}
 
               {(selectedReturn.status === "APPROVED" || selectedReturn.status === "REJECTED") && (
