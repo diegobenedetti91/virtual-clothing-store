@@ -1,4 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
+import { checkGatewayPayment } from "@/lib/expirePendingOrders";
+import { flagOrderIssue } from "@/lib/refundUtils";
+import { integrarPedidoBling } from "@/lib/blingService";
 import { prisma } from "@/lib/prisma";
 import { sendOrderStatusEmail, sendShippingEmail } from "@/lib/email";
 import { commitOrderStock } from "@/lib/stockUtils";
@@ -39,6 +42,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const { id } = await params;
   const body = await req.json();
   const { status, cancelReason, trackingCode, shippingProof } = body;
+  const force = body.force === true;
 
   // Dono resolveu a ocorrência do pedido (estorno manual feito, estoque ajustado…)
   if (body.resolveAlert === true) {
@@ -59,7 +63,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const current = await prisma.order.findUnique({
     where: { id },
-    select: { status: true, items: { select: { productId: true, quantity: true, size: true, color: true, selectedAttributes: true } } },
+    select: { status: true, orderNumber: true, paymentGateway: true, paymentMethod: true, paymentId: true, items: { select: { productId: true, quantity: true, size: true, color: true, selectedAttributes: true } } },
   });
 
   const ALLOWED_TRANSITIONS: Record<string, string[]> = {
@@ -97,6 +101,26 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ ...cancelled, message: result.message, manualRefund: result.manualRefund ?? false });
   }
 
+  // Confirmar pagamento à mão de pedido de gateway: confere no gateway antes (evita liberar envio sem pagamento)
+  if (status === "CONFIRMED" && current.status === "PENDING" && !force) {
+    const verdict = await checkGatewayPayment(current);
+    if (verdict.kind === "paid") {
+      // Pago (o aviso não tinha chegado): confirma pelo fluxo completo do webhook
+      await verdict.process();
+      const done = await prisma.order.findUnique({ where: { id }, include: { items: { include: { product: true } }, customer: true } });
+      if (done?.status === "CONFIRMED") return NextResponse.json({ ...done, message: "Pagamento encontrado no gateway: pedido confirmado." });
+    } else if (verdict.kind !== "unsupported") {
+      const gw = current.paymentGateway === "nupay" || current.paymentMethod === "NuPay" ? "NuPay" : "Mercado Pago";
+      const msg =
+        verdict.kind === "wait"
+          ? `O pagamento ainda está em análise no ${gw} (boleto/Pix não compensado). Aguarde a confirmação automática.`
+          : verdict.kind === "unpaid"
+            ? `O ${gw} não mostra pagamento aprovado para este pedido. Só confirme se o cliente pagou por fora (ex.: Pix direto para a loja).`
+            : `Não foi possível consultar o ${gw} agora. Só confirme se você tem certeza de que o cliente pagou.`;
+      return NextResponse.json({ error: msg, canForce: true }, { status: 409 });
+    }
+  }
+
   const updateData: Record<string, unknown> = { status };
   // Início do prazo de devolução (7 dias a partir do recebimento)
   if (status === "DELIVERED" || status === "RETIRADO") updateData.deliveredAt = new Date();
@@ -104,15 +128,24 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (trackingCode !== undefined) updateData.trackingCode = trackingCode;
   if (shippingProof !== undefined) updateData.shippingProof = shippingProof;
 
-  const order = await prisma.order.update({
+  // Condicional ao status lido: duplo clique / duas abas não aplicam (nem mandam e-mail) duas vezes
+  const claimed = await prisma.order.updateMany({ where: { id, status: current.status }, data: updateData });
+  if (claimed.count === 0) return NextResponse.json({ error: "O pedido mudou de situação. Atualize a página." }, { status: 409 });
+  const order = (await prisma.order.findUnique({
     where: { id },
-    data: updateData,
     include: { items: { include: { product: true } }, customer: true },
-  });
+  }))!;
 
-  // Admin confirming an order paid outside the gateways (e.g. WhatsApp): take stock now
+  // Pagamento confirmado à mão (WhatsApp / pago por fora): baixa o estoque e envia ao Bling
   if (status === "CONFIRMED") {
-    await commitOrderStock(id).catch(console.error);
+    await commitOrderStock(id).catch(async (e) => {
+      console.error(e);
+      await flagOrderIssue(id, "Pagamento confirmado, mas a baixa de estoque FALHOU. Ajuste o estoque à mão para não vender peça que não existe.");
+    });
+    const bling = await prisma.companySettings.findFirst({ orderBy: { updatedAt: "desc" }, select: { blingAtivo: true } });
+    if (bling?.blingAtivo && !order.blingPedidoId) {
+      after(() => integrarPedidoBling(id).then((r) => { if (!r.success) console.error("[orders PATCH] Bling:", r.error); }).catch(console.error));
+    }
   }
 
   const emailTarget = order.customer?.email || order.customerEmail;

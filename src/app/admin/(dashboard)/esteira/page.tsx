@@ -1,6 +1,6 @@
 "use client";
 
-import { notify } from "@/lib/notify";
+import { notify, confirmDialog } from "@/lib/notify";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import OptimizedImg from "@/components/OptimizedImg";
@@ -205,7 +205,7 @@ export default function EsteiraPage() {
   }, [orders, q, onlyAttention, blingEnabled, now]);
 
   /** Executa a mudança de status (com dados extras do modal, se houver). */
-  const run = async (order: Order, to: Status, extra: { trackingCode?: string; reason?: string } = {}) => {
+  const run = async (order: Order, to: Status, extra: { trackingCode?: string; reason?: string; force?: boolean } = {}): Promise<void> => {
     setBusy(order.id);
     try {
       const res = to === "CANCELLED"
@@ -213,9 +213,15 @@ export default function EsteiraPage() {
         : await fetch(`/api/orders/${order.id}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ status: to, ...(extra.trackingCode !== undefined ? { trackingCode: extra.trackingCode || undefined } : {}) }),
+            body: JSON.stringify({ status: to, ...(extra.force ? { force: true } : {}), ...(extra.trackingCode !== undefined ? { trackingCode: extra.trackingCode || undefined } : {}) }),
           });
       const data = await res.json().catch(() => ({}));
+      if (!res.ok && data.canForce && !extra.force) {
+        const ok = await confirmDialog({ title: "Pagamento não encontrado", message: `${data.error}\n\nConfirmar o pagamento mesmo assim?`, confirmText: "Confirmar mesmo assim", tone: "danger" });
+        setBusy(null);
+        if (ok) return run(order, to, { ...extra, force: true });
+        return;
+      }
       if (!res.ok) throw new Error(data.error || "Não foi possível atualizar o pedido");
       setOrders((prev) =>
         to === "CANCELLED"

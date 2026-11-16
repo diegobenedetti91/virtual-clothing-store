@@ -28,7 +28,7 @@ const HOUR = 60 * 60 * 1000;
 const GATEWAY_METHODS = ["Mercado Pago", MP_TRANSPARENT_LABEL, "Infinity Pay", "NuPay"];
 export const EXPIRED_REASON = `Pagamento não realizado em ${PENDING_EXPIRY_HOURS}h (expirado automaticamente)`;
 
-type Verdict = { kind: "paid"; process: () => Promise<unknown> } | { kind: "wait" } | { kind: "unpaid" } | { kind: "unknown" };
+export type Verdict = { kind: "paid"; process: () => Promise<unknown> } | { kind: "wait" } | { kind: "unpaid" } | { kind: "unknown" } | { kind: "unsupported" };
 
 const internalRequest = (body: unknown) =>
   new NextRequest("http://internal/expire-pending", { method: "POST", body: JSON.stringify(body), headers: { "Content-Type": "application/json" } });
@@ -60,6 +60,16 @@ async function checkNuPay(paymentId: string | null): Promise<Verdict> {
   return { kind: "unpaid" };
 }
 
+/**
+ * Situação do pagamento no gateway. "paid" traz `process`, que confirma o pedido pelo webhook
+ * (baixa de estoque, Bling, etiqueta, e-mails). InfinityPay/WhatsApp: "unsupported" (sem consulta).
+ */
+export async function checkGatewayPayment(o: { orderNumber: string; paymentGateway: string | null; paymentMethod: string | null; paymentId: string | null }): Promise<Verdict> {
+  if (o.paymentGateway === "nupay" || o.paymentMethod === "NuPay") return checkNuPay(o.paymentId);
+  if (o.paymentGateway === "mercadopago" || o.paymentMethod === "Mercado Pago" || o.paymentMethod === MP_TRANSPARENT_LABEL) return checkMercadoPago(o.orderNumber);
+  return { kind: "unsupported" };
+}
+
 export interface ExpireResult {
   checked: number;
   cancelled: string[];
@@ -84,11 +94,10 @@ export async function expirePendingOrders(): Promise<ExpireResult> {
   const result: ExpireResult = { checked: orders.length, cancelled: [], confirmed: [], waiting: [], skipped: [] };
 
   for (const o of orders) {
-    const isNuPay = o.paymentGateway === "nupay" || o.paymentMethod === "NuPay";
-    const isInfinity = o.paymentGateway === "infinitypay" || o.paymentMethod === "Infinity Pay";
     // InfinityPay: o link não pode ser consultado sem os dados da transação (só chegam no aviso de pago).
     // Se o cliente pagar depois de expirado, o webhook confere na InfinityPay e alerta o estorno.
-    const verdict: Verdict = isInfinity ? { kind: "unpaid" } : isNuPay ? await checkNuPay(o.paymentId) : await checkMercadoPago(o.orderNumber);
+    const checked = await checkGatewayPayment(o);
+    const verdict: Verdict = checked.kind === "unsupported" ? { kind: "unpaid" } : checked;
 
     if (verdict.kind === "paid") {
       await verdict.process().catch((e) => console.error("[expire-pending] processar pago", o.orderNumber, e));

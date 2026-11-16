@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useRef } from "react";
-import { notify } from "@/lib/notify";
+import { notify, confirmDialog } from "@/lib/notify";
 import OptimizedImg from "@/components/OptimizedImg";
 import { Order } from "@/types";
 import { formatCurrency, formatDate, ORDER_STATUS } from "@/lib/utils";
@@ -116,11 +116,18 @@ export default function OrdersManager({ initialOrders, blingEnabled = false, ini
       });
       if (!res.ok) {
         const error = await res.json();
+        if (error.canForce && !extra?.force) {
+          // Gateway não mostra pagamento: confirmar só se o cliente pagou por fora
+          const ok = await confirmDialog({ title: "Pagamento não encontrado", message: `${error.error}\n\nConfirmar o pagamento mesmo assim?`, confirmText: "Confirmar mesmo assim", tone: "danger" });
+          if (ok) { setUpdatingStatus(null); return applyStatusChange(orderId, newStatus, { ...extra, force: true }); }
+          return;
+        }
         notify.error("Não foi possível alterar o status", { description: error.error });
         return;
       }
       const updated = await res.json();
       setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, ...updated } : o)));
+      if (newStatus === "CONFIRMED" && updated.message) notify.success("Pedido confirmado", { description: updated.message });
       if (newStatus === "CANCELLED") {
         if (updated.manualRefund) notify.warning("Pedido cancelado — estorno manual pendente", { description: updated.message, duration: 15000 });
         else notify.success("Pedido cancelado", { description: updated.message, duration: 8000 });

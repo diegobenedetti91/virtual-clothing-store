@@ -161,3 +161,47 @@ export async function releaseOrderStock(orderId: string): Promise<void> {
     throw err;
   }
 }
+
+/**
+ * Confere, antes de criar o pedido, se há estoque para cada peça (somando a mesma variação
+ * pedida em mais de uma linha). Retorna a mensagem para o cliente, ou null se está tudo disponível.
+ * A conferência final (com trava) acontece na baixa, quando o pagamento é confirmado.
+ */
+export function checkStockAvailability(
+  items: OrderItemLike[],
+  products: Map<string, { name: string; stock: number; variantStock: string | null }>
+): string | null {
+  const wanted = new Map<string, { product: { name: string; stock: number; variantStock: string | null }; productId: string; variantIndex: number; label: string; quantity: number }>();
+  for (const item of items) {
+    const product = products.get(item.productId);
+    if (!product) return "Produto indisponível";
+    let raw: unknown[] = [];
+    try { const p = JSON.parse(product.variantStock || "[]"); raw = Array.isArray(p) ? p : []; } catch { raw = []; }
+    const variants = normalizeVariantStock(raw);
+    const selected = parseSelected(item);
+    let variantIndex = -1;
+    let label = "";
+    if (variants.length > 0) {
+      if (!selected) return `Escolha as opções de "${product.name}" antes de finalizar.`;
+      variantIndex = variants.findIndex((v) => matchesSelection(v.attributes, selected));
+      label = Object.values(selected).filter(Boolean).join(" / ");
+      if (variantIndex < 0) return `A opção ${label} de "${product.name}" não está mais disponível. Remova do carrinho e escolha de novo.`;
+    }
+    const key = `${item.productId}#${variantIndex}`;
+    const cur = wanted.get(key) ?? { product, productId: item.productId, variantIndex, label, quantity: 0 };
+    cur.quantity += item.quantity;
+    wanted.set(key, cur);
+  }
+  for (const w of wanted.values()) {
+    let raw: unknown[] = [];
+    try { const p = JSON.parse(w.product.variantStock || "[]"); raw = Array.isArray(p) ? p : []; } catch { raw = []; }
+    const available = w.variantIndex >= 0 ? normalizeVariantStock(raw)[w.variantIndex].stock : w.product.stock;
+    if (available < w.quantity) {
+      const name = `"${w.product.name}"${w.label ? ` (${w.label})` : ""}`;
+      return available <= 0
+        ? `${name} esgotou. Remova do carrinho para continuar.`
+        : `Só ${available === 1 ? "resta 1 unidade" : `restam ${available} unidades`} de ${name}. Ajuste a quantidade no carrinho.`;
+    }
+  }
+  return null;
+}

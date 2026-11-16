@@ -4,6 +4,7 @@ import { getCustomerFromRequest } from "@/lib/customerAuth";
 import { resolveShippingCost } from "@/lib/shippingCalc";
 import { evaluateCoupon, normalizeCouponCode } from "@/lib/coupons";
 import { applyFlashSales } from "@/lib/flashSales";
+import { checkStockAvailability } from "@/lib/stockUtils";
 import { cashbackFor, creditUsable, getCustomerCredit, toCashbackSettings } from "@/lib/cashback";
 
 // Everything that decides how much the customer pays is computed here, on the
@@ -104,6 +105,14 @@ export async function validateCheckout(
   );
   const productMap = new Map(products.map((p) => [p.id, p]));
   if (items.some((i) => !productMap.has(i.productId))) return { error: "Produto indisponível" };
+  // Estoque: não deixa fechar pedido de peça esgotada (ex.: carrinho antigo salvo no navegador)
+  if ((input.mode ?? "order") === "order") {
+    const stockError = checkStockAvailability(
+      items.map((i) => ({ ...i, selectedAttributes: i.selectedAttributes ? JSON.stringify(i.selectedAttributes) : null })),
+      productMap
+    );
+    if (stockError) return { error: stockError };
+  }
 
   const subtotal = round2(items.reduce((sum, i) => sum + productMap.get(i.productId)!.price * i.quantity, 0));
 
