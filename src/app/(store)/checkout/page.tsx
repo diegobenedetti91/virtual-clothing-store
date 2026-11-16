@@ -781,6 +781,17 @@ const handleNuPaySubmit = async () => {
       notify.error("Não foi possível calcular o total", { description: data.error || "Tente de novo em instantes." });
       return;
     }
+    // O cupom ou o cashback mostrados deixaram de valer (ex.: usados em outra aba): avisa e não abre o pagamento
+    if (payload.couponCode && !data.coupon) {
+      notify.warning("O cupom não vale mais", { description: data.couponError || "Remova o cupom para continuar.", duration: 9000 });
+      setQuoteTick((t) => t + 1);
+      return;
+    }
+    if (payload.useCredit && (data.creditDiscount ?? 0) < creditDiscount - 0.01) {
+      notify.warning("Seu saldo de cashback mudou", { description: "Ele foi usado em outro pedido. Confira o novo total e clique em pagar de novo.", duration: 9000 });
+      setQuoteTick((t) => t + 1);
+      return;
+    }
     setTransparentCheckout({ amount: data.total, pixOnly: applyPixDiscount });
   };
 
