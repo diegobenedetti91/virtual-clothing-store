@@ -34,7 +34,8 @@ export async function GET(req: NextRequest) {
 
     if (!token) {
       console.warn("Melhor Envio token not configured");
-      return NextResponse.json({ error: "Not configured", updated: 0 }, { status: 400 });
+      // Loja sem Melhor Envio: o resto da rotina já rodou; não é falha do agendamento
+      return NextResponse.json({ ok: true, tracking: "Melhor Envio não configurado — rastreio não atualizado", updated: 0 });
     }
 
     const orders = await prisma.order.findMany({
