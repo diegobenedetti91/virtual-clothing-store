@@ -1,3 +1,4 @@
+import { undoIfBenefitClash } from "@/lib/orderIntegrity";
 import { mpDate } from "@/lib/mercadoPagoTransparent";
 import { PENDING_EXPIRY_HOURS } from "@/lib/pendingExpiry";
 import { NextRequest, NextResponse } from "next/server";
@@ -15,7 +16,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Dados incompletos" }, { status: 400 });
   }
 
-  const checked = await validateCheckout(req, { items: rawItems, zipCode, shippingMethod, pixOnly, couponCode, useCredit: body?.useCredit === true, customerEmail, cpfCnpj });
+  const checked = await validateCheckout(req, { items: rawItems, zipCode, shippingMethod, pixOnly, couponCode, useCredit: body?.useCredit === true, expectedCredit: body?.expectedCredit, customerEmail, cpfCnpj });
   if ("error" in checked) return NextResponse.json({ error: checked.error }, { status: 400 });
   const { items, productMap, subtotal, shippingCost, discountAmount, customerId } = checked;
 
@@ -179,7 +180,7 @@ export async function POST(req: NextRequest) {
     selectedAttributes?: Record<string, string>;
   };
   const fullAddress = address && city ? `${address}, ${city}${state ? `/${state}` : ""}` : null;
-  await prisma.order.create({
+  const createdOrder = await prisma.order.create({
     data: {
       orderNumber,
       customerName,
@@ -217,6 +218,11 @@ export async function POST(req: NextRequest) {
       },
     },
   });
+
+
+  // Duas abas ao mesmo tempo: se outro pedido gravado antes já usou o cupom/cashback, desfaz este
+  const clash = await undoIfBenefitClash(createdOrder.id);
+  if (clash) return NextResponse.json({ error: clash }, { status: 409 });
 
   // Stock is taken only when the payment is confirmed (webhook -> commitOrderStock)
 

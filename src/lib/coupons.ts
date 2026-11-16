@@ -193,3 +193,29 @@ export async function couponOveruse(order: { id: string; couponCode: string | nu
   }
   return null;
 }
+
+/** Cupom já esgotado por pedidos gravados ANTES deste (duas abas ao mesmo tempo)? Mensagem para o cliente, ou null. */
+export async function couponClashBefore(order: { id: string; couponCode: string | null; customerId: string | null; customerEmail: string | null; cpfCnpj: string | null; createdAt: Date }): Promise<string | null> {
+  const code = normalizeCouponCode(order.couponCode);
+  if (!code) return null;
+  const coupon = await prisma.coupon.findUnique({ where: { code } });
+  if (!coupon) return null;
+  const before = {
+    id: { not: order.id },
+    OR: [{ createdAt: { lt: order.createdAt } }, { createdAt: order.createdAt, id: { lt: order.id } }],
+  };
+  if (coupon.usageLimit != null) {
+    const used = await prisma.order.count({ where: { AND: [usageWhere(code), before] } });
+    if (used >= coupon.usageLimit) return "Este cupom acabou de atingir o limite de usos. Remova o cupom para continuar.";
+  }
+  if (coupon.perCustomerLimit != null) {
+    const identity = identityWhere({ id: order.customerId, email: order.customerEmail, cpfCnpj: order.cpfCnpj });
+    if (identity.length) {
+      const mine = await prisma.order.count({ where: { AND: [usageWhere(code), before, { OR: identity }] } });
+      if (mine >= coupon.perCustomerLimit) {
+        return coupon.perCustomerLimit === 1 ? "Você já usou este cupom em outro pedido. Remova o cupom para continuar." : "Você já atingiu o limite de usos deste cupom. Remova o cupom para continuar.";
+      }
+    }
+  }
+  return null;
+}

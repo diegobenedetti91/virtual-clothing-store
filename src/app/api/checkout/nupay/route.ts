@@ -1,3 +1,4 @@
+import { undoIfBenefitClash } from "@/lib/orderIntegrity";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getTrafficOrderContext } from "@/lib/trafficSourceServer";
@@ -30,7 +31,7 @@ export async function POST(req: NextRequest) {
   }
 
   // NuPay has no Pix: the Pix discount never applies here
-  const checked = await validateCheckout(req, { items: rawItems, zipCode, shippingMethod, pixOnly: false, couponCode, useCredit: body?.useCredit === true, customerEmail, cpfCnpj });
+  const checked = await validateCheckout(req, { items: rawItems, zipCode, shippingMethod, pixOnly: false, couponCode, useCredit: body?.useCredit === true, expectedCredit: body?.expectedCredit, customerEmail, cpfCnpj });
   if ("error" in checked) return NextResponse.json({ error: checked.error }, { status: 400 });
   const { items, productMap, subtotal, shippingCost, discountAmount, customerId } = checked;
   const total = Math.round((subtotal + shippingCost - discountAmount) * 100) / 100;
@@ -93,6 +94,10 @@ export async function POST(req: NextRequest) {
         state: state || undefined,
       }
     : undefined;
+
+  // Duas abas ao mesmo tempo: se outro pedido gravado antes já usou o cupom/cashback, desfaz este
+  const clash = await undoIfBenefitClash(order.id);
+  if (clash) return NextResponse.json({ error: clash }, { status: 409 });
 
   const created = await createNuPayPayment(config, {
     merchantOrderReference: orderNumber,

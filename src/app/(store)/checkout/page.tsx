@@ -331,6 +331,14 @@ export default function CheckoutPage() {
       })
     : null;
   const couponLoading = !!couponCode && !!quoteBody && quoteKey !== quoteBody;
+  // Recalcula o resumo quando o cliente volta para esta aba (o cashback/cupom pode ter sido usado em outra)
+  const [quoteTick, setQuoteTick] = useState(0);
+  useEffect(() => {
+    const onVisible = () => { if (document.visibilityState === "visible") setQuoteTick((t) => t + 1); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, []);
+  const lastQuote = useRef<{ body: string; quote: QuoteResult } | null>(null);
 
   useEffect(() => {
     if (!quoteBody) return;
@@ -341,13 +349,25 @@ export default function CheckoutPage() {
         .then((r) => r.json())
         .then((data) => {
           if (cancelled) return;
-          setQuote(data && typeof data.total === "number" ? data : null);
+          const next: QuoteResult | null = data && typeof data.total === "number" ? data : null;
+          // Mesmas escolhas do cliente (mesmo pedido de cotação), mas o cashback ou o cupom deixaram de
+          // valer: foi o servidor que mudou (ex.: usados em outra aba) — avisa
+          const prev = lastQuote.current?.body === quoteBody ? lastQuote.current.quote : null;
+          if (prev && next) {
+            if ((prev.creditDiscount ?? 0) > (next.creditDiscount ?? 0) + 0.01) {
+              notify.warning("Seu saldo de cashback mudou", { description: "Ele foi usado em outro pedido. O total foi atualizado.", duration: 9000 });
+            } else if (prev.coupon && !next.coupon && next.couponError) {
+              notify.warning("O cupom não vale mais", { description: next.couponError, duration: 9000 });
+            }
+          }
+          lastQuote.current = next ? { body: quoteBody, quote: next } : null;
+          setQuote(next);
           setQuoteKey(quoteBody);
         })
         .catch(() => !cancelled && setQuoteKey(quoteBody));
-    }, 350);
+    }, quoteTick > 0 ? 0 : 350);
     return () => { cancelled = true; clearTimeout(t); };
-  }, [quoteBody]);
+  }, [quoteBody, quoteTick]);
 
   const applyCoupon = (code: string) => {
     const c = code.trim().toUpperCase();
@@ -565,6 +585,8 @@ export default function CheckoutPage() {
         shippingMethod: selectedShipping?.codigo || null,
         couponCode: couponActive ? couponCode : null,
         useCredit: creditActive,
+        // Cashback que o cliente está vendo: se foi usado em outra aba, o servidor barra e avisa
+        expectedCredit: creditDiscount,
         items: items.map((item) => ({
           productId: item.productId,
           quantity: item.quantity,
@@ -611,6 +633,8 @@ const handleNuPaySubmit = async () => {
         shippingMethod: selectedShipping?.codigo || null,
         couponCode: couponActive ? couponCode : null,
         useCredit: creditActive,
+        // Cashback que o cliente está vendo: se foi usado em outra aba, o servidor barra e avisa
+        expectedCredit: creditDiscount,
         items: items.map((item) => ({
           productId: item.productId,
           quantity: item.quantity,
@@ -686,6 +710,8 @@ const handleNuPaySubmit = async () => {
         shippingMethod: selectedShipping?.codigo || null,
         couponCode: couponActive ? couponCode : null,
         useCredit: creditActive,
+        // Cashback que o cliente está vendo: se foi usado em outra aba, o servidor barra e avisa
+        expectedCredit: creditDiscount,
         discountAmount: discountAmount,
         pixOnly: forcePixOnly,
         items: items.map((item) => ({
@@ -723,6 +749,7 @@ const handleNuPaySubmit = async () => {
     shippingMethod: selectedShipping?.codigo || null,
     couponCode: couponActive ? couponCode : null,
     useCredit: creditActive,
+    expectedCredit: creditDiscount,
     pixOnly: applyPixDiscount,
     items: items.map((item) => ({
       productId: item.productId,
@@ -790,6 +817,8 @@ const handleNuPaySubmit = async () => {
         shippingMethod: selectedShipping?.codigo || null,
         couponCode: couponActive ? couponCode : null,
         useCredit: creditActive,
+        // Cashback que o cliente está vendo: se foi usado em outra aba, o servidor barra e avisa
+        expectedCredit: creditDiscount,
         discountAmount: discountAmount,
         pixOnly: applyPixDiscount,
         items: items.map((item) => ({
@@ -874,6 +903,8 @@ const handleNuPaySubmit = async () => {
       notify.error("Não foi possível finalizar o pedido", { description: "Nada foi cobrado. Tente novamente em instantes." });
     } finally {
       setLoading(false);
+      // Se o pedido foi barrado (cashback/cupom usados em outra aba), o resumo já mostra o valor certo
+      setQuoteTick((t) => t + 1);
     }
   };
 

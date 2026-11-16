@@ -1,3 +1,4 @@
+import { undoIfBenefitClash } from "@/lib/orderIntegrity";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getTrafficOrderContext } from "@/lib/trafficSourceServer";
@@ -14,7 +15,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Dados incompletos" }, { status: 400 });
   }
 
-  const checked = await validateCheckout(req, { items: rawItems, zipCode, shippingMethod, pixOnly, couponCode, useCredit: body?.useCredit === true, customerEmail, cpfCnpj });
+  const checked = await validateCheckout(req, { items: rawItems, zipCode, shippingMethod, pixOnly, couponCode, useCredit: body?.useCredit === true, expectedCredit: body?.expectedCredit, customerEmail, cpfCnpj });
   if ("error" in checked) return NextResponse.json({ error: checked.error }, { status: 400 });
   const { items, productMap, subtotal, shippingCost, discountAmount, customerId } = checked;
 
@@ -134,7 +135,7 @@ export async function POST(req: NextRequest) {
 
     const fullAddress = address && city ? `${address}, ${city}${state ? `/${state}` : ""}` : null;
 
-    await prisma.order.create({
+    const createdOrder = await prisma.order.create({
       data: {
         orderNumber,
         customerName,
@@ -169,6 +170,10 @@ export async function POST(req: NextRequest) {
         },
       },
     });
+
+    // Duas abas ao mesmo tempo: se outro pedido gravado antes já usou o cupom/cashback, desfaz este
+    const clash = await undoIfBenefitClash(createdOrder.id);
+    if (clash) return NextResponse.json({ error: clash }, { status: 409 });
 
     return NextResponse.json({
       paymentUrl,

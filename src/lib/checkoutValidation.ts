@@ -50,6 +50,7 @@ export interface ValidatedCheckout {
 const MAX_ITEMS = 50;
 const MAX_QUANTITY = 99;
 const round2 = (n: number) => Math.round(n * 100) / 100;
+const brlText = (n: number) => `R$ ${n.toFixed(2).replace(".", ",")}`;
 
 function parseItems(raw: unknown): CheckoutItem[] | null {
   if (!Array.isArray(raw) || raw.length === 0 || raw.length > MAX_ITEMS) return null;
@@ -90,6 +91,8 @@ export async function validateCheckout(
     cpfCnpj?: unknown;
     /** true: usar o crédito da conta (cashback) como desconto */
     useCredit?: unknown;
+    /** Cashback que a tela mostrou. Se o saldo caiu (usado em outra aba), o pedido é barrado. */
+    expectedCredit?: unknown;
     /** "order" (padrão): cupom inválido bloqueia o pedido. "quote": só informa o erro. */
     mode?: "order" | "quote";
   }
@@ -197,6 +200,18 @@ export async function validateCheckout(
     }
   }
   const cashbackEarn = customerId ? cashbackFor(round2(productsAfterDiscounts - creditDiscount), cb) : 0;
+
+  // O cliente viu um desconto de cashback maior do que o disponível agora: o saldo foi usado em
+  // outro pedido (outra aba). Barra em vez de cobrar um total maior do que o mostrado.
+  const expectedCredit = Number(input.expectedCredit);
+  if (mode === "order" && input.useCredit === true && Number.isFinite(expectedCredit) && expectedCredit > creditDiscount + 0.01) {
+    return {
+      error:
+        creditDiscount > 0
+          ? `Seu saldo de cashback mudou: agora dá para usar ${brlText(creditDiscount)} (parte dele foi usada em outro pedido). Confira o novo total e finalize de novo.`
+          : "Seu saldo de cashback já foi usado em outro pedido. Confira o novo total e finalize de novo.",
+    };
+  }
 
   return {
     items,

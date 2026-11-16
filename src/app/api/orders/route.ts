@@ -1,3 +1,4 @@
+import { undoIfBenefitClash } from "@/lib/orderIntegrity";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getTrafficOrderContext } from "@/lib/trafficSourceServer";
@@ -55,7 +56,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Prices, shipping and owner come from the server, never from the request body
-  const checked = await validateCheckout(req, { items: rawItems, zipCode, shippingMethod, pixOnly: false, couponCode, useCredit: body?.useCredit === true, customerEmail, cpfCnpj });
+  const checked = await validateCheckout(req, { items: rawItems, zipCode, shippingMethod, pixOnly: false, couponCode, useCredit: body?.useCredit === true, expectedCredit: body?.expectedCredit, customerEmail, cpfCnpj });
   if ("error" in checked) return NextResponse.json({ error: checked.error }, { status: 400 });
   const { items, productMap, subtotal, shippingCost: shipping, discountAmount, customerId } = checked;
 
@@ -110,6 +111,10 @@ export async function POST(req: NextRequest) {
       include: { items: { include: { product: true } } },
     });
   });
+
+  // Duas abas ao mesmo tempo: se outro pedido gravado antes já usou o cupom/cashback, desfaz este
+  const clash = await undoIfBenefitClash(order.id);
+  if (clash) return NextResponse.json({ error: clash }, { status: 409 });
 
   const settings = await prisma.companySettings.findFirst({ orderBy: { updatedAt: "desc" } });
 

@@ -288,7 +288,10 @@ async function withProductsPaid<T extends LedgerOrder & { subtotal: number; ship
 }
 
 /** Saldo e extrato de um cliente. */
-export async function getCustomerCredit(customerId: string, opts: { excludeOrderId?: string; settings?: CashbackSettings } = {}): Promise<CreditSummary> {
+export async function getCustomerCredit(
+  customerId: string,
+  opts: { excludeOrderId?: string; settings?: CashbackSettings; /** Só pedidos criados antes deste (desempate pelo id) */ before?: { createdAt: Date; id: string } } = {}
+): Promise<CreditSummary> {
   const settings = opts.settings ?? (await getCashbackSettings());
   const [orders, adjustments] = await Promise.all([
     prisma.order.findMany({
@@ -299,7 +302,9 @@ export async function getCustomerCredit(customerId: string, opts: { excludeOrder
     }),
     prisma.creditAdjustment.findMany({ where: { customerId }, orderBy: { createdAt: "asc" }, take: 500 }),
   ]);
-  return computeCredit(await withProductsPaid(orders), adjustments, settings, Date.now(), opts.excludeOrderId);
+  const b = opts.before;
+  const scoped = b ? orders.filter((o) => o.createdAt < b.createdAt || (o.createdAt.getTime() === b.createdAt.getTime() && o.id < b.id)) : orders;
+  return computeCredit(await withProductsPaid(scoped), adjustments, settings, Date.now(), opts.excludeOrderId);
 }
 
 // ───────────────────────── Uso no checkout ─────────────────────────

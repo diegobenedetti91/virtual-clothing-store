@@ -7,7 +7,7 @@
  */
 import { prisma } from "@/lib/prisma";
 import { getCustomerCredit } from "@/lib/cashback";
-import { couponOveruse } from "@/lib/coupons";
+import { couponOveruse, couponClashBefore } from "@/lib/coupons";
 
 export async function checkOrderBenefits(orderId: string): Promise<void> {
   const order = await prisma.order.findUnique({
@@ -39,4 +39,34 @@ export async function checkOrderBenefits(orderId: string): Promise<void> {
       data: { opsAlert: (order.opsAlert ? `${order.opsAlert}\n${msg}` : msg).slice(0, 2000), opsAlertAt: new Date() },
     })
     .catch(() => {});
+}
+
+/**
+ * Logo depois de gravar o pedido: outro pedido do mesmo cliente, gravado ANTES deste (duas abas no
+ * mesmo instante), já usou o cupom de uso limitado ou o saldo de cashback? Então este pedido é
+ * desfeito e o cliente recebe o motivo. "Quem gravou primeiro vence" — sempre só um passa.
+ * Retorna a mensagem para o cliente, ou null se está tudo certo.
+ */
+export async function undoIfBenefitClash(orderId: string): Promise<string | null> {
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    select: { id: true, customerId: true, customerEmail: true, cpfCnpj: true, couponCode: true, creditUsed: true, createdAt: true },
+  });
+  if (!order) return null;
+  let reason: string | null = null;
+
+  if (order.couponCode) reason = await couponClashBefore(order);
+
+  if (!reason && (order.creditUsed || 0) > 0 && order.customerId) {
+    const credit = await getCustomerCredit(order.customerId, { excludeOrderId: order.id, before: { createdAt: order.createdAt, id: order.id } });
+    if ((order.creditUsed || 0) > credit.available + 0.01) {
+      reason = "Seu saldo de cashback acabou de ser usado em outro pedido. Confira o novo total e finalize de novo.";
+    }
+  }
+  if (!reason) return null;
+
+  await prisma
+    .$transaction([prisma.orderItem.deleteMany({ where: { orderId: order.id } }), prisma.order.delete({ where: { id: order.id } })])
+    .catch((e) => console.error("[checkout] falha ao desfazer pedido duplicado:", e));
+  return reason;
 }

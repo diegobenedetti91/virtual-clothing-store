@@ -1,3 +1,4 @@
+import { undoIfBenefitClash } from "@/lib/orderIntegrity";
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { prisma } from "@/lib/prisma";
@@ -48,7 +49,7 @@ export async function POST(req: NextRequest) {
   }
 
   const checked = await validateCheckout(req, {
-    items: rawItems, zipCode, shippingMethod, pixOnly: pixOnly === true, couponCode, useCredit: body?.useCredit === true,
+    items: rawItems, zipCode, shippingMethod, pixOnly: pixOnly === true, couponCode, useCredit: body?.useCredit === true, expectedCredit: body?.expectedCredit,
     customerEmail: customerEmail || body.formData?.payer?.email, cpfCnpj: cpfCnpj || body.formData?.payer?.identification?.number,
   });
   if ("error" in checked) return NextResponse.json({ status: "error", message: checked.error }, { status: 400 });
@@ -125,6 +126,10 @@ export async function POST(req: NextRequest) {
       },
     },
   });
+
+  // Duas abas ao mesmo tempo: se outro pedido gravado antes já usou o cupom/cashback, desfaz este
+  const clash = await undoIfBenefitClash(order.id);
+  if (clash) return NextResponse.json({ status: "error", message: clash }, { status: 409 });
 
   // A refused/failed attempt leaves nothing behind: no money moved, no stock taken.
   const discardOrder = () =>
