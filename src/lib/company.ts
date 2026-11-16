@@ -40,13 +40,20 @@ type SecretField = (typeof SECRET_SETTINGS_FIELDS)[number];
 type Settings = NonNullable<Awaited<ReturnType<typeof getCompanySettings>>>;
 export type PublicCompanySettings = Omit<Settings, SecretField> & { infinityPayConfigured: boolean; nuPayConfigured: boolean; aiAssistantAvailable: boolean };
 
+/** Flags calculadas a partir das credenciais (a loja usa para mostrar as formas de pagamento). */
+export function settingsFlags(settings: Settings) {
+  return {
+    infinityPayConfigured: !!settings.infinityPayHandle,
+    nuPayConfigured: !!(settings.nuPayClientId && settings.nuPayClientSecret),
+    aiAssistantAvailable: !!(settings.aiAssistantEnabled && settings.aiApiKey),
+  };
+}
+
 export function toPublicSettings(settings: Settings | null): PublicCompanySettings | null {
   if (!settings) return null;
   const copy: Record<string, unknown> = { ...settings };
   for (const field of SECRET_SETTINGS_FIELDS) delete copy[field];
-  copy.infinityPayConfigured = !!settings.infinityPayApiKey;
-  copy.nuPayConfigured = !!(settings.nuPayClientId && settings.nuPayClientSecret);
-  copy.aiAssistantAvailable = !!(settings.aiAssistantEnabled && settings.aiApiKey);
+  Object.assign(copy, settingsFlags(settings));
   return copy as PublicCompanySettings;
 }
 

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-import { toPublicSettings } from "@/lib/company";
+import { toPublicSettings, settingsFlags } from "@/lib/company";
 import { AI_MODELS, DEFAULT_AI_MODEL } from "@/lib/aiModels";
 
 const ORDER = { orderBy: { updatedAt: "desc" } } as const;
@@ -16,7 +16,8 @@ export async function GET() {
   const settings = await prisma.companySettings.findFirst(ORDER);
   // Credentials only go to a logged-in admin; the storefront gets the public subset.
   const session = await auth();
-  return NextResponse.json(session ? settings ?? null : toPublicSettings(settings));
+  // Admin logado testando a loja no mesmo navegador também precisa das flags (senão o checkout esconde InfinityPay/NuPay)
+  return NextResponse.json(session ? (settings ? { ...settings, ...settingsFlags(settings) } : null) : toPublicSettings(settings));
 }
 
 export async function PUT(req: NextRequest) {

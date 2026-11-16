@@ -20,9 +20,8 @@ export async function POST(req: NextRequest) {
 
   const settings = await prisma.companySettings.findFirst({ orderBy: { updatedAt: "desc" } });
   const handle = settings?.infinityPayHandle;
-  const apiKey = settings?.infinityPayApiKey;
-
-  if (!handle || !apiKey) {
+  // A criação do link na InfinityPay só usa o handle (a API Key não é enviada)
+  if (!handle) {
     return NextResponse.json({ error: "Infinity Pay não configurado" }, { status: 400 });
   }
 

@@ -203,7 +203,7 @@ export default function SettingsForm({ initialSettings }: Props) {
     whatsapp: statusOf(form.whatsappAtivo, !!form.whatsapp.replace(/\D/g, "")),
     mp: statusOf(form.mercadoPagoAtivo, !!form.mpPublicKey && !!form.mpAccessToken),
     nupay: statusOf(form.nuPayAtivo, !!form.nuPayClientId && !!form.nuPayClientSecret, form.nuPaySandbox),
-    infinity: statusOf(form.infinityPayAtivo, !!form.infinityPayHandle && !!form.infinityPayApiKey),
+    infinity: statusOf(form.infinityPayAtivo, !!form.infinityPayHandle),
     bling: statusOf(form.blingAtivo, !!form.blingClientId && !!form.blingClientSecret),
     me: statusOf(
       form.freteAtivo && (form.freteTipo === "melhorenvio" || form.freteTipo === "hibrido"),
@@ -527,7 +527,7 @@ export default function SettingsForm({ initialSettings }: Props) {
                   <Field label="Handle (InfiniteTag)" hint="Seu usuário no app, sem o $.">
                     <input value={form.infinityPayHandle} onChange={(e) => set("infinityPayHandle", e.target.value)} className={inputClass} placeholder="sualoja" />
                   </Field>
-                  <Field label="API Key" hint="Chave secreta usada no servidor.">
+                  <Field label="API Key (opcional)" hint="Não é necessária: o checkout da InfinityPay usa só o handle.">
                     <SecretInput value={form.infinityPayApiKey} onChange={(v) => set("infinityPayApiKey", v)} placeholder="Sua API Key" />
                   </Field>
                 </div>
