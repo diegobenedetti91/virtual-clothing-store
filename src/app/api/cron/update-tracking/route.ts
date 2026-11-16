@@ -1,3 +1,4 @@
+import { expirePendingOrders } from "@/lib/expirePendingOrders";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getMelhorEnvioTracking } from "@/lib/melhorEnvio";
@@ -8,7 +9,7 @@ import { processFlashSaleNotifications } from "@/lib/promoInterest";
 
 export async function GET(req: NextRequest) {
   const secret = req.headers.get("x-cron-secret");
-  if (secret !== process.env.CRON_SECRET) {
+  if (!process.env.CRON_SECRET || secret !== process.env.CRON_SECRET) {
     console.warn("Unauthorized cron request");
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -23,6 +24,8 @@ export async function GET(req: NextRequest) {
   await processCashbackNotifications().catch((e) => console.error("[cron/update-tracking] cashback:", e));
   // E os avisos automáticos de promoção relâmpago que começaram
   await processFlashSaleNotifications().catch((e) => console.error("[cron/update-tracking] promo:", e));
+  // E expira pedidos de gateway não pagos há mais de 24h (confere no gateway antes)
+  await expirePendingOrders().catch((e) => console.error("[cron/update-tracking] expirar pendentes:", e));
 
   try {
     const settings = await prisma.companySettings.findFirst({ orderBy: { updatedAt: "desc" } });
